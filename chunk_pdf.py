@@ -1,21 +1,12 @@
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-loader = PyPDFLoader("documents/CONDITIONS DE BANQUE.pdf")
-pages = loader.load()
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200
-)
+def chunk_pdf(documents):
+    
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    ) #Creates a text_splitter object using the RecursiveCharacterTextSplitter class. chunk size divides by CHARECTERS and 
+    # chunk overlap represents how much charecters will be repeated from the previous chunk onto the next one.
 
-chunks = text_splitter.split_documents(pages)
-
-print(f"Number of pages: {len(pages)}")
-print(f"Number of chunks: {len(chunks)}")
-
-print("\nFirst chunk:")
-print(chunks[0].page_content)
-
-print("\nFirst chunk metadata:")
-print(chunks[0].metadata)
+    return text_splitter.split_documents(documents)
