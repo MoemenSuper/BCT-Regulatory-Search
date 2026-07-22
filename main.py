@@ -2,6 +2,7 @@ from load_pdf import load_pdf
 from chunk_pdf import chunk_pdf
 from embedding import create_embedding_model
 from vector_store import ( create_vector_store, retrieve_relevant_chunks )
+from llm import create_llm
 
 pages = load_pdf("documents/Circulaires et notes 2026/Cir_2026_01_fr.pdf")
 chunks = chunk_pdf(pages)
@@ -14,7 +15,11 @@ vector_store = create_vector_store(chunks,embedding_model)
 
 result = retrieve_relevant_chunks(query,vector_store)
 
-if (result is None):
+if not result:
     print ("No relevant document found.")
 else:
-    print (result.page_content)
+    print (result[0].page_content)
+
+llm = create_llm()
+response = llm.invoke("What is the banque centrale tunis")
+print (response.content)
