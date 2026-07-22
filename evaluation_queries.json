@@ -1,0 +1,154 @@
+[
+  {
+    "id": "tre_2026_01",
+    "query": "Quel est le taux de rémunération de l’épargne en 2026 ?",
+    "relevant": true,
+    "expected_source": "Cir_2026_01_fr.pdf",
+    "expected_page": 2,
+    "expected_answer": "Le taux de rémunération de l’épargne est fixé à 6% par an."
+  },
+  {
+    "id": "irrelevant_apples",
+    "query": "Quel est le prix des pommes sur Mars ?",
+    "relevant": false,
+    "expected_source": null,
+    "expected_page": null,
+    "expected_answer": null
+  },
+  {
+    "id": "tre_2025_07",
+    "query": "Quel est le taux annuel de rémunération de l'épargne fixé en avril 2025 ?",
+    "relevant": true,
+    "expected_source": "Cir_2025_07_fr.pdf",
+    "expected_page": 2,
+    "expected_answer": "Le taux de rémunération de l'épargne est fixé à 6,5% par an à compter du 1er avril 2025."
+  },
+  {
+    "id": "tre_2026_paraphrase",
+    "query": "À quel pourcentage annuel est fixé le TRE par la circulaire 2026-01 ?",
+    "relevant": true,
+    "expected_source": "Cir_2026_01_fr.pdf",
+    "expected_page": 2,
+    "expected_answer": "Le TRE est fixé à 6% par an."
+  },
+  {
+    "id": "exchange_market_hours",
+    "query": "Quels sont les horaires habituels du marché interbancaire des changes ?",
+    "relevant": true,
+    "expected_source": "Cir_2016_01_fr.pdf",
+    "expected_page": 2,
+    "expected_answer": "L'horaire conventionnel est de 8h00 à 17h00, ou de 7h00 à 13h00 pendant la séance unique."
+  },
+  {
+    "id": "exchange_market_subject",
+    "query": "Quel est l'objet de la circulaire 2016-01 ?",
+    "relevant": true,
+    "expected_source": "Cir_2016_01_fr.pdf",
+    "expected_page": 1,
+    "expected_answer": "Elle concerne le marché des changes et les instruments de couverture des risques de change et de taux d'intérêt."
+  },
+  {
+    "id": "exchange_operations_currency",
+    "query": "Sur quelles monnaies les opérations de change doivent-elles porter ?",
+    "relevant": true,
+    "expected_source": "Cir_2016_01_fr.pdf",
+    "expected_page": 2,
+    "expected_answer": "Elles doivent porter sur une monnaie cotée par la Banque Centrale de Tunisie."
+  },
+  {
+    "id": "aml_exchange_offices_subject",
+    "query": "Que prévoit la circulaire 2026-2 pour les bureaux de change ?",
+    "relevant": true,
+    "expected_source": "Cir_2026_02_fr.pdf",
+    "expected_page": 1,
+    "expected_answer": "Elle fixe les obligations des bureaux de change en matière de lutte contre le blanchiment d'argent, le financement du terrorisme et la prolifération des armes de destruction massive."
+  },
+  {
+    "id": "exchange_office_definition",
+    "query": "Comment la circulaire 2026-2 définit-elle un bureau de change ?",
+    "relevant": true,
+    "expected_source": "Cir_2026_02_fr.pdf",
+    "expected_page": 3,
+    "expected_answer": "Un bureau de change est une personne physique autorisée par la Banque Centrale de Tunisie à exercer l'activité de change manuel."
+  },
+  {
+    "id": "risk_division_2025",
+    "query": "Quel est le sujet de la circulaire aux banques et établissements financiers n°2025-01 ?",
+    "relevant": true,
+    "expected_source": "Cir_2025_01_fr.pdf",
+    "expected_page": 1,
+    "expected_answer": "Elle concerne la division, la couverture des risques et le suivi des engagements."
+  },
+  {
+    "id": "risk_division_2024",
+    "query": "Quelle circulaire concerne la division, la couverture des risques et le suivi des engagements pour 2024 ?",
+    "relevant": true,
+    "expected_source": "Cir_2024_01_fr.pdf",
+    "expected_page": 1,
+    "expected_answer": "La circulaire n°2024-01 concerne la division, la couverture des risques et le suivi des engagements."
+  },
+  {
+    "id": "arabic_farming_debt_subject",
+    "query": "ما هو موضوع المنشور عدد 6 لسنة 2026؟",
+    "relevant": true,
+    "expected_source": "Cir_2026_06_ar.pdf",
+    "expected_page": 1,
+    "expected_answer": "يتعلق بشروط وإجراءات تسوية الديون الفلاحية المتعثرة."
+  },
+  {
+    "id": "arabic_farming_debt_rescheduling",
+    "query": "ما هي مدة إعادة جدولة أصل الدين الفلاحي حسب المنشور عدد 6 لسنة 2026؟",
+    "relevant": true,
+    "expected_source": "Cir_2026_06_ar.pdf",
+    "expected_page": 3,
+    "expected_answer": "يمكن إعادة جدولة كامل أصل الدين لمدة أقصاها 7 سنوات، مع دفع 5% من أصل الدين عند تقديم مطلب التسوية."
+  },
+  {
+    "id": "arabic_deduction_codes_subject",
+    "query": "ما هو موضوع المذكرة عدد 03 لسنة 2025؟",
+    "relevant": true,
+    "expected_source": "Note_2025_03_ar.pdf",
+    "expected_page": 1,
+    "expected_answer": "تتعلق بتحيين مصنفة رموز مصدري الاقتطاعات البنكية والبريدية."
+  },
+  {
+    "id": "arabic_campaign_account",
+    "query": "كم حسابا خاصا بالحملة الانتخابية يفتح لكل مترشح؟",
+    "relevant": true,
+    "expected_source": "Cir_2024_10_ar.pdf",
+    "expected_page": 2,
+    "expected_answer": "يتعين فتح حساب وحيد خاص بالحملة الانتخابية لفائدة كل مترشح."
+  },
+  {
+    "id": "irrelevant_car",
+    "query": "Comment réparer le moteur d'une voiture électrique ?",
+    "relevant": false,
+    "expected_source": null,
+    "expected_page": null,
+    "expected_answer": null
+  },
+  {
+    "id": "irrelevant_recipe",
+    "query": "Quelle est la recette traditionnelle du couscous tunisien ?",
+    "relevant": false,
+    "expected_source": null,
+    "expected_page": null,
+    "expected_answer": null
+  },
+  {
+    "id": "irrelevant_sports",
+    "query": "Qui a gagné la Coupe du monde de football en 2026 ?",
+    "relevant": false,
+    "expected_source": null,
+    "expected_page": null,
+    "expected_answer": null
+  },
+  {
+    "id": "irrelevant_random",
+    "query": "abcdef qwerty zzxv 918273",
+    "relevant": false,
+    "expected_source": null,
+    "expected_page": null,
+    "expected_answer": null
+  }
+]
