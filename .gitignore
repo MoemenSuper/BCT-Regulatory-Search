@@ -1,3 +1,4 @@
 documents/
 Cahier_des_charges_BCT_VERSION1
 __pycache__/
+.env
