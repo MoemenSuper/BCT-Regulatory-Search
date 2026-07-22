@@ -7,7 +7,7 @@ from llm import create_llm,generate_answer
 pages = load_pdf("documents/Circulaires et notes 2026/Cir_2026_01_fr.pdf")
 chunks = chunk_pdf(pages)
 
-query = "Quel est le prix d'or ?"
+query = "Hello"
  
 embedding_model = create_embedding_model()
 
@@ -19,7 +19,10 @@ if not result:
     print ("No relevant document found.")
 else:
     print (result[0].page_content)
+    
 
+
+print ("\n\n##############################################################\n\n")
 llm = create_llm()
 response = generate_answer(llm,query,result)
 print (response.content)
