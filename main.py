@@ -23,7 +23,7 @@ if (documents_dir.exists() and documents_dir.is_dir()):
      vector_store = create_vector_store(chunks,embedding_model)
 
 
-query = "ما هو موضوع المنشور عدد 6 لسنة 2026؟"
+query = "Quels sont les horaires habituels du marché interbancaire des changes ?"
 
 
 result = retrieve_relevant_chunks(query,vector_store)
