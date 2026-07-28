@@ -26,7 +26,8 @@ def generate_answer(llm,user_query,relevant_docs):
         "Use only the provided context. "
         "If the context does not contain the answer, say that the "
         "information was not found. Do not invent legal or regulatory facts."
-        "At the end of every answer, add: Source:<document filename>, page <page number>"
+        "At the end, cite the exact source filename and page number from the provided Metadata. "
+        "Never write 'document.pdf' or placeholder text."
         ),
 
         ("human",

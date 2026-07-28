@@ -1,7 +1,7 @@
 from sentence_transformers import CrossEncoder
 
 def create_reranker():
-    reranker_model = CrossEncoder("Alibaba-NLP/gte-multilingual-reranker-base", trust_remote_code = True)
+    reranker_model = CrossEncoder("BAAI/bge-reranker-v2-m3")
     return reranker_model
 
 def score_documents (reranker, user_query,candidate_docs):

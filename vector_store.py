@@ -1,4 +1,4 @@
-from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_chroma import Chroma
 
 def create_vector_store(documents,embedding_model):
     vector_store = InMemoryVectorStore(
