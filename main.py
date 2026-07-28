@@ -2,8 +2,9 @@ from load_pdf import load_pdf
 from chunk_pdf import chunk_pdf
 from embedding import create_embedding_model
 from vector_store import ( create_vector_store, retrieve_relevant_chunks )
-from llm import create_llm,generate_answer
+from llm import (create_llm, generate_answer)
 from pathlib import Path
+from reranker import (create_reranker, score_documents, rank_scored_documents)
 
 # For now we scan 399 pdfs which is 1554 pages which is 3290 chunks in total
 documents_dir = Path("documents")
@@ -30,12 +31,19 @@ result = retrieve_relevant_chunks(query,vector_store)
 
 if not result:
     print ("No relevant document found.")
+
 else:
     print (result[0].page_content)
-    
+    reranker = create_reranker()
+    scored_docs = score_documents (reranker,query,result)
+    reranked_results = rank_scored_documents(scored_docs)
+    documents_for_llm = [
+        document
+        for document, _ in reranked_results
+    ]
+    print ("\n\n##############################################################\n\n")
+    llm = create_llm()
+    response = generate_answer(llm,query,documents_for_llm)
+    print (response.content)
 
 
-print ("\n\n##############################################################\n\n")
-llm = create_llm()
-response = generate_answer(llm,query,result)
-print (response.content)
