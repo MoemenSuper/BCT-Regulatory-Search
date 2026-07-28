@@ -22,3 +22,6 @@ def ingest():
         embedding_model = create_embedding_model()
         vector_store = create_vector_store(chunks,embedding_model)
         return vector_store
+
+if __name__ == "__main__":
+    ingest()

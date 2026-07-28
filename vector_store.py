@@ -1,11 +1,12 @@
 from langchain_chroma import Chroma
 
-def create_vector_store(documents,embedding_model):
-    vector_store = InMemoryVectorStore(
-        embedding = embedding_model
+def create_vector_store(documents, embedding_model):
+    vector_store = Chroma.from_documents(
+        documents=documents,
+        embedding=embedding_model,
+        persist_directory="./chroma_db",
+        collection_name="bct_regulations"
     )
-
-    vector_store.add_documents(documents)
 
     return vector_store
 
@@ -17,3 +18,10 @@ def retrieve_relevant_chunks(user_query,vector_store):
         document
         for document, _ in results
     ]
+
+def load_vector_store(embedding_model):
+    return Chroma(
+        collection_name="bct_regulations",
+        embedding_function=embedding_model,
+        persist_directory="./chroma_db"
+    )
