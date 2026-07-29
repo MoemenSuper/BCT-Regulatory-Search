@@ -18,7 +18,6 @@ def score_documents (reranker, user_query,candidate_docs):
     # return scored-documents
     #  But After considerations, batching is much more optimized than making an API call for each candidate.
 
-
     scores = reranker.predict(query_document_pairs)
     scored_docs = zip(candidate_docs, scores)
 

@@ -2,7 +2,6 @@ from embedding import create_embedding_model
 from vector_store import (retrieve_relevant_chunks,load_vector_store) 
 from llm import (create_llm, generate_answer)
 from reranker import (create_reranker, score_documents, rank_scored_documents)
-from ingestion import ingest
 
 embedding_model = create_embedding_model()
 vector_store = load_vector_store(embedding_model)

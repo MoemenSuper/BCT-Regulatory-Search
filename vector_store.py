@@ -14,10 +14,7 @@ def create_vector_store(documents, embedding_model):
 # and includes each chunk's similarity score.
 def retrieve_relevant_chunks(user_query,vector_store):
     results = vector_store.similarity_search_with_score(user_query, k=20)
-    return [
-        document
-        for document, _ in results
-    ]
+    return [document for document, _ in results]
 
 def load_vector_store(embedding_model):
     return Chroma(
