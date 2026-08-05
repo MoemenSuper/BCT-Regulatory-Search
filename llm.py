@@ -45,4 +45,4 @@ def generate_answer(llm,user_query,relevant_docs):
         "context_string": context_string,
         "context_metadata_string": context_metadata_string
     }
-    )
+    ).content

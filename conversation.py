@@ -32,10 +32,24 @@ def chat(message, history, memory_summary, vector_store):
 
 def get_recent_context(history, n=4):
     recent = history[-n:]
-
     text = ""
-    for user_msg, bot_msg in recent:
-        text += f"User: {user_msg}\nAssistant: {bot_msg}\n"
+
+    for item in recent:
+        # format 1: tuple/list like ("user", "assistant")
+        if isinstance(item, (list, tuple)) and len(item) == 2:
+            user_msg, bot_msg = item
+            text += f"User: {user_msg}\nAssistant: {bot_msg}\n"
+
+        # format 2: dict like {"role": "...", "content": "..."}
+        elif isinstance(item, dict):
+            role = item.get("role", "")
+            content = item.get("content", "")
+            text += f"{role}: {content}\n"
+
+        # fallback
+        else:
+            text += f"{str(item)}\n"
+
     return text
 
 def update_memory_summary(memory_summary, message, response):
