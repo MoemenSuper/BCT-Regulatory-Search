@@ -1,6 +1,7 @@
 from llm import create_llm,generate_answer
 from vector_store import retrieve_relevant_chunks
 from reranker import create_reranker,score_documents,rank_scored_documents
+from langchain_core.prompts import ChatPromptTemplate
 
 def is_general_conversation(message):
     msg = message.lower().strip()
@@ -57,15 +58,13 @@ def is_general_conversation(message):
 
     return False
 
+
 def chat(message, history, memory_summary, vector_store):
     if is_general_conversation(message):
         return "Hi! I’m here to help with Banque Centrale documents.", memory_summary
-    # 1) rebuild context from history
-    recent_context = get_recent_context(history,4)
-    query_for_retrieval = message
-    if recent_context.strip():
-        query_for_retrieval = recent_context + "\nCurrent question: " + message
+    
     # 2) retrieve docs for the current message
+    query_for_retrieval = message   # retrieval uses ONLY the current message
     retrieved_docs = retrieve_relevant_chunks(query_for_retrieval, vector_store)
 
     # 3) rerank docs
@@ -79,35 +78,37 @@ def chat(message, history, memory_summary, vector_store):
 
     # 4) generate answer
     llm = create_llm()
-    response = generate_answer(llm, message, documents_for_llm)
+    print("\n===== MEMORY SUMMARY =====")
+    print(memory_summary)
+    print("==========================\n\n")
+    response = generate_answer(llm, message, documents_for_llm, memory_summary)
+    response_text = response.content if hasattr(response, "content") else str(response)
 
     # 5) update memory_summary
-    memory_summary = update_memory_summary(memory_summary, message, response)
+    memory_summary = update_memory_summary(llm, memory_summary, message, response_text)
     # 6) return answer + memory_summary
     return response, memory_summary
 
 
-def get_recent_context(history, n=4):
-    recent = history[-n:]
-    text = ""
 
-    for item in recent:
-        # format 1: tuple/list like ("user", "assistant")
-        if isinstance(item, (list, tuple)) and len(item) == 2:
-            user_msg, bot_msg = item
-            text += f"User: {user_msg}\nAssistant: {bot_msg}\n"
+def update_memory_summary(llm, memory_summary, message, response_text):
+    prompt = ChatPromptTemplate.from_messages([
+        ("system",
+         "You update a short memory summary for a Banque Centrale regulatory search assistant. "
+         "Keep it under 80 words. Store only: the user's goal, the current topic, "
+         "important circular numbers, entities, and open follow-up questions. "
+         "Do not copy the full dialogue."),
+        ("human",
+         "Existing summary:\n{memory_summary}\n\n"
+         "New user message:\n{message}\n\n"
+         "Assistant answer:\n{response_text}\n\n"
+         "Return only the updated summary.")
+    ])
 
-        # format 2: dict like {"role": "...", "content": "..."}
-        elif isinstance(item, dict):
-            role = item.get("role", "")
-            content = item.get("content", "")
-            text += f"{role}: {content}\n"
-
-        # fallback
-        else:
-            text += f"{str(item)}\n"
-
-    return text
-
-def update_memory_summary(memory_summary, message, response):
-    return f"Last user topic: {message}\nLast answer: {response[:200]}"
+    chain = prompt | llm
+    result = chain.invoke({
+        "memory_summary": memory_summary,
+        "message": message,
+        "response_text": response_text,
+    })
+    return result.content.strip()
