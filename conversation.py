@@ -2,6 +2,61 @@ from llm import create_llm,generate_answer
 from vector_store import retrieve_relevant_chunks
 from reranker import create_reranker,score_documents,rank_scored_documents
 
+def is_non_rag_message(message):
+    msg = message.lower().strip()
+
+    exact_messages = {
+        # English
+        "hi", "hello", "hey", "good morning", "good afternoon",
+        "good evening",
+
+        # French
+        "salut", "bonjour", "bonsoir", "coucou",
+
+        # Arabic
+        "سلام",
+        "مرحبا",
+        "أهلا",
+        "اهلا",
+        "صباح الخير",
+        "مساء الخير",
+        "عسلامة",
+        "عسلامه",
+    }
+
+    if msg in exact_messages:
+        return True
+
+    identity_questions = [
+        # English
+        "who are you",
+        "what are you",
+        "what can you do",
+        "introduce yourself",
+
+        # French
+        "qui es-tu",
+        "qui êtes-vous",
+        "que peux-tu faire",
+        "que pouvez-vous faire",
+        "présente-toi",
+
+        # Arabic
+        "من أنت",
+        "من انت",
+        "ما اسمك",
+        "ماذا تستطيع أن تفعل",
+        "شنو تنجم تعمل",
+        "شنو تعمل",
+        "اش تعمل",
+    ]
+
+    for phrase in identity_questions:
+        if phrase in msg:
+            return True
+
+    return False
+
 def chat(message, history, memory_summary, vector_store):
     # 1) rebuild context from history
     recent_context = get_recent_context(history,4)
