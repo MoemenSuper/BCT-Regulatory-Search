@@ -2,7 +2,7 @@ from llm import create_llm,generate_answer
 from vector_store import retrieve_relevant_chunks
 from reranker import create_reranker,score_documents,rank_scored_documents
 
-def is_non_rag_message(message):
+def is_general_conversation(message):
     msg = message.lower().strip()
 
     exact_messages = {
@@ -58,6 +58,8 @@ def is_non_rag_message(message):
     return False
 
 def chat(message, history, memory_summary, vector_store):
+    if is_general_conversation(message):
+        return "Hi! I’m here to help with Banque Centrale documents.", memory_summary
     # 1) rebuild context from history
     recent_context = get_recent_context(history,4)
     query_for_retrieval = message
