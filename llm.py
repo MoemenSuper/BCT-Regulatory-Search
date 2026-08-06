@@ -41,7 +41,8 @@ def generate_answer(llm,user_query,relevant_docs,memory_summary=""):
 
         ("human",
 
-        "Conversation summary: {memory_summary}\n\n" "Question: {user_query} \n\n\nContext: {context_string} \t\t Metadata: {context_metadata_string}"
+        f"Conversation memory:\n{memory_summary}\n\n"
+        "Question: {user_query} \n\n\nContext: {context_string} \t\t Metadata: {context_metadata_string}"
         ),
 
         
