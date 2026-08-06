@@ -1,4 +1,5 @@
 from langchain_huggingface import HuggingFaceEmbeddings
+from functools import lru_cache
 
 class E5Embeddings(HuggingFaceEmbeddings):
 
@@ -11,7 +12,7 @@ class E5Embeddings(HuggingFaceEmbeddings):
         prefixed_text = f"query: {text}"
         return super().embed_query(prefixed_text)
 
-
+@lru_cache(maxsize=1)
 def create_embedding_model():
     return E5Embeddings(
         model_name="intfloat/multilingual-e5-small"

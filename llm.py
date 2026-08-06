@@ -1,8 +1,10 @@
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv()
+@lru_cache(maxsize=1)
 def create_llm():
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",

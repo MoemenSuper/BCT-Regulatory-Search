@@ -1,5 +1,7 @@
 from sentence_transformers import CrossEncoder
+from functools import lru_cache
 
+@lru_cache(maxsize=1)
 def create_reranker():
     reranker_model = CrossEncoder("BAAI/bge-reranker-v2-m3")
     return reranker_model
