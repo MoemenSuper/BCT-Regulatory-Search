@@ -1,33 +1,46 @@
 import json
 from llm import create_llm, generate_answer
 from vector_store import retrieve_relevant_chunks
-from reranker import create_reranker, score_documents, rank_scored_documents
+from reranker import score_documents, rank_scored_documents
 from langchain_core.prompts import ChatPromptTemplate
+from pathlib import Path
 
+
+
+def build_sources(scored_documents):
+    sources = []
+    seen = set()
+
+    for document, score in scored_documents:
+        metadata = document.metadata
+        filename = Path(metadata.get("source", "")).name
+        page = normalize_page(metadata)
+
+        if (filename, page) in seen:
+            continue
+        seen.add((filename,page))
+
+        sources.append({
+            "file": filename,
+            "page": page,
+            "score": round(float(score), 4),
+        })
+
+    return sources
+
+def normalize_page(metadata):
+    label = metadata.get("page_label")
+    if label is not None:
+        try:
+            return int(label)
+        except (TypeError,ValueError):
+            return label
+
+    page = metadata.get("page")
+    return page + 1 if isinstance(page, int) else page
 
 def is_general_conversation(message):
-    msg = message.lower().strip()
-
-    exact_messages = {
-        "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
-        "salut", "bonjour", "bonsoir", "coucou",
-        "سلام", "مرحبا", "أهلا", "اهلا", "صباح الخير", "مساء الخير", "عسلامة", "عسلامه",
-    }
-
-    if msg in exact_messages:
-        return True
-
-    identity_questions = [
-        "who are you", "what are you", "what can you do", "introduce yourself",
-        "qui es-tu", "qui êtes-vous", "que peux-tu faire", "que pouvez-vous faire", "présente-toi",
-        "من أنت", "من انت", "ما اسمك", "ماذا تستطيع أن تفعل", "شنو تنجم تعمل", "شنو تعمل", "اش تعمل",
-    ]
-
-    for phrase in identity_questions:
-        if phrase in msg:
-            return True
-
-    return False
+    return {} #post poned
 
 
 def render_memory_state(memory_state):
@@ -114,28 +127,34 @@ def update_memory_state(memory_state, route):
     }
 
 
-def chat(message, history, memory_state, vector_store):
+def chat(message, memory_state, vector_store, reranker):
     llm = create_llm()
-
-    if is_general_conversation(message):
-        return "Hi! I’m here to help with Banque Centrale documents.", memory_state
 
     route = route_message(llm, message, memory_state)
 
     if route["intent"] == "GENERAL_CHAT":
-        return "Hi! I’m here to help with Banque Centrale documents.", memory_state
+        return {
+            "answer": "Hi! I'm here to help with Banque Centrale documents.",
+            "sources": [],
+            "memory_state": memory_state,
+        }
 
     query_for_retrieval = route["rewrite_query"] or message
 
     retrieved_docs = retrieve_relevant_chunks(query_for_retrieval, vector_store)
 
-    reranker = create_reranker()
+    
     scored_docs = score_documents(reranker, query_for_retrieval, retrieved_docs)
     reranked_results = rank_scored_documents(scored_docs)
-    documents_for_llm = [document for document, _ in reranked_results[:5]]
+
+    top_results = reranked_results[:5]
+    documents_for_llm = [document for document, _ in top_results]
 
     memory_text = render_memory_state(memory_state)
-    response = generate_answer(llm, message, documents_for_llm, memory_text)
+    answer = generate_answer(llm, message, documents_for_llm, memory_text)
 
-    memory_state = update_memory_state(memory_state, route)
-    return response, memory_state
+    return {
+        "answer": answer,
+        "sources": build_sources(top_results),
+        "memory_state": update_memory_state(memory_state, route),
+    }
