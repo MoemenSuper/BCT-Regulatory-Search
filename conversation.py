@@ -132,7 +132,7 @@ def chat(message, history, memory_state, vector_store):
     reranker = create_reranker()
     scored_docs = score_documents(reranker, query_for_retrieval, retrieved_docs)
     reranked_results = rank_scored_documents(scored_docs)
-    documents_for_llm = [document for document, _ in reranked_results]
+    documents_for_llm = [document for document, _ in reranked_results[:5]]
 
     memory_text = render_memory_state(memory_state)
     response = generate_answer(llm, message, documents_for_llm, memory_text)
