@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, Request
 from embedding import create_embedding_model
 from vector_store import load_vector_store
 from reranker import create_reranker
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from conversation import chat
 import logging
 
@@ -11,6 +11,16 @@ import logging
 logger = logging.getLogger(__name__)
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        cleaned_question = value.strip()
+
+        if not cleaned_question:
+            raise ValueError("Question must not be blank.")
+
+        return cleaned_question
 
 class Source(BaseModel):
     file: str
