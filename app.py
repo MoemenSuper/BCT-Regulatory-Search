@@ -5,7 +5,10 @@ from vector_store import load_vector_store
 from reranker import create_reranker
 from pydantic import BaseModel, Field
 from conversation import chat
+import logging
 
+
+logger = logging.getLogger(__name__)
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
 
@@ -44,7 +47,8 @@ def post_chat(payload: ChatRequest, request: Request):
             request.app.state.vector_store,
             request.app.state.reranker,
         )
-    except Exception as error:
-        raise HTTPException(status_code=500, detail=f"chat failed: "{error})
+    except Exception:
+        logger.exception("Chat request failed.")
+        raise HTTPException(status_code=500, detail="Chat service failed.")
 
     return {"answer": result["answer"], "sources": result["sources"]}
