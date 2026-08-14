@@ -1,8 +1,22 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from embedding import create_embedding_model
 from vector_store import load_vector_store
 from reranker import create_reranker
+from pydantic import BaseModel, Field
+from conversation import chat
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+class Source(BaseModel):
+    file: str
+    page: int | str | None
+    score: float
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[Source]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,3 +32,19 @@ app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.post("/chat", response_model=ChatResponse)
+def post_chat(payload: ChatRequest, request: Request):
+    empty_memory = {"topics": [], "first_topic": None, "current_topic": None}
+
+    try:
+        result = chat(
+            payload.question,
+            empty_memory,
+            request.app.state.vector_store,
+            request.app.state.reranker,
+        )
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"chat failed: "{error})
+
+    return {"answer": result["answer"], "sources": result["sources"]}
