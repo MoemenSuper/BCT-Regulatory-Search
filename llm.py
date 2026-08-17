@@ -7,8 +7,11 @@ load_dotenv()
 @lru_cache(maxsize=1)
 def create_llm():
     llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        temperature=0
+        model="openai/gpt-oss-120b",
+        temperature=0,
+        reasoning_effort="medium",
+        reasoning_format="hidden",
+        max_tokens=2048,
     )
 
     return llm
