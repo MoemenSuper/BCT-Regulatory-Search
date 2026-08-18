@@ -1,7 +1,9 @@
-from langchain_community.document_loaders import PyPDFLoader
+from docling_pdf_loader import DoclingPdfLoader
 
-def load_pdf(file_path: str):
 
-    loader = PyPDFLoader(file_path)
-    return loader.load()
+_loader = DoclingPdfLoader()
+
+
+def load_pdf(file_path: str, *, force_ocr: bool = False):
+    return _loader.load(file_path, force_ocr=force_ocr)
 
