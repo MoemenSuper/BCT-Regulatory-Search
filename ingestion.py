@@ -15,8 +15,12 @@ def ingest():
                 try:
                     pages.extend(load_pdf(str(candidate)))
 
-                except:
-                    print("\t\t###Error loading PDF:\t\t\n ", candidate.stem)
+                except Exception as error:
+                    print(
+                        f"Error loading {candidate}: "
+                        f"{type(error).__name__}: {error}"
+                    )
+                    raise
         
         chunks = chunk_pdf(pages)
         embedding_model = create_embedding_model()

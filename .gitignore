@@ -4,4 +4,3 @@ __pycache__/
 .env
 chroma_db/
 scripts/
-.venv-docling/
