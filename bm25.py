@@ -15,3 +15,14 @@ def load_documents_from_chroma(vector_store):
         documents.append(document)
 
     return documents
+
+def tokenize_documents(documents):
+    tokenized_documents = []
+
+    for document in documents:
+        text = document.page_content.lower()
+        tokens = text.split()
+
+        tokenized_documents.append(tokens)
+
+    return tokenized_documents
