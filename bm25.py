@@ -1,4 +1,5 @@
 from langchain_core.documents import Document
+from rank_bm25 import BM25Okapi
 
 def load_documents_from_chroma(vector_store):
 
@@ -26,3 +27,11 @@ def tokenize_documents(documents):
         tokenized_documents.append(tokens)
 
     return tokenized_documents
+
+def create_bm25(documents):
+
+    tokenized_documents = tokenize_documents(documents)
+
+    bm25 = BM25Okapi(tokenized_documents)
+
+    return bm25
