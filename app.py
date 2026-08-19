@@ -6,6 +6,7 @@ from reranker import create_reranker
 from pydantic import BaseModel, Field, field_validator
 from conversation import chat
 import logging
+from bm25 import load_documents_from_chroma, create_bm25
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ async def lifespan(app: FastAPI):
     embedding_model = create_embedding_model()
     app.state.vector_store = load_vector_store(embedding_model)
     app.state.reranker = create_reranker()
+
+    documents = load_documents_from_chroma(app.state.vector_store)
+
+    app.state.bm25_documents = documents
+    app.state.bm25 = create_bm25(documents)
     yield
     # shutdown — nothing to clean up yet
 
