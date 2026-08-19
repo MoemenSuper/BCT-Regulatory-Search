@@ -144,7 +144,7 @@ def combine_documents(chroma_docs, bm25_docs):
             seen.add(key)
             combined_docs.append(document)
 
-        return combined_docs
+    return combined_docs
 def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
     llm = create_llm()
 
