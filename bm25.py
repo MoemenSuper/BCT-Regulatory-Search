@@ -38,13 +38,13 @@ def create_bm25(documents):
 
 def retrieve_bm25(query, bm25, documents, k=15):
 
-    tokenized_query = query.lower.split()
+    tokenized_query = query.lower().split()
 
     scores = bm25.get_scores(tokenized_query)
 
     top_indices = sorted(
         range(len(scores)),
-        key=lambda i: scores[i]
+        key=lambda i: scores[i],
         reverse=True
     )[:k]
 
