@@ -35,3 +35,17 @@ def create_bm25(documents):
     bm25 = BM25Okapi(tokenized_documents)
 
     return bm25
+
+def retrieve_bm25(query, bm25, documents, k=15):
+
+    tokenized_query = query.lower.split()
+
+    scores = bm25.get_scores(tokenized_query)
+
+    top_indices = sorted(
+        range(len(scores)),
+        key=lambda i: scores[i]
+        reverse=True
+    )[:k]
+
+    return [documents[i] for i in top_indices]
