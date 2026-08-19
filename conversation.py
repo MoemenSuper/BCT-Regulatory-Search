@@ -4,6 +4,7 @@ from vector_store import retrieve_relevant_chunks
 from reranker import score_documents, rank_scored_documents
 from langchain_core.prompts import ChatPromptTemplate
 from pathlib import Path
+from bm25 import retrieve_bm25
 
 
 
@@ -127,7 +128,7 @@ def update_memory_state(memory_state, route):
     }
 
 
-def chat(message, memory_state, vector_store, reranker):
+def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
     llm = create_llm()
 
     route = route_message(llm, message, memory_state)
@@ -142,6 +143,8 @@ def chat(message, memory_state, vector_store, reranker):
     query_for_retrieval = route["rewrite_query"] or message
 
     retrieved_docs = retrieve_relevant_chunks(query_for_retrieval, vector_store)
+
+    bm25_docs = retrieve_bm25(query_for_retrieval, bm25, bm25_documents)
 
     
     scored_docs = score_documents(reranker, query_for_retrieval, retrieved_docs)

@@ -62,6 +62,8 @@ def post_chat(payload: ChatRequest, request: Request):
             empty_memory,
             request.app.state.vector_store,
             request.app.state.reranker,
+            request.app.state.bm25,
+            request.app.state.bm25_documents,
         )
     except Exception:
         logger.exception("Chat request failed.")
