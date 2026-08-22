@@ -41,7 +41,7 @@ class DoclingPdfLoader:
             page_number = item.prov[0].page_no
 
             if page_number not in pages_by_number:
-                pages_by_number = Page(page_number=page_number, raw_text="")
+                pages_by_number[page_number] = Page(page_number=page_number, raw_text="")
 
             page = pages_by_number[page_number]
 
