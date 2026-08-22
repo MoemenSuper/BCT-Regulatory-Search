@@ -164,9 +164,6 @@ def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
     bm25_docs = retrieve_bm25(query_for_retrieval, bm25, bm25_documents)
 
     candidate_docs = combine_documents(retrieved_docs, bm25_docs)
-
-
-    
     scored_docs = score_documents(reranker, query_for_retrieval, candidate_docs)
     reranked_results = rank_scored_documents(scored_docs)
 
