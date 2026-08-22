@@ -5,7 +5,7 @@ from typing import Literal
 BlockType = Literal[
     "heading",
     "article",
-    "paragraph"
+    "paragraph",
     "list_item",
     "table",
     "formula",
@@ -59,29 +59,3 @@ class StructuredDocument:
     pages: list[Page] = field(default_factory=list)
         
 
-
-if __name__ == "__main__":
-    block = Block(
-        type="article",
-        text="Le taux de rémunération de l'épargne est fixé à 6%.",
-        page_number=2,
-        heading_path=[
-            "Article 36 (alinéa premier nouveau)"
-        ],
-    )
-
-    page = Page(
-        page_number=2,
-        raw_text=block.text,
-        blocks=[block],
-    )
-
-    document = StructuredDocument(
-        filename="Cir_2026_01_fr.pdf",
-        language="fr",
-        document_number="2026-1",
-        publication_date="2026-01-05",
-        pages=[page],
-    )
-
-    print(document)
