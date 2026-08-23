@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import asdict, dataclass, field
+from typing import Any, Literal
 
 
 BlockType = Literal[
@@ -26,7 +26,7 @@ class Block:
     heading_path: list[str] = field(default_factory=list)
 
     # Later useful for tables, coordinates, article numbers, etc.
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -44,6 +44,8 @@ class Page:
     # ocr/vlm = fallback was required
     extraction_method: Literal["native", "ocr", "vlm"] = "native"
 
+    quality_flags: list[str] = field(default_factory=list)
+
     blocks: list[Block] = field(default_factory=list)
 
 
@@ -57,5 +59,9 @@ class StructuredDocument:
     publication_date: str | None = None
 
     pages: list[Page] = field(default_factory=list)
-        
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
