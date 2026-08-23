@@ -76,3 +76,20 @@ def test_table_is_a_standalone_retrievable_chunk():
 
     assert len(chunks) == 3
     assert chunks[1].metadata["block_types"] == "table"
+
+
+def test_split_chunk_page_span_only_covers_text_in_that_piece():
+    document = StructuredDocument(
+        filename="long-annex.pdf",
+        pages=[
+            Page(1, "", blocks=[Block("paragraph", "page-one " * 20, 1, ["Annexe"])]),
+            Page(2, "", blocks=[Block("paragraph", "page-two " * 20, 2, ["Annexe"])]),
+        ],
+    )
+
+    chunks = structure_aware_chunks(document, max_chars=100, overlap=10)
+
+    page_one_only = [chunk for chunk in chunks if "page-one" in chunk.page_content and "page-two" not in chunk.page_content]
+    page_two_only = [chunk for chunk in chunks if "page-two" in chunk.page_content and "page-one" not in chunk.page_content]
+    assert page_one_only and all(chunk.metadata["pages"] == [1] for chunk in page_one_only)
+    assert page_two_only and all(chunk.metadata["pages"] == [2] for chunk in page_two_only)

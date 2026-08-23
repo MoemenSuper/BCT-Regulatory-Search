@@ -275,6 +275,12 @@ def _metrics(records: list[dict[str, Any]], field: str) -> dict[str, Any]:
                 "exact_page_top5": sum(record[field]["exact_page_rank"] is not None and record[field]["exact_page_rank"] <= 5 for record in subset) / len(subset),
             }
         result[f"by_{dimension}"] = grouped
+    visual = [record for record in relevant if record.get("evidence_method") == "visual_review"]
+    result["visual_review"] = {
+        "n": len(visual),
+        "source_top5": sum(record[field]["source_rank"] is not None and record[field]["source_rank"] <= 5 for record in visual) / len(visual),
+        "exact_page_top5": sum(record[field]["exact_page_rank"] is not None and record[field]["exact_page_rank"] <= 5 for record in visual) / len(visual),
+    }
     return result
 
 
@@ -376,19 +382,27 @@ def run_benchmark(
             if page and page.extraction_method == "ocr":
                 native_coverage = _coverage(case.get("evidence_quote", ""), page.metadata.get("native_raw_text", ""))
                 final_coverage = _coverage(case.get("evidence_quote", ""), page.raw_text)
+                page_chunks = [chunk for chunk in chunks_by_source.get(case["expected_source"], []) if _page_matches(chunk.metadata, int(case["expected_page"]))]
+                evidence = {
+                    "page_coverage": final_coverage,
+                    "best_chunk_coverage": max((_coverage(case.get("evidence_quote", ""), chunk.page_content) for chunk in page_chunks), default=0.0),
+                    "native_page_coverage": native_coverage,
+                }
                 baseline_rank = baseline_result.get("exact_page_rank")
                 ocr_rescue = native_coverage < 0.35 and final_coverage >= 0.55 and (baseline_rank is None or baseline_rank > 5) and exact_rank is not None and exact_rank <= 5
 
         baseline_rank = baseline_result.get("exact_page_rank")
         repaired = case["relevant"] and (baseline_rank is None or baseline_rank > 5) and exact_rank is not None and exact_rank <= 5
         regressed = case["relevant"] and baseline_rank is not None and baseline_rank <= 5 and (exact_rank is None or exact_rank > 5)
-        top = result["top5"][0] if result["top5"] else {}
+        correct_top = next((item for item in result["top5"]
+            if str(item.get("source", "")).casefold() == str(case.get("expected_source", "")).casefold()
+            and int(item.get("page", -1)) <= int(case.get("expected_page", -1)) <= int(item.get("page_end", item.get("page", -1)))), {})
         if ocr_rescue:
             reason = "Selective OCR recovered evidence missing from native extraction."
-        elif repaired and top.get("block_types") == "table":
+        elif repaired and "table" in correct_top.get("block_types", "").split(","):
             reason = "The table was preserved as retrievable Markdown."
-        elif repaired and top.get("heading_path"):
-            reason = f"Legal hierarchy was retained with the chunk: {top['heading_path']}."
+        elif repaired and correct_top.get("heading_path"):
+            reason = f"Legal hierarchy was retained with the chunk: {correct_top['heading_path']}."
         elif repaired:
             reason = "Structure-aware grouping kept related evidence together."
         elif regressed:
@@ -407,7 +421,14 @@ def run_benchmark(
             "latency_seconds": latency,
             "repaired": repaired, "regressed": regressed, "reason": reason,
             "failure_categories": failure_categories,
-            "primary_failure_category": failure_categories[0] if failure_categories else None,
+            "primary_failure_category": next((category for category in (
+                "evidence_missing_because_of_extraction",
+                "wrong_temporal_or_document_version",
+                "chunk_boundary_or_context_problem",
+                "correct_document_missing_from_candidate_set",
+                "correct_page_missing",
+                "correct_evidence_retrieved_but_ranked_too_low",
+            ) if category in failure_categories), None),
             "evidence_diagnostics": evidence,
             "ocr_rescue": ocr_rescue,
         })
@@ -433,6 +454,15 @@ def run_benchmark(
             "fine_tuning": False,
             "graphrag": False,
             "answer_llm_or_prompt_changed": False,
+            "failure_classification": {
+                "extraction_missing": "expected-page evidence token coverage below 0.35",
+                "candidate_document_missing": "no expected-source chunk in dense/BM25 union",
+                "candidate_page_missing": "expected source present but no chunk spans expected page",
+                "ranked_too_low": "expected-page chunk in union but reranked below top 5",
+                "wrong_version": "top-five candidate has same document type, number, and language but a different year",
+                "chunk_boundary": "page evidence coverage at least 0.55 but best page-spanning chunk coverage below 0.45",
+                "labels": "primary counts are exclusive; diagnostic counts are non-exclusive",
+            },
         },
         "summary": {
             "baseline": _metrics(records, "baseline"),
@@ -463,6 +493,11 @@ def _write_report(path: Path, artifact: dict[str, Any]) -> None:
     for key in ("source_top1", "source_top5", "source_top20", "exact_page_top1", "exact_page_top5", "exact_page_top20", "mrr_source"):
         lines.append(f"| {key} | {baseline[key]:.2%} | {experiment[key]:.2%} | {experiment[key] - baseline[key]:+.2%} |")
     lines.extend(["", f"Repairs: {len(summary['repairs'])}", "", f"Regressions: {len(summary['regressions'])}", "", "## Failure classification", ""])
+    lines.append("Exclusive primary cause counts:")
+    lines.append("")
+    for category, count in sorted(summary["primary_failure_category_counts"].items()):
+        lines.append(f"- {category}: {count}")
+    lines.extend(["", "Non-exclusive diagnostic labels:", ""])
     for category, count in sorted(summary["failure_category_counts"].items()):
         lines.append(f"- {category}: {count}")
     lines.extend(["", "## OCR rescues", ""])

@@ -11,16 +11,10 @@ class _ChunkGroup:
     blocks: list[Block] = field(default_factory=list)
 
 
-def _render_group(group: _ChunkGroup) -> str:
-    headings = list(dict.fromkeys(group.heading_path))
-    body = [block.text.strip() for block in group.blocks if block.text.strip()]
-    return "\n".join(headings + body).strip()
-
-
-def _split_text(text: str, max_chars: int, overlap: int) -> list[str]:
+def _split_ranges(text: str, max_chars: int, overlap: int) -> list[tuple[int, int, str]]:
     if len(text) <= max_chars:
-        return [text]
-    pieces: list[str] = []
+        return [(0, len(text), text)]
+    pieces: list[tuple[int, int, str]] = []
     start = 0
     while start < len(text):
         end = min(start + max_chars, len(text))
@@ -28,15 +22,32 @@ def _split_text(text: str, max_chars: int, overlap: int) -> list[str]:
             boundary = max(text.rfind("\n", start, end), text.rfind(". ", start, end))
             if boundary > start + max_chars // 2:
                 end = boundary + 1
-        pieces.append(text[start:end].strip())
+        stripped = text[start:end].strip()
+        if stripped:
+            pieces.append((start, end, stripped))
         if end == len(text):
             break
         start = max(end - overlap, start + 1)
-    return [piece for piece in pieces if piece]
+    return pieces
+
+
+def _render_body(group: _ChunkGroup) -> tuple[str, list[tuple[int, int, int]]]:
+    headings = set(group.heading_path)
+    body = ""
+    spans: list[tuple[int, int, int]] = []
+    for block in group.blocks:
+        text = block.text.strip()
+        if not text or text in headings:
+            continue
+        separator = "\n" if body else ""
+        start = len(body) + len(separator)
+        body += separator + text
+        spans.append((start, len(body), block.page_number))
+    return body, spans
 
 
 def structure_aware_chunks(document: StructuredDocument, max_chars: int = 1000, overlap: int = 200) -> list[Document]:
-    """Group related blocks by legal hierarchy before applying size limits."""
+    """Group legal blocks while assigning pages only to text present in each chunk."""
     groups: list[_ChunkGroup] = []
     current: _ChunkGroup | None = None
     for page in document.pages:
@@ -51,14 +62,25 @@ def structure_aware_chunks(document: StructuredDocument, max_chars: int = 1000, 
 
     chunks: list[Document] = []
     for group_index, group in enumerate(groups):
-        rendered = _render_group(group)
-        if not rendered:
+        prefix = "\n".join(dict.fromkeys(group.heading_path)).strip()
+        body, spans = _render_body(group)
+        if not body and prefix:
+            body = prefix
+            first_page = group.blocks[0].page_number
+            spans = [(0, len(body), first_page)]
+            prefix = ""
+        if not body:
             continue
-        pages = sorted({block.page_number for block in group.blocks})
+        content_limit = max(1, max_chars - len(prefix) - (1 if prefix else 0))
+        effective_overlap = min(overlap, max(content_limit - 1, 0))
         methods = sorted({str(block.metadata.get("extraction_method", "native")) for block in group.blocks})
         block_types = sorted({block.type for block in group.blocks})
-        for part_index, part in enumerate(_split_text(rendered, max_chars, overlap)):
-            chunks.append(Document(page_content=part, metadata={
+        for part_index, (start, end, part) in enumerate(_split_ranges(body, content_limit, effective_overlap)):
+            pages = sorted({page for span_start, span_end, page in spans if span_start < end and span_end > start})
+            if not pages:
+                pages = [group.blocks[0].page_number]
+            text = f"{prefix}\n{part}" if prefix else part
+            chunks.append(Document(page_content=text, metadata={
                 "source": document.filename,
                 "page": pages[0],
                 "page_end": pages[-1],
