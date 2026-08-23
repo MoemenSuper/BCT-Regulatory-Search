@@ -387,7 +387,8 @@ def run_benchmark(
                 failure_categories.append("correct_evidence_retrieved_but_ranked_too_low")
             if _wrong_version(expected_source, candidates):
                 failure_categories.append("wrong_temporal_or_document_version")
-            if page_coverage >= 0.55 and (best_chunk_coverage < 0.45 or (page_candidates and candidate_evidence_coverage < 0.35)):
+            if ((page_candidates and candidate_evidence_coverage < 0.35)
+                    or (page_coverage >= 0.55 and best_chunk_coverage < 0.45)):
                 failure_categories.append("chunk_boundary_or_context_problem")
 
         if case["relevant"]:
@@ -474,7 +475,7 @@ def run_benchmark(
                 "candidate_page_missing": "expected source present but no chunk spans expected page",
                 "ranked_too_low": "expected-page chunk in union but reranked below top 5",
                 "wrong_version": "top-five candidate has same document type, number, and language but a different year",
-                "chunk_boundary": "page evidence coverage at least 0.55 but best page-spanning chunk coverage below 0.45",
+                "chunk_boundary": "right-page candidate evidence coverage below 0.35, or page coverage at least 0.55 while best chunk coverage is below 0.45",
                 "labels": "primary counts are exclusive; diagnostic counts are non-exclusive",
             },
         },
