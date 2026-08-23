@@ -142,3 +142,19 @@ class HierarchyState:
             self.article = None
             # When we find a new annex, we need a new hierarchy
             self.annex = structure.heading
+
+def heading_path(self) -> list[str]:
+    if self.annex:
+        return [self.annex]
+
+    return [
+        value
+        for value in [
+            self.title,
+            self.chapter,
+            self.section,
+            self.subsection,
+            self.article,
+        ]
+        if value is not None
+    ]
