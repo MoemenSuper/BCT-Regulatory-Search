@@ -154,22 +154,15 @@ if __name__ == "__main__":
     loader = DoclingPdfLoader()
 
     document = loader.load(
-        r"C:\Users\Moemen Super\BCT-Regulatory-Search\documents\Circulaires et notes 2026\Cir_2026_01_fr.pdf"
+        r"C:\Users\Moemen Super\BCT-Regulatory-Search\documents\Circulaires et notes 2024\Cir_2024_05_fr.pdf"
     )
 
     for page in document.pages:
+        print(f"\n===== PAGE {page.page_number} =====")
+
         for block in page.blocks:
-
-            if block.type == "article":
-                print(
-                    f"[ARTICLE] "
-                    f"{block.heading_path[-1]} -> "
-                    f"{block.text}"
-                )
-
-            else:
-                print(
-                    f"[{block.type}] "
-                    f"{block.metadata['docling_label']}: "
-                    f"{block.text}"
-                )
+            print(
+                f"[{block.type}] "
+                f"path={block.heading_path} -> "
+                f"{block.text}"
+            )
