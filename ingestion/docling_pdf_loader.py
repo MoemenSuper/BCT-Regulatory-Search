@@ -174,6 +174,11 @@ class DoclingPdfLoader:
                 extraction_method=extraction_method,
                 quality_flags=final_quality.flags,
                 blocks=chosen_blocks,
+                metadata={
+                    "native_quality_score": native_quality.score,
+                    "native_quality_flags": native_quality.flags,
+                    "native_raw_text": "\n".join(block.text for block in blocks),
+                },
             ))
 
         document = StructuredDocument(

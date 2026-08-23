@@ -46,6 +46,8 @@ class Page:
 
     quality_flags: list[str] = field(default_factory=list)
 
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     blocks: list[Block] = field(default_factory=list)
 
 
