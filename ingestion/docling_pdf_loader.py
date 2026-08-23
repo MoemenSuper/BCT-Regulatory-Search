@@ -1,3 +1,9 @@
+import os
+
+os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+
+import re
 from pathlib import Path
 
 from docling.document_converter import DocumentConverter
@@ -16,6 +22,30 @@ def detect_language(pdf_path: Path) -> str:
         return "ar"
 
     return "unknown"
+
+
+ARTICLE_PATTERN_FR = re.compile(
+    r"^\s*"
+    r"(Article\s+"
+    r"(?:premier|1er|\d+(?:\s*(?:bis|ter|quater))?)"
+    r"(?:\s*\([^)]*\))?"
+    r")"
+    r"\s*[:\-–—]?\s*"
+    r"(.*)$",
+    re.IGNORECASE,
+)
+
+
+def split_french_article(text: str) -> tuple[str, str] | None:
+    match = ARTICLE_PATTERN_FR.match(text)
+
+    if not match:
+        return None
+
+    article_heading = match.group(1).strip()
+    article_body = match.group(2).strip()
+
+    return article_heading, article_body
 
 class DoclingPdfLoader:
 
@@ -45,6 +75,30 @@ class DoclingPdfLoader:
 
             page = pages_by_number[page_number]
 
+            article_parts = None
+
+            if language == "fr":
+                article_parts = split_french_article(item.text)
+
+            if article_parts:
+                article_heading, article_body = article_parts
+
+                block = Block(
+                    type="article",
+                    text=article_body,
+                    page_number=page_number,
+                    heading_path=[article_heading],
+                    metadata={
+                        "docling_label": item.label.value,
+                        "hierarchy_level": level,
+                        "article_heading": article_heading,
+                    },
+                )
+
+                page.blocks.append(block)
+                page.raw_text += item.text + "\n"
+
+                continue
             # Figure out the block type
             if item.label in {DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER}:
                 block_type = "heading"
@@ -70,6 +124,7 @@ class DoclingPdfLoader:
             page.blocks.append(block)
             page.raw_text += item.text + "\n"
 
+            
 
         pages = [
             pages_by_number[number]
@@ -87,15 +142,22 @@ if __name__ == "__main__":
     loader = DoclingPdfLoader()
 
     document = loader.load(
-        "documents/Cir_2026_01_fr.pdf"
+        r"C:\Users\Moemen Super\BCT-Regulatory-Search\documents\Circulaires et notes 2026\Cir_2026_01_fr.pdf"
     )
 
     for page in document.pages:
-        print(f"\n===== PAGE {page.page_number} =====")
-
         for block in page.blocks:
-            print(
-                f"[{block.type}] "
-                f"{block.metadata['docling_label']}: "
-                f"{block.text}"
-            )
+
+            if block.type == "article":
+                print(
+                    f"[ARTICLE] "
+                    f"{block.heading_path[-1]} -> "
+                    f"{block.text}"
+                )
+
+            else:
+                print(
+                    f"[{block.type}] "
+                    f"{block.metadata['docling_label']}: "
+                    f"{block.text}"
+                )
