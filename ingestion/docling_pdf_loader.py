@@ -62,6 +62,8 @@ class DoclingPdfLoader:
 
         pages_by_number: dict[int, Page] = {}
 
+        #We use this to track articles that include more than 1 paragph and/or extend to other pages
+        current_article: str | None = None
         for item,level in docling_document.iterate_items():
             if not isinstance(item, TextItem):
                 continue
@@ -82,7 +84,10 @@ class DoclingPdfLoader:
 
             if article_parts:
                 article_heading, article_body = article_parts
+                # Remember This article:
+                current_article = article_heading
 
+                
                 block = Block(
                     type="article",
                     text=article_body,
@@ -110,11 +115,18 @@ class DoclingPdfLoader:
             else:
                 block_type = "paragraph"
 
+
+            heading_path = []
+            if current_article and block_type in {"paragraph", "list_item", "formula"}:
+            
+                heading_path = [current_article]
+    
             #Build the block
             block = Block(
                 type=block_type,
                 text = item.text,
                 page_number=page_number,
+                heading_path=heading_path,
                 metadata={
                     "docling_label": item.label.value,
                     "hierarchy_level": level,
