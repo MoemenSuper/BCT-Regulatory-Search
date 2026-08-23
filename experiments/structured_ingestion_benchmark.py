@@ -29,6 +29,8 @@ DENSE_K = 20
 BM25_K = 15
 RERANKER_TOP_K = 5
 BASELINE_SHA256 = "DC9917CF985250FA7453C7EEF7D5C31443345F7030BE5E20EEFF924E6D8C36C3"
+EVALUATION_SHA256 = "00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1"
+EVALUATION_COUNT = 697
 
 
 def _sha256(path: Path) -> str:
@@ -189,6 +191,11 @@ def _combine_documents(dense: list[Document], sparse: list[Document]) -> list[Do
 
 
 def _page_matches(metadata: dict[str, Any], expected_page: int) -> bool:
+    pages = metadata.get("pages")
+    if isinstance(pages, list):
+        return expected_page in {int(page) for page in pages}
+    if isinstance(pages, str) and pages:
+        return expected_page in {int(page) for page in pages.split(",")}
     start = int(metadata.get("page", -1))
     end = int(metadata.get("page_end", start))
     return start <= expected_page <= end
@@ -293,7 +300,13 @@ def run_benchmark(
     baseline_hash = _sha256(baseline_path)
     if baseline_hash != BASELINE_SHA256:
         raise ValueError(f"Baseline artifact hash changed: {baseline_hash}")
+    evaluation_hash = _sha256(evaluation_path)
     evaluations = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    if limit is None and (evaluation_hash != EVALUATION_SHA256 or len(evaluations) != EVALUATION_COUNT):
+        raise ValueError(
+            f"Full benchmark requires canonical {EVALUATION_COUNT}-question evaluation file "
+            f"with SHA-256 {EVALUATION_SHA256}; got count={len(evaluations)}, hash={evaluation_hash}"
+        )
     if limit is not None:
         evaluations = evaluations[:limit]
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
@@ -363,17 +376,18 @@ def run_benchmark(
             }
             source_candidates = [candidate for candidate in candidates if candidate.metadata.get("source", "").casefold() == expected_source.casefold()]
             page_candidates = [candidate for candidate in source_candidates if _page_matches(candidate.metadata, expected_page)]
+            candidate_evidence_coverage = max((_coverage(quote, candidate.page_content) for candidate in page_candidates), default=0.0)
             if page is None or page_coverage < 0.35:
                 failure_categories.append("evidence_missing_because_of_extraction")
             if not source_candidates:
                 failure_categories.append("correct_document_missing_from_candidate_set")
             elif not page_candidates:
                 failure_categories.append("correct_page_missing")
-            elif exact_rank is None or exact_rank > RERANKER_TOP_K:
+            elif candidate_evidence_coverage >= 0.35 and (exact_rank is None or exact_rank > RERANKER_TOP_K):
                 failure_categories.append("correct_evidence_retrieved_but_ranked_too_low")
             if _wrong_version(expected_source, candidates):
                 failure_categories.append("wrong_temporal_or_document_version")
-            if page_coverage >= 0.55 and best_chunk_coverage < 0.45:
+            if page_coverage >= 0.55 and (best_chunk_coverage < 0.45 or (page_candidates and candidate_evidence_coverage < 0.35)):
                 failure_categories.append("chunk_boundary_or_context_problem")
 
         if case["relevant"]:
@@ -400,11 +414,11 @@ def run_benchmark(
         if ocr_rescue:
             reason = "Selective OCR recovered evidence missing from native extraction."
         elif repaired and "table" in correct_top.get("block_types", "").split(","):
-            reason = "The table was preserved as retrievable Markdown."
+            reason = "Observed association: the repaired chunk preserves the table as retrievable Markdown; causality is not proven."
         elif repaired and correct_top.get("heading_path"):
-            reason = f"Legal hierarchy was retained with the chunk: {correct_top['heading_path']}."
+            reason = f"Observed association: the repaired chunk retains legal hierarchy ({correct_top['heading_path']}); causality is not proven."
         elif repaired:
-            reason = "Structure-aware grouping kept related evidence together."
+            reason = "Observed association: the repaired result uses structure-aware grouping; causality is not proven."
         elif regressed:
             reason = "The expected page moved below the top-five cutoff after structured chunking."
         else:
@@ -439,7 +453,7 @@ def run_benchmark(
     artifact = {
         "status": "complete",
         "controls": {
-            "evaluation_sha256": _sha256(evaluation_path),
+            "evaluation_sha256": evaluation_hash,
             "baseline_artifact": str(baseline_path.resolve()),
             "baseline_sha256": baseline_hash,
             "embedding_model": "intfloat/multilingual-e5-small",
@@ -449,7 +463,7 @@ def run_benchmark(
             "fusion": "dense_then_bm25_candidate_union_exact_deduplication",
             "reranker": "BAAI/bge-reranker-v2-m3",
             "reranker_top_k": RERANKER_TOP_K,
-            "questions_unchanged": True,
+            "questions_unchanged": limit is None and evaluation_hash == EVALUATION_SHA256 and len(evaluations) == EVALUATION_COUNT,
             "query_expansion": False,
             "fine_tuning": False,
             "graphrag": False,

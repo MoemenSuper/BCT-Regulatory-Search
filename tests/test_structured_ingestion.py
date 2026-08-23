@@ -7,6 +7,7 @@ from ingestion.legal_structure import (
 from ingestion.models import Block, Page, StructuredDocument
 from ingestion.page_quality import assess_page_quality
 from ingestion.structured_chunker import structure_aware_chunks
+from experiments.structured_ingestion_benchmark import _page_matches
 
 
 def test_french_article_splits_heading_from_body():
@@ -93,3 +94,11 @@ def test_split_chunk_page_span_only_covers_text_in_that_piece():
     page_two_only = [chunk for chunk in chunks if "page-two" in chunk.page_content and "page-one" not in chunk.page_content]
     assert page_one_only and all(chunk.metadata["pages"] == [1] for chunk in page_one_only)
     assert page_two_only and all(chunk.metadata["pages"] == [2] for chunk in page_two_only)
+
+
+def test_page_match_uses_exact_page_list_instead_of_range():
+    metadata = {"page": 1, "page_end": 3, "pages": "1,3"}
+
+    assert _page_matches(metadata, 1) is True
+    assert _page_matches(metadata, 2) is False
+    assert _page_matches(metadata, 3) is True
