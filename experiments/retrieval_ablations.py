@@ -77,6 +77,15 @@ def _iter_structured_documents(cache_dir: Path) -> Iterable[StructuredDocument]:
         yield _document_from_dict(json.loads(Path(record["artifact"]).read_text(encoding="utf-8")))
 
 
+def _validate_reused_structured_cache(cache_dir: Path, previous_dir: Path) -> None:
+    """Refuse a full-hierarchy control built from a different extracted corpus."""
+    def hashes(directory: Path) -> dict[str, str]:
+        manifest = json.loads((directory / "ingestion_manifest.json").read_text(encoding="utf-8"))
+        return {path: str(record["sha256"]) for path, record in manifest["records"].items()}
+    if hashes(cache_dir) != hashes(previous_dir):
+        raise ValueError("Previous structured index does not use the same cached StructuredDocument corpus")
+
+
 def _split_text(text: str, max_chars: int = 1000, overlap: int = 200) -> list[str]:
     """The previous baseline's recursive-style, text-only chunk shape."""
     if not text.strip():
@@ -565,10 +574,10 @@ def main() -> None:
     parser.add_argument("--baseline-artifact", type=Path, required=True)
     parser.add_argument("--baseline-index-dir", type=Path, required=True)
     parser.add_argument("--previous-structured-dir", type=Path, required=True)
-    parser.add_argument("--config", action="append", choices=("structured_baseline_chunking", "structured_full_hierarchy_text", "structured_metadata_hierarchy", "dual_baseline_structured_metadata", "structured_metadata_dedup", "reranker_full_hierarchy", "reranker_article_body", "reranker_body_only", "reranker_concise_metadata_body", "union_budget30", "rrf_budget30"))
+    parser.add_argument("--config", action="append", choices=("structured_baseline_chunking", "structured_full_hierarchy_text", "structured_metadata_hierarchy", "dual_baseline_structured_baseline_chunking", "structured_metadata_dedup", "reranker_full_hierarchy", "reranker_article_body", "reranker_body_only", "reranker_concise_metadata_body", "union_budget30", "rrf_budget30"))
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    selected = args.config or ["structured_baseline_chunking", "structured_full_hierarchy_text", "structured_metadata_hierarchy"]
+    selected = args.config or ["structured_baseline_chunking", "structured_full_hierarchy_text", "structured_metadata_hierarchy", "dual_baseline_structured_baseline_chunking"]
     required = {"structured_baseline_chunking", "structured_metadata_hierarchy"}
     manifests = {name: build_representation(args.cache_dir, args.output_dir, name) for name in required}
     if args.command == "build":
@@ -577,6 +586,7 @@ def main() -> None:
     pages = _pages_by_source(args.cache_dir)
     reps = {name: _load_search_representation(manifest) for name, manifest in manifests.items()}
     if "structured_full_hierarchy_text" in selected:
+        _validate_reused_structured_cache(args.cache_dir, args.previous_structured_dir)
         reps["structured_full_hierarchy_text"] = _load_existing_representation(
             "structured_full_hierarchy_text", args.previous_structured_dir / "chunks.jsonl", args.previous_structured_dir / "chroma_db", "bct_structured_ingestion_experiment"
         )
@@ -589,8 +599,8 @@ def main() -> None:
             artifacts[name] = run_configuration(name=name, cases=cases, baseline=baseline, representations=[reps[name]], output_dir=args.output_dir, pages_by_source=pages, reranker_style="full_hierarchy")
         elif name == "structured_metadata_hierarchy":
             artifacts[name] = run_configuration(name=name, cases=cases, baseline=baseline, representations=[reps[name]], output_dir=args.output_dir, pages_by_source=pages, reranker_style="article_body", candidate_cache_id="structured_metadata_hierarchy")
-        elif name == "dual_baseline_structured_metadata":
-            artifacts[name] = run_configuration(name=name, cases=cases, baseline=baseline, representations=[baseline_rep, reps["structured_metadata_hierarchy"]], output_dir=args.output_dir, pages_by_source=pages, reranker_style="article_body", component_dense_k=10, component_bm25_k=8)
+        elif name == "dual_baseline_structured_baseline_chunking":
+            artifacts[name] = run_configuration(name=name, cases=cases, baseline=baseline, representations=[baseline_rep, reps["structured_baseline_chunking"]], output_dir=args.output_dir, pages_by_source=pages, reranker_style="body_only", component_dense_k=10, component_bm25_k=8)
         elif name == "structured_metadata_dedup":
             artifacts[name] = run_configuration(name=name, cases=cases, baseline=baseline, representations=[reps["structured_metadata_hierarchy"]], output_dir=args.output_dir, pages_by_source=pages, reranker_style="article_body", candidate_cache_id="structured_metadata_hierarchy", redundancy_deduplication=True)
         elif name.startswith("reranker_"):
