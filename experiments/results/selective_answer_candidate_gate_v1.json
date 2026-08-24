@@ -1,0 +1,31 @@
+{
+  "experiment_id": "selective-answer-candidate-development-gate-v1",
+  "input_sha256": "D46A96B53688A671E900D524CD340F21F394AFB6B55D57DA78B60F8C43EB29A3",
+  "status": "passed",
+  "checks": {
+    "frozen_case_counts": true,
+    "all_relevant_semantically_correct": true,
+    "all_relevant_structurally_cited": true,
+    "all_expected_literals_preserved": true,
+    "all_negatives_safe_and_expected": true,
+    "exactly_two_clarifications": true,
+    "only_frozen_context_retries": true
+  },
+  "failed_checks": [],
+  "counts": {
+    "cases": 40,
+    "relevant": 32,
+    "negative": 8,
+    "clarifications": 2,
+    "context_retries": 2
+  },
+  "retry_ids": [
+    "cir_2019_02_fr_amount_or_rate_02",
+    "note_2022_16_ar_ceramic_importer_02"
+  ],
+  "qualification": "development_only_gold_evidence_components",
+  "limitations": [
+    "Passing does not establish retrieval-time evidence sufficiency.",
+    "The semantic labels are agent evidence review, not independent human adjudication."
+  ]
+}

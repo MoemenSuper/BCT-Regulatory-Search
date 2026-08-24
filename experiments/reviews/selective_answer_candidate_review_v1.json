@@ -1,0 +1,70 @@
+{
+  "status": "complete_agent_evidence_review",
+  "reviewer_type": "agent_evidence_review_not_independent_human",
+  "reviewed_against": "frozen expected answer, selected evidence context, structured claims, citation object, source, page, and frozen negative behavior",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "The 30 verified-excerpt answers and the two selectively retried full-page answers were individually source-checked in their component reviews; the composite preserves those reviewed records without rewriting them."
+  },
+  "relevant_overrides": {},
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies a missing allowance type, and deterministic Arabic text asks the user to specify the intended type or category."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the request as current-state dependent, and deterministic mapping abstains with no claims or citations."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the future regulation as time dependent, and deterministic mapping abstains."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies a clearly unrelated request, and deterministic Arabic text declines it as outside the corpus scope."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies that the requested documents are unspecified, and deterministic French text asks the user to name the operation and document category."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the request as current-state dependent, and deterministic mapping abstains with no claims or citations."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier keeps the financial request in scope but marks its requested future value as unavailable, so deterministic French text abstains without prediction."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies a clearly unrelated request, and deterministic French text declines it as outside the corpus scope."
+    }
+  }
+}

@@ -88,9 +88,11 @@ def test_frozen_selective_answer_gate_rejects_literal_omission():
 def test_literal_gate_accepts_equivalent_grouping_and_time_spelling():
     result = _passing_result()
     record = result["records"][0]
-    record["response"]["answer"] = "Le montant est 100.000 DT, de 8h00 à 17h00."
+    record["response"]["answer"] = (
+        "Le montant est 100.000 DT au taux de 1,00 %, de 8h00 à 17h00."
+    )
     record["automatic_audit"].update(
-        expected_numbers=["100000", "8", "17", "00"],
+        expected_numbers=["100000", "1.00", "8", "17", "00"],
         expected_identifiers=["8h", "17h"],
     )
 

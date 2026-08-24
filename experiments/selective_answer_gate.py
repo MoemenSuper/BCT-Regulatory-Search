@@ -19,7 +19,8 @@ EXPECTED_RETRY_IDS = {
 
 def _number_present(expected: str, answer: str) -> bool:
     answer_numbers = re.findall(r"\d+(?:[\s.,:\u00a0\u202f]\d+)*", answer)
-    return expected in {
+    expected_digits = re.sub(r"\D", "", expected)
+    return expected_digits in {
         re.sub(r"\D", "", value) for value in answer_numbers
     }
 
