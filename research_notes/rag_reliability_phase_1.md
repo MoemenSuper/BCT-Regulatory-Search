@@ -200,6 +200,30 @@ development selection after failure inspection. It has not crossed a frozen
 validation gate, and the small Page@1 decline, three cutoff regressions, numeric
 OCR weakness, and duplicate-page pressure remain explicit risks.
 
+### Numeric and identifier fidelity gate
+
+A separate development suite was frozen from all 38 relevant cases whose
+verified evidence contains numeric literals and whose expected page was already
+selected by the unchanged Arabic fallback gate. Page selection therefore does
+not depend on whether OCR preserved the expected number.
+
+| Verified-literal metric | Native | Explicit Arabic OCR | Native + OCR union |
+|---|---:|---:|---:|
+| Mean critical-number recall | 67.45% | 27.37% | 72.93% |
+| Cases with full number recall | 50.00% | 15.79% | 55.26% |
+| Latin alphanumeric identifier cases | 4 | 4 | 4 |
+| Mean identifier recall on those 4 cases | 100.00% | 100.00% | 100.00% |
+
+OCR number recall improved over native in only 2 cases and regressed in 23.
+The four identifier cases are too few to support a broader identifier claim.
+
+This strengthens the architecture decision: OCR may be an additive retrieval
+representation, but it is not authoritative evidence for digits. The answer
+layer must preserve extraction provenance, prefer source-page/native agreement,
+and flag or abstain on unresolved native/OCR numeric conflicts. A VLM fallback
+must beat this frozen numeric suite as well as retrieval metrics; readable
+Arabic prose alone is not sufficient.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

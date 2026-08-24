@@ -134,6 +134,22 @@ index, routes by Arabic characters in the runtime query text, and preserves the
 native candidate union. The tracked slim result retains all 697 before/after
 ranks while omitting duplicated chunk text.
 
+Freeze answer-bearing numeric and Latin alphanumeric identifier fidelity for
+the gate-triggered Arabic pages:
+
+```powershell
+python -m experiments.numeric_fidelity_stress `
+  --evaluation evaluation_queries.json `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --ocr-representation-manifest "$env:TEMP\arabic-ocr-fusion\representation\manifest.json" `
+  --ocr-cache-dir "$env:TEMP\arabic-ocr-cache" `
+  --output "$env:TEMP\numeric-identifier-development-v1.json"
+```
+
+The suite scores only verified literals from development evidence snippets.
+It does not treat unrelated page numbers as hallucinations and does not permit
+OCR text to override conflicting native digits.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
