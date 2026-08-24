@@ -46,6 +46,25 @@ require an explicit `document_family` instead of silently becoming unique.
 Validation/development overlap is audited. A legacy development/holdout override
 exists for explicitly documenting a weaker protocol, but is disabled by default.
 
+Evaluate a frozen split through the access-logged boundary:
+
+```powershell
+python -m experiments.frozen_evaluation `
+  --protocol evaluation_protocol.json `
+  --role validation `
+  --result "$env:TEMP\validation-result.json" `
+  --output "$env:TEMP\validation-aggregate.json" `
+  --ledger experiments/registry/evaluation_access.jsonl `
+  --purpose "Architecture selection checkpoint" `
+  --accessed-by "reviewer-name" `
+  --code-commit "$(git rev-parse HEAD)"
+```
+
+Validation case details require the explicit `--include-case-details` switch.
+The final-holdout role rejects that switch and emits overall/French/Arabic
+aggregates only. Both roles verify the frozen dataset hash and exact result-ID
+coverage before recording a successful access.
+
 ## Record experiments
 
 Append one schema-checked entry at a time. Entries require dataset hashes,
