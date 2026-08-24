@@ -1,0 +1,497 @@
+{
+  "timestamp": "2026-08-24T16:59:21.168890+00:00",
+  "inputs": {
+    "catalog_sha256": "296C670D8CCBB5B46D3830D19AA98337468B0F11931CA9D5C86797A48931B99C",
+    "retrieval_result_sha256": "045EC8D869F5D31730187A74F0A9C779910B1A772E23482BB4FB29CF212950A0"
+  },
+  "status": "complete",
+  "suite_type": "targeted_development_retrieval_benchmark",
+  "configuration": {
+    "current": "reproduced StructuredDocument sequential-1000/200 hybrid winner",
+    "fusion": "additive Arabic OCR dense-5/BM25-5 with unchanged reranker",
+    "metric": "exact expected page rank"
+  },
+  "limitations": [
+    "All cohorts and both retrieval configurations were selected or analyzed on development data.",
+    "Overlapping cohorts are descriptive slices and must not be combined as independent samples.",
+    "Negative/ambiguous cases require answer-level abstention evaluation and receive no retrieval score."
+  ],
+  "suites": {
+    "table_pages": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 181,
+          "current_page_at_1": 0.6519337016574586,
+          "current_page_at_5": 0.8287292817679558,
+          "current_page_at_20": 0.9171270718232044,
+          "current_mrr_page": 0.7261388780035188,
+          "fusion_page_at_1": 0.6574585635359116,
+          "fusion_page_at_5": 0.8453038674033149,
+          "fusion_page_at_20": 0.9392265193370166,
+          "fusion_mrr_page": 0.7390790609178145,
+          "repairs_at_5": 4,
+          "regressions_at_5": 1,
+          "net_at_5": 3
+        },
+        "fr": {
+          "n": 59,
+          "current_page_at_1": 0.3559322033898305,
+          "current_page_at_5": 0.711864406779661,
+          "current_page_at_20": 0.8983050847457628,
+          "current_mrr_page": 0.5014687525280745,
+          "fusion_page_at_1": 0.3559322033898305,
+          "fusion_page_at_5": 0.711864406779661,
+          "fusion_page_at_20": 0.8983050847457628,
+          "fusion_mrr_page": 0.5014687525280745,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 122,
+          "current_page_at_1": 0.7950819672131147,
+          "current_page_at_5": 0.8852459016393442,
+          "current_page_at_20": 0.9262295081967213,
+          "current_mrr_page": 0.8347908239301682,
+          "fusion_page_at_1": 0.8032786885245902,
+          "fusion_page_at_5": 0.9098360655737705,
+          "fusion_page_at_20": 0.9590163934426229,
+          "fusion_mrr_page": 0.8539889641554756,
+          "repairs_at_5": 4,
+          "regressions_at_5": 1,
+          "net_at_5": 3
+        }
+      },
+      "changed_at_5": [
+        {
+          "id": "note_2016_26_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 1
+        },
+        {
+          "id": "note_2017_04_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2017_36_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2018_30_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2021_09_ar_eligibility_or_scope_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 5,
+          "fusion_page": 6
+        }
+      ]
+    },
+    "visual_non_table": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 88,
+          "current_page_at_1": 0.45454545454545453,
+          "current_page_at_5": 0.7045454545454546,
+          "current_page_at_20": 0.8181818181818182,
+          "current_mrr_page": 0.566962031024531,
+          "fusion_page_at_1": 0.4318181818181818,
+          "fusion_page_at_5": 0.7613636363636364,
+          "fusion_page_at_20": 0.8863636363636364,
+          "fusion_mrr_page": 0.5791064049586777,
+          "repairs_at_5": 7,
+          "regressions_at_5": 2,
+          "net_at_5": 5
+        },
+        "fr": {
+          "n": 11,
+          "current_page_at_1": 0.45454545454545453,
+          "current_page_at_5": 0.9090909090909091,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.6628787878787878,
+          "fusion_page_at_1": 0.45454545454545453,
+          "fusion_page_at_5": 0.9090909090909091,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.6628787878787878,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 77,
+          "current_page_at_1": 0.45454545454545453,
+          "current_page_at_5": 0.6753246753246753,
+          "current_page_at_20": 0.7922077922077922,
+          "current_mrr_page": 0.5532596371882086,
+          "fusion_page_at_1": 0.42857142857142855,
+          "fusion_page_at_5": 0.7402597402597403,
+          "fusion_page_at_20": 0.8701298701298701,
+          "fusion_mrr_page": 0.5671389216843762,
+          "repairs_at_5": 7,
+          "regressions_at_5": 2,
+          "net_at_5": 5
+        }
+      },
+      "changed_at_5": [
+        {
+          "id": "cir_2018_03_ar_prohibition_or_limit_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2016_06_ar_deadline_or_duration_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 5,
+          "fusion_page": 6
+        },
+        {
+          "id": "note_2017_15_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 7,
+          "fusion_page": 3
+        },
+        {
+          "id": "note_2018_31_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 4,
+          "fusion_page": 6
+        },
+        {
+          "id": "note_2020_35_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 4
+        },
+        {
+          "id": "note_2020_36_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 8,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2020_37_ar_effective_date_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 7,
+          "fusion_page": 5
+        },
+        {
+          "id": "note_2023_30_ar_exception_or_condition_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 3
+        },
+        {
+          "id": "note_2026_22_ar_eligibility_or_scope_01",
+          "language": "ar",
+          "role": null,
+          "current_page": null,
+          "fusion_page": 3
+        }
+      ]
+    },
+    "temporal_near_duplicate": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 34,
+          "current_page_at_1": 0.35294117647058826,
+          "current_page_at_5": 0.5,
+          "current_page_at_20": 0.7352941176470589,
+          "current_mrr_page": 0.4383425806219924,
+          "fusion_page_at_1": 0.35294117647058826,
+          "fusion_page_at_5": 0.5588235294117647,
+          "fusion_page_at_20": 0.8529411764705882,
+          "fusion_mrr_page": 0.47287912251147546,
+          "repairs_at_5": 2,
+          "regressions_at_5": 0,
+          "net_at_5": 2
+        },
+        "fr": {
+          "n": 22,
+          "current_page_at_1": 0.36363636363636365,
+          "current_page_at_5": 0.5,
+          "current_page_at_20": 0.7727272727272727,
+          "current_mrr_page": 0.4379904817404817,
+          "fusion_page_at_1": 0.36363636363636365,
+          "fusion_page_at_5": 0.5,
+          "fusion_page_at_20": 0.7727272727272727,
+          "fusion_mrr_page": 0.4379904817404817,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 12,
+          "current_page_at_1": 0.3333333333333333,
+          "current_page_at_5": 0.5,
+          "current_page_at_20": 0.6666666666666666,
+          "current_mrr_page": 0.43898809523809523,
+          "fusion_page_at_1": 0.3333333333333333,
+          "fusion_page_at_5": 0.6666666666666666,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.5368416305916306,
+          "repairs_at_5": 2,
+          "regressions_at_5": 0,
+          "net_at_5": 2
+        },
+        "by_role": {
+          "control": {
+            "n": 17,
+            "current_page_at_1": 0.7058823529411765,
+            "current_page_at_5": 1.0,
+            "current_page_at_20": 1.0,
+            "current_mrr_page": 0.8284313725490196,
+            "fusion_page_at_1": 0.7058823529411765,
+            "fusion_page_at_5": 1.0,
+            "fusion_page_at_20": 1.0,
+            "fusion_mrr_page": 0.8284313725490196,
+            "repairs_at_5": 0,
+            "regressions_at_5": 0,
+            "net_at_5": 0
+          },
+          "failure": {
+            "n": 17,
+            "current_page_at_1": 0.0,
+            "current_page_at_5": 0.0,
+            "current_page_at_20": 0.47058823529411764,
+            "current_mrr_page": 0.04825378869496517,
+            "fusion_page_at_1": 0.0,
+            "fusion_page_at_5": 0.11764705882352941,
+            "fusion_page_at_20": 0.7058823529411765,
+            "fusion_mrr_page": 0.1173268724739313,
+            "repairs_at_5": 2,
+            "regressions_at_5": 0,
+            "net_at_5": 2
+          }
+        }
+      },
+      "changed_at_5": [
+        {
+          "id": "cir_2018_03_ar_prohibition_or_limit_01",
+          "language": "ar",
+          "role": "failure",
+          "current_page": null,
+          "fusion_page": 2
+        },
+        {
+          "id": "note_2017_04_ar_effective_date_01",
+          "language": "ar",
+          "role": "failure",
+          "current_page": null,
+          "fusion_page": 2
+        }
+      ]
+    },
+    "long_documents": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 53,
+          "current_page_at_1": 0.8490566037735849,
+          "current_page_at_5": 0.9433962264150944,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.8955151242887092,
+          "fusion_page_at_1": 0.8490566037735849,
+          "fusion_page_at_5": 0.9433962264150944,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.8955151242887092,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "fr": {
+          "n": 53,
+          "current_page_at_1": 0.8490566037735849,
+          "current_page_at_5": 0.9433962264150944,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.8955151242887092,
+          "fusion_page_at_1": 0.8490566037735849,
+          "fusion_page_at_5": 0.9433962264150944,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.8955151242887092,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 0,
+          "current_page_at_1": null,
+          "current_page_at_5": null,
+          "current_page_at_20": null,
+          "current_mrr_page": null,
+          "fusion_page_at_1": null,
+          "fusion_page_at_5": null,
+          "fusion_page_at_20": null,
+          "fusion_mrr_page": null,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        }
+      },
+      "changed_at_5": []
+    },
+    "context_dependence": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 4,
+          "current_page_at_1": 0.5,
+          "current_page_at_5": 0.5,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.5491071428571429,
+          "fusion_page_at_1": 0.5,
+          "fusion_page_at_5": 0.5,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.5491071428571429,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "fr": {
+          "n": 4,
+          "current_page_at_1": 0.5,
+          "current_page_at_5": 0.5,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.5491071428571429,
+          "fusion_page_at_1": 0.5,
+          "fusion_page_at_5": 0.5,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.5491071428571429,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 0,
+          "current_page_at_1": null,
+          "current_page_at_5": null,
+          "current_page_at_20": null,
+          "current_mrr_page": null,
+          "fusion_page_at_1": null,
+          "fusion_page_at_5": null,
+          "fusion_page_at_20": null,
+          "fusion_mrr_page": null,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "by_role": {
+          "control": {
+            "n": 2,
+            "current_page_at_1": 1.0,
+            "current_page_at_5": 1.0,
+            "current_page_at_20": 1.0,
+            "current_mrr_page": 1.0,
+            "fusion_page_at_1": 1.0,
+            "fusion_page_at_5": 1.0,
+            "fusion_page_at_20": 1.0,
+            "fusion_mrr_page": 1.0,
+            "repairs_at_5": 0,
+            "regressions_at_5": 0,
+            "net_at_5": 0
+          },
+          "failure": {
+            "n": 2,
+            "current_page_at_1": 0.0,
+            "current_page_at_5": 0.0,
+            "current_page_at_20": 1.0,
+            "current_mrr_page": 0.09821428571428571,
+            "fusion_page_at_1": 0.0,
+            "fusion_page_at_5": 0.0,
+            "fusion_page_at_20": 1.0,
+            "fusion_mrr_page": 0.09821428571428571,
+            "repairs_at_5": 0,
+            "regressions_at_5": 0,
+            "net_at_5": 0
+          }
+        }
+      },
+      "changed_at_5": []
+    },
+    "ambiguity_abstention": {
+      "status": "not_evaluated",
+      "reason": "Retrieval rank metrics do not measure abstention or clarification quality.",
+      "case_count": 8
+    },
+    "identifiers": {
+      "status": "development_retrieval_only",
+      "metrics": {
+        "overall": {
+          "n": 42,
+          "current_page_at_1": 0.8333333333333334,
+          "current_page_at_5": 1.0,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.8912698412698413,
+          "fusion_page_at_1": 0.8333333333333334,
+          "fusion_page_at_5": 0.9761904761904762,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.8896825396825396,
+          "repairs_at_5": 0,
+          "regressions_at_5": 1,
+          "net_at_5": -1
+        },
+        "fr": {
+          "n": 22,
+          "current_page_at_1": 0.8636363636363636,
+          "current_page_at_5": 1.0,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.9181818181818182,
+          "fusion_page_at_1": 0.8636363636363636,
+          "fusion_page_at_5": 1.0,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.9181818181818182,
+          "repairs_at_5": 0,
+          "regressions_at_5": 0,
+          "net_at_5": 0
+        },
+        "ar": {
+          "n": 20,
+          "current_page_at_1": 0.8,
+          "current_page_at_5": 1.0,
+          "current_page_at_20": 1.0,
+          "current_mrr_page": 0.8616666666666667,
+          "fusion_page_at_1": 0.8,
+          "fusion_page_at_5": 0.95,
+          "fusion_page_at_20": 1.0,
+          "fusion_mrr_page": 0.8583333333333333,
+          "repairs_at_5": 0,
+          "regressions_at_5": 1,
+          "net_at_5": -1
+        }
+      },
+      "changed_at_5": [
+        {
+          "id": "note_2021_09_ar_eligibility_or_scope_01",
+          "language": "ar",
+          "role": null,
+          "current_page": 5,
+          "fusion_page": 6
+        }
+      ]
+    }
+  }
+}

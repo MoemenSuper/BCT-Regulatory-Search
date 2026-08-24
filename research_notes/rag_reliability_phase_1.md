@@ -252,6 +252,39 @@ from claiming annotations it does not contain.
 Canonical catalog SHA-256:
 `296C670D8CCBB5B46D3830D19AA98337468B0F11931CA9D5C86797A48931B99C`.
 
+### Targeted retrieval results
+
+Applying the cached current-winner and additive-OCR ranks to those fixed
+cohorts gives a more specific picture of where the retrieval gain lands:
+
+| Cohort | Current Page@5 | Additive OCR Page@5 | Repairs | Regressions |
+|---|---:|---:|---:|---:|
+| Structured table pages (181) | 82.87% | 84.53% | 4 | 1 |
+| Visual non-table proxy (88) | 70.45% | 76.14% | 7 | 2 |
+| Wrong-version diagnostic + controls (34) | 50.00% | 55.88% | 2 | 0 |
+| Long documents (53, French only) | 94.34% | 94.34% | 0 | 0 |
+| Context failures + controls (4, French only) | 50.00% | 50.00% | 0 | 0 |
+| Latin alphanumeric identifiers (42) | 100.00% | 97.62% | 0 | 1 |
+
+French queries bypass additive OCR, so every French slice is unchanged. On
+Arabic table cases, Page@5 rises from 88.52% to 90.98% (4 repairs, 1
+regression). On Arabic visual non-table cases it rises from 67.53% to 74.03%
+(7 repairs, 2 regressions), though Page@1 falls from 45.45% to 42.86%. The two
+version-cohort repairs are Arabic extraction rescues; additive OCR does not
+solve French version discrimination. Long-document retrieval is already strong
+within its French-only development coverage, while the two known context
+failures remain unresolved.
+
+The identifier regression is
+`note_2021_09_ar_eligibility_or_scope_01`, which moves from rank 5 to 6. This
+confirms that a semantic OCR gain can still crowd exact identifiers at the
+final cutoff. It strengthens the next controlled hypothesis: page-level
+diversity or identifier-aware ranking must preserve the new candidate recall
+without allowing redundant OCR/native candidates to displace exact evidence.
+
+Canonical targeted retrieval result SHA-256:
+`90A5BADE399E29467AEDC78D901E762DC00D0B4A095A2AB2540C6F3B4F2EF20F`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

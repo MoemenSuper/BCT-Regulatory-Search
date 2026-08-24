@@ -167,6 +167,19 @@ cohorts. Wrong-version and context failures receive unique deterministic
 same-language/category Top-5 controls. Membership does not consult OCR-fusion
 or VLM outputs, and every cohort remains development-only.
 
+Measure the reproduced winner and additive OCR ranks on each frozen cohort:
+
+```powershell
+python -m experiments.stress_catalog_benchmark `
+  --catalog experiments/stress_suites/targeted_development_catalog_v1.json `
+  --retrieval-result experiments/results/arabic_ocr_fusion_retrieval_v1.json `
+  --output experiments/results/targeted_stress_retrieval_v1.json
+```
+
+This is a cached rank analysis: it performs no retrieval, reranking, OCR, or
+hosted-model calls. Negative/ambiguous cases are deliberately marked not
+evaluated because retrieval ranks cannot measure abstention.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
