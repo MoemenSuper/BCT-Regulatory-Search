@@ -79,11 +79,14 @@ def _iter_structured_documents(cache_dir: Path) -> Iterable[StructuredDocument]:
 
 def _validate_reused_structured_cache(cache_dir: Path, previous_dir: Path) -> None:
     """Refuse a full-hierarchy control built from a different extracted corpus."""
-    def hashes(directory: Path) -> dict[str, str]:
+    def hashes(directory: Path) -> dict[str, tuple[str, str]]:
         manifest = json.loads((directory / "ingestion_manifest.json").read_text(encoding="utf-8"))
-        return {path: str(record["sha256"]) for path, record in manifest["records"].items()}
+        return {
+            path: (str(record["sha256"]), _sha256(Path(record["artifact"])))
+            for path, record in manifest["records"].items()
+        }
     if hashes(cache_dir) != hashes(previous_dir):
-        raise ValueError("Previous structured index does not use the same cached StructuredDocument corpus")
+        raise ValueError("Previous structured index does not use identical PDF and StructuredDocument cache artifacts")
 
 
 def _split_text(text: str, max_chars: int = 1000, overlap: int = 200) -> list[str]:
