@@ -114,6 +114,26 @@ The output is resumable from per-page caches. Its KEEP/REJECT screen measures
 verified evidence-token and critical-number recall; it does not deploy or alter
 the ingestion fallback.
 
+Build and run the corpus-wide additive OCR retrieval ablation from the frozen
+native candidate cache:
+
+```powershell
+python -u -m experiments.ocr_fusion_retrieval all `
+  --evaluation evaluation_queries.json `
+  --current-result "$env:TEMP\reproduction\results\structured_baseline_chunking.json" `
+  --current-candidates "$env:TEMP\reproduction\candidate_caches\structured_baseline_chunking.json" `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --structured-cache-dir "$env:TEMP\structured" `
+  --ocr-cache-dir "$env:TEMP\arabic-ocr-cache" `
+  --output-dir "$env:TEMP\arabic-ocr-fusion" `
+  --summary-output "$env:TEMP\arabic-ocr-fusion-summary.json"
+```
+
+This applies the unchanged gate to every Arabic page, builds a disposable OCR
+index, routes by Arabic characters in the runtime query text, and preserves the
+native candidate union. The tracked slim result retains all 697 before/after
+ranks while omitting duplicated chunk text.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell

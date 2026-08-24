@@ -28,6 +28,7 @@ from experiments.retrieval_ablations import (
     _mcnemar,
     _merge_candidates,
     _metrics,
+    _page_matches,
     _pages_by_source,
     _retrieve,
     _ranks,
@@ -252,6 +253,133 @@ def _deserialize_candidates(raw: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def candidate_pool_outcome(
+    candidates: list[dict[str, Any]], expected_source: str, expected_page: int
+) -> dict[str, bool]:
+    source_matches = [
+        candidate
+        for candidate in candidates
+        if str(candidate["document"].metadata.get("source", "")).casefold()
+        == expected_source.casefold()
+    ]
+    return {
+        "source_hit": bool(source_matches),
+        "exact_page_hit": any(
+            _page_matches(candidate["document"].metadata, expected_page)
+            for candidate in source_matches
+        ),
+    }
+
+
+def analyze_candidate_stage(
+    *,
+    evaluation_path: Path,
+    current_result_path: Path,
+    current_candidates_path: Path,
+    representation_manifest: dict[str, Any],
+    output_dir: Path,
+) -> dict[str, Any]:
+    for path, expected, label in (
+        (evaluation_path, EVALUATION_SHA256, "evaluation"),
+        (current_result_path, CURRENT_RESULT_SHA256, "current winner result"),
+        (current_candidates_path, CURRENT_CANDIDATES_SHA256, "current candidate cache"),
+    ):
+        actual = sha256_file(path)
+        if actual != expected:
+            raise ValueError(f"Frozen {label} hash differs: {actual}")
+    cases = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    current = json.loads(current_result_path.read_text(encoding="utf-8"))
+    current_by_id = {record["id"]: record for record in current["records"]}
+    base_cache = json.loads(current_candidates_path.read_text(encoding="utf-8"))
+    representation = _load_search_representation(representation_manifest)
+    records = []
+    for number, case in enumerate(cases, start=1):
+        if not case["relevant"]:
+            continue
+        base = _deserialize_candidates(base_cache[case["id"]])
+        ocr = (
+            _retrieve(representation, case["query"], OCR_DENSE_K, OCR_BM25_K)
+            if is_arabic_query(case["query"])
+            else []
+        )
+        union = _merge_candidates((base, ocr))
+        source = case["expected_source"]
+        page = int(case["expected_page"])
+        base_outcome = candidate_pool_outcome(base, source, page)
+        ocr_outcome = candidate_pool_outcome(ocr, source, page)
+        union_outcome = candidate_pool_outcome(union, source, page)
+        records.append(
+            {
+                "id": case["id"],
+                "language": case["language"],
+                "base": base_outcome,
+                "ocr": ocr_outcome,
+                "union": union_outcome,
+                "base_candidate_count": len(base),
+                "ocr_candidate_count": len(ocr),
+                "primary_failure_category": current_by_id[case["id"]].get(
+                    "primary_failure_category"
+                ),
+            }
+        )
+        if number % 50 == 0:
+            print(f"[candidate-analysis {number}/{len(cases)}]", flush=True)
+
+    def group_metrics(language: str | None) -> dict[str, Any]:
+        group = [
+            record
+            for record in records
+            if language is None or record["language"] == language
+        ]
+        return {
+            "n": len(group),
+            **{
+                f"{representation_name}_{metric}": sum(
+                    record[representation_name][metric] for record in group
+                )
+                / len(group)
+                for representation_name in ("base", "ocr", "union")
+                for metric in ("source_hit", "exact_page_hit")
+            },
+        }
+
+    page_rescues = [
+        record
+        for record in records
+        if not record["base"]["exact_page_hit"] and record["union"]["exact_page_hit"]
+    ]
+    artifact = {
+        "status": "complete",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "configuration": {
+            "ocr_dense_k": OCR_DENSE_K,
+            "ocr_bm25_k": OCR_BM25_K,
+            "arabic_query_routing": "Unicode Arabic-script presence",
+            "candidate_merge": "exact union",
+        },
+        "inputs": {
+            "evaluation_sha256": sha256_file(evaluation_path),
+            "current_result_sha256": sha256_file(current_result_path),
+            "current_candidates_sha256": sha256_file(current_candidates_path),
+            "ocr_representation_manifest_sha256": sha256_file(
+                output_dir / "representation" / "manifest.json"
+            ),
+        },
+        "metrics": {
+            "overall": group_metrics(None),
+            "fr": group_metrics("fr"),
+            "ar": group_metrics("ar"),
+        },
+        "exact_page_candidate_rescues": [record["id"] for record in page_rescues],
+        "rescue_failure_categories": dict(
+            Counter(record["primary_failure_category"] or "unclassified" for record in page_rescues)
+        ),
+        "records": records,
+    }
+    write_json_atomic(output_dir / "candidate_stage_analysis.json", artifact)
+    return artifact
+
+
 def _language_metrics(records: list[dict[str, Any]], field: str) -> dict[str, Any]:
     return {
         language: _metrics(
@@ -259,6 +387,75 @@ def _language_metrics(records: list[dict[str, Any]], field: str) -> dict[str, An
         )
         for language in ("fr", "ar")
     }
+
+
+def build_slim_result(
+    full_result: dict[str, Any],
+    candidate_analysis: dict[str, Any],
+    *,
+    full_result_sha256: str,
+    candidate_analysis_sha256: str,
+) -> dict[str, Any]:
+    """Preserve every rank and decision input without duplicating retrieved text."""
+    if full_result.get("status") != "complete" or candidate_analysis.get("status") != "complete":
+        raise ValueError("Only complete retrieval and candidate artifacts can be summarized")
+    return {
+        "status": "complete",
+        "timestamp": full_result["timestamp"],
+        "experiment_id": "additive-arabic-ocr-retrieval-development-v1",
+        "decision": "KEEP_FOR_UNSEEN_VALIDATION",
+        "deployment_status": "PROHIBITED_PENDING_UNSEEN_VALIDATION",
+        "decision_basis": (
+            "Exploratory development selection: positive exact-page Top-5 paired delta, "
+            "net repairs, and candidate-stage extraction rescues. This was not a frozen "
+            "validation gate and cannot establish generalization."
+        ),
+        "configuration": full_result["configuration"],
+        "inputs": full_result["inputs"],
+        "artifact_hashes": {
+            "full_result_sha256": full_result_sha256,
+            "candidate_analysis_sha256": candidate_analysis_sha256,
+        },
+        "summary": full_result["summary"],
+        "candidate_stage_metrics": candidate_analysis["metrics"],
+        "exact_page_candidate_rescues": candidate_analysis[
+            "exact_page_candidate_rescues"
+        ],
+        "candidate_rescue_failure_categories": candidate_analysis[
+            "rescue_failure_categories"
+        ],
+        "rank_records": {
+            record["id"]: {
+                "language": record.get("language"),
+                "current_page": record["baseline"].get("exact_page_rank"),
+                "fusion_page": record["result"].get("exact_page_rank"),
+                "change": (
+                    "repair"
+                    if record.get("repaired", False)
+                    else "regression"
+                    if record.get("regressed", False)
+                    else "unchanged"
+                ),
+            }
+            for record in full_result["records"]
+        },
+        "limitations": full_result["limitations"],
+    }
+
+
+def write_slim_result(output_dir: Path, output_path: Path) -> dict[str, Any]:
+    full_path = output_dir / "results" / "additive_arabic_ocr_5_5.json"
+    candidate_path = output_dir / "candidate_stage_analysis.json"
+    full_result = json.loads(full_path.read_text(encoding="utf-8"))
+    candidate_analysis = json.loads(candidate_path.read_text(encoding="utf-8"))
+    artifact = build_slim_result(
+        full_result,
+        candidate_analysis,
+        full_result_sha256=sha256_file(full_path),
+        candidate_analysis_sha256=sha256_file(candidate_path),
+    )
+    write_json_atomic(output_path, artifact)
+    return artifact
 
 
 def run_retrieval(
@@ -485,7 +682,9 @@ def run_retrieval(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("build", "run", "all"))
+    parser.add_argument(
+        "command", choices=("build", "candidate", "run", "summarize", "all")
+    )
     parser.add_argument("--evaluation", type=Path, required=True)
     parser.add_argument("--current-result", type=Path, required=True)
     parser.add_argument("--current-candidates", type=Path, required=True)
@@ -493,6 +692,7 @@ def main() -> None:
     parser.add_argument("--structured-cache-dir", type=Path, required=True)
     parser.add_argument("--ocr-cache-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--summary-output", type=Path)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     representation_manifest = build_ocr_representation(
@@ -500,6 +700,14 @@ def main() -> None:
         output_dir=args.output_dir,
         ocr_cache_dir=args.ocr_cache_dir,
     )
+    if args.command in {"candidate", "all"}:
+        analyze_candidate_stage(
+            evaluation_path=args.evaluation,
+            current_result_path=args.current_result,
+            current_candidates_path=args.current_candidates,
+            representation_manifest=representation_manifest,
+            output_dir=args.output_dir,
+        )
     if args.command in {"run", "all"}:
         run_retrieval(
             evaluation_path=args.evaluation,
@@ -509,6 +717,10 @@ def main() -> None:
             representation_manifest=representation_manifest,
             output_dir=args.output_dir,
         )
+    if args.command in {"summarize", "all"}:
+        if args.summary_output is None:
+            parser.error("--summary-output is required for summarize/all")
+        write_slim_result(args.output_dir, args.summary_output)
 
 
 if __name__ == "__main__":

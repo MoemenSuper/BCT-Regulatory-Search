@@ -161,6 +161,45 @@ a secondary candidate representation, so OCR can contribute readable words
 without discarding native digits. That fusion must pass a separate cached
 retrieval ablation and still cannot be deployed without unseen validation.
 
+### Corpus-wide additive OCR retrieval
+
+To avoid selecting only known failed pages, the unchanged gate was applied to
+all 521 pages in the 273-document Arabic corpus. It selected 110 pages and
+produced 196 page-local sequential 1000/200 OCR chunks. The experiment kept the
+entire frozen native candidate pool, added at most five dense and five BM25 OCR
+candidates only for runtime queries containing Arabic script, and reranked the
+exact union with the unchanged BGE reranker.
+
+| Retrieval metric | Current winner | Additive OCR | Delta |
+|---|---:|---:|---:|
+| Overall Source@1 | 76.49% | 77.65% | +1.16 pp |
+| Overall Source@5 | 92.74% | 94.63% | +1.89 pp |
+| Overall exact Page@1 | 70.39% | 70.25% | -0.15 pp |
+| Overall exact Page@5 | 87.95% | 89.26% | +1.31 pp |
+| Overall exact Page@20 | 93.18% | 94.63% | +1.45 pp |
+| Arabic Source@5 | 88.46% | 92.63% | +4.17 pp |
+| Arabic exact Page@5 | 85.26% | 88.14% | +2.88 pp |
+| Arabic exact Page@20 | 90.38% | 93.59% | +3.21 pp |
+
+The paired exact-Page@5 comparison has 12 repairs and 3 regressions (net +9,
+two-sided exact McNemar `p=0.03515625`). French metrics are unchanged by design.
+Mean/median measured retrieval-plus-reranking latency was 1.011s/0.927s,
+compared with 0.959s/0.897s in the reproduction run; this is approximately a
+5.4% mean increase, with the usual operational-variance caveat.
+
+At candidate stage, Arabic exact-page pool recall increased from 90.71% to
+94.23%. Eleven pages absent from the native candidate pool were recovered: nine
+were prior extraction failures and two were prior missing-document failures.
+The final reranker converted 12 cases into Top-5 repairs, but three current
+rank-4/5 cases fell to rank 6. Multiple same-page native/OCR chunks also appear
+in some Top-5 lists, identifying diversity and reranking pressure as the next
+development failure seam.
+
+**Decision: KEEP FOR UNSEEN VALIDATION, DO NOT DEPLOY.** This is an exploratory
+development selection after failure inspection. It has not crossed a frozen
+validation gate, and the small Page@1 decline, three cutoff regressions, numeric
+OCR weakness, and duplicate-page pressure remain explicit risks.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`
