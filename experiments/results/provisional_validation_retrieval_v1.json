@@ -1,0 +1,168 @@
+{
+  "status": "complete",
+  "evaluated_at": "2026-08-24T19:38:01.195292+00:00",
+  "role": "validation",
+  "detail_policy": "aggregate_only",
+  "protocol_sha256": "51C7FAB67FAB30B17115B8085A13AAC367DE50959CF8CD89084CD410392EF14F",
+  "dataset_sha256": "A21E231A1B9AD8007ACA99ABC010D69E5E3AC2A85F26A7E53F0C4F0BF904B64D",
+  "result_sha256": "25AF7CC9BE9A9A0D22BDA1AD0507590943042A9E6B03FA61F63360A5F707DC25",
+  "code_commit": "6d705e7",
+  "metrics": {
+    "overall": {
+      "case_count": 24,
+      "relevant_count": 16,
+      "negative_or_ambiguous_count": 8,
+      "source_at_1": 0.9375,
+      "source_at_5": 1.0,
+      "source_at_20": 1.0,
+      "mrr_source": 0.96875,
+      "exact_page_at_1": 0.875,
+      "exact_page_at_5": 1.0,
+      "exact_page_at_20": 1.0,
+      "mrr_exact_page": 0.9270833333333334,
+      "answer_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "citation_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "grounded": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "negative": {
+        "case_count": 8,
+        "categories": {
+          "ambiguous": 2,
+          "current_status_unknown": 2,
+          "future_unknown": 2,
+          "out_of_scope": 2
+        },
+        "abstained": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "clarification_requested": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "safe_response": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        }
+      }
+    },
+    "fr": {
+      "case_count": 12,
+      "relevant_count": 8,
+      "negative_or_ambiguous_count": 4,
+      "source_at_1": 1.0,
+      "source_at_5": 1.0,
+      "source_at_20": 1.0,
+      "mrr_source": 1.0,
+      "exact_page_at_1": 1.0,
+      "exact_page_at_5": 1.0,
+      "exact_page_at_20": 1.0,
+      "mrr_exact_page": 1.0,
+      "answer_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "citation_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "grounded": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "negative": {
+        "case_count": 4,
+        "categories": {
+          "ambiguous": 1,
+          "current_status_unknown": 1,
+          "future_unknown": 1,
+          "out_of_scope": 1
+        },
+        "abstained": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "clarification_requested": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "safe_response": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        }
+      }
+    },
+    "ar": {
+      "case_count": 12,
+      "relevant_count": 8,
+      "negative_or_ambiguous_count": 4,
+      "source_at_1": 0.875,
+      "source_at_5": 1.0,
+      "source_at_20": 1.0,
+      "mrr_source": 0.9375,
+      "exact_page_at_1": 0.75,
+      "exact_page_at_5": 1.0,
+      "exact_page_at_20": 1.0,
+      "mrr_exact_page": 0.8541666666666666,
+      "answer_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "citation_correct": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "grounded": {
+        "observed_count": 0,
+        "true_count": 0,
+        "rate": 0.0
+      },
+      "negative": {
+        "case_count": 4,
+        "categories": {
+          "ambiguous": 1,
+          "current_status_unknown": 1,
+          "future_unknown": 1,
+          "out_of_scope": 1
+        },
+        "abstained": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "clarification_requested": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "safe_response": {
+          "observed_count": 0,
+          "true_count": 0,
+          "rate": 0.0
+        }
+      }
+    }
+  }
+}
