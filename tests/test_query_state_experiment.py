@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from experiments.query_state_experiment import derive_status, parse_query_state
+from experiments.query_state_experiment import _answer, derive_status, parse_query_state
 
 
 def _state(**overrides):
@@ -49,3 +49,17 @@ def test_query_state_requires_missing_detail_only_for_ambiguity():
         )
     with pytest.raises(ValueError, match="must not contain"):
         parse_query_state(json.dumps(_state(missing_detail="unexpected")))
+
+
+def test_clarification_text_is_deterministically_bilingual():
+    state = _state(
+        ambiguity="missing_discriminating_detail",
+        missing_detail="type of allowance",
+    )
+
+    assert _answer("clarification_needed", state, "ar") == (
+        "يرجى تحديد النوع أو الفئة المقصودة في طلبك."
+    )
+    assert _answer("clarification_needed", state, "fr") == (
+        "Veuillez préciser le type ou la catégorie visée par votre demande."
+    )

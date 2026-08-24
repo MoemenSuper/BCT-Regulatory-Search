@@ -104,8 +104,8 @@ def derive_status(state: dict[str, str]) -> str:
 def _answer(status: str, state: dict[str, str], language: str) -> str:
     if status == "clarification_needed":
         if language == "ar":
-            return f"يرجى توضيح التفصيل التالي: {state['missing_detail']}"
-        return f"Veuillez préciser le détail suivant : {state['missing_detail']}"
+            return "يرجى تحديد النوع أو الفئة المقصودة في طلبك."
+        return "Veuillez préciser le type ou la catégorie visée par votre demande."
     if status == "out_of_scope":
         if language == "ar":
             return "عذرًا، هذا الطلب خارج نطاق الوثائق التنظيمية والمالية للبنك المركزي التونسي."
