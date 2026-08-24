@@ -23,6 +23,7 @@ PROMPT_VERSION = "bct-claim-linked-answer-v1"
 PROMPT_VERSION_V2 = "bct-claim-linked-answer-v2"
 PROMPT_VERSION_V3 = "bct-claim-linked-answer-v3"
 PROMPT_VERSION_V4 = "bct-claim-linked-answer-v4"
+PROMPT_VERSION_V5 = "bct-claim-linked-answer-v5"
 _STATUSES = {"answered", "insufficient_evidence", "clarification_needed", "out_of_scope"}
 _SCHEMA = {
     "type": "object",
@@ -99,6 +100,9 @@ For a supported answer, preserve the evidence's exact literal fidelity:
 - when answering an amount, rate, date, or time question, include the exact value and unit shown in evidence;
 - when confirming that a named entity appears in a list or table, include the entity's row identifier when one is present;
 - do not normalize, translate, or silently omit those supporting literals."""
+_SYSTEM_V5 = _SYSTEM_V4 + """
+
+The user payload may contain required_answer_literals derived mechanically from the supplied evidence. For an answered response, reproduce every listed literal exactly in the answer and in a supported atomic claim. If the evidence does not support a listed literal, return insufficient_evidence rather than inventing or altering it."""
 
 
 def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
@@ -111,6 +115,8 @@ def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
         return PROMPT_VERSION_V3, _SYSTEM_V3, _SCHEMA_V2, True
     if requested == PROMPT_VERSION_V4:
         return PROMPT_VERSION_V4, _SYSTEM_V4, _SCHEMA_V2, True
+    if requested == PROMPT_VERSION_V5:
+        return PROMPT_VERSION_V5, _SYSTEM_V5, _SCHEMA_V2, True
     raise ValueError(f"Unsupported structured answer prompt version: {requested}")
 
 
@@ -280,7 +286,15 @@ def run_structured_answer_experiment(
                     }
                 ]
             user_payload = json.dumps(
-                {"question": case["query"], "evidence": evidence},
+                {
+                    "question": case["query"],
+                    "evidence": evidence,
+                    **(
+                        {"required_answer_literals": case["required_answer_literals"]}
+                        if "required_answer_literals" in case
+                        else {}
+                    ),
+                },
                 ensure_ascii=False,
             )
             started = time.perf_counter()

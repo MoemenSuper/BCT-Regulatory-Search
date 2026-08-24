@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,19 @@ def render_structured_page(page: dict[str, Any]) -> str:
     if not parts:
         raise ValueError(f"Structured page {page.get('page_number')} has no text blocks")
     return "\n\n".join(parts)
+
+
+def evidence_alphanumeric_identifiers(text: str) -> list[str]:
+    """Return stable letter-and-digit tokens from a verified evidence excerpt."""
+    return sorted(
+        {
+            token
+            for token in re.findall(r"[A-Za-z0-9]+", text)
+            if any(character.isalpha() for character in token)
+            and any(character.isdigit() for character in token)
+        },
+        key=str.casefold,
+    )
 
 
 def build_context_expansion_suite(
@@ -99,6 +113,10 @@ def build_context_expansion_suite(
             "block_count": len(pages[0].get("blocks", [])),
             "verified_excerpt_included": include_verified_excerpt,
         }
+        if prompt_version == "bct-claim-linked-answer-v5":
+            expanded["required_answer_literals"] = evidence_alphanumeric_identifiers(
+                original_quote
+            )
         document_hashes[Path(case["expected_source"]).name] = {
             "pdf_sha256": str(record["sha256"]).upper(),
             "artifact_sha256": sha256_file(artifact_path),
@@ -156,6 +174,7 @@ def build_context_expansion_suite(
         "limitations": [
             "Development-only gold-evidence context suite.",
             "Exact labeled pages isolate context sufficiency and do not measure whether retrieval supplies that context.",
+            "Required v5 identifiers, when present, are derived from the verified evidence excerpt rather than the expected answer.",
             "A passing result cannot by itself justify production page expansion.",
         ],
         "cases": cases,

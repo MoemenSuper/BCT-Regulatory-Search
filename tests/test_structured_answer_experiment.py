@@ -95,3 +95,13 @@ def test_v4_contract_requires_row_identifiers_for_entity_confirmation():
     assert version == "bct-claim-linked-answer-v4"
     assert "include the entity's row identifier" in prompt
     assert require_nonempty is True
+
+
+def test_v5_contract_enforces_evidence_derived_required_literals():
+    version, prompt, _schema, require_nonempty = _contract(
+        {"answer_experiment": {"prompt_version": "bct-claim-linked-answer-v5"}}
+    )
+
+    assert version == "bct-claim-linked-answer-v5"
+    assert "required_answer_literals" in prompt
+    assert require_nonempty is True
