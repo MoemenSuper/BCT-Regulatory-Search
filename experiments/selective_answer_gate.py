@@ -14,8 +14,8 @@ from experiments.numeric_fidelity_stress import critical_identifiers
 
 
 EXPECTED_SUITE_SHA256 = "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1"
-EXPECTED_CANDIDATE_SHA256 = "DD3F3F35335243E2511EE1F945717B4462FCDDCC837F3C1AEE7D11670A5D6E70"
-EXPECTED_GENERATED_SHA256 = "3CFF3B8FF91217F082969D25DA985E8AB195C7ABA31725BEE40D0E9B3F2D9A74"
+EXPECTED_CANDIDATE_SHA256 = "54A46A2DFC8145203E09F3D7EE7803D2DAD661490168471EF4316FB169C04467"
+EXPECTED_GENERATED_SHA256 = "E92F0AA0FB2B9DA64CB4F7CB18376C4E85712DBFCE821CB8E7849A2A1B31E2A4"
 EXPECTED_REVIEW_SHA256 = "6668B53D89CBAD4A278E90FF58E99EFC9366C4B08AB84DB2E41D390EB79EE910"
 EXPECTED_RETRY_IDS = {
     "cir_2019_02_fr_amount_or_rate_02",
@@ -98,6 +98,8 @@ def _relevant_structure_matches(case: dict[str, Any], record: dict[str, Any]) ->
         or not isinstance(claims, list)
         or not claims
         or not isinstance(citations, list)
+        or len(citations) != 1
+        or any(not isinstance(citation, dict) for citation in citations)
     ):
         return False
     expected_citation = (
@@ -112,7 +114,6 @@ def _relevant_structure_matches(case: dict[str, Any], record: dict[str, Any]) ->
             citation.get("page"),
         )
         for citation in citations
-        if isinstance(citation, dict)
     ]
     if citation_keys != [expected_citation]:
         return False
@@ -181,6 +182,18 @@ def evaluate_selective_answer_gate(
         for case, record in relevant
         if record.get("answer_path") == "single_full_page_context_retry"
     }
+    answer_paths_match = all(
+        record.get("answer_path")
+        == (
+            "single_full_page_context_retry"
+            if case["id"] in EXPECTED_RETRY_IDS
+            else "verified_excerpt_claim_linked_answer"
+        )
+        for case, record in relevant
+    ) and all(
+        record.get("answer_path") == "query_state_then_deterministic_status"
+        for _case, record in negative
+    )
     clarification_count = sum(
         record.get("response", {}).get("status") == "clarification_needed"
         for _case, record in negative
@@ -212,6 +225,7 @@ def evaluate_selective_answer_gate(
         ),
         "exactly_two_clarifications": clarification_count == 2,
         "only_frozen_context_retries": retry_ids == EXPECTED_RETRY_IDS,
+        "only_known_answer_paths": answer_paths_match,
     }
     failed_checks = [name for name, passed in checks.items() if not passed]
     return {
@@ -240,7 +254,7 @@ def main() -> None:
     result_hash = sha256_file(args.result)
     suite_hash = sha256_file(args.suite)
     receipt = {
-        "experiment_id": "selective-answer-candidate-development-gate-v2",
+        "experiment_id": "selective-answer-candidate-development-gate-v3",
         "input_sha256": result_hash,
         "suite_sha256": suite_hash,
         **evaluate_selective_answer_gate(

@@ -12,7 +12,7 @@ from experiments.selective_answer_gate import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULT_PATH = ROOT / "experiments/results/selective_answer_candidate_v2.json"
+RESULT_PATH = ROOT / "experiments/results/selective_answer_candidate_v3.json"
 SUITE_PATH = ROOT / "experiments/stress_suites/answer_safety_development_v1.json"
 
 
@@ -62,6 +62,17 @@ def test_gate_recomputes_claims_citations_and_negative_statuses():
 
     assert receipt["checks"]["all_relevant_responses_recompute_as_structurally_cited"] is False
     assert receipt["checks"]["all_negative_statuses_and_payloads_recomputed"] is False
+
+
+def test_gate_rejects_garbage_citation_and_unknown_answer_path():
+    result, suite = _inputs()
+    result["records"][0]["response"]["citations"].append("garbage")
+    result["records"][1]["answer_path"] = "unknown_path"
+
+    receipt = _evaluate(result, suite)
+
+    assert receipt["checks"]["all_relevant_responses_recompute_as_structurally_cited"] is False
+    assert receipt["checks"]["only_known_answer_paths"] is False
 
 
 def test_gate_requires_exact_unique_frozen_ids_and_suite_metadata():

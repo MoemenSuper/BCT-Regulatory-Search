@@ -27,6 +27,8 @@ def _deduplicate_citations(record: dict[str, Any]) -> None:
             seen.add(key)
             unique.append(citation)
     record["response"]["citations"] = unique
+    if isinstance(record.get("structured_diagnostics"), dict):
+        record["structured_diagnostics"]["citation_count"] = len(unique)
 
 
 def compose_selective_answer_candidate(

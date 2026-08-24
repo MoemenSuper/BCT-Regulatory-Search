@@ -89,3 +89,4 @@ def test_composition_removes_exact_duplicate_citations():
     )
 
     assert result["records"][0]["response"]["citations"] == [citation]
+    assert result["records"][0]["structured_diagnostics"]["citation_count"] == 1
