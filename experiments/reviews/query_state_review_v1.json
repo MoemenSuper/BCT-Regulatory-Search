@@ -1,0 +1,69 @@
+{
+  "reviewer_type": "agent_evidence_review_not_independent_human",
+  "reviewed_against": "frozen expected negative behavior, explicit query-state fields, deterministic status mapping, bilingual user-facing text, empty claims, and empty citations",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "No relevant cases are present in this bounded query-state gate."
+  },
+  "relevant_overrides": {},
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies a missing allowance type, and deterministic Arabic text asks the user to specify the intended type or category."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the request as current-state dependent, and deterministic mapping abstains with no claims or citations."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the future regulation as time dependent, and deterministic mapping abstains."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the recipe request clearly unrelated, and deterministic Arabic text refuses it."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier identifies the missing transfer type, and deterministic French text asks for the intended type or category."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the current ceiling request as time dependent, and deterministic mapping abstains."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier keeps the future exchange-rate request in financial scope, marks it time dependent, and deterministic mapping abstains."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The classifier marks the weather request clearly unrelated, and deterministic French text refuses it."
+    }
+  }
+}

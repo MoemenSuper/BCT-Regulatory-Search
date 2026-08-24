@@ -1,0 +1,521 @@
+{
+  "inputs": {
+    "answer_suite_sha256": "FFE75022CA77CB3D0951C1B668F90020B4FAA91751D7041B6A84FBEDCA98E542",
+    "generated_result_sha256": "C846D913DDCFB996392A5F48A194FC62ACF60152429B9A9D9473E6FA8A542BCE",
+    "review_sha256": "9C7FBCF91187197B60704B16BD2D7AD05EDC586C5E873E8954DC5C1557B96A03"
+  },
+  "status": "complete",
+  "experiment_id": "explicit-query-state-development-v1",
+  "configuration": {
+    "model": "openai/gpt-oss-120b",
+    "prompt_version": "bct-query-state-v1",
+    "classification": "scope plus temporal state plus ambiguity",
+    "status_mapping": "deterministic precedence: unrelated, temporal, ambiguity, fallback",
+    "user_facing_text": "deterministic bilingual templates"
+  },
+  "automatic_metrics": {
+    "negative_expected_status_rate": 1.0
+  },
+  "reviewed_metrics": {
+    "overall": {
+      "case_count": 8,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 8,
+        "abstained_or_refused": {
+          "true_count": 6,
+          "rate": 0.75
+        },
+        "clarification_requested": {
+          "true_count": 2,
+          "rate": 0.25
+        },
+        "safe_response": {
+          "true_count": 8,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 8,
+          "rate": 1.0
+        }
+      }
+    },
+    "fr": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 3,
+          "rate": 0.75
+        },
+        "clarification_requested": {
+          "true_count": 1,
+          "rate": 0.25
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 4,
+          "rate": 1.0
+        }
+      }
+    },
+    "ar": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 3,
+          "rate": 0.75
+        },
+        "clarification_requested": {
+          "true_count": 1,
+          "rate": 0.25
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 4,
+          "rate": 1.0
+        }
+      }
+    }
+  },
+  "latency_seconds": {
+    "mean": 1.5723951625113841,
+    "median": 0.8665578500367701
+  },
+  "review_status": {
+    "reviewer_type": "agent_evidence_review_not_independent_human",
+    "reviewed_against": "frozen expected negative behavior, explicit query-state fields, deterministic status mapping, bilingual user-facing text, empty claims, and empty citations",
+    "independent_human_confirmation": false,
+    "note": "All cases were inspected against the verified expected answer and supplied evidence, but these are agent evidence-review labels, not independent human adjudication."
+  },
+  "limitations": [
+    "Development-only query-state gate over eight inspected cases.",
+    "The classifier still uses a hosted language model and is not proof of deterministic semantic correctness.",
+    "No retrieved evidence is supplied, so this does not solve evidence-sufficiency detection.",
+    "Agent evidence-review labels should be independently confirmed before a release claim.",
+    "Gold evidence isolates generation and does not measure end-to-end retrieval sufficiency."
+  ],
+  "records": [
+    {
+      "id": "negative_ar_ambiguous_allowance",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "missing_discriminating_detail",
+        "missing_detail": "type of travel allowance"
+      },
+      "response": {
+        "status": "clarification_needed",
+        "answer": "يرجى تحديد النوع أو الفئة المقصودة في طلبك.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.9328664999920875,
+      "usage": {
+        "prompt_tokens": 526,
+        "completion_tokens": 444,
+        "total_tokens": 970
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": false,
+        "clarification_requested": true,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier identifies a missing allowance type, and deterministic Arabic text asks the user to specify the intended type or category."
+      }
+    },
+    {
+      "id": "negative_ar_current_status_unknown",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      },
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "لا تتوفر أدلة كافية وموثوقة للإجابة عن هذا الطلب.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 0.844830300018657,
+      "usage": {
+        "prompt_tokens": 532,
+        "completion_tokens": 245,
+        "total_tokens": 777
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier marks the request as current-state dependent, and deterministic mapping abstains with no claims or citations."
+      }
+    },
+    {
+      "id": "negative_ar_future_regulation",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "missing_discriminating_detail",
+        "missing_detail": "type of publication"
+      },
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "لا تتوفر أدلة كافية وموثوقة للإجابة عن هذا الطلب.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 0.7741188000072725,
+      "usage": {
+        "prompt_tokens": 528,
+        "completion_tokens": 265,
+        "total_tokens": 793
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier marks the future regulation as time dependent, and deterministic mapping abstains."
+      }
+    },
+    {
+      "id": "negative_ar_out_of_scope_recipe",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      },
+      "response": {
+        "status": "out_of_scope",
+        "answer": "عذرًا، هذا الطلب خارج نطاق الوثائق التنظيمية والمالية للبنك المركزي التونسي.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 0.6548552999738604,
+      "usage": {
+        "prompt_tokens": 525,
+        "completion_tokens": 129,
+        "total_tokens": 654
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier marks the recipe request clearly unrelated, and deterministic Arabic text refuses it."
+      }
+    },
+    {
+      "id": "negative_fr_ambiguous_documents",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "missing_discriminating_detail",
+        "missing_detail": "type of transfer"
+      },
+      "response": {
+        "status": "clarification_needed",
+        "answer": "Veuillez préciser le type ou la catégorie visée par votre demande.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 0.8882854000548832,
+      "usage": {
+        "prompt_tokens": 526,
+        "completion_tokens": 280,
+        "total_tokens": 806
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": false,
+        "clarification_requested": true,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier identifies the missing transfer type, and deterministic French text asks for the intended type or category."
+      }
+    },
+    {
+      "id": "negative_fr_current_status_unknown",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      },
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "Les éléments disponibles ne permettent pas de répondre de manière fiable à cette demande.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 2.0913134000147693,
+      "usage": {
+        "prompt_tokens": 529,
+        "completion_tokens": 291,
+        "total_tokens": 820
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier marks the current ceiling request as time dependent, and deterministic mapping abstains."
+      }
+    },
+    {
+      "id": "negative_fr_future_exchange_rate",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      },
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "Les éléments disponibles ne permettent pas de répondre de manière fiable à cette demande.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 0.6389704000321217,
+      "usage": {
+        "prompt_tokens": 529,
+        "completion_tokens": 137,
+        "total_tokens": 666
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier keeps the future exchange-rate request in financial scope, marks it time dependent, and deterministic mapping abstains."
+      }
+    },
+    {
+      "id": "negative_fr_out_of_scope_weather",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      },
+      "response": {
+        "status": "out_of_scope",
+        "answer": "Désolé, cette demande sort du périmètre documentaire réglementaire et financier de la BCT.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 4.753921199997421,
+      "usage": {
+        "prompt_tokens": 522,
+        "completion_tokens": 220,
+        "total_tokens": 742
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The classifier marks the weather request clearly unrelated, and deterministic French text refuses it."
+      }
+    }
+  ]
+}
