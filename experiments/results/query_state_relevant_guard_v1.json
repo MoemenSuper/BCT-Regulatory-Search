@@ -1,0 +1,89 @@
+{
+  "experiment_id": "explicit-query-state-relevant-guard-development-v1",
+  "input_sha256": "B14D820A398C6B131713714B4DE9985A6E8F89B78374FF4836BC58F9A88317F4",
+  "status": "failed",
+  "checks": {
+    "frozen_relevant_case_count": true,
+    "no_relevant_query_preempted": false
+  },
+  "failed_checks": [
+    "no_relevant_query_preempted"
+  ],
+  "case_count": 32,
+  "proceed_to_retrieval_count": 25,
+  "false_preemption_count": 7,
+  "false_preemptions": [
+    {
+      "id": "cir_2021_06_fr_amount_or_rate_03",
+      "decision": "out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "cir_2023_08_ar_deadline_or_duration_01",
+      "decision": "insufficient_evidence",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "note_2016_31_ar_eligibility_or_scope_01",
+      "decision": "out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "note_2018_06_ar_effective_date_01",
+      "decision": "insufficient_evidence",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "note_2019_24_ar_effective_date_01",
+      "decision": "out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "not_current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "note_2026_129_ar_required_action_01",
+      "decision": "insufficient_evidence",
+      "query_state": {
+        "scope": "bct_regulatory_or_financial",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    },
+    {
+      "id": "note_2026_30_ar_definition_01",
+      "decision": "out_of_scope",
+      "query_state": {
+        "scope": "clearly_unrelated",
+        "temporal_state": "current_or_future",
+        "ambiguity": "sufficiently_specific",
+        "missing_detail": ""
+      }
+    }
+  ],
+  "decision": "REJECT",
+  "conclusion": "Do not preempt retrieval with query state; use it only after evidence evaluation cannot answer."
+}
