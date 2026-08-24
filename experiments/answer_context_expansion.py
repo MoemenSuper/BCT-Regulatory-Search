@@ -38,6 +38,7 @@ def build_context_expansion_suite(
     selected_ids: set[str],
     base_suite_sha256: str,
     manifest_sha256: str,
+    include_verified_excerpt: bool = False,
 ) -> dict[str, Any]:
     base_by_id = {case["id"]: case for case in base_suite["cases"]}
     if len(base_by_id) != len(base_suite["cases"]):
@@ -77,14 +78,25 @@ def build_context_expansion_suite(
             )
         expanded = deepcopy(case)
         original_quote = str(expanded["evidence_quote"])
-        expanded["evidence_quote"] = render_structured_page(pages[0])
-        expanded["evidence_method"] = "structured_full_labeled_page"
+        page_context = render_structured_page(pages[0])
+        if include_verified_excerpt:
+            expanded["evidence_quote"] = (
+                f"[VERIFIED EXCERPT]\n{original_quote}\n\n"
+                f"[FULL LABELED PAGE]\n{page_context}"
+            )
+            expanded["evidence_method"] = (
+                "verified_excerpt_plus_structured_full_labeled_page"
+            )
+        else:
+            expanded["evidence_quote"] = page_context
+            expanded["evidence_method"] = "structured_full_labeled_page"
         expanded["context_expansion"] = {
             "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
             "baseline_evidence_quote_sha256": _sha256_text(original_quote),
             "structured_document_pdf_sha256": str(record["sha256"]).upper(),
             "structured_document_artifact_sha256": sha256_file(artifact_path),
             "block_count": len(pages[0].get("blocks", [])),
+            "verified_excerpt_included": include_verified_excerpt,
         }
         document_hashes[Path(case["expected_source"]).name] = {
             "pdf_sha256": str(record["sha256"]).upper(),
@@ -92,6 +104,10 @@ def build_context_expansion_suite(
         }
         cases.append(expanded)
 
+    all_relevant_ids = {
+        case["id"] for case in base_suite["cases"] if case.get("relevant")
+    }
+    full_relevant_suite = selected_ids == all_relevant_ids
     return {
         "status": "frozen",
         "frozen_at": datetime.now(timezone.utc).isoformat(),
@@ -100,18 +116,32 @@ def build_context_expansion_suite(
             "structured_manifest_sha256": manifest_sha256,
             "structured_documents": document_hashes,
         },
-        "suite_type": "targeted_gold_evidence_context_sufficiency_development",
+        "suite_type": (
+            "full_relevant_gold_evidence_context_development"
+            if full_relevant_suite
+            else "targeted_gold_evidence_context_sufficiency_development"
+        ),
         "selection": (
-            "The two claim-linked v1 relevant failures whose frozen snippets omitted a "
-            "query condition or governing table heading."
+            "All relevant cases from the frozen answer-safety suite."
+            if full_relevant_suite
+            else "The selected claim-linked relevant failures whose frozen snippets omitted "
+            "a query condition or governing table heading."
         ),
         "evaluation_protocol": (
-            "Keep question, source, page, expected answer, model, and prompt fixed; replace only "
-            "the insufficient evidence quote with all ordered blocks from the exact labeled page."
+            "Keep question, source, page, expected answer, model, and prompt fixed; expand evidence "
+            "with all ordered blocks from the exact labeled page."
         ),
         "answer_experiment": {
-            "experiment_id": EXPERIMENT_ID,
-            "candidate_and_evidence": "targeted full exact-page StructuredDocument context",
+            "experiment_id": (
+                "claim-linked-full-page-relevant-development-v1"
+                if full_relevant_suite
+                else EXPERIMENT_ID
+            ),
+            "candidate_and_evidence": (
+                "verified excerpt plus full exact-page StructuredDocument context"
+                if include_verified_excerpt
+                else "targeted full exact-page StructuredDocument context"
+            ),
         },
         "counts": {
             "total": len(cases),
@@ -122,9 +152,9 @@ def build_context_expansion_suite(
             },
         },
         "limitations": [
-            "Development-only cases selected after inspecting claim-linked v1 failures.",
+            "Development-only gold-evidence context suite.",
             "Exact labeled pages isolate context sufficiency and do not measure whether retrieval supplies that context.",
-            "A two-case result cannot establish generalization or justify production page expansion.",
+            "A passing result cannot by itself justify production page expansion.",
         ],
         "cases": cases,
     }
@@ -134,17 +164,26 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-suite", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--case-id", action="append", required=True)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--case-id", action="append")
+    selection.add_argument("--all-relevant", action="store_true")
+    parser.add_argument("--include-verified-excerpt", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     base_suite = json.loads(args.base_suite.read_text(encoding="utf-8"))
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    selected_ids = (
+        {case["id"] for case in base_suite["cases"] if case.get("relevant")}
+        if args.all_relevant
+        else set(args.case_id)
+    )
     artifact = build_context_expansion_suite(
         base_suite=base_suite,
         manifest=manifest,
-        selected_ids=set(args.case_id),
+        selected_ids=selected_ids,
         base_suite_sha256=sha256_file(args.base_suite),
         manifest_sha256=sha256_file(args.manifest),
+        include_verified_excerpt=args.include_verified_excerpt,
     )
     write_json_atomic(args.output, artifact)
 

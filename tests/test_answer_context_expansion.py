@@ -88,3 +88,56 @@ def test_build_context_suite_rejects_unknown_case():
             base_suite_sha256="B" * 64,
             manifest_sha256="C" * 64,
         )
+
+
+def test_full_relevant_suite_preserves_verified_excerpt_before_page_context(tmp_path):
+    document_path = tmp_path / "document.json"
+    document_path.write_text(
+        json.dumps(
+            {
+                "pages": [
+                    {
+                        "page_number": 1,
+                        "blocks": [{"type": "text", "text": "Full page condition"}],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    case = {
+        "id": "case-1",
+        "query": "Question",
+        "language": "fr",
+        "relevant": True,
+        "expected_source": "Cir.pdf",
+        "expected_page": 1,
+        "expected_answer": "Answer",
+        "evidence_quote": "Verified exact wording",
+        "answer_suite_role": "control",
+    }
+    result = build_context_expansion_suite(
+        base_suite={"cases": [case]},
+        manifest={
+            "records": {
+                "Cir.pdf": {
+                    "source": "Cir.pdf",
+                    "sha256": "A" * 64,
+                    "artifact": str(document_path),
+                }
+            }
+        },
+        selected_ids={"case-1"},
+        base_suite_sha256="B" * 64,
+        manifest_sha256="C" * 64,
+        include_verified_excerpt=True,
+    )
+
+    assert result["suite_type"] == "full_relevant_gold_evidence_context_development"
+    assert result["answer_experiment"]["experiment_id"] == (
+        "claim-linked-full-page-relevant-development-v1"
+    )
+    assert result["cases"][0]["evidence_quote"] == (
+        "[VERIFIED EXCERPT]\nVerified exact wording\n\n"
+        "[FULL LABELED PAGE]\n[TEXT]\nFull page condition"
+    )

@@ -1,0 +1,844 @@
+{
+  "status": "frozen",
+  "frozen_at": "2026-08-24T20:03:20.066490+00:00",
+  "inputs": {
+    "base_answer_suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "structured_documents": {
+      "Cir_2016_09_fr.pdf": {
+        "pdf_sha256": "24BBCED31D70DC907707140BC835353AB3E9FD781EE30E4EB2F9BB659C625892",
+        "artifact_sha256": "3E1F587DC46C47D15028B6945C1A82D5336497F27F875B502663CA36EAF86236"
+      },
+      "Cir_2018_03_ar.pdf": {
+        "pdf_sha256": "2D824F6222FBC82581D74F6AE25B817698412BC461906BA81756B4144699FB82",
+        "artifact_sha256": "98866AD106D13B17C0E1FBA7BE19809329CC2DCAA8421C710B332ABFDD65367E"
+      },
+      "Cir_2019_02_fr.pdf": {
+        "pdf_sha256": "4EAA6144FE2BEA83FCC2A21B80E4F82415709255A90416493C9C4F3834535853",
+        "artifact_sha256": "FBE157A8CE5F6EDBA4DE201B5257F3ABAF1A746671DD951B02C948B797303F36"
+      },
+      "Cir_2020_02_fr.pdf": {
+        "pdf_sha256": "8498357E3FE000F59FC9CF3865BF7DBC1231E82B3D08B1B614F86A5C16A256E1",
+        "artifact_sha256": "6E6903452EDB0CC44A78D82B846A417E63BAF21A5D61AC7781F550EAA51891BC"
+      },
+      "Cir_2020_15_fr.pdf": {
+        "pdf_sha256": "BE7A0DCDA89E2204AA5466D2BFEE4AB1B5BD6DF746F5397C2A08C6343109C34E",
+        "artifact_sha256": "6C1093605A9BE2057235805C3F2FFD24206BB440925BF5ED2263A04CD43A0498"
+      },
+      "Cir_2021_01_fr.pdf": {
+        "pdf_sha256": "F14CE39B6DB8EAC818B509800D167AB749044F20185392357653FE2E5E189B20",
+        "artifact_sha256": "7DF35EC2D6EFE564B6B332526D8FBEED81C47E307EC7D882F6DA71D02FB8CF78"
+      },
+      "Cir_2021_02_fr.pdf": {
+        "pdf_sha256": "42126ABFFFFAA1AD2F7545427D69B1CF4224AE5E38D428A91E0DFE4190C21A01",
+        "artifact_sha256": "1DFEBDAB2FF77797147CBD8948010E1B47520AB111988FA79CEE29A2B432B930"
+      },
+      "Cir_2021_03_fr.pdf": {
+        "pdf_sha256": "9406C47EB7DBAE18E92FBCF14276045A5539685C12EBC857C17B8F1C9683C014",
+        "artifact_sha256": "1F3A64F6245C17D4DDD1DB172BFD2548179268C773442993A77E4A2E48CEFFFB"
+      },
+      "Cir_2021_05_fr.pdf": {
+        "pdf_sha256": "1528DA853BEA15DC5A9468FD1B9FE1C8F3E434398FA19E0B004F63C67C4BF8F8",
+        "artifact_sha256": "59769A42E5F92697B45286E394DA131D9C1531D7280D1EDA03CA06260E67DCA3"
+      },
+      "Cir_2021_06_fr.pdf": {
+        "pdf_sha256": "3AAE9E4B7E81E474C27732ED9B9E5450A18A93583791BA72456A753AC7D7CBF4",
+        "artifact_sha256": "41B47ACF53DF9B585F7303DD0AE5154644F4439B0D9FE57543FFB01FB12EE061"
+      },
+      "Cir_2022_02_fr.pdf": {
+        "pdf_sha256": "129BBBAA15B6424C58E9C5E5C79A921E26A2E070192452324D5745FACDC5CCDC",
+        "artifact_sha256": "43D667F630F4289F480B3B22FFDA1EB9E82B93431E71383542E9F1262B8F7B79"
+      },
+      "Cir_2023_08_ar.pdf": {
+        "pdf_sha256": "267E4E9CDF3DB5AD76085B8D6E283713600407C0AA432251AD91D50435AA9BFA",
+        "artifact_sha256": "4D057C85657400D12AABC63F91922B5182771A755D579162FE04DF087ACA568A"
+      },
+      "Cir_2024_01_fr.pdf": {
+        "pdf_sha256": "7E5883DF81A50653BE9757E8DB219B0FD175E0E5D186746930426A9984E29EF4",
+        "artifact_sha256": "037DB3705E66A5D341B397C7770437ED9631541E13C442F6D3D405732E6BD616"
+      },
+      "Cir_2024_14_fr.pdf": {
+        "pdf_sha256": "D8D53AEF78195AD3A02ACD09987EAC796B04A7E6947F50EB597426518E160EBE",
+        "artifact_sha256": "3964D97954699AA3E17AFD73EC39E5AEDF95CF98E56A82A2ED79132F2442AF5E"
+      },
+      "Cir_2026_05_fr.pdf": {
+        "pdf_sha256": "98E5F1A51CC8D119E14292ED9C108E754C4AEE0D5766335F5CEAE0339DB064F8",
+        "artifact_sha256": "57E2484EA6703FE81623DADDB30CBB10E515880A40F0E823FE400B7E57C90041"
+      },
+      "Note_2016_02_ar.pdf": {
+        "pdf_sha256": "7B86C94B7BAF66CA6BB61ADE7537D74CDE6B075480496DB2EA71990F065F1A31",
+        "artifact_sha256": "487A7BAE254090B783B17C5EF0B931F1165D5A1255638F4D6D0ABBF1184EEAD5"
+      },
+      "Note_2016_14_ar.pdf": {
+        "pdf_sha256": "4A01EA604A08BCF27E08F674D79E8B56E8A3C00832A7E73DDA2FB0A7A5507345",
+        "artifact_sha256": "ADC8994F3E54DA2CB4BC687DE2324FADCFF9A4CBA6D9615AD54B3D70CC1E08FB"
+      },
+      "Note_2016_31_ar.pdf": {
+        "pdf_sha256": "2094C3CEA66AD867DFB91D254DC1E2A85FC54DD87E46CB1C8EB7B0B52CD9EA2D",
+        "artifact_sha256": "6A6412D0E871E93D1CE8B60252D394D027ACE7F06D1DEDD44DC390EFA2FFD1B0"
+      },
+      "Note_2017_18_ar.pdf": {
+        "pdf_sha256": "90190F6B0FB699E727443B9980508AA3BA2064BE5762D0EFD9044C0E4B0CF00F",
+        "artifact_sha256": "61201FB55301CAFBFE40C2F1A4E0701189BEAACE0BA6E93994F2A36662E97E4A"
+      },
+      "Note_2018_03_ar.pdf": {
+        "pdf_sha256": "D0AC227031817BDC77D5486F179D663BD6FDD619898810BD7FC71024AC6BC0E9",
+        "artifact_sha256": "06F29364DBFCA95625FF0E6841F9F596C52203E169C237F1FCAFEEDC5326B272"
+      },
+      "Note_2018_06_ar.pdf": {
+        "pdf_sha256": "D7B7B1F9DF8044FBC4F6C784EB11AEE3DE1D8F969AA969B7E91C94DCFC4678B1",
+        "artifact_sha256": "595BE7BC5BAACB25AB49C69B0ED3272F2476C9EB2EF1B2C794EA7394BBE261D5"
+      },
+      "Note_2018_13_ar.pdf": {
+        "pdf_sha256": "96552025E52F7595A1986EAD49FC053AD35012ECC2B19F9D6A533B9176D5FB82",
+        "artifact_sha256": "02EEE3D21A95F9A72F5B2ACB8196861F4DC54D475B8D1896722AB472F398DCA2"
+      },
+      "Note_2019_17_fr.pdf": {
+        "pdf_sha256": "55C01570D7568D7462B551857DE3D9579F5E34A95F36E090CFD7837A761E8FC4",
+        "artifact_sha256": "16D9DF722094674989F92826846836F57EC46AC96B9A539D61B0712F2BA7E354"
+      },
+      "Note_2019_24_ar.pdf": {
+        "pdf_sha256": "B94D4170716E7725436ECAE4779D5B7A8EB3AEC0F24AD04CADCAB9E49F415196",
+        "artifact_sha256": "463B6E786D64B1987BDCE36F37CFA150B33C24228CC46494A7FC3197CBF0885A"
+      },
+      "Note_2020_02_ar.pdf": {
+        "pdf_sha256": "74FCDB328D5647D9B2DAC393D069A8997A8E56FC210B5C8CD5C1717FDFFC9439",
+        "artifact_sha256": "94CF1CC4F96AFBB3CBB6E8A14AECE4953BCE623818D09229D0BB740A83C162D4"
+      },
+      "Note_2020_21_fr.pdf": {
+        "pdf_sha256": "941AD1CB9E5DCB6BC0CC7B8F8738B4102D17BC1AFC43CAFAEAC7D2578F995DF1",
+        "artifact_sha256": "B659445F951F2726BF7D5B2B4AD3108911D000BFE41C06BD030423E88CCF80F5"
+      },
+      "Note_2021_05_fr.pdf": {
+        "pdf_sha256": "49E606572A973650305D7A7A6C7C5E379C9BC9EB5A70B9F9237AF9A5202D673E",
+        "artifact_sha256": "FAF495B9B961B56B33EB5A1585585F8D5A9CDBC2F2285A2DF31C7207F19D1D0F"
+      },
+      "Note_2021_33_ar.pdf": {
+        "pdf_sha256": "003DCD123101FB9248CE57A29C55748D362F7CAC0F9E6C26D7CC8C12509C6A77",
+        "artifact_sha256": "642A876210AB3BA810C56CBDF2637C0D382437B9622BD3C6C9EC841A1B07D108"
+      },
+      "Note_2022_16_ar.pdf": {
+        "pdf_sha256": "91C4266F54466B293DBFAD16DD34F1626535D593B0BEC18E35ED0C8F6E135A2C",
+        "artifact_sha256": "36AFB5C6DE7DE6BCDF2B637C201739438B03E18B044D52102B3FDAB32947A9AA"
+      },
+      "Note_2026_129_ar.pdf": {
+        "pdf_sha256": "59A5FB582AF107004D416BC731E81C8A570C8C41161DBBBCAB4AF65F24F15F6F",
+        "artifact_sha256": "0511ED83043BEF18CDC820FBB76CA9359D5D975A91A1D65059C79B1944A4AE10"
+      },
+      "Note_2026_30_ar.pdf": {
+        "pdf_sha256": "AC29EE7F66ABE1B438261B7044604B7F6C149BBC45E97BD636ECE111400CA2FB",
+        "artifact_sha256": "9E984BC2F59DE5945977B4D27035485916ED4470CA81698207B747F660551F7B"
+      }
+    }
+  },
+  "suite_type": "full_relevant_gold_evidence_context_development",
+  "selection": "All relevant cases from the frozen answer-safety suite.",
+  "evaluation_protocol": "Keep question, source, page, expected answer, model, and prompt fixed; expand evidence with all ordered blocks from the exact labeled page.",
+  "answer_experiment": {
+    "experiment_id": "claim-linked-full-page-relevant-development-v1",
+    "candidate_and_evidence": "verified excerpt plus full exact-page StructuredDocument context"
+  },
+  "counts": {
+    "total": 32,
+    "relevant": 32,
+    "by_language": {
+      "ar": 15,
+      "fr": 17
+    }
+  },
+  "limitations": [
+    "Development-only gold-evidence context suite.",
+    "Exact labeled pages isolate context sufficiency and do not measure whether retrieval supplies that context.",
+    "A passing result cannot by itself justify production page expansion."
+  ],
+  "cases": [
+    {
+      "id": "cir_2016_09_fr_exception_or_condition_01",
+      "query": "Une entreprise pouvait-elle verser un acompte à un prestataire étranger sans garantie de restitution ?",
+      "language": "fr",
+      "category": "exception_or_condition",
+      "relevant": true,
+      "expected_source": "Cir_2016_09_fr.pdf",
+      "expected_page": 3,
+      "expected_answer": "Oui, si la prestation entrait dans son cycle de production et si l'acompte ne dépassait pas 25 % de la valeur de l'opération. Sinon, une garantie de restitution à première demande était requise.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nAcompte sans garantie de restitution | prestation entrant dans le cycle de production | plafond de 25 % de la valeur de l'opération\n\n[FULL LABELED PAGE]\n[LIST_ITEM]\nla  rémunération  convenue  ainsi  que  l'unité  d'œuvre,  le  coût  unitaire  et  les modalités de règlement y afférents.\n\n[ARTICLE]\nLorsque le règlement au profit d'un prestataire de services nonrésident est prévu sous forme d'une redevance proportionnelle (au chiffre d'affaires, aux bénéfices, à la valeur ajoutée, aux quantités produites, ...), le montant à transférer doit être justifié par un état de calcul détaillé des redevances à transférer, établi par l'opérateur résident.\n\n[ARTICLE]\nSans préjudice aux dispositions de l'article 3 visé ci-dessus, les règlements ordonnés par des entreprises exerçant une activité commerciale au titre de contrats de transfert de technologie cités au paragraphe B-6 de l'annexe n°1 à la présente circulaire, ne sont effectués que lorsque ces entreprises remplissent les conditions prévues par la règlementation en vigueur en la matière 2 ou sont agréées à cet effet par le ministère chargé du commerce.\n\n[ARTICLE]\nAucune catégorie de prestations de services prévues par la présente circulaire et son annexe n°1 ne peut être entendue comme englobant les frais de siège, qui sont des charges générales engagées par une société mère et réparties sur ses filiales établies dans divers pays et qui comprennent principalement les services comptables, administratifs, financiers et ressources humaines. Les intermédiaires agréés ne peuvent réaliser des transferts au titre des frais de siège, dans le cadre de la présente circulaire.\n\n[PARAGRAPH]\nLorsque l'intermédiaire agréé a des raisons valables pour croire que le transfert demandé  au  titre  d'une  rubrique  de  prestations  de  services  prévue  par  la  présente circulaire, peut constituer un transfert pour frais de siège, il doit surseoir à l'exécution de l'opération et en informer la Banque Centrale de Tunisie immédiatement.\n\n[HEADING]\nParagraphe 2 : Transferts au titre de marchés réalisés à l'étranger :\n\n[ARTICLE]\nLes règlements au titre des marchés de travaux, d'études, de suivi, de contrôle et autres services réalisés à l'étranger visés au paragraphe J-1 de l'annexe n°1 à la présente circulaire doivent donner lieu à l'établissement par l'intermédiaire agréé domiciliataire d'un décompte par marché établi conformément au modèle objet de l'annexe n°2 à la présente circulaire.\n\n[PARAGRAPH]\n2 Décret-loi n°61-14 du 30-07-1961, loi n° 2009-69 du 12-08-2009, décret n° 2010-1501 du 21-06-2010 et arrêté du Ministre du commerce et l'artisanat du 28-07-2010.",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "context_or_version",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "4F68C1FD9C1BF52DFD1FAB8E49E47876789A3BCF71A13FE13CCCE07881D2392A",
+        "structured_document_pdf_sha256": "24BBCED31D70DC907707140BC835353AB3E9FD781EE30E4EB2F9BB659C625892",
+        "structured_document_artifact_sha256": "3E1F587DC46C47D15028B6945C1A82D5336497F27F875B502663CA36EAF86236",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "query": "في أي أجل كان يجب إغلاق حساب الحملة الانتخابية البلدية لسنة 2018، وكم تدوم مدة حفظ ملفاته؟",
+      "language": "ar",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Cir_2018_03_ar.pdf",
+      "expected_page": 3,
+      "expected_answer": "كان يجب إغلاقه في أجل أقصاه 15 يوما من تاريخ غلق الحملة، مع حفظ الملف والوثائق لمدة عشر سنوات من تاريخ إغلاقه.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nغلق حساب الحملة في أجل أقصاه 15 يوما من غلق الحملة | حفظ الملف والوثائق 10 سنوات\n\n[FULL LABELED PAGE]\n[HEADING]\nWanque Centrale de Tunisie\n\n[PARAGRAPH]\n(tee//c/\n\n[PARAGRAPH]\na",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "context_or_version",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "B9DB19D80E6C6F3FCA180B295BBFD29C802535B5D46DE16E4484A82146FEF278",
+        "structured_document_pdf_sha256": "2D824F6222FBC82581D74F6AE25B817698412BC461906BA81756B4144699FB82",
+        "structured_document_artifact_sha256": "98866AD106D13B17C0E1FBA7BE19809329CC2DCAA8421C710B332ABFDD65367E",
+        "block_count": 3,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2019_02_fr_amount_or_rate_02",
+      "expected_source": "Cir_2019_02_fr.pdf",
+      "query": "Quel est le montant maximum de l'allocation annuelle pour les sociétés résidentes ayant obtenu le Label « Startup » qui utilisent la « Carte Technologique Internationale » pour les paiements de transactions via internet ?",
+      "category": "amount_or_rate",
+      "expected_page": 2,
+      "expected_answer": "L'allocation annuelle maximale est de 100 000 dinars.",
+      "evidence_start_line": 22,
+      "evidence_end_line": 23,
+      "evidence_quote": "[VERIFIED EXCERPT]\nLe montant de l’allocation annuelle maximale est fixé à cent mille dinars \n(100.000 DT) pour toute société résidente ayant obtenu le Label « Startup »\n\n[FULL LABELED PAGE]\n[HEADING]\nDécide :\n\n[PARAGRAPH]\nArticle unique  : Les dispositions de l'article 14 de la circulaire aux Intermédiaires  Agréés  n°  2016-09  du  30  décembre  2016  relative  aux  transferts  au titre des opérations courantes sont abrogées et remplacées comme suit :\n\n[HEADING]\n« Article 14 (nouveau) :\n\n[PARAGRAPH]\nLorsque  le  paiement  par  des  sociétés  résidentes  des  transactions  visées  au paragraphe H-1 de l'annexe n°1 à la présente circulaire, est exigé via internet, le transfert peut être effectué par carte de paiement internationale nominative réservée  spécialement  à  ces  transactions  appelée  «  Carte  Technologique Internationale » et dont la durée de validité est d'une année civile.\n\n[PARAGRAPH]\nA  cet  effet,  l'intermédiaire  agréé  est  autorisé  à  délivrer  à  toute société résidente, qui lui en fait la demande, une allocation annuelle maximale de dix mille dinars (10.000 DT) transférable en une ou plusieurs fois pour réaliser les paiements visés au paragraphe premier du présent  article par utilisation de la « Carte Technologique Internationale » visée ci-dessus.\n\n[PARAGRAPH]\nLe  montant  de  l'allocation  annuelle  maximale  est  fixé  à  cent  mille  dinars (100.000  DT)  pour  toute  société  résidente  ayant  obtenu  le  Label  « Startup » conformément  à  la  réglementation  en  vigueur.  Dans  ce  cas,  l'intermédiaire agréé doit exiger une copie de la décision du ministre en charge de l'économie numérique pour l'octroi du label « startup », en cours de validité. »\n\n[HEADING]\nLE GOUVERNEUR\n\n[HEADING]\nMAROUANE EL ABASSI",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_fr",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "FBE446DE712F16D71EEBDCE38D658B672CDA911858527BCE5C0F0555BED55B56",
+        "structured_document_pdf_sha256": "4EAA6144FE2BEA83FCC2A21B80E4F82415709255A90416493C9C4F3834535853",
+        "structured_document_artifact_sha256": "FBE157A8CE5F6EDBA4DE201B5257F3ABAF1A746671DD951B02C948B797303F36",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2020_02_fr_amount_or_rate_01",
+      "query": "Quel est le pourcentage maximal d’acompte autorisé pour une importation dont la valeur dépasse 20 000 dinars ?",
+      "language": "fr",
+      "category": "amount_or_rate",
+      "relevant": true,
+      "expected_source": "Cir_2020_02_fr.pdf",
+      "expected_page": 3,
+      "expected_answer": "50 %",
+      "evidence_quote": "[VERIFIED EXCERPT]\ndes quantités prévues par ce marché. L’acompte ne doit pas dépasser \ncinquante  pour cent (50%) de la valeur de l’opération d’importation objet \ndu règlement, sauf lorsque la valeur des produits importés n’excède pas \nvingt mille dinars (20.000D). Le règlement de l’acompte est effectué sur\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\npar le fournisseur en vertu du contrat commercial sous réserve de l'émission, en faveur de l'importateur résident, d'une garantie de restitution du  montant  objet  du  règlement,    à  première  demande  par  la  banque  du fournisseur non résident.\n\n[PARAGRAPH]\nToutefois,  l'émission  de  la  garantie  prévue  à  l'alinéa  premier  du  présent article n'est pas exigée pour le règlement d'acomptes relatifs à l'importation de  produits  destinés  à  être  utilisés  directement  par  l'importateur  résident dans le cycle de production de biens ou de services de son entreprise ou de produits nécessaires à l'exécution d'un marché public, et ce, dans la limite des  quantités  prévues  par  ce  marché.  L'acompte  ne  doit  pas  dépasser cinquante  pour cent (50%) de la valeur de l'opération d'importation objet du  règlement,  sauf  lorsque  la  valeur  des  produits  importés  n'excède  pas vingt  mille  dinars  (20.000D).  Le  règlement  de  l'acompte  est  effectué  sur présentation du contrat commercial ou d'une copie du contrat de marché».\n\n[PARAGRAPH]\n« Article  10  (nouveau)Les  prix  des  ventes  peuvent  être  réglées  par n'importe  quel  moyen  de  règlement,  lorsque  les  contrats  y  afférents prévoient des délais de règlement allant jusqu'à 60 jours à compter de  la date d'expédition des marchandises».\n\n[PARAGRAPH]\n« Article 11 paragraphe  premier (nouveau) -Les ventes dont les contrats  y  afférents  prévoient  des  délais  de  règlement  allant  de  61  jours jusqu'à 360 jours, à compter de la date d'expédition des marchandises sont effectuées librement lorsqu'elles répondent à l'une des conditions suivantes :\n\n[LIST_ITEM]\nElles sont assorties d'une garantie de paiement émise par une banque non résidente.\n\n[LIST_ITEM]\nElles prévoient l'ouverture au profit de l'exportateur résident d'un crédit documentaire irrévocable ou d'une lettre de crédit stand-by.\n\n[LIST_ITEM]\nElles prévoient le paiement par une traite émise au nom de l'intermédiaire agréé ou endossée à son profit et avalisée par une banque non résidente.\n\n[LIST_ITEM]\nElles sont couvertes par une police d'assurance- crédit à l'export ».",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "F9C5DE7023273AC88762A983B6A77E34C27CFE4F9BFC678EA603AF0402348048",
+        "structured_document_pdf_sha256": "8498357E3FE000F59FC9CF3865BF7DBC1231E82B3D08B1B614F86A5C16A256E1",
+        "structured_document_artifact_sha256": "6E6903452EDB0CC44A78D82B846A417E63BAF21A5D61AC7781F550EAA51891BC",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2020_15_fr_effective_date_01",
+      "query": "Les mesures temporaires de tarification et de continuité bancaire adoptées le 19 mars 2020 sont-elles toutes restées en vigueur après le 19 juin 2020 ?",
+      "language": "fr",
+      "category": "effective_date",
+      "relevant": true,
+      "expected_source": "Cir_2020_15_fr.pdf",
+      "expected_page": 1,
+      "expected_answer": "Non. Les dispositions correspondant aux articles 2 et 4 ont été abrogées dès la publication du texte du 19 juin 2020.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nCirculaire de la Banque Centrale de Tunisie \n n° 2020 -15 du 19 juin 2020  \n \nObjet : Mesures relatives à la tarification et à la continuité de  certains services                        \n             bancaires. \n    \nLe Gouverneur de la Banque Centrale de Tunisie, \nVu la loi n°2016-35 du 25 avril 2016 portant fixation du statut de la Banque \nCentrale de Tunisie et notamment son article 8, \nVu la loi n°2016-48 du 11 juillet 2016 relative aux banques et aux établissements \nfinanciers et notamment son article 84, \nVu la circulaire de la Banque Centrale de Tunisie n°91-22 du 17 décembre 1991 \nportant règlementation des conditions de banque, telle que modifiée et complétée  \npar les textes subséquents, \nVu la circulaire de la Banque Centrale de Tunisie n° 2020-05 du 19 mars 2020 \nportant mesures relatives à la tarification et à la continuité de certains services \nbancaires, \nVu l’avis du Comité de contrôle de la conformité n°2020-15 du 18 juin 2020, \nDécide :  \nArticle premier- Sont abrogées les dispositions des articles 2 et 4 de la circulaire \nn° 2020-05 du 19 mars 2020, portant mesures relatives à la tarification et à la \ncontinuité de certains services bancaires. \nArticle 2- La présente circulaire entre en vigueur à compter de la date de sa \npublication.                                                                \n    Le Gouverneur, \n \nMarouane EL ABASSI\n\n[FULL LABELED PAGE]\n[HEADING]\nCirculaire de la Banque Centrale de Tunisie\n\n[PARAGRAPH]\nn° 2020 -15 du 19 juin 2020\n\n[PARAGRAPH]\nObjet : Mesures relatives à la tarification et à la continuité de  certains services bancaires.\n\n[HEADING]\nLe Gouverneur de la Banque Centrale de Tunisie,\n\n[PARAGRAPH]\nVu  la  loi  n°2016-35  du  25  avril  2016  portant  fixation  du  statut  de  la  Banque Centrale de Tunisie et notamment son article 8,\n\n[PARAGRAPH]\nVu la loi n°2016-48 du 11 juillet 2016 relative aux banques et aux établissements financiers et notamment son article 84,\n\n[PARAGRAPH]\nVu la circulaire de la Banque Centrale de Tunisie n°91-22 du 17 décembre 1991 portant règlementation des conditions de banque, telle que modifiée et complétée par les textes subséquents,\n\n[PARAGRAPH]\nVu la  circulaire  de  la  Banque  Centrale  de  Tunisie  n°  2020-05  du  19  mars  2020\n\n[PARAGRAPH]\nportant  mesures  relatives  à  la  tarification  et  à  la  continuité  de  certains  services\n\n[PARAGRAPH]\nbancaires,\n\n[PARAGRAPH]\nVu l'avis du Comité de contrôle de la conformité n°2020-15 du 18 juin 2020,\n\n[HEADING]\nDécide :\n\n[ARTICLE]\nArticle premier\n\n[PARAGRAPH]\n- Sont abrogées les dispositions des articles 2 et 4 de la circulaire\n\n[PARAGRAPH]\nn°  2020-05  du  19  mars  2020,  portant  mesures  relatives  à  la  tarification  et  à  la\n\n[PARAGRAPH]\ncontinuité de certains services bancaires.\n\n[ARTICLE]\nLa présente circulaire entre en vigueur à compter de la date de sa publication.\n\n[PARAGRAPH]\nLe Gouverneur,\n\n[PARAGRAPH]\nMarouane EL ABASSI",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_fr",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "0B38E80AE0D0380057DA2D360D1FCBF63E842EC9A7533B7CB90B5E929AA5CE58",
+        "structured_document_pdf_sha256": "BE7A0DCDA89E2204AA5466D2BFEE4AB1B5BD6DF746F5397C2A08C6343109C34E",
+        "structured_document_artifact_sha256": "6C1093605A9BE2057235805C3F2FFD24206BB440925BF5ED2263A04CD43A0498",
+        "block_count": 19,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_01_fr_amount_or_rate_01",
+      "expected_source": "Cir_2021_01_fr.pdf",
+      "query": "Quel est le taux de majoration (Δgi) à appliquer aux taux de migration historiques pour le groupe de contreparties des exportateurs d'huile d'olive lors du calcul des provisions collectives ?",
+      "category": "amount_or_rate",
+      "expected_page": 4,
+      "expected_answer": "1,00%",
+      "evidence_start_line": "L0056",
+      "evidence_end_line": "L0057",
+      "evidence_quote": "[VERIFIED EXCERPT]\nExportateurs d’huile d’olive \n1,00%\n\n[FULL LABELED PAGE]\n[HEADING]\nIII. Détermination pour chaque groupe de contreparties désigné « gi » d'un taux de migration moyen observé au cours des années antérieures à « Nr » (5 ans au moins compte non tenu de l'année de référence) :\n\n[PARAGRAPH]\nTMMgi = ∑ 𝑇𝑀𝑔𝑖(𝑁)/𝑛 𝑛 𝑁=1\n\n[HEADING]\nAvec :\n\n[LIST_ITEM]\n-TMgi (N) : Taux de migration de l'année N du groupe de contreparties i.\n\n[LIST_ITEM]\n-Risque additionnel du groupe i : les engagements 0 et 1 de l'année (N-1) du groupe i devenus classés 2-3-4 à la fin de l'année (N).\n\n[LIST_ITEM]\n-Les TMgi (N) doivent être ajustés afin d'éliminer les effets exceptionnels pouvant engendrer un biais.\n\n[LIST_ITEM]\n-TMMgi : Taux de migration moyen du groupe de contreparties i.\n\n[LIST_ITEM]\n-n : nombre d'années retenus dans le calcul du TMMgi.\n\n[HEADING]\nIV. Majoration des taux de migration historiques :\n\n[PARAGRAPH]\nLes taux de migration historiques du groupe de contreparties « gi » sont majorés par les taux « Δgi » suivants :\n\n[TABLE]\n| Groupe de contreparties              | ∆ gi   |\n|--------------------------------------|--------|\n| Professionnels du secteur privé      |        |\n| Agriculture                          | 4,50%  |\n| Industries mécaniques et électriques | 4,00%  |\n| Oléifacteurs                         | 1,25%  |\n| Industries agroalimentaires          | 1,25%  |\n| Industries pharmaceutiques           | 1,00%  |\n| Autres industries                    | 3,25%  |\n| BTP                                  | 3,25%  |\n| Tourisme                             | 7,25%  |\n| Agences de voyage                    | 7,75%  |\n| Agence de location de voitures       | 7,50%  |\n| Promotion immobilière                | 4,00%  |\n| Exportateurs d'huile d'olive         | 1,00%  |\n| Commerce                             | 1,00%  |\n| Santé                                | 1,00%  |\n| Télécom et TIC                       | 1,00%  |",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "95664CC234E7052086930E0B4A5A4A150B85EAF45478A0F35DB79B1CE3B7D39B",
+        "structured_document_pdf_sha256": "F14CE39B6DB8EAC818B509800D167AB749044F20185392357653FE2E5E189B20",
+        "structured_document_artifact_sha256": "7DF35EC2D6EFE564B6B332526D8FBEED81C47E307EC7D882F6DA71D02FB8CF78",
+        "block_count": 11,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_02_fr_definition_01",
+      "expected_source": "Cir_2021_02_fr.pdf",
+      "query": "Quels sont les cinq éléments principaux sur lesquels repose la définition de la Politique de couverture ?",
+      "category": "definition",
+      "expected_page": 17,
+      "expected_answer": "L'identification des risques, la quantification de l'exposition aux risques, la détermination des marchés et des instruments de couverture éligibles, le processus décisionnel, et le monitoring et reporting.",
+      "evidence_start_line": 14,
+      "evidence_end_line": 19,
+      "evidence_quote": "[VERIFIED EXCERPT]\nLa définition de la Politique de couverture repose principalement sur : \n✓ l’identification des risques ; \n✓ la quantification de l’exposition aux risques ;  \n✓ la détermination des marchés et des instruments de couverture éligibles;  \n✓ le processus décisionnel ; \n✓ le monitoring et reporting.\n\n[FULL LABELED PAGE]\n[HEADING]\nANNEXE 6 A LA CIRCULAIRE AUX I.A. N° 2021-02 DU 31 mai 2021\n\n[HEADING]\nRecommandations pour l'élaboration d'une « Politique de couverture »\n\n[HEADING]\nPolitique de couverture : Définition\n\n[PARAGRAPH]\nLe processus de prise de décision en matière de couverture contre les risques de marché doit émaner d'un document cadre, en l'occurrence la « Politique de couverture ». Ce document doit  être  approuvé  par  le  Conseil  d'Administration  ou  un  organe  de  gestion  assimilé  de l'opérateur économique de manière générale.\n\n[PARAGRAPH]\nLa définition de la Politique de couverture repose principalement sur :\n\n[LIST_ITEM]\nl'identification des risques ;\n\n[LIST_ITEM]\nla quantification de l'exposition aux risques ;\n\n[LIST_ITEM]\nla détermination des marchés et des instruments de couverture éligibles;\n\n[LIST_ITEM]\nle processus décisionnel ;\n\n[LIST_ITEM]\nle monitoring et reporting.\n\n[HEADING]\n1. Identification des risques\n\n[PARAGRAPH]\nL'opérateur économique doit identifier tous les risques auxquels il est exposé en lien avec son activité . Une fois identifiés, les risques sont catégorisés et hiérarchisés.\n\n[PARAGRAPH]\nExemple :  Un  opérateur  économique  se  finance  en  devise  à  un  taux  d'intérêt  indexé  à  un  taux  de référence pour importer du zinc est exposé aux risques suivants :\n\n[LIST_ITEM]\no Variation du taux de change devise/dinar ;\n\n[LIST_ITEM]\no Variation du taux d'intérêt de référence ;\n\n[LIST_ITEM]\no Fluctuation des prix du zinc.\n\n[PARAGRAPH]\nLa définition du moment de l'exposition au risque permet par ailleurs de déterminer l'horizon véritable  de  la  couverture .  Ainsi,  il  importe  d'analyser  de  manière  profonde  l'activité  pour définir l'opération génératrice du risque et ses différents paramètres, à savoir le calendrier de production ou d'approvisionnement, le montant acheté ou vendu, les volumes et les périodes, etc.\n\n[HEADING]\n2. Quantification de l'exposition aux risques\n\n[PARAGRAPH]\nLa quantification du risque revient à calculer l'exposition et simuler les effets financiers sur le résultat . La détermination du montant de l'exposition, comparé au budget de l'entreprise, doit intégrer l'analyse des caractéristiques intrinsèques du marché en question (degré de volatilité, profondeur, etc.) ainsi que tous les composants objet de la couverture.\n\n[PARAGRAPH]\nExemple : Pour un opérateur économique qui se finance en dollar à un taux d'intérêt indexé à un taux de référence pour importer du pétrole doit mesurer :\n\n[LIST_ITEM]\no L'impact sur le résultat d'une variation de la parité USD/TND de 1% ;\n\n[LIST_ITEM]\no La variation des charges financières et l'impact sur le résultat d'une augmentation de 1% du taux d'intérêt de référence ;\n\n[LIST_ITEM]\no Le surcoût du prix de revient dû à une augmentation de 1% du prix du baril.",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_long_document",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "6970FD855804F92901FB283CC171C0C87C03E9CB9F419371DA490F0A31B74F8E",
+        "structured_document_pdf_sha256": "42126ABFFFFAA1AD2F7545427D69B1CF4224AE5E38D428A91E0DFE4190C21A01",
+        "structured_document_artifact_sha256": "1DFEBDAB2FF77797147CBD8948010E1B47520AB111988FA79CEE29A2B432B930",
+        "block_count": 23,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_03_fr_deadline_or_duration_01",
+      "expected_source": "Cir_2021_03_fr.pdf",
+      "query": "Quels sont les horaires de fonctionnement conventionnels des marchés interbancaires pour les opérations de change et monétaires en devises ?",
+      "category": "deadline_or_duration",
+      "expected_page": 2,
+      "expected_answer": "De 8h:00 à 17h:00 heure locale (de 8h:00 à 14h:00 pendant la séance unique).",
+      "evidence_start_line": "L0008",
+      "evidence_end_line": "L0010",
+      "evidence_quote": "[VERIFIED EXCERPT]\nL’horaire conventionnel de fonctionnement des marchés interbancaires s’étend de 8h:00 à \n17h:00 heure locale (de 8h:00 à 14h:00 pendant la séance unique), sauf décision \ndérogatoire de la Banque Centrale de Tunisie.\n\n[FULL LABELED PAGE]\n[HEADING]\nDISPOSITIONS GENERALES\n\n[ARTICLE]\ner : Les opérations sur le marché des changes et le marché monétaire en devises sont effectuées conformément aux conditions définies par la présente circulaire.\n\n[PARAGRAPH]\nL'horaire conventionnel de fonctionnement des marchés interbancaires s'étend de 8h:00 à 17h:00  heure  locale  (de  8h:00  à  14h:00  pendant  la  séance  unique),  sauf  décision dérogatoire de la Banque Centrale de Tunisie.\n\n[ARTICLE]\nLes opérations sur le marché des changes et le marché monétaire en devises sont effectuées aux cours/taux d'intérêt déterminés par les Intermédiaires Agréés. Elles doivent porter sur une monnaie cotée par la Banque Centrale de Tunisie.\n\n[ARTICLE]\nLes opérations sur le marché des changes et le marché monétaire en devises, y compris les opérations sur instruments de couverture, traitées entre les Intermédiaires Agréés, doivent obligatoirement être effectuées via le système Reuters Dealing et/ou le système Bloomberg. L'Intermédiaire Agréé choisissant d'utiliser le système Reuters Dealing d'une manière exclusive ou parallèlement avec le système Bloomberg doit installer la solution « Trade Reporting » fournie par la société Refinitiv. L'Intermédiaire Agréé choisissant d'utiliser le système de la société Bloomberg est tenu d'autoriser cette dernière à permettre à la Banque Centrale de Tunisie de consulter les transactions effectuées sur cette plateforme.\n\n[ARTICLE]\nLes Intermédiaires Agréés peuvent gérer les positions de change générées par leurs opérations en devises, dans le respect des règles prévues dans le Titre III de la présente circulaire et relatif aux règles de gestion des risques.\n\n[HEADING]\nTITRE I MARCHE DES CHANGES\n\n[HEADING]\nCHAPITRE 1 OPERATIONS DE CHANGE AU COMPTANT\n\n[HEADING]\nSECTION 1 REGLES DE FONCTIONNEMENT\n\n[ARTICLE]\nLes Intermédiaires Agréés sont autorisés à effectuer des opérations de change au comptant devises/dinar et devises/devises avec leurs clients au titre de leurs opérations réalisées conformément à la réglementation en vigueur.\n\n[ARTICLE]\nLes opérations de change peuvent être effectuées auprès d'un Intermédiaire Agréé autre que le domiciliataire de l'opération sous-jacente. L'Intermédiaire Agréé domiciliataire est seul habilité à procéder au règlement après avoir vérifié la régularité de l'opération en objet.",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "B17EF5DF4920C3E1F41DCA64F068E5E45442B057CFE245C8063C29E067962F9C",
+        "structured_document_pdf_sha256": "9406C47EB7DBAE18E92FBCF14276045A5539685C12EBC857C17B8F1C9683C014",
+        "structured_document_artifact_sha256": "1F3A64F6245C17D4DDD1DB172BFD2548179268C773442993A77E4A2E48CEFFFB",
+        "block_count": 11,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_05_fr_deadline_or_duration_01",
+      "expected_source": "Cir_2021_05_fr.pdf",
+      "query": "Quelle est la fréquence minimale d'évaluation de la gestion du risque de non-conformité par l'organe d'administration ?",
+      "category": "deadline_or_duration",
+      "expected_page": 9,
+      "expected_answer": "Au moins annuellement",
+      "evidence_start_line": "L0036",
+      "evidence_end_line": "L0037",
+      "evidence_quote": "[VERIFIED EXCERPT]\névaluer au moins, annuellement, la gestion du risque de non-conformité par \nl’établissement.\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nÀ cet effet, l'organe d'administration met en place des politiques documentées concernant la manière dont ces règles doivent être respectées. Ces politiques doivent prévoir notamment :\n\n[LIST_ITEM]\n-les principes de comportement professionnel responsable dont notamment l'accomplissement  des  attributions  en  faisant  preuve  d'intégrité,  de  loyauté,  de compétence et de diligence requise et d'évitement des conflits d'intérêt,\n\n[LIST_ITEM]\n-les principes à même de garantir l'écoute des usagers des services bancaires, leur bonne information et une conduite commerciale dans leur intérêt, et\n\n[LIST_ITEM]\n-les règles de conduite assurant la protection des données à caractère  personnel ainsi qu'au respect du secret professionnel.\n\n[ARTICLE]\nArticle 14\n\n[PARAGRAPH]\nIl incombe à l'organe d'administration de :\n\n[LIST_ITEM]\n-arrêter  les  principes  de  base  de  la  politique  de  conformité  que  l'établissement  doit respecter dans l'exercice de ses activités et superviser sa mise en œuvre,\n\n[LIST_ITEM]\n-veiller à la mise en place, par l'organe de direction, d'une fonction de contrôle de la conformité efficace et indépendante,\n\n[LIST_ITEM]\n-veiller  régulièrement  au  suivi  de  l'activité  de  l'organe  chargé  du  contrôle  de  la conformité, s'assurer de son bon fonctionnement et de l'adéquation de ses moyens, et\n\n[LIST_ITEM]\n-évaluer au moins, annuellement, la gestion du risque de non-conformité par l'établissement.\n\n[ARTICLE]\nArticle 15\n\n[PARAGRAPH]\nL'organe d'administration veille à l'instauration d'une culture de finance responsable. A ce titre, il œuvre à intégrer les principes de la responsabilité sociétale et environnementale dans la stratégie de l'établissement.\n\n[PARAGRAPH]\nLes  actions  entreprises  dans  le  cadre  de  la  responsabilité  sociétale  et  environnementale  de l'établissement  sont  consignées  dans  son  rapport  annuel  qui  prévoit  notamment  les  projets financés et leurs impacts environnementaux et sociaux.\n\n[ARTICLE]\nArticle 16\n\n[PARAGRAPH]\nL'organe d'administration met en place une politique de lancement d'alerte et des procédures adéquates permettant aux employés de dénoncer, en toute confidentialité, à la fonction de contrôle de la conformité de l'établissement les pratiques douteuses, illégales ou contraires à la déontologie.\n\n[PARAGRAPH]\nL'organe d'administration s'assure que les employés qui signalent lesdites pratiques soient protégés de tout traitement préjudiciable et veille à ce que l'organe de direction donne suite aux questions soulevées par la fonction de contrôle de conformité.",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_long_document",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "003084836E3F259CBE68F20040AA32D4D5ED194C492D104EE0A60F0F55DA4533",
+        "structured_document_pdf_sha256": "1528DA853BEA15DC5A9468FD1B9FE1C8F3E434398FA19E0B004F63C67C4BF8F8",
+        "structured_document_artifact_sha256": "59769A42E5F92697B45286E394DA131D9C1531D7280D1EDA03CA06260E67DCA3",
+        "block_count": 16,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_05_fr_deadline_or_duration_05",
+      "expected_source": "Cir_2021_05_fr.pdf",
+      "query": "Quel est le délai imparti à un établissement bancaire pour fournir des documents complémentaires demandés par la Banque Centrale de Tunisie lors de l'étude d'un dossier de nomination de personnes visées par la loi n°2016-48 ?",
+      "category": "deadline_or_duration",
+      "expected_page": 29,
+      "expected_answer": "15 jours à compter de la date de notification par la Banque centrale de Tunisie",
+      "evidence_start_line": "L0021",
+      "evidence_end_line": "L0025",
+      "evidence_quote": "[VERIFIED EXCERPT]\nLa Banque Centrale de Tunisie peut, dans le cadre de l’étude des dossiers d’autorisation pour \nla nomination des personnes visées à l’article 55 de la loi n°2016-48, demander à \nl’établissement concerné de lui communiquer tous renseignements ou documents \ncomplémentaires qu’elle juge utile pour l’étude du dossier et ce, dans un délai ne dépassant \n15 jours à compter de la date de notification par la Banque centrale de Tunisie.\n\n[FULL LABELED PAGE]\n[LIST_ITEM]\n-le curriculum vitae de la personne désignée suivant le modèle objet de l'annexe 1 de la présente circulaire,\n\n[LIST_ITEM]\n-copie d'une pièce d'identité de la personne désignée,\n\n[LIST_ITEM]\n-une déclaration sur l'honneur signée par la personne désignée par laquelle elle atteste qu'elle n'est pas frappée par les interdictions légales, établie suivant le modèle en annexe 2 de la présente circulaire,\n\n[LIST_ITEM]\n-une  attestation  signée  par  le  président  de  l'organe  d'administration,  stipulant l'absence de conflit d'intérêts telle que visée à l'article 24 de la présente circulaire.\n\n[PARAGRAPH]\nPour  toute  personne  désignée  en  qualité  de  membre  indépendant,  et  en  sus  des  pièces précitées, le président de l'organe d'administration doit joindre au dossier de notification une déclaration sur l'honneur signée par lui-même attestant que la personne désignée répond aux critères prévus par l'article 20 de la présente circulaire.\n\n[PARAGRAPH]\nLa Banque Centrale de Tunisie peut, dans le cadre de l'étude des dossiers d'autorisation pour la  nomination  des  personnes  visées  à  l'article  55  de  la  loi  n°2016-48,  demander  à l'établissement concerné de lui communiquer tous renseignements ou documents complémentaires qu'elle juge utile pour l'étude du dossier et ce, dans un délai ne dépassant 15 jours à compter de la date de notification par la Banque centrale de Tunisie.\n\n[ARTICLE]\nArticle 63\n\n[PARAGRAPH]\nLa Banque Centrale de Tunisie peut convoquer, pour entretien et demande d'éclaircissements, toute personne désignée conformément aux dispositions de l'article 55 de la loi n°2016-48.\n\n[ARTICLE]\nArticle 64\n\n[PARAGRAPH]\nL'organe d'administration doit informer sans délai la Banque Centrale de Tunisie de tout changement au niveau des critères d'éligibilité de l'administrateur indépendant tels que visés à l'article 20 de la présente circulaire et doit, le cas échéant, procéder à son remplacement conformément aux dispositions de la loi n°2016-48.\n\n[ARTICLE]\nArticle 65\n\n[PARAGRAPH]\nSans préjudice des dispositions des articles 53 et 54 de la loi n°2016-48, chaque établissement doit informer la Banque Centrale de Tunisie de l'identité et des qualifications professionnelles des premiers responsables des fonctions de contrôle ainsi que de l'auditeur des opérations bancaires islamiques.\n\n[PARAGRAPH]\nL'établissement doit informer, sans délai, la Banque Centrale de Tunisie de toute décision de révocation ou de remplacement des premiers responsables des fonctions de contrôle ainsi que de l'auditeur des opérations bancaires islamiques et les motifs ayant présidé à cette décision.",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_long_document",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "117D22ADBD9ECE6613ACE43E3DB3A917D717128FD33D5CB5F5968627B2F6F2EC",
+        "structured_document_pdf_sha256": "1528DA853BEA15DC5A9468FD1B9FE1C8F3E434398FA19E0B004F63C67C4BF8F8",
+        "structured_document_artifact_sha256": "59769A42E5F92697B45286E394DA131D9C1531D7280D1EDA03CA06260E67DCA3",
+        "block_count": 13,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2021_06_fr_amount_or_rate_03",
+      "query": "Quels plafonds et quelles échéances s'appliquent aux fourrages d'hiver en sec et aux fourrages d'été en irrigué ?",
+      "language": "fr",
+      "category": "amount_or_rate",
+      "relevant": true,
+      "expected_source": "Cir_2021_06_fr.pdf",
+      "expected_page": 2,
+      "expected_answer": "Le plafond des fourrages d'hiver en sec est de 870 dinars par hectare avec échéance au 31 août. Celui des fourrages d'été en irrigué est de 1140 dinars par hectare avec échéance au 30 septembre.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nFourrages d'hiver en sec | 870 DT/ha | 31 août ; fourrages d'été en irrigué | 1140 DT/ha | 30 septembre\n\n[FULL LABELED PAGE]\n[TABLE]\n| Spéculation                                             | Unité   | Barème d'intervention en dinars (1)   | Barème d'intervention en dinars (1)   | Echéance ou durée de la campagne   |\n|---------------------------------------------------------|---------|---------------------------------------|---------------------------------------|------------------------------------|\n|                                                         |         | En sec                                | En irrigué                            |                                    |\n| a/ Céréaliculture                                       |         |                                       |                                       |                                    |\n| ❖ blé dur, blé tendre et légumineuses • zone 1 • zone 2 | Ha Ha   | 1175 960                              | } 1625                                | } 31 Août                          |\n| ❖ Orge                                                  |         |                                       |                                       |                                    |\n| • zone 1                                                | Ha      | 750                                   |                                       | } 31 Août                          |\n| • zone 2                                                | Ha      | 680                                   |                                       |                                    |\n| • zone 3                                                | Ha      | 250                                   |                                       |                                    |\n| ❖ Fourrages                                             |         |                                       |                                       |                                    |\n| • d'hiver                                               | Ha      | 870                                   |                                       | 31 Août                            |\n| • d'été                                                 | Ha      |                                       | 1140                                  | 30 Septembre                       |\n\n[PARAGRAPH]\n(1) Ce barème constitue un plafond. Le montant du crédit dispensé par la banque devra être modulé en fonction de la taille de l'exploitation, des dépenses à engager et des rendements réalisés au cours des dernières campagnes.\n\n[ARTICLE]\nLa présente circulaire entre en vigueur à partir de la date de sa publication.\n\n[PARAGRAPH]\nLE GOUVERNEUR\n\n[PARAGRAPH]\nMarouane EL ABASSI",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "06C4DA61FC1C28E074A0A531078EC812EA324E1D57A682FED0A187E0392AA438",
+        "structured_document_pdf_sha256": "3AAE9E4B7E81E474C27732ED9B9E5450A18A93583791BA72456A753AC7D7CBF4",
+        "structured_document_artifact_sha256": "41B47ACF53DF9B585F7303DD0AE5154644F4439B0D9FE57543FFB01FB12EE061",
+        "block_count": 5,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2022_02_fr_migration_history_02",
+      "query": "Sur quel historique faut-il estimer le taux de migration moyen des groupes de contreparties ?",
+      "language": "fr",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Cir_2022_02_fr.pdf",
+      "expected_page": 4,
+      "expected_answer": "Le taux doit être estimé sur un historique de 5 ans, en excluant l'année 2020 et l'année de référence.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nDétermination pour chaque groupe de contreparties désigné « gi » d’un taux de migration moyen estimé sur un historique de 5 ans ; année 2020 et année de référence exclues.\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nLes  banques  et  les  établissements  financiers  doivent  s'assurer,  dans  le  cadre  de  ce regroupement, de l'homogénéité des groupes.\n\n[HEADING]\nIII. Détermination pour chaque groupe de contreparties désigné « gi » d'un taux de migration moyen estimé sur un historique de 5 ans ; année 2020 et année de référence exclues.\n\n[PARAGRAPH]\nTMMgi = ∑ 𝑇𝑀𝑔𝑖(𝑁)/𝑛 𝑛 𝑁=1\n\n[HEADING]\nAvec :\n\n[LIST_ITEM]\n-TMgi (N) : Taux de migration de l'année N du groupe de contreparties i.\n\n[LIST_ITEM]\n-Risque additionnel du groupe i : les engagements 0 et 1 de l'année (N-1) du groupe i devenus classés 2-3-4 à la fin de l'année (N).\n\n[LIST_ITEM]\n-Les TMgi (N) doivent être ajustés afin d'éliminer les effets exceptionnels pouvant engendrer un biais.\n\n[LIST_ITEM]\n-TMMgi : Taux de migration moyen du groupe de contreparties i.\n\n[LIST_ITEM]\n-n : nombre d'années retenus dans le calcul du TMMgi.\n\n[HEADING]\nIV. Majoration des taux de migration historiques\n\n[PARAGRAPH]\nLes taux de migration historiques du groupe de contreparties « gi » sont majorés par les taux « Δgi » suivants :\n\n[TABLE]\n| Groupe de contreparties              | ∆ gi   |\n|--------------------------------------|--------|\n| Professionnels du secteur privé      |        |\n| Agriculture                          | 5,00%  |\n| Industries mécaniques et électriques | 4,00%  |\n| Oléifacteurs                         | 1,25%  |\n| Industries agroalimentaires          | 1,25%  |\n| Industries pharmaceutiques           | 1,00%  |\n| Autres industries                    | 3,50%  |\n| BTP                                  | 5,00%  |\n| Tourisme                             | 9,00%  |\n| Agences de voyage                    | 7,75%  |\n| Agence de location de voitures       | 7,50%  |\n| Promotion immobilière                | 5,00%  |\n| Exportateurs d'huile d'olive         | 1,00%  |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "1CD83B1289D90DF7DF87168D9D4F34C29E327162CCF9844F916474C32CA87C1F",
+        "structured_document_pdf_sha256": "129BBBAA15B6424C58E9C5E5C79A921E26A2E070192452324D5745FACDC5CCDC",
+        "structured_document_artifact_sha256": "43D667F630F4289F480B3B22FFDA1EB9E82B93431E71383542E9F1262B8F7B79",
+        "block_count": 12,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2023_08_ar_deadline_or_duration_01",
+      "query": "إلى أي تاريخ مُدّد انتفاع المؤسسات الصغرى والمتوسطة بامتياز تكفل الدولة بالفارق في نسبة الفائدة على قروض الاستثمار؟",
+      "language": "ar",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "31 ديسمبر 2024",
+      "evidence_quote": "[VERIFIED EXCERPT]\nالفصل األول - تعوض عبارة \n\"\n \n31\n \n ديسمبر2022\n \n \"\n الواردة بالفصل2 \n من المنشور \n إلى البنوك والمؤسسات المالية عدد6 \n لسنة2022\n \n المشار إليه أعاله، بـعبارة \"\n31\n \n ديسمبر2024\n \" .\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nالمؤسسات  الصغرى والمتوسطة كما تم  تنقيحه  بالأ مر  عدد 544 لسنة 2023 المؤرخ في 20 جويلية 2023 وخاصة الفصلين الأول و 6 منه،\n\n[PARAGRAPH]\nوعلى ال منشور إلى البنوك  والمؤسسات المالية عدد 6 لسنة 2022 المؤرخ في 9 أوت 2022 المتعلق بضبط  شروط  وطرق  صرف  المبالغ  المتعلقة  بالانتفاع بامتياز تكفل الدولة بالفارق بين النسبة الموظفة على قروض وتمويلات الاستثمار ومعدل نسبة الفائدة في السوق النقدية لفائدة المؤسسات الصغرى والمتوسطة،\n\n[PARAGRAPH]\nوعلى  رأي  لجنة  مراقبة  المطابقة عدد 08 لسنة 2023 المؤرخ  في 14 ديسمبر 2023 كما نص عليه الفصل 42 من القانون عدد 35 لسنة 2016 وخاصة فقرته الثانية المتعلقة بالمناشير المتأكدة.\n\n[HEADING]\nقرر ما يلي:\n\n[ARTICLE]\nتعوض عبارة \" 31 ديسمبر 2022 \" الواردة بالفصل 2 من المنشور إلى البنوك والمؤسسات المالية عدد 6 لسنة 2022 المشار إليه أعلاه، بـعبارة 31 \" ديسمبر . \" 2024\n\n[ARTICLE]\n\" تعوض عبارة 30 جوان 2023 \" الواردة بالفصل 5 من المنشور إلى البنوك والمؤسسات المالية عدد 6 لسنة 2022 المشار إليه أعلاه، بـعبارة 30 \" جوان .\"2025\n\n[PARAGRAPH]\nالفصل :3 يدخل هذا المنشور حيز التنفيذ ابتداء من تاريخ نشره.\n\n[PARAGRAPH]\nالمحــــافظ،\n\n[PARAGRAPH]\nمروان العب   اسي",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_ar",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "15939B9B42BFDFAE434351A40F956E7566559F49185FC73E0B5112B57C6336B4",
+        "structured_document_pdf_sha256": "267E4E9CDF3DB5AD76085B8D6E283713600407C0AA432251AD91D50435AA9BFA",
+        "structured_document_artifact_sha256": "4D057C85657400D12AABC63F91922B5182771A755D579162FE04DF087ACA568A",
+        "block_count": 9,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2024_01_fr_amount_or_rate_01",
+      "query": "Quel est le taux de majoration appliqué aux engagements agricoles dans le calcul des provisions collectives ?",
+      "language": "fr",
+      "category": "amount_or_rate",
+      "relevant": true,
+      "expected_source": "Cir_2024_01_fr.pdf",
+      "expected_page": 4,
+      "expected_answer": "6,50 %",
+      "evidence_quote": "[VERIFIED EXCERPT]\n∆gi \nProfessionnels du secteur privé \n \nAgriculture \n6,50% \nIndustries mécaniques et électriques\n\n[FULL LABELED PAGE]\n[LIST_ITEM]\n-Autres organismes publics\n\n[LIST_ITEM]\nParticuliers\n\n[LIST_ITEM]\n-Particuliers du secteur privé : Crédits logements\n\n[LIST_ITEM]\n-Particuliers du secteur privé : Crédits à la consommation\n\n[LIST_ITEM]\n-Particuliers du secteur public : Crédits logements\n\n[LIST_ITEM]\n-Particuliers du secteur public : Crédits à la consommation\n\n[PARAGRAPH]\nLes  banques  et  les  établissements  financiers  doivent  s'assurer,  dans  le  cadre  de  ce regroupement, de l'homogénéité des groupes.\n\n[LIST_ITEM]\nDétermination pour chaque groupe de contreparties désigné « gi » d'un taux de  migration  moyen  estimé  sur  un  historique  de  7  ans  les  plus  récents y compris l'année de référence et compte non tenu de l'année 2020.\n\n[HEADING]\nAvec :\n\n[LIST_ITEM]\n-TMgi (N) : Taux de migration de l'année N du groupe de contreparties i.\n\n[LIST_ITEM]\n-Risque additionnel du groupe i : les engagements 0 et 1 de l'année (N-1) du groupe i devenus classés 2-3-4 à la fin de l'année (N).\n\n[LIST_ITEM]\n-Les TMgi (N) doivent être ajustés afin d'éliminer les effets exceptionnels pouvant engendrer un biais.\n\n[LIST_ITEM]\n-TMMgi : Taux de migration historique moyen du groupe de contreparties i.\n\n[LIST_ITEM]\n-n : nombre d'années retenus dans le calcul du TMMgi.\n\n[HEADING]\nIV. Majoration des taux de migration historiques moyens\n\n[PARAGRAPH]\nLes taux de migration historiques du groupe de contreparties « gi » sont majorés par les taux « Δgi » comme suit :\n\n[TABLE]\n| Groupe de contreparties                                | ∆ gi   |\n|--------------------------------------------------------|--------|\n| Professionnels du secteur privé                        |        |\n| Agriculture                                            | 6,50%  |\n| Industries mécaniques et électriques                   | 2,75%  |\n| Industries agroalimentaires y compris les oléifacteurs | 2,25%  |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "context_or_version",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "DE3028D16729BDFA5A037F4874C190D2C4AF2F4D466458A5FD9B03E710EAD155",
+        "structured_document_pdf_sha256": "7E5883DF81A50653BE9757E8DB219B0FD175E0E5D186746930426A9984E29EF4",
+        "structured_document_artifact_sha256": "037DB3705E66A5D341B397C7770437ED9631541E13C442F6D3D405732E6BD616",
+        "block_count": 17,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2024_14_fr_amount_or_rate_01",
+      "query": "Quel est le montant maximum d’un chèque que la banque doit payer sans provision lorsqu’il est tiré sur une formule délivrée par la banque, même en l’absence de provision ?",
+      "language": "fr",
+      "category": "amount_or_rate",
+      "relevant": true,
+      "expected_source": "Cir_2024_14_fr.pdf",
+      "expected_page": 2,
+      "expected_answer": "5000 dinars",
+      "evidence_quote": "[VERIFIED EXCERPT]\n2) Que d’autre part, toute banque doit payer en vertu de l'article 412 bis du Code \nde Commerce, jusqu'à concurrence de 5000 dinars, même en cas d'absence ou \nd'insuffisance de provision, le montant de tout chèque tiré sur elle au moyen \nde formules remises au tireur :\n\n[FULL LABELED PAGE]\n[HEADING]\nAnnexe à la circulaire de la Banque Centrale de Tunisie n° 2024-14 du 21 novembre 2024\n\n[HEADING]\nCHAPITRE PREMIER DE LA PREVENTION DES INCIDENTS DE PAIEMENT DE CHEQUES\n\n[HEADING]\nSection première- De la délivrance des formules de chèques.\n\n[PARAGRAPH]\nLa  remise  des  formules  de  chèques  revêt  un  intérêt  capital  dans  la prévention des incidents de paiement liés aux chèques. Cet intérêt l'est d'autant plus :\n\n[LIST_ITEM]\nQue d'une part, hormis les chèques tirés sur des comptes en devises ou en dinars convertibles, la banque tirée est tenue en vertu des alinéas 4 et 5 de l'article  374  du  Code  de  Commerce,  de  payer,  nonobstant  l'absence  ou l'insuffisance  de  la  provision,  tout  chèque  d'un  montant  inférieur  ou  égal  à vingt dinars établi sur une formule délivrée par ses soins ; et\n\n[LIST_ITEM]\nQue d'autre part, toute banque doit payer en vertu de l'article 412 bis du Code de Commerce, jusqu'à concurrence de 5000 dinars, même en cas d'absence ou d'insuffisance de provision, le montant de tout chèque tiré sur elle au moyen de formules remises au tireur :\n\n[LIST_ITEM]\n-soit  lorsqu'elle  ne  s'est  pas  renseignée  auprès  de  la  Banque  Centrale  de Tunisie  sur la situation du   titulaire   du   compte   avant   la remise de formules de chèques pour la première fois,\n\n[LIST_ITEM]\n-soit lorsque la remise de formules de chèques au tireur s'est effectuée en dépit  d'une  interdiction qui  frappe  ce    dernier  et    qui  est    connue  de  la banque.\n\n[LIST_ITEM]\nToute banque est tenue de payer tout chèque sans provision dont le montant est  égal  ou  inférieur  à  5000  dinars  si  elle  n'a  pas  adhéré  à  la  plateforme électronique des transactions par chèque à la date de son entrée en exploitation conformément aux dispositions de l'article 410 septies (nouveau) du Code de Commerce.",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_long_document",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "2E8BF075163A7BD9AB014A85D4BECF5CA603F957AF6368072B6FCF62885B79A4",
+        "structured_document_pdf_sha256": "D8D53AEF78195AD3A02ACD09987EAC796B04A7E6947F50EB597426518E160EBE",
+        "structured_document_artifact_sha256": "3964D97954699AA3E17AFD73EC39E5AEDF95CF98E56A82A2ED79132F2442AF5E",
+        "block_count": 9,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "cir_2026_05_fr_eligibility_or_scope_01",
+      "query": "Quelles institutions figurent sur la liste des adhérents à la Plateforme électronique unique des chèques ?",
+      "language": "fr",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Cir_2026_05_fr.pdf",
+      "expected_page": 2,
+      "expected_answer": "La liste des institutions adhérentes à la Plateforme Electronique Unique des Chèques comprend notamment Al Baraka Bank Tunisie, ALUBAF, Amen Bank, Arab Tunisian Bank (ATB), Attijari Bank, Bank ABC, BH Bank, Banque Internationale Arabe de Tunisie (BIAT), Banque Nationale Agricole (BNA), Banque de Tunisie (BT), Banque de Tunisie et des Émirats (BTE), Banque Tuniso-Koweïtïenne (BTK), Banque Tuniso-Libyenne (BTL), Banque Tunisienne de Solidarité (BTS), Banque Zitouna, Citi Bank, North Africa International Bank (NAIB), Office National des Postes, Qatar National Bank (QNB), Société Tunisienne de Banque (STB), Tunis International Bank (TIB), Tunisian Saudi Bank (TSB), Union Bancaire pour le Commerce et l’Industrie (UBCI), Union Internationale de Banques (UIB) et Wifak Bank.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nAl Baraka Bank Tunisie \nALUBAF \nAmen Bank  \nArab Tunisian Bank (ATB) \nAttijari Bank  \nBank ABC \nBH Bank \nBanque Internationale Arabe de Tunisie (BIAT) \nBanque Nationale Agricole (BNA) \nBanque de Tunisie (BT) \nBanque de Tunisie et des Émirats (BTE) \nBanque Tuniso-Koweïtïenne (BTK) \nBanque Tuniso-Libyenne (BTL) \nBanque Tunisienne de Solidarité (BTS) \nBanque Zitouna \nCiti Bank \nNorth Africa International Bank (NAIB) \nOffice National des Postes  \nQatar National Bank (QNB) \nSociété Tunisienne de Banque (STB) \nTunis International Bank (TIB) \nTunisian Saudi Bank (TSB) \nUnion Bancaire pour le Commerce et l’Industrie (UBCI) \nUnion Internationale de Banques (UIB) \nWifak Bank\n\n[FULL LABELED PAGE]\n[HEADING]\nAnnexe à la circulaire de la Banque Centrale de Tunisie n°2026-05 du 24 avril 2026\n\n[HEADING]\nListe des institutions adhérentes à la Plateforme Electronique des Chèques\n\n[TABLE]\n| Al Baraka Bank Tunisie                                |\n|-------------------------------------------------------|\n| ALUBAF                                                |\n| Amen Bank                                             |\n| Arab Tunisian Bank (ATB)                              |\n| Attijari Bank                                         |\n| Bank ABC                                              |\n| BH Bank                                               |\n| Banque Internationale Arabe de Tunisie (BIAT)         |\n| Banque Nationale Agricole (BNA)                       |\n| Banque de Tunisie (BT)                                |\n| Banque de Tunisie et des Émirats (BTE)                |\n| Banque Tuniso-Koweïtïenne (BTK)                       |\n| Banque Tuniso-Libyenne (BTL)                          |\n| Banque Tunisienne de Solidarité (BTS)                 |\n| Banque Zitouna                                        |\n| Citi Bank                                             |\n| North Africa International Bank (NAIB)                |\n| Office National des Postes                            |\n| Qatar National Bank (QNB)                             |\n| Société Tunisienne de Banque (STB)                    |\n| Tunis International Bank (TIB)                        |\n| Tunisian Saudi Bank (TSB)                             |\n| Union Bancaire pour le Commerce et l'Industrie (UBCI) |\n| Union Internationale de Banques (UIB)                 |\n| Wifak Bank                                            |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "french_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "3501B99462BC855130C7E8546CD892B86542EDE9A8B99214C9E7254C125D59E9",
+        "structured_document_pdf_sha256": "98E5F1A51CC8D119E14292ED9C108E754C4AEE0D5766335F5CEAE0339DB064F8",
+        "structured_document_artifact_sha256": "57E2484EA6703FE81623DADDB30CBB10E515880A40F0E823FE400B7E57C90041",
+        "block_count": 3,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2016_02_ar_eligibility_or_scope_01",
+      "query": "هل كانت شركة BOUZGARROU DESIGN مدرجة ضمن موردي المقاعد والأثاث وأجزائه الخاضعة لكراس الشروط؟",
+      "language": "ar",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Note_2016_02_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "نعم، أدرجها الملحق ضمن قائمة الموردين المسجلين.",
+      "evidence_quote": "[VERIFIED EXCERPT]\n2/2 \nملحق للمذكرة إلى الوسطاء المقبولين عدد02\n \n لسنة2016\n \n       بتاريخ\n29\n/\n01\n/\n2016\n \n----------------\n \n \n  المور  دون المسجلون بقائمة مور دي\nالمقاعد و\nاألثاث وأجزا\nئه \n المدرجة بالتعريفات\nالديوانية التالية :\n \n\n \n من94013000002\n \n إلى94018000900\n \n.: مقاعد \n\n \n من94031051007\n \n إلى94039090008: أثاث و أجزا\nؤه.\n \n \n المعر ف\nالجبائي \nاإلسم اإلجتماعي \n1398389Y\n شركة بوزقرو للتزويق \nSTE BOUZGARROU DESIGN\n1399191P\n شركة كوفرينق بلوس \nSTE COVERINGS PLUS\n1400475S\n شركة مو رنا صوفا \nSTE MODERNA SOFA\n0871109H\n شركة م رال \nSTE MIRAL\n1403170Q\n شركة م وا ترايدينق \nSTE MEGA TRADING\n1428095E\n شركة رويال لألثاث \nSTE ROYAL MEUBLES\n1283035P\n شركة ط فاك ط رام ك \nSTE SEVAC CERAMIC\n0544435X\n شركة طمارت \nSTE SMART\n1225545J\n شركة روان \nSTE RAOUENE\n1167201K\n شركة إك لمون كونسابت \nSTE EQUIPEMENT CONCEPT\n1234055W\n شركة موب الب \nSTE MOBILAB\n1260005J\n \n شركة  .ك.س. مغرب \nSTE DKC MAGHREB\n0381091N\n \n شركة مركور\nرتاي  تونس \nSTE MERCURE RETAIL TUNISIA\n0785343H\n شركة الزواري و شركاؤ\nا \nSTE ZOUARI & CIE\n\n[FULL LABELED PAGE]\n[HEADING]\nملحق للمذكرة إلى الوسطاء المقبولين عدد 02 لسنة 2016 بتاريخ 2016/01/29\n\n[PARAGRAPH]\n----------------\n\n[PARAGRAPH]\nالمور دون المسجلون بقائمة موردي المقاعد والأثاث وأجزائه المدرجة بالتعريفات الديوانية التالية :\n\n[LIST_ITEM]\n من 94013000002 إلى\n\n[LIST_ITEM]\n94018000900 : مقاعد.\n\n[LIST_ITEM]\n من 94031051007 إلى 94039090008 : أثاث و أجزاؤه.\n\n[TABLE]\n| الإجتماعي الإسم            | الإجتماعي الإسم        | ف المعر الجبائي   |\n|----------------------------|------------------------|-------------------|\n| STE BOUZGARROU DESIGN      | بوزقرو شركة للتزويق    | 1398389Y          |\n| STE COVERINGS PLUS         | بلوس كوفرينق شركة      | 1399191P          |\n| STE MODERNA SOFA           | صوفا رنا مو شركة       | 1400475S          |\n| STE MIRAL                  | رال م شركة             | 0871109H          |\n| STE MEGA TRADING           | ترايدينق وا م شركة     | 1403170Q          |\n| STE ROYAL MEUBLES          | للأثاث رويال شركة      | 1428095E          |\n| STE SEVAC CERAMIC          | فاك ط شركة ك رام ط     | 1283035P          |\n| STE SMART                  | طمارت شركة             | 0544435X          |\n| STE RAOUENE                | روان شركة              | 1225545J          |\n| STE EQUIPEMENT CONCEPT     | كونسابت لمون إك شركة   | 1167201K          |\n| STE MOBILAB                | لاب موب شركة           | 1234055W          |\n| STE DKC MAGHREB            | مغرب .ك.س. شركة        | 1260005J          |\n| STE MERCURE RETAIL TUNISIA | مركور شركة تونس رتاي   | 0381091N          |\n| STE ZOUARI & CIE           | شركاؤ و الزواري شركة ا | 0785343H          |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_numeric",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "C3B01242052830554D9EEFE9446EC3CC32E5DE07094FCF75C08A6E9EE50832FE",
+        "structured_document_pdf_sha256": "7B86C94B7BAF66CA6BB61ADE7537D74CDE6B075480496DB2EA71990F065F1A31",
+        "structured_document_artifact_sha256": "487A7BAE254090B783B17C5EF0B931F1165D5A1255638F4D6D0ABBF1184EEAD5",
+        "block_count": 7,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2016_14_ar_deadline_or_duration_01",
+      "query": "متى فتحت البنوك شبابيكها بمناسبة عطلة عيد الفطر سنة 2016، وما العمليات المسموح بها؟",
+      "language": "ar",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Note_2016_14_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "فتحت يوم الخميس 7 جويلية 2016 من التاسعة صباحا إلى منتصف النهار، للتنزيل نقدا والسحب والصرف اليدوي فقط.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nالخميس 7 جويلية 2016 | من التاسعة صباحا إلى منتصف النهار | التنزيل نقدا والسحب والصرف اليدوي\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nتونس، في 01 جويلية 6102\n\n[HEADING]\nمذكرة إلى الوسطاء المقبولين عدد 01 لسنة 2016\n\n[PARAGRAPH]\nالموضوع : فتح شبابيك البنوك للعموم بمناسبة عيد الفطر.\n\n[PARAGRAPH]\n*****\n\n[PARAGRAPH]\nضمانا لحسن سير المعاملات أثناء العطلة بمناسبة عيد الفطر ، : تقرّر -أن  تفتح  البنوك  شبابيكها  للعموم  يوم    الخميس 10 جويلية 6102 من السّاعة  الت ّ اسعة  إلى  منتصف  النهار  لغرض  إنجاز  العمليّات  المتعلقة  بالتنزيل  نقدا والسّحب والصرّف اليدوي دون سواها ؛ -وأن يفتح البنك المركزي التونسي   شبابيكه بمقر ّ ه الرئيسي وبكافةة الفةروع خلال نفس اليوم ونفس التوقيت لغرض إنجاز العمليّات المتعلقة بالدفوعات.\n\n[PARAGRAPH]\nكما يلفت انتباه السّادة الرّؤساء المديرين العامين والمديرين العامين للبنوك والرئيس  المدير  العام  للدّيوان  الوطني  للبريد  إلى  ات ّ خاذ الإجراءات الضرورية  لتأمين استمرارية  عمليّات  السحب  من  الموز ّ عات  الآلية  للأوراق  النقدية  خلال  عطلة  عيد الفطر.\n\n[HEADING]\nالمحـــــــافظ،\n\n[HEADING]\nالشاذلي العياري",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_visual_non_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "B1E6CEDB335D47A611337E722B4D606DDDBCA536DAC4AAC7F76D79EC252FC2BE",
+        "structured_document_pdf_sha256": "4A01EA604A08BCF27E08F674D79E8B56E8A3C00832A7E73DDA2FB0A7A5507345",
+        "structured_document_artifact_sha256": "ADC8994F3E54DA2CB4BC687DE2324FADCFF9A4CBA6D9615AD54B3D70CC1E08FB",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2016_31_ar_eligibility_or_scope_01",
+      "query": "هل كانت شركة SEVAC CERAMIC مدرجة ضمن موردي المربعات الخزفية الخاضعة لكراس الشروط؟",
+      "language": "ar",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Note_2016_31_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "نعم، أدرجها الملحق ضمن الموردين المسجلين للمربعات الخزفية.",
+      "evidence_quote": "[VERIFIED EXCERPT]\n2/2 \nملحق للمذكرة إلى الوسطاء المقبولين عدد31\n \n لسنة2016\n \n       بتاريخ\n23\n/\n11\n/\n2016\n  \n----------------\n \n \n  المور  دون المسجلون بقائمة مور دي المربعات الخزفية المدرجة بالتعريفات\n الديوانية\nالتالية :\n \n \n- \n من70960999996\n \n إلى70960969906\n \n 69079080916 -\n و69079080994\n \n- \n من70900999006\n \n إلى70900900006\n \n \nالمعر ف الجبائي\nاإلسم اإلجتماعي \n1283035P\n شركة سيفاك سيراميك \nSTE SEVAC CERAMIC\n1222544V\n الشركة العامة للسيراميك \nSTE GENERALE CERAMIC\n1365866C\n \n شركة\nأنوار العالمية \nSTE ANOUAR INTERNATIONAL\n0407970B\n \n شركة مصرف الخشب        \n و مواد البناء بالوسط \nSTE CMBC\n1393309J\n \n شركة ديزيانو سيراميكا \nSTE DESIANO CERAMICA\n0876173N\n \n شركة المصرف المتوسطي\nلمواد البناء و العزل \nSTE COMMACET\n0504283C\n شركة إيديال سيرام \nSTE IDEAL CERAM\n1416540Q\n شركة النورس للتجارة \nSTE ENNAWRES DE COMMERCE\n1255367A\n شركة أركو سيرام \nSTE ARCO CERAME\n0839474Q\n \nشركة كارتقو للتجارة         \n \nو اإلستشارة \nSTE CARTHAGO TRADING ET \nCONSULTING\n0868542X\n \n شركة\nسوتام للتوزيع \nSTE SOTEM DISTRIBUTION\n1290294A\n شركة قرين سيتي اموبيلي \nSTE GREEN CITY IMMOBILIER\n0634097A\n شركة كنوز الشرق \nSTE TRESORS DE L’ORIENT\n1200666K\n شركة ديكو سيرام \nSTE DECO CERAM \n1456376T\n شركة الشمال للتوزيع بالجملة \nSTE SNDG\n1222831Z\n شركة هيدرو للتوزيع \nSTE HYDRO DISTRIBUTION\n1428095E\n \n شركة\nرويال لألثاث \nSTE ROYAL MEUBLE\n0040122G\n شركة المستقب  بالجملة \nSTE EL MOSTAKBEL EN GROS\n\n[FULL LABELED PAGE]\n[HEADING]\nملحق للمذكرة إلى الوسطاء المقبولين عدد 31 لسنة 2016 بتاريخ 2016/11/23\n\n[PARAGRAPH]\n----------------\n\n[PARAGRAPH]\nالمور دون المسجلون بقائمة موردي المربعات الخزفية المدرجة بالتعريفات الديوانية التالية :\n\n[LIST_ITEM]\n-من 70960999996 إلى 70960969906\n\n[LIST_ITEM]\n69079080916 و 69079080994\n\n[LIST_ITEM]\n-من 70900999006 إلى 70900900006\n\n[TABLE]\n| الإجتماعي الإسم                    | الإجتماعي الإسم                           | الجبائي ف المعر   |\n|------------------------------------|-------------------------------------------|-------------------|\n| STE SEVAC CERAMIC                  | سيراميك سيفاك شركة                        | 1283035P          |\n| STE GENERALE CERAMIC               | للسيراميك العامة الشركة                   | 1222544V          |\n| STE ANOUAR INTERNATIONAL           | شركة العالمية أنوار                       | 1365866C          |\n| STE CMBC                           | شركة الخشب مصرف بالوسط البناء مواد و      | 0407970B          |\n| STE DESIANO CERAMICA               | سيراميكا ديزيانو شركة                     | 1393309J          |\n| STE COMMACET                       | شركة المتوسطي المصرف العزل و البناء لمواد | 0876173N          |\n| STE IDEAL CERAM                    | سيرام إيديال شركة                         | 0504283C          |\n| STE ENNAWRES DE COMMERCE           | للتجارة النورس شركة                       | 1416540Q          |\n| STE ARCO CERAME                    | سيرام أركو شركة                           | 1255367A          |\n| STE CARTHAGO TRADING ET CONSULTING | للتجارة كارتقو شركة الإستشارة و           | 0839474Q          |\n| STE SOTEM DISTRIBUTION             | شركة للتوزيع سوتام                        | 0868542X          |\n| STE GREEN CITY IMMOBILIER          | اموبيلي سيتي قرين شركة                    | 1290294A          |\n| STE TRESORS DE L'ORIENT            | الشرق كنوز شركة                           | 0634097A          |\n| STE DECO CERAM                     | سيرام ديكو شركة                           | 1200666K          |\n| STE SNDG                           | بالجملة للتوزيع الشمال شركة               | 1456376T          |\n| STE HYDRO DISTRIBUTION             | للتوزيع هيدرو شركة                        | 1222831Z          |\n| STE ROYAL MEUBLE                   | شركة للأثاث رويال                         | 1428095E          |\n| STE EL MOSTAKBEL EN GROS           | بالجملة المستقب شركة                      | 0040122G          |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_numeric",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "B6F8C2E05D3B17AB5C386A25C37115D4B5A61766ABED5594FBEF9AA37038C9A3",
+        "structured_document_pdf_sha256": "2094C3CEA66AD867DFB91D254DC1E2A85FC54DD87E46CB1C8EB7B0B52CD9EA2D",
+        "structured_document_artifact_sha256": "6A6412D0E871E93D1CE8B60252D394D027ACE7F06D1DEDD44DC390EFA2FFD1B0",
+        "block_count": 7,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2017_18_ar_deadline_or_duration_01",
+      "query": "قبل كم من الوقت يجب إعلام البنك المركزي بمن سينوب مفوضا أو وكيلا مصرفيا أو يعوضه مؤقتا؟",
+      "language": "ar",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Note_2017_18_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "يجب إرسال الإفادة قبل بداية مدة النيابة أو التعويض بـ24 ساعة على الأقل.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nإفادة بأسماء وصفات وسلطات ونماذج توقيع النواب | قبل بداية النيابة أو التعويض بـ24 ساعة على الأقل\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\n-أسماء  و  صفات  و  سقطات  و  نماذج  توقيع  المفوضين  المكقفين  بتمايقها  عقى  المستوى المركزي  وغيرهم من الأشخاص المكقفين بإنجاز العمقيات الراجعة بالنظر لقمقر الرقيسي لقبنك . المركزي التونسي -أربعة  نظاقر ،عقى  مستند  ورقي  و  عقى  مستند  إلكتروني، من  مجموعة  التوقيعات المعتمدة لقبنك المعني . إحالة الوااق  التالية مباشرة إلى فرع البنك المركزي التونسي المعني :\n\n[LIST_ITEM]\n7 )\n\n[PARAGRAPH]\n-أسماء  و  صفات  و  سقطات  و  نماذج  توقيع  المفوضين  الجهويين  لقبنك  المعني  :المديرين الجهويين و رؤساء الفروع  و غيرهم من الأشخاص الذين يتم تكقيفهم بإنجاز مهام ترجع بالنظر لقفرع المعني لقبنك المركزي التونسي. -نظير ،عقى مستند ورقي و عقى مستند إلكتروني،  من مجموعة نماذج التوقيعات المعتمدة لقبنك المعني . 1 )  إحالة  الإفادة  ،  حسب  الحالة  إلى  المقر  الرقيسي  لقبنك  المركزي  التونسي(الإدارة  العامة لقمصالح  القانونية  و  الكتابة  القارة  لقصفقات)أو  مباشرة  إلى  فرع  البنك  المركزي  التونسي المعني  ،  بأسماء    و  صفات  و  سقطات  و  نماذج  توقيع  الأشخاص  الذين  يتم  تكقيفهم  بنيابة المفوضين  و  الوكلاء  آنفي الذكر أو تعويضهم  لمدة محدودة  و  ذلك  عقى  الأقل 74 ساعة  قبل بداية مدة النيابة أو التعويض. لذلك  فإن  البنوك  مدعوة  لإتخاذ  الإجراءات  اللازمة  لضمان  التقيد  التام  بمقتضيات\n\n[PARAGRAPH]\nالمنشور إلى البنوك عدد 4 لسنة 1191 المؤرخ في 11 فيفري 1191 آنف الذكر.\n\n[HEADING]\nالمحـافـظ،\n\n[PARAGRAPH]\nالشاذلي العياري\n\n[PARAGRAPH]\n7",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_visual_non_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "B43F3993CD6C75B77C085B6865906E6F6C0A36FCA13E695309398DCBF1B9DF48",
+        "structured_document_pdf_sha256": "90190F6B0FB699E727443B9980508AA3BA2064BE5762D0EFD9044C0E4B0CF00F",
+        "structured_document_artifact_sha256": "61201FB55301CAFBFE40C2F1A4E0701189BEAACE0BA6E93994F2A36662E97E4A",
+        "block_count": 7,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2018_03_ar_amount_or_rate_01",
+      "query": "كيف حُدّد مبلغ القرض التكميلي لزراعة الحبوب في موسم 2017-2018، وما أجل سداده؟",
+      "language": "ar",
+      "category": "amount_or_rate",
+      "relevant": true,
+      "expected_source": "Note_2018_03_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "حُدّد في حدود 80 % من الكلفة المرجعية المنشورة من وزارة الفلاحة، وكان أجل السداد 31 أوت 2018.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nقرض تكميلي لموسم الحبوب 2017-2018 | 80% من الكلفة المرجعية | أجل السداد 31 أوت 2018\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nقرر ما يلي :\n\n[ARTICLE]\nيضبط مبلغ القروض التكميلياة للزراعاات الفصالية المخصصاة للتسميد ومداواة الأعشاب الطفيلية والأمراض الفطرية بعنوان موسم زراعة الحباوب 8102-8102 فااي حاادود 21 % ماان الكلفااة المرجعيااة المنشااورة بموقااع واب وزارة الفلاحة والموارد المائية والصيد البحري ويحل أجل خلاصها في 50 أوت .8102\n\n[PARAGRAPH]\nتدخل هذه المذكرة حيز التنفيذ ابتداء من تاريخ الإشعار بها.\n\n[PARAGRAPH]\nالــمــحـــافـــظ\n\n[PARAGRAPH]\nالشاذلي العياري\n\n[ARTICLE]\nالفصل الثاني",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_visual_non_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "423995C83D0D536ECA030A73009CE5C70384F22C23099A942F13D08C617909F0",
+        "structured_document_pdf_sha256": "D0AC227031817BDC77D5486F179D663BD6FDD619898810BD7FC71024AC6BC0E9",
+        "structured_document_artifact_sha256": "06F29364DBFCA95625FF0E6841F9F596C52203E169C237F1FCAFEEDC5326B272",
+        "block_count": 6,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2018_06_ar_effective_date_01",
+      "query": "متى سحب Clydesdale Bank أوراقه القديمة من فئتي 5 و10 جنيهات إسترلينية من التداول؟",
+      "language": "ar",
+      "category": "effective_date",
+      "relevant": true,
+      "expected_source": "Note_2018_06_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "سحبها من التداول ابتداء من غرة مارس 2018.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nClydesdale Bank | فئتا 5 و10 جنيهات | السحب من التداول 1 مارس 2018\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nتونس، في 41 فيفري 8142\n\n[HEADING]\nمذكرة إلى البنوك والوسطاء المقبولين عــدد 60 لسنة 2018\n\n[PARAGRAPH]\nالموضوع : سحب أوراق نقدية من الت ّ داول من فئتي عشرة ( 06 ) و ( خمسة 5 ) جنيه استرليني لـ\"كليدسدال بنك \" .) Clydesdale Bank (\n\n[PARAGRAPH]\n***\n\n[PARAGRAPH]\nنعلمكم  نّ ( كليدسمدال بنمك ) Clydesdale  Bank سيسم ب مما الت   مداول ابتمدا  مما غمر ممرس 8142 الأوساق  النقديمة مما فئتمي 41 و 5 جنيمه اسمترليني موضمو  ممككراتنر إلمما الونممود  ممد 8 لسممنة 4121 بتممرسي 1 جممرنفي 4121 و ممد 81 لسممنة 4111 بتممرسي 8 سوتمور 4111 و د 48 لسمنة 8111 بتمرسي 82 سموتمور 8111 وممككر  تنر إلما الونمود والوسطر  المقووليا د 41 لسنة 8141 بترسي 81 جويلية .8141\n\n[PARAGRAPH]\nيوقا هكاّ الصنفرّ ما الأوساق  النقدية المس وبة ما التداول قربليا للت   وديل بـ\"كليدسدال بنك \"بعد ترسي  الس ب المككوس ن لاه.\n\n[PARAGRAPH]\nلكا فإّ    الونود والوسطر  المقوولوّ ممد و وّ إلما اتمتنمر   ما إسجمر  الأوساق النقديمة المشرس إليهر برلفقر  الأولا للت   داول.\n\n[PARAGRAPH]\nوسيستمر  الونك المركزي التونسي في قوول هكه  الأوساق النقدية المس وبة مما التمداول ما الونود والوسطر  المقو وليا إلا ترسي 19 فيفري 8142 بدخول  الغرية.\n\n[PARAGRAPH]\nالمدير العام للخزينة العامة والدفوعات،\n\n[HEADING]\nعبد العزيز بن سعيد",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_visual_non_table",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "6D78C4FE9F606ADEE9E094D0CF3DE4D752F52AB868E7584EC5759AE34F650199",
+        "structured_document_pdf_sha256": "D7B7B1F9DF8044FBC4F6C784EB11AEE3DE1D8F969AA969B7E91C94DCFC4678B1",
+        "structured_document_artifact_sha256": "595BE7BC5BAACB25AB49C69B0ED3272F2476C9EB2EF1B2C794EA7394BBE261D5",
+        "block_count": 10,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2018_13_ar_eligibility_or_scope_01",
+      "query": "ما شرط منشأ السلع والخدمات التي كانت المصارف الليبية تمول استيرادها من تونس بالدينار التونسي؟",
+      "language": "ar",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Note_2018_13_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "كان يجب أن تكون السلع أو الخدمات ذات منشأ تونسي.",
+      "evidence_quote": "[VERIFIED EXCERPT]\n،تونس \n في20\n \n ماي0202\n \n \nمذكرة إلى الوسطاء المقبولين \nعـــدد31\n \n لسنة1038\n \n \n \nالموضوع : \n التحويالت.في إطار عمليات تصدير السلع و الخدمات إلى ليبيا \n \n \nليكن في علم الوسطاء المقبولين أن \n مصرف ليبيا المركزي أصدر\n تعليماته للمصارف الليبية بخصوص السماح بفتح\nاالعتمادات \n المستندية أو غيرها\n من عمليات التحويل المسموح بإجرائها\nالستيراد \n السلع و الخدمات من تونس\nب الدينار التونسي عمال\nباتفاقية \n الدفع الثنائية الموحدة لدول\nاتحاد \n المغرب العربي أو\n بأي عملة أخرى، حسب طلب المتعاملين، و يشترط في كل األحوال أن تكون\nالبضاعة أو الخدمة ذات \n.منشأ تونسي \n \n \n \nالمحافـظ \n \nمروان العبّــاسي\n\n[FULL LABELED PAGE]\n[HEADING]\nتونس، في 20 ماي 0202\n\n[HEADING]\nمذكرة إلى الوسطاء المقبولين عـــدد 31 لسنة 1038\n\n[HEADING]\nالتحويلات في إطار عمليات تصدير السلع و الخدمات إلى ليبيا.\n\n[HEADING]\nالموضوع :\n\n[PARAGRAPH]\nليكن  في  علم  الوسطاء  المقبولين  أن  مصرف  ليبيا  المركزي  أصدر تعليماته للمصارف الليبية بخصوص  السماح  بفتح  الاعتمادات المستندية أو غيرها من  عمليات  التحويل  المسموح  بإجرائها  لاستيراد  السلع  و  الخدمات  من  تونس بالدينار التونسي عملا باتفاقية الدفع الثنائية الموحدة لدول اتحاد المغرب العربي أو بأي  عملة  أخرى،  حسب  طلب  المتعاملين،  و  يشترط  في  كل  الأحوال  أن  تكون البضاعة أو الخدمة ذات منشأ تونسي.\n\n[HEADING]\nالمحافـظ\n\n[HEADING]\nمروان العبّــاسي",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_ar",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "8417412E18E9FFF3187910124C551798A7DB30C34C486569C7F3FE4549294604",
+        "structured_document_pdf_sha256": "96552025E52F7595A1986EAD49FC053AD35012ECC2B19F9D6A533B9176D5FB82",
+        "structured_document_artifact_sha256": "02EEE3D21A95F9A72F5B2ACB8196861F4DC54D475B8D1896722AB472F398DCA2",
+        "block_count": 7,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2019_17_fr_amount_or_rate_02",
+      "expected_source": "Note_2019_17_fr.pdf",
+      "query": "Quel est le taux d'intérêt applicable pour les bénéficiaires finals dans le cas d'une rétrocession en euro ?",
+      "category": "amount_or_rate",
+      "expected_page": 3,
+      "expected_answer": "Le taux maximal était de 2,75 % par an pour une rétrocession en euros.",
+      "evidence_start_line": 24,
+      "evidence_end_line": 25,
+      "evidence_quote": "[VERIFIED EXCERPT]\n2-Pour les bénéficiaires finals : \n- 2,75% l’an au maximum dans le cas d’une rétrocession en\n\n[FULL LABELED PAGE]\n[ARTICLE]\nLa ligne de crédit objet de la présente note finance jusqu'à 30 % du montant des biens et services d'origine non espagnole et des dépenses locales.\n\n[ARTICLE]\nLes contrats éligibles au financement de cette ligne de crédit doivent être libellés en euro.\n\n[PARAGRAPH]\nLe  montant  de  chaque  contrat  ne  doit  pas  dépasser  Deux  Millions (2.000.000) de Droits de Tirages Spéciaux (DTS).\n\n[HEADING]\nSection II : Conditions de rétrocession\n\n[ARTICLE]\nLes facilités sur la ligne de crédit, objet de la présente note, sont rétrocédées aux conditions décrites dans la présente section.\n\n[ARTICLE]\nLe taux d'intérêt applicable est fixé à :\n\n[HEADING]\n1- Pour les Intermédiaires Agréés :\n\n[LIST_ITEM]\n-0,25% l'an dans le cas d'une rétrocession en euro.\n\n[LIST_ITEM]\n-4,25% l'an dans le cas d'une rétrocession en dinar.\n\n[HEADING]\n2-Pour les bénéficiaires finals :\n\n[LIST_ITEM]\n-2,75% l'an au maximum dans le cas d'une rétrocession en euro.\n\n[LIST_ITEM]\n-6,75% l'an au maximum dans le cas d'une rétrocession en dinar.\n\n[PARAGRAPH]\nLe  calcul  des  intérêts  est  effectué  compte  tenu  du  nombre  de  jours effectifs sur la base d'une année de 360 jours.",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "9C68EF81ADEE13849DD6C8AEAE5F6C1D1C9508A36C0C4E0C43D627BC692C9259",
+        "structured_document_pdf_sha256": "55C01570D7568D7462B551857DE3D9579F5E34A95F36E090CFD7837A761E8FC4",
+        "structured_document_artifact_sha256": "16D9DF722094674989F92826846836F57EC46AC96B9A539D61B0712F2BA7E354",
+        "block_count": 13,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2019_24_ar_effective_date_01",
+      "query": "متى بدأ تداول الورقة السويسرية من فئة 100 فرنك الصادرة ضمن السلسلة التاسعة؟",
+      "language": "ar",
+      "category": "effective_date",
+      "relevant": true,
+      "expected_source": "Note_2019_24_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "بدأ تداولها في 12 سبتمبر 2019.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nورقة سويسرية من فئة 100 فرنك | بداية التداول 12 سبتمبر 2019\n\n[FULL LABELED PAGE]\n[HEADING]\nتونس، في 0210/20/02\n\n[HEADING]\nمذكرة إلى البنوك والوسطاء المقبولين عـدد 42 لسنة 4029\n\n[HEADING]\nالموضوع : طرح ورقة نقدية جديدة للت ّ داول من  فئة 122 فرنك صادرة عن البنك الوطني السويسري \" .\"BANQUE  NATIONALE  SUISSE\n\n[PARAGRAPH]\n***\n\n[PARAGRAPH]\nّ نعلمكمممن البنمممك الممموطني السويسمممري طمممرح للتمممداول بدايمممة ممممن تاريـم ممـخ 12 سممبتمبر 0210 ورقم مة نقديم مة جديممدة مم من فئــممـة 122 فرنممك وهممي الإصممدار السمماد والأخير من السلسلة الجديدة (السلسلة التاسعة) للأوراق النقدية السويسرية. تتميّممذ هممرق الورقممة بت مممين جديممد و علامممام  ممما حديثممة لتممدعين سمملامتها وحمايتها من التذييف. وفي ما يلي  هن ّ   مواصفام هرق الورقة النقدية الجديدة:\n\n[LIST_ITEM]\n-اللون الرئيسي: الأزرق.\n\n[LIST_ITEM]\n-الأبعاد : 02 من 111 x من.\n\n[HEADING]\n-الوجـــه\n\n[LIST_ITEM]\n)2 صورتا   رئيسيتا   تميذا   الت مين  الجديد  لوجه  الورقـة : الأولى  صورة الكرة  الأرضية البنفس باللو جي  وعلى  سطحها  رسمت  بعض  الخطوط والبيانام  المستعملة في  مجال  الأرصاد  الجوية    وتوجد  في  منت ف  الورقة على اليمين والثانية صورة ليـدين تسحبا  الماء في  على الورقة في الوسط . ترمذ هاتا  ال ورتا  إلـى .\" الموضوع الرئيسي للورقة وهو عن ر \" الماء\n\n[LIST_ITEM]\n)4 في   سفل  الورقة  توجد  العلامة  المائية  التي  تحتوي  على  صورة  الكرة الأرضية  على  اليمين  وخطوط  محيط  العلن  السويسري  على  اليسار  و  الل ّ را يظهرا  ب فة شفافة عند مسك الورقة في ات ّ جاق الضوء.\n\n[LIST_ITEM]\n)3 في  منت ف  الورقة  على  اليمين  توجد  صورة  للكرة  الأرضية  متلألئة  وعند إمالة الورقة من اليسار إلى اليمين يظهر داخلها قو  بنفسجي اللو  متحرّك ب ريا بينما يتغير لو  الكرة الأرضية عند مسك الورقة وإمالتها إلى الوراء.",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "context_or_version",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "C040FDC6500EC3D151EC2071883AB154EFED903707ACAF9D85EE96E4B6394EE2",
+        "structured_document_pdf_sha256": "B94D4170716E7725436ECAE4779D5B7A8EB3AEC0F24AD04CADCAB9E49F415196",
+        "structured_document_artifact_sha256": "463B6E786D64B1987BDCE36F37CFA150B33C24228CC46494A7FC3197CBF0885A",
+        "block_count": 11,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "query": "متى بدأ تداول الورقة النرويجية الجديدة من فئة 1000 كرونة؟",
+      "language": "ar",
+      "category": "effective_date",
+      "relevant": true,
+      "expected_source": "Note_2020_02_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "بدأ تداولها في 14 نوفمبر 2019.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nورقة نرويجية جديدة من فئة 1000 كرونة | بداية التداول 14 نوفمبر 2019\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\nتونس، في 61 جانفي 0202\n\n[HEADING]\nمذكّرة إلى البنوك والوسطاء المقبولين عـدد 02 لسنة 2020\n\n[PARAGRAPH]\nالموضووو : طرر ورقر رر نقديرر  جديرردد ول  م ررد و   رر  ف رر 6222 ك ونرر   رررا رد  رر    رر و ررر وي . \"NORGES BANK\"\n\n[PARAGRAPH]\n***\n\n[PARAGRAPH]\nنعلمكم أن م       و  وي NORGES BANK\" \" ط ول د و   د ي     تاريخ 61 نوفمب 0262 ورق نقدي   جديدد    ف 6222 ك ون      وسلسل   وجديدد ولأور ق .) و قدي    و  ويجي  (  وسلسل   وثا\n\n[PARAGRAPH]\nأهم م  و رفات هذه  وورق   و قدي   وجديدد هي كاو اوي:\n\n[LIST_ITEM]\n-اللون الرئيسي: وب فسجي.\n\n[LIST_ITEM]\n-الأبعاد : 651 م 02 x م.\n\n[LIST_ITEM]\n-الوجـه :\n\n[LIST_ITEM]\n)6 يحمل وجه  وورق رورد  وموج  في  وبحـ   ومف و في  إشرارد ر يير   إور \" وبحــ \" كقود  ضا د تشحذ وقود   فع  إو   لأ ام. في أ ل   و ك   لأيم ، توجد رورد و طائ   ح ي يعيش في أ ل   وبحرار  راومحيا  لأطلسري ويعر \" ـاوبف   لأطلسي \" The Atlantic puffin\n\n[LIST_ITEM]\n)0 في أ ل   وورق  ، في  ووسا ، توجد  وقيم   لإسمي  ولورق   لسان  وقلرم  اولةر و  ويجي  وفري أ لر   وج ر   ويسر ع طبعرق   وقيمر   لإسرمي  ولورقر   الأرقرام اولون  وب فسجي و . اوحجم  وكبي  و وط م با    وبارزد\n\n[LIST_ITEM]\n)3 لرر   ويسررار تحررق  وقيمرر   لإسررمي  ولورقرر   الأرقررام، توجررد  وعة رر   ومائيرر و تح روي فري  لأ لر   لر   ررورد رأف طرائ   وربف   لأطلسري  وفري  لأسرفل وقيمر   لإسرمي  ولورقر   الأرقرام. هرذ ن  وع ارر  ن ين رر  ن  ارف  شرفاف    ر رد س   وورق  في  ت م جاه  وضوء.\n\n[LIST_ITEM]\n)1 في  وج    ويس ع،  ق يبا     وسرا  وورقر  ، يوجرد  ريا  لأ ران .   رد سر وورق  في  ت م جاه  وضوء، ين   هذ   وخيا  في شكل  را م  ارا م    م ارل  ك ر \" ليه  خ ا    سم  وب NB . \"  و وقيم   لإسمي  ولورق   الأرقام\n\n[PARAGRAPH]\n1",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_numeric",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "7FEE2F01298B9EA11D4C66F75075AB25730EA5999E12C5FDABD80EAD256978B7",
+        "structured_document_pdf_sha256": "74FCDB328D5647D9B2DAC393D069A8997A8E56FC210B5C8CD5C1717FDFFC9439",
+        "structured_document_artifact_sha256": "94CF1CC4F96AFBB3CBB6E8A14AECE4953BCE623818D09229D0BB740A83C162D4",
+        "block_count": 14,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2020_21_fr_required_action_01",
+      "query": "Quelles actions les banques et l’Office National des Postes doivent‑ils entreprendre lorsqu’un incident de paiement d’un chèque est constaté ?",
+      "language": "fr",
+      "category": "required_action",
+      "relevant": true,
+      "expected_source": "Note_2020_21_fr.pdf",
+      "expected_page": 1,
+      "expected_answer": "Surseoir à l’accomplissement des procédures légales prévues par la circulaire n° 2007‑18, notamment l’invitation du tireur à provisionner son compte, l’établissement d’un certificat de non‑paiement et la régularisation.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nToutefois, en cas de constatation d’un incident de paiement d’un \nchèque, les banques et l’Office National des Postes doivent surseoir à \nl’accomplissement des procédures légales y afférentes prévues par la \ncirculaire de la Banque Centrale de Tunisie n° 2007-18 du 5 juillet \n2007, telles que notamment l’invitation du tireur à provisionner son \ncompte, l’établissement d’un certificat de non-paiement et la \nrégularisation.\n\n[FULL LABELED PAGE]\n[HEADING]\n//)/Ote Aux Banques et à l'Office National des  Postes N°2020-21 du 12 mai 2020\n\n[PARAGRAPH]\nObjet : Des effets du décret-loi du chef du gouvernement n° 2020-8 du 17 avril 2020 sur la gestion des incidents de paiement des chèques.\n\n[PARAGRAPH]\nIl est porté à la connaissance des Banques et de l'Office National des Postes, que le décret-loi visé en l'objet a prescrit la suspension des délais  et  procédures  de  régularisation,  de  poursuites  et  d'exécution relatifs  aux  chèques,  et  ce,  à  partir  du  11  mars  2020.  La  suspension entraine l'arrêt du cours des intérêts et pénalités de retard.\n\n[PARAGRAPH]\nIl  s'ensuit  que  les  dispositions  de  ce  décret-loi  n'ont  aucune incidence sur la présentation et le paiement des chèques. Les banques et  l'Office  National  des  Postes  continueront  à  prendre  en  charge  les chèques présentés au paiement directement à leurs guichets  ou dans le cadre du système de compensation électronique et  manuelle et à les payer conformément à la législation et réglementation en vigueur.\n\n[PARAGRAPH]\nToutefois, en cas de constatation d'un incident de paiement d'un chèque, les banques et l'Office National des Postes doivent surseoir à l'accomplissement des procédures légales y afférentes prévues par la circulaire  de  la  Banque  Centrale  de  Tunisie  n°  2007-18  du  5  juillet 2007,  telles  que  notamment  l'invitation  du  tireur  à  provisionner  son compte, l'établissement d'un certificat de non-paiement et la régularisation.\n\n[PARAGRAPH]\nLa suspension de l'accomplissement desdites procédures demeure applicable    jusqu'à  l'expiration  d'un  mois  après  la  date  de publication d'un décret gouvernemental prescrivant la levée de ladite suspension.",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_fr",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "253331E2C7945979960B62D453027FE89A687128C2EB975774357CE24356BB53",
+        "structured_document_pdf_sha256": "941AD1CB9E5DCB6BC0CC7B8F8738B4102D17BC1AFC43CAFAEAC7D2578F995DF1",
+        "structured_document_artifact_sha256": "B659445F951F2726BF7D5B2B4AD3108911D000BFE41C06BD030423E88CCF80F5",
+        "block_count": 6,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2021_05_fr_procedure_or_documents_01",
+      "expected_source": "Note_2021_05_fr.pdf",
+      "query": "Quelle est l'adresse e-mail à laquelle les banques doivent envoyer les alertes et opérations suspectes liées aux menaces cybernétiques ?",
+      "category": "procedure_or_documents",
+      "expected_page": 1,
+      "expected_answer": "dgsb@bct.gov.tn",
+      "evidence_start_line": 20,
+      "evidence_end_line": 21,
+      "evidence_quote": "[VERIFIED EXCERPT]\nprises et de toutes les alertes et les opérations suspectes et ce, par e-mail à \nl’adresse suivante :dgsb@bct.gov.tn.\n\n[FULL LABELED PAGE]\n[HEADING]\nNOTE\n\n[HEADING]\nAUX BANQUES ET AUX ETABLISSEMENTS FINANCIERS N° 5\n\n[HEADING]\nObjet : Renforcement des mesures de vigilance face aux menaces cybernétiques.\n\n[PARAGRAPH]\nLe développement des technologies de l'information, de la digitalisation et des transactions électroniques a donné lieu à la recrudescence des attaques cybernétiques au niveau des systèmes financiers.\n\n[PARAGRAPH]\nA cet  égard  et  face  à  la  montée  des  risques  cybernétiques,  les  banques  et  les établissements financiers sont invités à :\n\n[LIST_ITEM]\n-Elever  le  niveau  de  vigilance  et  prendre  toutes  les  mesures  nécessaires pour  renforcer  les  dispositifs  de  sécurité  afin  de  se  prémunir  contre  les menaces cybernétiques.\n\n[LIST_ITEM]\n-Mettre  à  jour  leurs  plans  de  continuité  de  l'activité  et  s'assurer  de  leur effectivité  et  de  leur  capacité  à  assurer  la  continuité  des  fonctions critiques.\n\n[LIST_ITEM]\n-Tenir  la  Banque  Centrale  informée  de  toutes  les  mesures  de  vigilance prises et de toutes les alertes et les opérations suspectes et ce, par e-mail à l'adresse suivante :dgsb@bct.gov.tn.\n\n[HEADING]\nLe Gouverneur\n\n[HEADING]\nMarouane EL ABASSI\n\n[PARAGRAPH]\nTunis, le 19/02/2021",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_fr",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "3B930A43C8C2E4C7D869B282B80F511DA03ACB3748911E51CD5DC748D66CF45E",
+        "structured_document_pdf_sha256": "49E606572A973650305D7A7A6C7C5E379C9BC9EB5A70B9F9237AF9A5202D673E",
+        "structured_document_artifact_sha256": "FAF495B9B961B56B33EB5A1585585F8D5A9CDBC2F2285A2DF31C7207F19D1D0F",
+        "block_count": 11,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "query": "ما آخر أجل لتقديم مطلب جدولة ديون الفلاحين المتضررين من الجفاف خلال الموسم الفلاحي 2020-2021؟",
+      "language": "ar",
+      "category": "deadline_or_duration",
+      "relevant": true,
+      "expected_source": "Note_2021_33_ar.pdf",
+      "expected_page": 2,
+      "expected_answer": "آخر أجل هو موفى ديسمبر 2021.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nيقدم مطلب الجدولة من طرف الفلاح مباشرة إلى فرع البنك الممول للقرض في أجل لا يتعدى موفى ديسمبر 2021.\n\n[FULL LABELED PAGE]\n[PARAGRAPH]\n-جدولد القاوض على نةدة لا   جةمو  ز لنة   ةنوار وبةنن  ن ةبد النمئةدة ال ة ننار بهم وذلك املد باملد نع ارلذ بعنف الاع بما وداة الن ح علةى ال  ةدند ون ةبد الماا نف الجنم ، -نقد  نطلب الجدولد نف طا  الن ح نبمشاة إلةى فةاب البنةك الننةوي للقةاض فة أجي لا ن عدة نوفى دن نبا 2021 نصةاوبم بشةهمدة نعمننةد نةف النندوبنةد الجهونةد لل ننند الن اند ال   ناجع لهم بملنظا   بر  ماا النة ح نةف الجنةم  و اةدد ن ةبد الماا، -ننكةةف للنن نةةع بملجدولةةد الاصةةوي علةةى وةةاض جدنةةد بعنةةواف النو ةة  الن اةة 2022 - 2021 ، -قبي القاوض النجدولد كنقمبي لعنلنمر إعمدة ال نوني ف  ال وق النقدند. و  ن ا  ني الصةندوق الةوطن  للمةنمف النةوائض النمجنةد عةف عنلنةد جدولةد القةاوض النخهلد ل ن نمب ب دل  ه وال      ال صانح بهم ف  الإب   مف إلى الشاكد ال ون ند . للمنمف ون نكف للبنوك جدولد ارو مط غنا الن  للصد بعنواف القاوض ارلاة  النا بطد بملزااعمر الكباة وغنا النخهلد ل ن نمب ب دل ر الصندوق الوطن  للمنمف وال   ناي أجلهم ل ي  ند 2021 املد باملد على ندة لا   جموز لن   نوار نع  اني الن ح النوائد النمجند عف عنلند الجدولد.\n\n[HEADING]\nالمحافظ مروان العب   اسي",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "arabic_numeric",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "8C7DE68891560B52A24F36446A1C16844CB7FB665862E08829B40CEE62144E37",
+        "structured_document_pdf_sha256": "003DCD123101FB9248CE57A29C55748D362F7CAC0F9E6C26D7CC8C12509C6A77",
+        "structured_document_artifact_sha256": "642A876210AB3BA810C56CBDF2637C0D382437B9622BD3C6C9EC841A1B07D108",
+        "block_count": 2,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2022_16_ar_ceramic_importer_02",
+      "query": "هل شركة CASA NOVA DISTRIBUTION مسجلة ضمن موردي المربعات الخزفية الخاضعين لكراس الشروط؟",
+      "language": "ar",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Note_2022_16_ar.pdf",
+      "expected_page": 3,
+      "expected_answer": "نعم، شركة CASA NOVA DISTRIBUTION ذات المعرف الجبائي 1605423P مدرجة في القائمة.",
+      "evidence_quote": "[VERIFIED EXCERPT]\n1605423P شركة كازانوفا لل توزيع CASA NOVA DISTRIBUTION\n\n[FULL LABELED PAGE]\n[HEADING]\nالمور ّ دون المسجلون بقائمة مور ّدي المربعات الخزفية المدرجة بالتعريفات الديوانية التالية :\n\n[TABLE]\n69072100008 و 69072200092 و 69072300097 و 69073000009 و 69074000005\n\n| الإجتماعي الإسم                  | الإجتماعي الإسم               | الجبائي ّف المعر   |\n|----------------------------------|-------------------------------|-------------------|\n| STE GAFSI DE COMMERCE            | شركة للتجار القفصي ة          | 1304808E          |\n| CASA NOVA DISTRIBUTION           | شركة كازانوفا لل توزيع        | 1605423P          |\n| STE BUILDING TRADE BUSINESS      | شركة تونس ترايد بولدينغ       | 1075399G          |\n| STE TENDENCIA CERAMICA ELGHADDAB | شركة سيراميك تاندانسيا الغضاب | 1515571A          |\n| STE URBAT                        | شركة أوروبات                  | 1521556P          |\n| EDIFIS GROUP                     | اٍدف شركة ي قروب س             | 0610160L          |\n| SOCIETE IS & G                   | شركة ج و س ا                  | 1662423J          |\n| LUX ALU                          | ألي لوكس                      | 1329144T          |\n| STE ESPACE PRIVILEGE             | شركة الام فضاء تياز           | 1501734D          |\n| STE O CERAMPLUS                  | شركة أوسيرامبلوس              | 1697821H          |\n\n[PARAGRAPH]\n69072100008 و 69072200092 و 69072300097 و 69073000009 و 69074000005\n\n[HEADING]\nالمور ّ دون المسجلون بقائمة مور ّ دي أجهزة الاستقبال التلفزية المدرجة بالتعريفات الديوانية التالية   :\n\n[PARAGRAPH]\n85287260015 - 85287240095 - 85287240017 - 85287230091 - 85287230013 - 85287220097 85287280091 - 85287280013 - 85287260093 -\n\n[TABLE]\n| الإجتماعي الإسم                                                                | الجبائي ّف المعر   |\n|--------------------------------------------------------------------------------|-------------------|\n| الصورة في المحترف والاٍعهمية للتوزيع STE PROFESSIONAL IMAGING & IT DISTRIBUTION | 0710750K          |",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "E1D84571EE4772EE1F66F518FEFE352BCA3ECEB13A9E25735F3B6289FFDFAC75",
+        "structured_document_pdf_sha256": "91C4266F54466B293DBFAD16DD34F1626535D593B0BEC18E35ED0C8F6E135A2C",
+        "structured_document_artifact_sha256": "36AFB5C6DE7DE6BCDF2B637C201739438B03E18B044D52102B3FDAB32947A9AA",
+        "block_count": 6,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2026_129_ar_required_action_01",
+      "query": "ما هي الإجراءات التي يجب على البنوك اتخاذها لتأمين استمرارية عمليات السحب من الموزعات الآلية للأوراق النقدية خلال عطلة عيد الشغل؟",
+      "language": "ar",
+      "category": "required_action",
+      "relevant": true,
+      "expected_source": "Note_2026_129_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "يجب على البنوك اتخاذ الإجراءات الضرورية لتأمين استمرارية عمليات السحب من الموزعات الآلية للأوراق النقدية خلال عطلة عيد الشغل، وذلك بالعمل على تأمين التزويد المستمر للموزعات الآلية للنقود بأوراق نقدية ذات جودة عالية وفئات متنوعة والسهر على حسن جاهزية المنصات التقنية المؤمنة لخدمات الدفع الإلكتروني.",
+      "evidence_quote": "[VERIFIED EXCERPT]\nلألوراق النقديّة\n وعمليّات الدفع اإللكتروني خالل هذه العطلة، وذلك بالعمل\nعلى: \n-\n \n تأمين التزويد المستمر للموزّعات اآللية للنقود بأوراق نقدية ذات جودة عالية وفئات\nمتنوعة والسهر  على  حسن  جاهزية \n المنصات  التقنية  المؤمنة  لخدمات  الدفع\n ،االلكتروني \n-\n اتخاذ جميع التدابير الالزمة لمعالجة أي عطب أو انقطاع للخدمات في أسرع وقت \nممكن.\n\n[FULL LABELED PAGE]\n[HEADING]\nتونس، في 29 أفريل 2026\n\n[HEADING]\nمذكرة إلى البنوك والدّيوان الوطني للبريد عدد 129 لسنة 2026\n\n[PARAGRAPH]\n: الموضوع تأمين استمراريّة عمليّات السّحب من الموز ّ عات الآليّة للأوراق النقديّة خلال     عطلة عيد الشغل .\n\n[PARAGRAPH]\nضمانا لحسن سير المعاملات خلال عطلة عيد الشغل، يدعو البنك المركزي التونسي السّادة  المديرين  العام ّ ين  للبنوك  والرئيس  المدير  العام  للدّيوان  الوطني  للبريد  إلى ات ّخاذ الإجراءات الضّروريّة لتأمين استمراريّة عمليّات السّحب من الموز ّ عات الآليّة   للأوراق النقديّة وعمليّات الدفع الإلكتروني خلال هذه العطلة، وذلك بالعمل على :\n\n[LIST_ITEM]\n-تأمين التزويد المستمر   للموز ّ عات الآلية للنقود بأوراق نقدية ذات جودة عالية وفئات متنوعة والسهر  على  حسن  جاهزية المنصات  التقنية  المؤمنة  لخدمات  الدفع الالكتروني،\n\n[LIST_ITEM]\n-اتخاذ جميع التدابير اللازمة لمعالجة أي عطب أو انقطاع للخدمات في أسرع وقت ممكن .\n\n[PARAGRAPH]\nالمحافظ،\n\n[PARAGRAPH]\nفتحي زهير النوري",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_ar",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "EAA4A9000CB9A3B4AF8CC0F8F600323A4C764EDA4A9A0D40C3A94C696E68E9CA",
+        "structured_document_pdf_sha256": "59A5FB582AF107004D416BC731E81C8A570C8C41161DBBBCAB4AF65F24F15F6F",
+        "structured_document_artifact_sha256": "0511ED83043BEF18CDC820FBB76CA9359D5D975A91A1D65059C79B1944A4AE10",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    },
+    {
+      "id": "note_2026_30_ar_definition_01",
+      "query": "ما هي التسمية الموحّدة والشاملة للشهادة المعتمدة عند تصدير المنتجات النباتية والمنتجات ذات الأصل النباتي الخاضعة للمراقبة الفنية، والتي دخلت حيز التنفيذ ابتداء من 1 جانفي 2026؟",
+      "language": "ar",
+      "category": "definition",
+      "relevant": true,
+      "expected_source": "Note_2026_30_ar.pdf",
+      "expected_page": 1,
+      "expected_answer": "أصبحت هذه الشهادة تحمل تسمية \"شهادة المطابقة للتراتيب الغذائية عند التصدير\".",
+      "evidence_quote": "[VERIFIED EXCERPT]\nعلما أنّ الهيئة الوطنية للسالمة الصحية للمنتجات الغذائية تولّت إبتداء من تاريخ1\n \n جانفي\n2026\n توحيد وتحيين تسمية الشهادة المعتمدة عند تصدير \n المنتجات النباتية والمنتجات ذات األصل النباتي الخاضعة\n للمراقبة الفنيّة عند التصدير ، حيث أصبحت هذه الشهادة تحمل تسمية \" شهادة المطابقة للتراتيب الغذائية عند\n.\"التصدير\n\n[FULL LABELED PAGE]\n[HEADING]\nتونس، ف  ي 09 فيفري 2026\n\n[HEADING]\nمذكرة إلى البنـــــــــوك عدد 30 لسنة 2026\n\n[PARAGRAPH]\nالموضوع: توحيد وتحيين تسمية الشهادة المعتمدة عند تصدير المنتجات النباتية والمنتجات ذات الأصل النباتي الخاضعة للمراقبة الفنيّة عند التصدير.\n\n[PARAGRAPH]\n*****\n\n[PARAGRAPH]\nتحاط البنوك علما أن ّ  الهيئة الوطنية للسلامة الصحية للمنتجات الغذائية تول ّ ت إبتداء من تاريخ 1 جانفي 2026 توحيد وتحيين تسمية الشهادة المعتمدة عند تصدير   المنتجات النباتية والمنتجات ذات الأصل النباتي الخاضعة للمراقبة الفنيّة عند التصدير ، حيث أصبحت هذه الشهادة تحمل تسمية \" شهادة المطابقة للتراتيب الغذائية عند .\" التصدير\n\n[PARAGRAPH]\nوعليه، يتعيّن أخذ هذا التحيين بعين الإعتبار عند إنجاز الإجراءات المتعلقة بعمليات التصدير، بما من شأنه تمكين المصدّرين من استيفاء متطلبات هذه العمليات وتفادي تعطيلها.\n\n[HEADING]\nالمحافظ،\n\n[HEADING]\nفتحي زهير النوري",
+      "evidence_method": "verified_excerpt_plus_structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_ar",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "52EE1A005DCD2FA346E61BD141EF948525B426D72F43A951C38E5517A0C452BB",
+        "structured_document_pdf_sha256": "AC29EE7F66ABE1B438261B7044604B7F6C149BBC45E97BD636ECE111400CA2FB",
+        "structured_document_artifact_sha256": "9E984BC2F59DE5945977B4D27035485916ED4470CA81698207B747F660551F7B",
+        "block_count": 8,
+        "verified_excerpt_included": true
+      }
+    }
+  ]
+}
