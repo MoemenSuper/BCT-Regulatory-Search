@@ -129,6 +129,8 @@ def evaluate_frozen_split(
         frozen = protocol["sets"][role]
     except (KeyError, TypeError) as error:
         raise ValueError(f"Protocol does not define frozen role {role}") from error
+    if frozen.get("status") == "prospective_not_available":
+        raise ValueError("Final holdout is prospective and cannot be evaluated")
     dataset_path = Path(frozen["path"])
     actual_dataset_hash = sha256_file(dataset_path)
     if actual_dataset_hash != frozen["sha256"]:

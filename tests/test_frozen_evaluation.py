@@ -193,3 +193,29 @@ def test_evaluation_fails_closed_on_dataset_drift_or_result_identity_errors(tmp_
     _write(result, value)
     with pytest.raises(ValueError, match="duplicate case IDs"):
         evaluate_frozen_split(**common)
+
+
+def test_prospective_final_holdout_cannot_be_evaluated(tmp_path):
+    protocol_path = tmp_path / "protocol.json"
+    freeze_protocol(
+        development=_write(tmp_path / "development.json", _split("dev", 10)),
+        validation=_write(tmp_path / "validation.json", _split("val", 20)),
+        holdout=None,
+        prospective_holdout_reason="Future document families are not available.",
+        output=protocol_path,
+        frozen_at="2026-08-24T00:00:00+00:00",
+    )
+
+    with pytest.raises(ValueError, match="prospective and cannot be evaluated"):
+        evaluate_frozen_split(
+            protocol_path=protocol_path,
+            role="final_holdout",
+            result_path=tmp_path / "unused-result.json",
+            output_path=tmp_path / "output.json",
+            ledger_path=tmp_path / "access.jsonl",
+            purpose="Final check",
+            accessed_by="test-suite",
+            code_commit="abc123",
+        )
+
+    assert not (tmp_path / "access.jsonl").exists()

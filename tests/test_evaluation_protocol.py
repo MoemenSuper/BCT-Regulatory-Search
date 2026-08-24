@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from experiments.artifacts import sha256_file
 from experiments.evaluation_protocol import freeze_protocol
 
 
@@ -256,5 +257,49 @@ def test_freeze_rejects_whitespace_only_document_family(tmp_path):
                 _bilingual("val", _case("val-1", "Note_2023_07_fr.pdf")),
             ),
             holdout=_write(tmp_path / "holdout.json", _bilingual("holdout", unknown)),
+            output=tmp_path / "protocol.json",
+        )
+
+
+def test_freeze_records_a_prospective_holdout_without_faking_cases(tmp_path):
+    validation = _write(
+        tmp_path / "validation.json",
+        _bilingual("val", _case("val-1", "Note_2023_07_fr.pdf")),
+    )
+    receipt = _write(
+        tmp_path / "review-receipt.json",
+        {
+            "candidate_sha256": sha256_file(validation),
+            "status": "provisionally_double_agent_verified_not_human_adjudicated",
+            "independent_human_approval": False,
+        },
+    )
+    protocol = freeze_protocol(
+        development=_write(
+            tmp_path / "development.json",
+            _bilingual("dev", _case("dev-1", "Cir_2024_09_fr.pdf")),
+        ),
+        validation=validation,
+        holdout=None,
+        prospective_holdout_reason="Future BCT document families are not yet available.",
+        validation_review_receipt=receipt,
+        output=tmp_path / "protocol.json",
+        frozen_at="2026-08-24T00:00:00+00:00",
+    )
+
+    holdout = protocol["sets"]["final_holdout"]
+    assert holdout["status"] == "prospective_not_available"
+    assert holdout["case_count"] == 0
+    assert holdout["sha256"] is None
+    assert protocol["rules"]["prospective_holdout"] is True
+    assert protocol["validation_review_receipt"]["independent_human_approval"] is False
+
+
+def test_freeze_rejects_a_missing_holdout_without_a_reason(tmp_path):
+    with pytest.raises(ValueError, match="prospective holdout reason"):
+        freeze_protocol(
+            development=tmp_path / "development.json",
+            validation=tmp_path / "validation.json",
+            holdout=None,
             output=tmp_path / "protocol.json",
         )

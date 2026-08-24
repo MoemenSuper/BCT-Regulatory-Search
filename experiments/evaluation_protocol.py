@@ -147,18 +147,26 @@ def freeze_protocol(
     *,
     development: Path,
     validation: Path,
-    holdout: Path,
+    holdout: Path | None,
     output: Path,
     frozen_at: str | None = None,
     corpus_manifest: Path | None = None,
+    validation_review_receipt: Path | None = None,
     allow_legacy_development_holdout_overlap: bool = False,
+    prospective_holdout_reason: str | None = None,
 ) -> dict[str, Any]:
     """Validate and hash a leakage-audited three-way evaluation protocol."""
+    if holdout is None:
+        if not prospective_holdout_reason or not prospective_holdout_reason.strip():
+            raise ValueError("A missing holdout requires a prospective holdout reason")
+    elif prospective_holdout_reason is not None:
+        raise ValueError("Do not provide a prospective holdout reason with a holdout file")
     datasets = {
         "development": _load_dataset(development),
         "validation": _load_dataset(validation),
-        "final_holdout": _load_dataset(holdout),
     }
+    if holdout is not None:
+        datasets["final_holdout"] = _load_dataset(holdout)
     all_ids: dict[str, str] = {}
     for role, cases in datasets.items():
         for case in cases:
@@ -170,8 +178,9 @@ def freeze_protocol(
     paths = {
         "development": development,
         "validation": validation,
-        "final_holdout": holdout,
     }
+    if holdout is not None:
+        paths["final_holdout"] = holdout
     exposures = {
         "development": "inspected_development",
         "validation": "periodic_aggregate_and_failure_review",
@@ -187,6 +196,24 @@ def freeze_protocol(
         )
         for role in datasets
     }
+    if holdout is None:
+        summaries["final_holdout"] = {
+            "status": "prospective_not_available",
+            "reason": prospective_holdout_reason.strip(),
+            "path": None,
+            "sha256": None,
+            "exposure": exposures["final_holdout"],
+            "case_count": 0,
+            "relevant_count": 0,
+            "negative_or_ambiguous_count": 0,
+            "languages": {},
+            "categories": {},
+            "source_count": 0,
+            "family_count": 0,
+            "sources": [],
+            "families": [],
+            "unparsed_sources": [],
+        }
     leakage = {
         "development_validation": _overlap(summaries["development"], summaries["validation"]),
         "development_holdout": _overlap(summaries["development"], summaries["final_holdout"]),
@@ -215,12 +242,27 @@ def freeze_protocol(
             "legacy_exposure": "The original 697-case benchmark was previously inspected and is development data regardless of later partitioning.",
             "family_policy": "Final holdout is disjoint from development and validation by conservative type-number family across years and languages unless legacy development overlap is explicitly allowed and recorded.",
             "legacy_development_holdout_overlap_allowed": allow_legacy_development_holdout_overlap,
+            "prospective_holdout": holdout is None,
         },
     }
     if corpus_manifest:
         protocol["corpus_manifest"] = {
             "path": str(corpus_manifest.resolve()),
             "sha256": sha256_file(corpus_manifest),
+        }
+    if validation_review_receipt:
+        review_receipt = json.loads(
+            validation_review_receipt.read_text(encoding="utf-8")
+        )
+        if review_receipt.get("candidate_sha256") != summaries["validation"]["sha256"]:
+            raise ValueError("Validation review receipt and dataset hashes differ")
+        protocol["validation_review_receipt"] = {
+            "path": str(validation_review_receipt.resolve()),
+            "sha256": sha256_file(validation_review_receipt),
+            "status": review_receipt.get("status"),
+            "independent_human_approval": review_receipt.get(
+                "independent_human_approval"
+            ),
         }
     write_json_atomic(output, protocol)
     return protocol
@@ -230,9 +272,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--development", type=Path, required=True)
     parser.add_argument("--validation", type=Path, required=True)
-    parser.add_argument("--holdout", type=Path, required=True)
+    holdout = parser.add_mutually_exclusive_group(required=True)
+    holdout.add_argument("--holdout", type=Path)
+    holdout.add_argument("--prospective-holdout-reason")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--corpus-manifest", type=Path)
+    parser.add_argument("--validation-review-receipt", type=Path)
     parser.add_argument("--allow-legacy-development-holdout-overlap", action="store_true")
     args = parser.parse_args()
     freeze_protocol(
@@ -241,7 +286,9 @@ def main() -> None:
         holdout=args.holdout,
         output=args.output,
         corpus_manifest=args.corpus_manifest,
+        validation_review_receipt=args.validation_review_receipt,
         allow_legacy_development_holdout_overlap=args.allow_legacy_development_holdout_overlap,
+        prospective_holdout_reason=args.prospective_holdout_reason,
     )
 
 

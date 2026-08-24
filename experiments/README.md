@@ -45,6 +45,11 @@ by conservative type-number family across years and languages. Unknown validatio
 require an explicit `document_family` instead of silently becoming unique.
 Validation/development overlap is audited. A legacy development/holdout override
 exists for explicitly documenting a weaker protocol, but is disabled by default.
+When no new family-disjoint documents exist yet, replace `--holdout` with a
+non-empty `--prospective-holdout-reason`. The protocol then records zero
+holdout cases, and the evaluation boundary refuses final-holdout execution.
+Pass `--validation-review-receipt` to bind the frozen validation file to its
+source-review receipt and status.
 
 Audit the page-disjoint validation candidate before any retrieval access:
 
