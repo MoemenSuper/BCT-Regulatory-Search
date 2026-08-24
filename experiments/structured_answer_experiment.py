@@ -20,6 +20,7 @@ from experiments.gold_evidence_answer_experiment import automatic_answer_audit
 
 MODEL = "openai/gpt-oss-120b"
 PROMPT_VERSION = "bct-claim-linked-answer-v1"
+PROMPT_VERSION_V2 = "bct-claim-linked-answer-v2"
 _STATUSES = {"answered", "insufficient_evidence", "clarification_needed", "out_of_scope"}
 _SCHEMA = {
     "type": "object",
@@ -76,9 +77,31 @@ When no evidence is supplied:
 - claims and citations must be empty.
 
 Never claim current applicability from an old document without explicit current-status evidence. Never invent a citation."""
+_SCHEMA_V2 = json.loads(json.dumps(_SCHEMA))
+_SCHEMA_V2["properties"]["answer"]["minLength"] = 1
+_SYSTEM_V2 = _SYSTEM + """
+
+For a question with no supplied evidence, apply this decision order exactly:
+1. Use out_of_scope only when the subject is clearly unrelated to BCT regulatory documents, such as cooking or weather.
+2. Use clarification_needed when the regulatory request has multiple plausible meanings and one missing discriminating detail, such as the allowance type or transfer type, prevents a unique search. Ask exactly one specific question.
+3. Use insufficient_evidence for a requested current applicability/status or a future value, date, rate, document, or rule. Explicitly say that the supplied evidence cannot establish the current or future answer; do not ask for a document or year when time is the only missing fact.
+4. Use insufficient_evidence for any other in-scope factual request that has no supporting evidence.
+
+The answer field must always contain a concise user-facing explanation or clarifying question, including for abstentions and refusals."""
 
 
-def parse_structured_answer(content: str) -> dict[str, Any]:
+def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
+    requested = suite.get("answer_experiment", {}).get("prompt_version", PROMPT_VERSION)
+    if requested == PROMPT_VERSION:
+        return PROMPT_VERSION, _SYSTEM, _SCHEMA, False
+    if requested == PROMPT_VERSION_V2:
+        return PROMPT_VERSION_V2, _SYSTEM_V2, _SCHEMA_V2, True
+    raise ValueError(f"Unsupported structured answer prompt version: {requested}")
+
+
+def parse_structured_answer(
+    content: str, *, require_nonempty_answer: bool = False
+) -> dict[str, Any]:
     try:
         value = json.loads(content)
     except json.JSONDecodeError as error:
@@ -87,6 +110,8 @@ def parse_structured_answer(content: str) -> dict[str, Any]:
         raise ValueError("Structured answer has unexpected top-level fields")
     if value["status"] not in _STATUSES or not isinstance(value["answer"], str):
         raise ValueError("Structured answer status or answer is invalid")
+    if require_nonempty_answer and not value["answer"].strip():
+        raise ValueError("Structured answer requires a non-empty answer")
     for claim in value["claims"]:
         if (
             not isinstance(claim, dict)
@@ -200,6 +225,7 @@ def run_structured_answer_experiment(
         raise ValueError("GROQ_API_KEY is not configured")
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     suite_hash = sha256_file(suite_path)
+    prompt_version, system_prompt, response_schema, require_nonempty = _contract(suite)
     experiment = suite.get("answer_experiment", {})
     experiment_id = experiment.get(
         "experiment_id", "claim-linked-structured-answer-development-v1"
@@ -219,11 +245,14 @@ def run_structured_answer_experiment(
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
             if (
                 cached.get("model") != MODEL
-                or cached.get("prompt_version") != PROMPT_VERSION
+                or cached.get("prompt_version") != prompt_version
                 or cached.get("suite_sha256") != suite_hash
             ):
                 raise ValueError(f"Structured answer cache differs for {case['id']}")
-            response = parse_structured_answer(json.dumps(cached["response"], ensure_ascii=False))
+            response = parse_structured_answer(
+                json.dumps(cached["response"], ensure_ascii=False),
+                require_nonempty_answer=require_nonempty,
+            )
         else:
             evidence = []
             if case.get("relevant"):
@@ -244,7 +273,7 @@ def run_structured_answer_experiment(
                 completion = client.chat.completions.create(
                     model=MODEL,
                     messages=[
-                        {"role": "system", "content": _SYSTEM},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_payload},
                     ],
                     response_format={
@@ -252,7 +281,7 @@ def run_structured_answer_experiment(
                         "json_schema": {
                             "name": "bct_claim_linked_answer",
                             "strict": True,
-                            "schema": _SCHEMA,
+                            "schema": response_schema,
                         },
                     },
                     reasoning_effort="medium",
@@ -280,11 +309,14 @@ def run_structured_answer_experiment(
                     flush=True,
                 )
                 return checkpoint
-            response = parse_structured_answer(completion.choices[0].message.content or "")
+            response = parse_structured_answer(
+                completion.choices[0].message.content or "",
+                require_nonempty_answer=require_nonempty,
+            )
             cached = {
                 "id": case["id"],
                 "model": MODEL,
-                "prompt_version": PROMPT_VERSION,
+                "prompt_version": prompt_version,
                 "suite_sha256": suite_hash,
                 "response_id": completion.id,
                 "latency_seconds": time.perf_counter() - started,
@@ -314,7 +346,7 @@ def run_structured_answer_experiment(
         "experiment_id": experiment_id,
         "configuration": {
             "model": MODEL,
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prompt_version,
             "response_format": "strict JSON schema",
             "candidate_and_evidence": candidate_and_evidence,
         },

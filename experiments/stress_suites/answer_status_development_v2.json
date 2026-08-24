@@ -1,0 +1,140 @@
+{
+  "status": "frozen",
+  "frozen_at": "2026-08-24T18:02:41.979158+00:00",
+  "inputs": {
+    "base_answer_suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1"
+  },
+  "suite_type": "negative_and_ambiguous_answer_status_development",
+  "selection": "All negative and ambiguous cases from the frozen gold-evidence answer suite.",
+  "evaluation_protocol": "Supply no evidence. Hold model and decoding fixed while changing only the response schema's non-empty answer constraint and the status decision policy.",
+  "answer_experiment": {
+    "experiment_id": "claim-linked-status-policy-development-v2",
+    "candidate_and_evidence": "all frozen negative and ambiguous cases with no evidence",
+    "prompt_version": "bct-claim-linked-answer-v2"
+  },
+  "counts": {
+    "total": 8,
+    "relevant": 0,
+    "negative_or_ambiguous": 8,
+    "by_language": {
+      "ar": 4,
+      "fr": 4
+    },
+    "by_expected_behavior": {
+      "abstain": 4,
+      "clarify": 2,
+      "reject_out_of_scope": 2
+    }
+  },
+  "limitations": [
+    "Development-only status gate selected from already inspected cases.",
+    "Prompt behavior on eight cases cannot establish generalization.",
+    "No evidence or retrieval is supplied, so this does not evaluate relevant-answer quality."
+  ],
+  "cases": [
+    {
+      "id": "negative_ar_ambiguous_allowance",
+      "query": "ما هو مبلغ المنحة التي يمكنني الحصول عليها للسفر؟",
+      "language": "ar",
+      "category": "ambiguous",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "clarify",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_ar_current_status_unknown",
+      "query": "هل ما زالت قيود تمويل توريد المنتجات غير ذات الأولوية سارية اليوم؟",
+      "language": "ar",
+      "category": "current_status_unknown",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "abstain",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_ar_future_regulation",
+      "query": "ما هي شروط منشور البنك المركزي الذي سيصدر سنة 2027؟",
+      "language": "ar",
+      "category": "not_in_corpus",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "abstain",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_ar_out_of_scope_recipe",
+      "query": "كيف أعد طبق كسكسي تونسي في المنزل؟",
+      "language": "ar",
+      "category": "out_of_scope",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "reject_out_of_scope",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_fr_ambiguous_documents",
+      "query": "Quels documents dois-je fournir à ma banque pour effectuer mon transfert ?",
+      "language": "fr",
+      "category": "ambiguous",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "clarify",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_fr_current_status_unknown",
+      "query": "Quel est aujourd'hui le plafond en vigueur pour une allocation de voyage d'affaires ?",
+      "language": "fr",
+      "category": "current_status_unknown",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "abstain",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_fr_future_exchange_rate",
+      "query": "Quel sera demain le taux de change du dinar face à l'euro ?",
+      "language": "fr",
+      "category": "not_in_corpus",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "abstain",
+      "answer_suite_role": "negative_or_ambiguous"
+    },
+    {
+      "id": "negative_fr_out_of_scope_weather",
+      "query": "Quel temps fera-t-il demain à Tunis ?",
+      "language": "fr",
+      "category": "out_of_scope",
+      "relevant": false,
+      "expected_source": null,
+      "expected_page": null,
+      "expected_answer": null,
+      "evidence_quote": null,
+      "expected_behavior": "reject_out_of_scope",
+      "answer_suite_role": "negative_or_ambiguous"
+    }
+  ]
+}

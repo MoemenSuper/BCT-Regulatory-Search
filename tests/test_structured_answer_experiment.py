@@ -35,6 +35,19 @@ def test_non_answered_response_cannot_claim_or_cite():
         parse_structured_answer(json.dumps(value))
 
 
+def test_v2_parser_requires_nonempty_user_facing_answer():
+    value = {
+        "status": "insufficient_evidence",
+        "answer": "",
+        "claims": [],
+        "citations": [],
+    }
+
+    assert parse_structured_answer(json.dumps(value)) == value
+    with pytest.raises(ValueError, match="non-empty"):
+        parse_structured_answer(json.dumps(value), require_nonempty_answer=True)
+
+
 def test_diagnostics_require_exact_citation_and_expected_negative_status():
     relevant = {
         "relevant": True,
