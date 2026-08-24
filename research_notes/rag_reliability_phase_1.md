@@ -531,6 +531,46 @@ Tracked suite SHA-256:
 Tracked reviewed result SHA-256:
 `CF0E87B2C670364A4039CC346FF1971B2F2C59791483C35E8AFFA98B8FD1A7C6`.
 
+### Non-empty status-policy v2 gate
+
+The next ablation used only the eight frozen negative/ambiguous cases and no
+evidence. The answer model and decoding stayed fixed. V2 added `minLength: 1`
+to the user-facing answer and an explicit decision order: clarify ambiguous
+regulatory requests, abstain on unsupported current/future facts, and reserve
+`out_of_scope` for clearly unrelated subjects. The predeclared gate was 8/8
+expected behaviors with no empty answer, claim, citation, or unsafe response.
+
+| Agent-reviewed outcome | Claim-linked v1 | Status v2 |
+|---|---:|---:|
+| Safe response | 8/8 | 8/8 |
+| Expected behavior | 3/8 | 7/8 |
+| Non-empty user-facing answer | 6/8 | 8/8 |
+| Ambiguous query clarified | 1/2 | 2/2 |
+| Arabic expected behavior | 1/4 | 4/4 |
+| French expected behavior | 2/4 | 3/4 |
+
+V2 repairs four prior behavior failures without a regression: Arabic travel
+allowance ambiguity, both Arabic empty abstentions, and the French current
+ceiling question. The single remaining failure is
+`negative_fr_future_exchange_rate`: it safely refuses a future exchange-rate
+prediction but still labels it `out_of_scope`, while the frozen policy requires
+`insufficient_evidence`. All eight responses have non-empty user-facing text,
+empty claims/citations, and no invented regulatory fact.
+
+Token usage was 8,730 total; mean/median latency was 7.09/6.32 seconds. The full
+40-case suite was not run because v2 missed the bounded gate.
+
+**Decision: REJECT V2 AS THE COMPLETE STATUS POLICY.** Retain the non-empty
+schema and the ordered ambiguity/current/future rules as components, but do not
+prompt-tune again on the same eight inspected cases. The next status-policy
+measurement needs independently curated negative/ambiguous queries.
+
+Tracked suite SHA-256:
+`45BABA8032CBDC0C5B2CC21932C18D86C8AB5B6557E2690FEA2DCCD89BC65065`.
+
+Tracked reviewed result SHA-256:
+`ED886DCF6FDEDB9AC49875ED73480677CCFF5AEE2A1BA9B3BEBFCCEB8643D440`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

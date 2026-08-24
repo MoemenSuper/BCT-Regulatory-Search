@@ -299,6 +299,29 @@ python -m experiments.answer_evidence_review `
 This is a post-hoc two-case context-sufficiency diagnostic. It bypasses
 retrieval and cannot establish that full-page context generalizes.
 
+Run the bounded v2 status-policy gate before any full-suite answer call:
+
+```powershell
+python -m experiments.answer_status_suite `
+  --base-suite experiments/stress_suites/answer_safety_development_v1.json `
+  --output experiments/stress_suites/answer_status_development_v2.json
+
+python -u -m experiments.structured_answer_experiment `
+  --suite experiments/stress_suites/answer_status_development_v2.json `
+  --dotenv "C:\path\to\the\existing\.env" `
+  --output-dir "$env:TEMP\answer-status-v2" `
+  --confirm-public-documents
+
+python -m experiments.answer_evidence_review `
+  --suite experiments/stress_suites/answer_status_development_v2.json `
+  --generated-result "$env:TEMP\answer-status-v2\result.json" `
+  --review experiments/reviews/answer_status_policy_review_v2.json `
+  --output experiments/results/answer_status_policy_v2.json
+```
+
+The gate requires all eight expected statuses and non-empty user-facing text.
+V2 reached seven of eight, so the full 40-case suite was deliberately not run.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
