@@ -380,7 +380,7 @@ def _metrics(records: list[dict[str, Any]], field: str) -> dict[str, Any]:
     }
 
 
-def _mcnemar(records: list[dict[str, Any]], field: str = "result") -> dict[str, Any]:
+def _mcnemar(records: list[dict[str, Any]]) -> dict[str, Any]:
     repaired = sum(record["repaired"] for record in records)
     regressed = sum(record["regressed"] for record in records)
     discordant = repaired + regressed
@@ -509,7 +509,7 @@ def run_configuration(
             "candidate_count": len(candidates), "candidate_count_before_selection": len(raw_candidates), "dedup_removed": removed, "latency_seconds": latency,
             "repaired": repaired, "regressed": regressed, "failure_categories": categories,
             "primary_failure_category": next((item for item in FAILURE_ORDER if item in categories), None), "evidence_diagnostics": diagnostics,
-            "observed_explanation": (f"Observed association: expected page moved from baseline rank {baseline_rank} to {exact_page_rank}." if repaired else f"Observed association: expected page moved from baseline rank {baseline_rank} to {exact_page_rank}." if regressed else "No top-five exact-page status change."),
+            "observed_explanation": (f"Observed association: expected page moved from baseline rank {baseline_rank} to {exact_page_rank}." if repaired or regressed else "No top-five exact-page status change."),
         })
         print(f"[{name} {number}/{len(cases)}] {case['id']} baseline={baseline_rank} result={exact_page_rank}", flush=True)
         if number % 10 == 0:
