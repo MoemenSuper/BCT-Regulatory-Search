@@ -256,9 +256,18 @@ def _candidate_key(document: Document) -> str:
     return "\x1f".join((document.page_content, str(document.metadata.get("source", "")), str(document.metadata.get("page", ""))))
 
 
+def _normalized_document(document: Document) -> Document:
+    """Use the evaluation corpus's filename source identity across all indexes."""
+    metadata = dict(document.metadata)
+    source = str(metadata.get("source", ""))
+    if source:
+        metadata["source"] = Path(source).name
+    return Document(page_content=document.page_content, metadata=metadata)
+
+
 def _retrieve(rep: SearchRepresentation, query: str, dense_k: int = DENSE_K, bm25_k: int = BM25_K) -> list[dict[str, Any]]:
-    dense = rep.vector_store.similarity_search(query, k=dense_k)
-    sparse = retrieve_bm25(query, rep.bm25, rep.documents, k=bm25_k)
+    dense = [_normalized_document(document) for document in rep.vector_store.similarity_search(query, k=dense_k)]
+    sparse = [_normalized_document(document) for document in retrieve_bm25(query, rep.bm25, rep.documents, k=bm25_k)]
     records: dict[str, dict[str, Any]] = {}
     for channel, results in (("dense", dense), ("bm25", sparse)):
         for rank, document in enumerate(results, start=1):

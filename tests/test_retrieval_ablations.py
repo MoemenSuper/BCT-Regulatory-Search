@@ -1,5 +1,6 @@
 from experiments.retrieval_ablations import (
     _merge_candidates,
+    _normalized_document,
     redundancy_deduplicate,
     rrf_select,
     structured_baseline_chunks,
@@ -53,3 +54,8 @@ def test_candidate_union_deduplicates_chroma_and_json_page_metadata_shapes():
     merged = _merge_candidates([[dense], [sparse]])
     assert len(merged) == 1
     assert merged[0]["ranks"] == {"test": {"dense": 1, "bm25": 1}}
+
+
+def test_normalized_document_uses_filename_source_identity():
+    document = _candidate("text", "C:/corpus/Note_2026_01_ar.pdf")["document"]
+    assert _normalized_document(document).metadata["source"] == "Note_2026_01_ar.pdf"
