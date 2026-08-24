@@ -66,11 +66,15 @@ python -m experiments.validation_review_packet `
   --output experiments/reviews/validation_candidate_v1_human_review.md
 ```
 
-The tracked v1 candidate is agent-curated and remains pending independent human
-verification. Its audit records `retrieval_access: not_run`; do not rename it
-as release validation or evaluate it until that verification occurs. No
-current-corpus final holdout is claimed: all 439 sources are legacy
-development, so the family-disjoint holdout remains prospective.
+The tracked v1 candidate remains pending independent human verification. A
+blind second agent reviewed all source pages without model outputs, caught one
+unsupported label, and approved all 24 cases after correction. That hash-bound
+review and receipt permit provisional validation only; they are not human
+adjudication. The audit's `retrieval_access: not_run` records the pre-access
+freeze state. The later one-time retrieval access is recorded separately in
+`experiments/registry/evaluation_access.jsonl`. No current-corpus final holdout
+is claimed: all 439 sources are legacy development, so the family-disjoint
+holdout remains prospective.
 The audit also fails on normalized query/evidence duplicates and emits lexical
 near-duplicate review flags; lexical non-matches are not treated as proof of
 semantic independence.
@@ -92,6 +96,20 @@ python -m experiments.validation_human_approval approve `
 Any `correct`, `reject`, or `pending` decision refuses approval and requires a
 new candidate/audit version. Keep reviewer identity outside the repository
 unless the reviewer explicitly authorizes recording it.
+
+The partially completed Markdown packet is preserved as reviewer work against
+the superseded pre-correction hash. Use the refreshed machine-readable decision
+template for any future independent human approval of the current candidate.
+
+Verify the completed second-agent review and its provisional-use boundary with:
+
+```powershell
+python -m experiments.validation_agent_review `
+  --candidate evaluation_validation_candidate_v1.json `
+  --audit experiments/results/validation_candidate_v1_audit.json `
+  --review experiments/reviews/validation_candidate_v1_agent_double_review.json `
+  --receipt "$env:TEMP\validation_candidate_v1_agent_review_receipt.json"
+```
 
 Evaluate a frozen split through the access-logged boundary:
 
