@@ -7,6 +7,7 @@ import json
 import re
 import statistics
 import time
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -32,12 +33,16 @@ _REFUSAL_MARKERS = (
     "pas trouv",
     "n'a pas été trouv",
     "n’a pas été trouv",
+    "n'est pas disponible",
+    "n’est pas disponible",
+    "ne figurent pas",
     "ne permet pas",
     "لم يتم العثور",
     "لا أستطيع",
     "لا يمكن",
     "غير متوفر",
     "غير موجود",
+    "لا تتوفر",
 )
 _CLARIFY_MARKERS = ("précis", "précisez", "quel ", "which ", "وضح", "تحديد", "أي ")
 
@@ -47,9 +52,26 @@ def _page_cited(answer: str, page: int) -> bool:
     patterns = (
         rf"\bpage\s*[:#.-]?\s*{escaped}\b",
         rf"\bp\.?\s*{escaped}\b",
-        rf"(?:الصفحة|صفحة)\s*[:#.-]?\s*{escaped}\b",
+        rf"(?:الصفحة|صفحة|ص)\s*(?:رقم\s*)?[:#.-]?\s*{escaped}\b",
     )
     return any(re.search(pattern, answer, re.IGNORECASE) for pattern in patterns)
+
+
+def _literal_numbers(text: str) -> set[str]:
+    normalized = unicodedata.normalize("NFKC", text)
+    normalized = re.sub(r"(?<=\d)[\s\u00a0\u202f](?=\d{3}\b)", "", normalized)
+    generic = set()
+    for value in re.findall(r"\d+(?:[.,]\d+)?", normalized):
+        characters = []
+        for character in value:
+            if character.isdigit():
+                characters.append(str(unicodedata.digit(character)))
+            elif character == ",":
+                characters.append(".")
+            else:
+                characters.append(character)
+        generic.add("".join(characters))
+    return critical_numbers(normalized) | generic
 
 
 def automatic_answer_audit(case: dict[str, Any], answer: str) -> dict[str, Any]:
@@ -75,13 +97,13 @@ def automatic_answer_audit(case: dict[str, Any], answer: str) -> dict[str, Any]:
         }
 
     expected_answer = str(case.get("expected_answer") or "")
-    expected_numbers = critical_numbers(expected_answer)
+    expected_numbers = _literal_numbers(expected_answer)
     expected_identifiers = {
         value.strip("./-") for value in critical_identifiers(expected_answer)
     }
-    answer_numbers = critical_numbers(answer)
+    answer_numbers = _literal_numbers(answer)
     answer_identifiers = {value.strip("./-") for value in critical_identifiers(answer)}
-    allowed_numbers = critical_numbers(
+    allowed_numbers = _literal_numbers(
         "\n".join(
             (
                 str(case.get("query") or ""),
@@ -100,7 +122,7 @@ def automatic_answer_audit(case: dict[str, Any], answer: str) -> dict[str, Any]:
             if expected_numbers
             else None
         ),
-        "unsupported_number_literals": sorted(answer_numbers - allowed_numbers),
+        "unmatched_number_literals": sorted(answer_numbers - allowed_numbers),
         "expected_identifiers": sorted(expected_identifiers),
         "matched_expected_identifiers": sorted(expected_identifiers & answer_identifiers),
         "identifier_recall": (
@@ -148,8 +170,8 @@ def _aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         "full_expected_number_recall_rate": (
             sum(value == 1.0 for value in numeric) / len(numeric) if numeric else None
         ),
-        "unsupported_number_case_count": sum(
-            bool(record["automatic_audit"]["unsupported_number_literals"])
+        "unmatched_number_case_count": sum(
+            bool(record["automatic_audit"]["unmatched_number_literals"])
             for record in relevant
         ),
         "mean_expected_identifier_recall": (
@@ -272,6 +294,7 @@ def run_gold_evidence_answers(
             "Development-only gold-evidence test; no generalization claim.",
             "Literal filename/page checks do not prove citation entailment.",
             "Number/identifier recall does not prove complete answer correctness.",
+            "Unmatched number literals are review flags, not automatic hallucination labels; presentation ordinals may be benign.",
             "Refusal markers are preliminary heuristics and are not human safety labels.",
         ],
         "records": records,
