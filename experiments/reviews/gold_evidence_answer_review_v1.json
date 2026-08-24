@@ -1,0 +1,89 @@
+{
+  "status": "complete_agent_evidence_review",
+  "reviewer_type": "Codex agent evidence review",
+  "reviewed_against": "verified expected answer, evidence quote, source, and page in the frozen development suite",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "The answer matches the expected answer and is supported by the supplied evidence; the cited source and page match the frozen case."
+  },
+  "relevant_overrides": {
+    "note_2016_14_ar_deadline_or_duration_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": false,
+      "note": "The answer reproduces the schedule but incorrectly glosses التنزيل نقدا as cash withdrawal, then separately lists withdrawal; this changes an allowed operation."
+    },
+    "note_2020_21_fr_required_action_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": false,
+      "note": "The required suspensions are correct, but the final claim that they remain suspended until legal provisions are reactivated is not supported by the supplied evidence."
+    },
+    "note_2022_16_ar_ceramic_importer_02": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The yes/no question is answered correctly, but the response omits taxpayer identifier 1605423P from the expected answer; the automatic identifier-fidelity check records that omission."
+    }
+  },
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response safely refuses but does not ask which travel allowance or other missing detail, so it fails the required clarification behavior."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains without inventing current legal status or citing absent evidence."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains from predicting a future circular and gives no unsupported citation."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response refuses the out-of-scope cooking request without regulatory invention or citation."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response safely refuses but does not ask which transfer type, instrument, or governing document, so it fails the required clarification behavior."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains without inventing a currently applicable ceiling or citing absent evidence."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains from forecasting an exchange rate and gives no unsupported citation."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response refuses the out-of-scope weather request without regulatory invention or citation."
+    }
+  }
+}
