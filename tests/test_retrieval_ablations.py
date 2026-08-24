@@ -58,4 +58,7 @@ def test_candidate_union_deduplicates_chroma_and_json_page_metadata_shapes():
 
 def test_normalized_document_uses_filename_source_identity():
     document = _candidate("text", "C:/corpus/Note_2026_01_ar.pdf")["document"]
-    assert _normalized_document(document).metadata["source"] == "Note_2026_01_ar.pdf"
+    document.metadata.update({"page": 0, "page_label": "1"})
+    normalized = _normalized_document(document, use_page_label=True)
+    assert normalized.metadata["source"] == "Note_2026_01_ar.pdf"
+    assert normalized.metadata["page"] == 1
