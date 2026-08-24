@@ -380,6 +380,55 @@ latency also favors selective offline fallback rather than query-time use.
 Tracked result SHA-256:
 `C97B91AFB58ECCE197164EABC47AC41DD58B67FCC19E23E83977FB8B5B4262D8`.
 
+### Current generator with gold evidence
+
+The current `openai/gpt-oss-120b` answer path was evaluated on the frozen
+40-case suite with retrieval removed as a confounder. Each of the 32 relevant
+questions received only its verified evidence quote and exact source/page; the
+eight negative or ambiguous cases received no evidence. All outputs were then
+inspected against the expected answer and supplied evidence. These are Codex
+agent evidence-review labels, not independent human adjudication.
+
+| Reviewed outcome | Overall | French | Arabic |
+|---|---:|---:|---:|
+| Answer correct | 93.75% (30/32) | 94.12% (16/17) | 93.33% (14/15) |
+| Citation correct | 100% (32/32) | 100% (17/17) | 100% (15/15) |
+| Grounded | 93.75% (30/32) | 94.12% (16/17) | 93.33% (14/15) |
+| Safe negative response | 100% (8/8) | 100% (4/4) | 100% (4/4) |
+| Expected negative behavior | 75% (6/8) | 75% (3/4) | 75% (3/4) |
+
+The two substantive failures occur despite sufficient evidence:
+
+- `note_2016_14_ar_deadline_or_duration_01`: the answer reproduces the date and
+  hours but incorrectly glosses `التنزيل نقدا` as cash withdrawal, then lists
+  withdrawal separately. This changes an allowed banking operation.
+- `note_2020_21_fr_required_action_01`: the required suspensions are correct,
+  but the answer adds that they remain suspended until legal provisions are
+  reactivated. That duration is absent from the supplied evidence.
+
+Literal diagnostics also expose a separate preservation failure. Of the four
+identifier-role questions, only one expected answer contains a Latin
+alphanumeric identifier; the model omits that identifier (`1605423P`) while
+still answering the yes/no question correctly. Expected-answer number recall
+is complete in 95.65% of the 23 numeric cases. All answers emit the exact source
+and page, but a literal citation match alone would not have detected the two
+unsupported/incorrect claims.
+
+All eight negative responses safely abstain or refuse and cite nothing. However,
+neither ambiguous query requests the missing detail: the model says the
+information is unavailable instead of asking which travel allowance or which
+type of transfer. Clarification rate is therefore 0/2.
+
+**Decision: REJECT THE CURRENT ANSWER PATH AS RELEASE-READY.** The next
+controlled answer change should keep exact citations and safe refusal while
+requiring explicit claim-to-evidence support, exact identifier/number
+preservation, and a distinct clarification response for ambiguity. Only after
+the gold-evidence gate passes should the same evaluator be run end to end with
+retrieved context.
+
+Tracked result SHA-256:
+`D2F3D0BBB93F8CB3D2652BD287480DA69F42684AB56134F6CE959215B71EB63F`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

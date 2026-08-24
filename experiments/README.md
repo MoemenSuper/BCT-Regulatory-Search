@@ -231,6 +231,28 @@ tracked result contains literal-level metrics but no rendered images, base64,
 API key, or raw provider errors. A KEEP decision permits only a separate
 full-text VLM retrieval ablation; it does not make VLM output authoritative.
 
+Run the current generator on the frozen gold-evidence suite, then apply the
+case-level evidence review:
+
+```powershell
+python -u -m experiments.gold_evidence_answer_experiment `
+  --suite experiments/stress_suites/answer_safety_development_v1.json `
+  --dotenv "C:\path\to\the\existing\.env" `
+  --output-dir "$env:TEMP\gold-evidence-answer-v1" `
+  --confirm-public-documents
+
+python -m experiments.answer_evidence_review `
+  --suite experiments/stress_suites/answer_safety_development_v1.json `
+  --generated-result "$env:TEMP\gold-evidence-answer-v1\result.json" `
+  --review experiments/reviews/gold_evidence_answer_review_v1.json `
+  --output experiments/results/gold_evidence_answer_baseline_v1.json
+```
+
+Automatic literal checks are diagnostic only. The review artifact expands
+case-level answer, citation, grounding, refusal, and clarification labels. Its
+labels are an agent evidence review and explicitly do not claim independent
+human adjudication.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
