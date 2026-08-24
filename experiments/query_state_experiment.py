@@ -101,6 +101,17 @@ def derive_status(state: dict[str, str]) -> str:
     return "insufficient_evidence"
 
 
+def derive_pre_retrieval_decision(state: dict[str, str]) -> str:
+    """Preempt only explicit query-state failures; otherwise retrieve evidence."""
+    if state["scope"] == "clearly_unrelated":
+        return "out_of_scope"
+    if state["temporal_state"] == "current_or_future":
+        return "insufficient_evidence"
+    if state["ambiguity"] == "missing_discriminating_detail":
+        return "clarification_needed"
+    return "proceed_to_retrieval"
+
+
 def _answer(status: str, state: dict[str, str], language: str) -> str:
     if status == "clarification_needed":
         if language == "ar":
@@ -128,12 +139,20 @@ def run_query_state_experiment(
     dotenv_path: Path,
     output_dir: Path,
     confirm_public_documents: bool,
+    relevant_guard: bool = False,
 ) -> dict[str, Any]:
     if not confirm_public_documents:
         raise ValueError("Public-document confirmation is required for hosted calls")
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
-    if any(case.get("relevant") for case in suite["cases"]):
+    if not relevant_guard and any(case.get("relevant") for case in suite["cases"]):
         raise ValueError("Query-state gate accepts only negative or ambiguous cases")
+    cases = (
+        [case for case in suite["cases"] if case.get("relevant")]
+        if relevant_guard
+        else suite["cases"]
+    )
+    if not cases:
+        raise ValueError("Query-state experiment has no cases for the selected mode")
     load_dotenv(dotenv_path=dotenv_path, override=False)
     if not os.getenv("GROQ_API_KEY"):
         raise ValueError("GROQ_API_KEY is not configured")
@@ -143,7 +162,7 @@ def run_query_state_experiment(
     cache_dir.mkdir(parents=True, exist_ok=True)
     client = Groq(max_retries=3, timeout=90.0)
     records = []
-    for index, case in enumerate(suite["cases"], start=1):
+    for index, case in enumerate(cases, start=1):
         cache_path = cache_dir / f"{case['id']}.json"
         if cache_path.exists():
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -187,7 +206,7 @@ def run_query_state_experiment(
                 checkpoint = {
                     "status": "rate_limited",
                     "completed": len(records),
-                    "total": len(suite["cases"]),
+                    "total": len(cases),
                     "retry_after": retry_after,
                 }
                 write_json_atomic(output_dir / "checkpoint.json", checkpoint)
@@ -204,6 +223,26 @@ def run_query_state_experiment(
                 "query_state": state,
             }
             write_json_atomic(cache_path, cached)
+        if relevant_guard:
+            decision = derive_pre_retrieval_decision(state)
+            records.append(
+                {
+                    "id": case["id"],
+                    "language": case["language"],
+                    "answer_suite_role": case["answer_suite_role"],
+                    "relevant": True,
+                    "query_state": state,
+                    "decision": decision,
+                    "false_preempted": decision != "proceed_to_retrieval",
+                    "latency_seconds": cached["latency_seconds"],
+                    "usage": cached["usage"],
+                }
+            )
+            print(
+                f"[query-state {index}/{len(cases)}] {case['id']} {decision}",
+                flush=True,
+            )
+            continue
         status = derive_status(state)
         response = {
             "status": status,
@@ -226,7 +265,45 @@ def run_query_state_experiment(
                 "structured_diagnostics": structured_diagnostics(case, response),
             }
         )
-        print(f"[query-state {index}/{len(suite['cases'])}] {case['id']} {status}", flush=True)
+        print(f"[query-state {index}/{len(cases)}] {case['id']} {status}", flush=True)
+    if relevant_guard:
+        proceed_count = sum(
+            record["decision"] == "proceed_to_retrieval" for record in records
+        )
+        artifact = {
+            "status": "complete",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "experiment_id": "explicit-query-state-relevant-guard-development-v1",
+            "configuration": {
+                "model": MODEL,
+                "prompt_version": PROMPT_VERSION,
+                "classification": "scope plus temporal state plus ambiguity",
+                "preemption": "unrelated, explicit current/future, or missing discriminating detail only",
+                "fallback": "proceed_to_retrieval",
+            },
+            "inputs": {"answer_suite_sha256": suite_hash},
+            "metrics": {
+                "case_count": len(records),
+                "proceed_to_retrieval_count": proceed_count,
+                "proceed_to_retrieval_rate": proceed_count / len(records),
+                "false_preemption_count": len(records) - proceed_count,
+            },
+            "usage": {
+                field: sum(record["usage"][field] for record in records)
+                for field in ("prompt_tokens", "completion_tokens", "total_tokens")
+            },
+            "latency_seconds": {
+                "mean": statistics.mean(record["latency_seconds"] for record in records),
+                "median": statistics.median(record["latency_seconds"] for record in records),
+            },
+            "limitations": [
+                "Development-only false-preemption guard over the 32 inspected relevant questions.",
+                "Passing shows only that relevant development queries reach retrieval; it does not measure retrieved evidence sufficiency.",
+            ],
+            "records": records,
+        }
+        write_json_atomic(output_dir / "result.json", artifact)
+        return artifact
     artifact = {
         "status": "complete",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -270,12 +347,14 @@ def main() -> None:
     parser.add_argument("--dotenv", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--confirm-public-documents", action="store_true")
+    parser.add_argument("--relevant-guard", action="store_true")
     args = parser.parse_args()
     run_query_state_experiment(
         suite_path=args.suite,
         dotenv_path=args.dotenv,
         output_dir=args.output_dir,
         confirm_public_documents=args.confirm_public_documents,
+        relevant_guard=args.relevant_guard,
     )
 
 

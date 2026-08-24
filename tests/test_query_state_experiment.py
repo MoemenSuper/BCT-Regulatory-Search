@@ -2,7 +2,12 @@ import json
 
 import pytest
 
-from experiments.query_state_experiment import _answer, derive_status, parse_query_state
+from experiments.query_state_experiment import (
+    _answer,
+    derive_pre_retrieval_decision,
+    derive_status,
+    parse_query_state,
+)
 
 
 def _state(**overrides):
@@ -31,6 +36,19 @@ def test_status_mapping_has_conservative_deterministic_precedence():
         == "clarification_needed"
     )
     assert derive_status(_state()) == "insufficient_evidence"
+
+
+def test_pre_retrieval_decision_does_not_preempt_specific_in_scope_query():
+    assert derive_pre_retrieval_decision(_state()) == "proceed_to_retrieval"
+    assert (
+        derive_pre_retrieval_decision(
+            _state(
+                ambiguity="missing_discriminating_detail",
+                missing_detail="transfer type",
+            )
+        )
+        == "clarification_needed"
+    )
 
 
 def test_query_state_requires_missing_detail_only_for_ambiguity():
