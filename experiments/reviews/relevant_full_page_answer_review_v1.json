@@ -1,0 +1,19 @@
+{
+  "reviewer_type": "agent_evidence_review_not_independent_human",
+  "reviewed_against": "frozen question, expected answer, verified excerpt, full labeled page context, structured claims, and exact citation",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "The response fully answers the frozen question using claims supported by the supplied verified excerpt and labeled page, with the exact source-page citation."
+  },
+  "relevant_overrides": {
+    "note_2016_14_ar_deadline_or_duration_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": false,
+      "note": "The verified excerpt and expected answer give Thursday 7 July 2016, but corrupted extracted page text contains 10 July 6102; the response follows the corrupted page and incorrectly answers 10 July 2016."
+    }
+  },
+  "negative_labels": {}
+}
