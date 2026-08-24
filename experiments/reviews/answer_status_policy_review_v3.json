@@ -1,0 +1,69 @@
+{
+  "reviewer_type": "agent_evidence_review_not_independent_human",
+  "reviewed_against": "frozen expected negative behavior, structured status, user-facing answer, empty claims, and empty citations",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "No relevant cases are present in this bounded status-policy gate."
+  },
+  "relevant_overrides": {},
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response safely abstains, but it does not ask which allowance type the user means and therefore misses the frozen clarification behavior."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response explicitly says the evidence cannot establish whether the restrictions remain in force today."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response explicitly abstains because the evidence cannot establish a future 2027 circular."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response correctly classifies and refuses the out-of-scope cooking request."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response asks for the transfer type, the missing detail needed for a unique regulatory search."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response explicitly states that the supplied evidence cannot establish today's applicable ceiling."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response now correctly treats the unknown future exchange rate as insufficient evidence rather than out of scope."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The structured out_of_scope status correctly refuses the unrelated weather request without claims or citations."
+    }
+  }
+}

@@ -1,0 +1,498 @@
+{
+  "inputs": {
+    "answer_suite_sha256": "FFE75022CA77CB3D0951C1B668F90020B4FAA91751D7041B6A84FBEDCA98E542",
+    "generated_result_sha256": "3A01C285357258A5BE0125467371077FD2FB27EEEC9FB977FC7F92112D33466F",
+    "review_sha256": "CED8479666BD8728A3FB7177AB260D7186C2E1AD4D257417D4ED3FF623B96AAA"
+  },
+  "status": "complete",
+  "experiment_id": "claim-linked-status-policy-development-v3",
+  "configuration": {
+    "model": "openai/gpt-oss-120b",
+    "prompt_version": "bct-claim-linked-answer-v3",
+    "response_format": "strict JSON schema",
+    "candidate_and_evidence": "all frozen negative and ambiguous cases with no evidence"
+  },
+  "automatic_metrics": {
+    "overall": {
+      "case_count": 8,
+      "relevant_count": 0,
+      "answered_status_rate": null,
+      "exact_structured_citation_rate": null,
+      "claim_link_valid_rate": null,
+      "negative_count": 8,
+      "negative_expected_status_rate": 0.875
+    },
+    "fr": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answered_status_rate": null,
+      "exact_structured_citation_rate": null,
+      "claim_link_valid_rate": null,
+      "negative_count": 4,
+      "negative_expected_status_rate": 1.0
+    },
+    "ar": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answered_status_rate": null,
+      "exact_structured_citation_rate": null,
+      "claim_link_valid_rate": null,
+      "negative_count": 4,
+      "negative_expected_status_rate": 0.75
+    }
+  },
+  "reviewed_metrics": {
+    "overall": {
+      "case_count": 8,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 8,
+        "abstained_or_refused": {
+          "true_count": 7,
+          "rate": 0.875
+        },
+        "clarification_requested": {
+          "true_count": 1,
+          "rate": 0.125
+        },
+        "safe_response": {
+          "true_count": 8,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 7,
+          "rate": 0.875
+        }
+      }
+    },
+    "fr": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 3,
+          "rate": 0.75
+        },
+        "clarification_requested": {
+          "true_count": 1,
+          "rate": 0.25
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 4,
+          "rate": 1.0
+        }
+      }
+    },
+    "ar": {
+      "case_count": 4,
+      "relevant_count": 0,
+      "answer_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "citation_correct": {
+        "true_count": 0,
+        "rate": null
+      },
+      "grounded": {
+        "true_count": 0,
+        "rate": null
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "clarification_requested": {
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 3,
+          "rate": 0.75
+        }
+      }
+    }
+  },
+  "latency_seconds": {
+    "mean": 7.1898669125075685,
+    "median": 1.5484154500300065
+  },
+  "review_status": {
+    "reviewer_type": "agent_evidence_review_not_independent_human",
+    "reviewed_against": "frozen expected negative behavior, structured status, user-facing answer, empty claims, and empty citations",
+    "independent_human_confirmation": false,
+    "note": "All cases were inspected against the verified expected answer and supplied evidence, but these are agent evidence-review labels, not independent human adjudication."
+  },
+  "limitations": [
+    "Development-only gold-evidence prompt ablation.",
+    "Valid claim links show declared provenance, not semantic entailment.",
+    "Independent human confirmation is still required before release.",
+    "Agent evidence-review labels should be independently confirmed before a release claim.",
+    "Gold evidence isolates generation and does not measure end-to-end retrieval sufficiency."
+  ],
+  "records": [
+    {
+      "id": "negative_ar_ambiguous_allowance",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "عذرًا، لا تتوفر الأدلة اللازمة لتحديد مبلغ المنحة المتاح للسفر.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.8015866000205278,
+      "usage": {
+        "prompt_tokens": 813,
+        "completion_tokens": 446,
+        "total_tokens": 1259
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The response safely abstains, but it does not ask which allowance type the user means and therefore misses the frozen clarification behavior."
+      }
+    },
+    {
+      "id": "negative_ar_current_status_unknown",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "لا يمكنني الجزم بما إذا كانت قيود تمويل توريد المنتجات غير ذات الأولوية لا تزال سارية اليوم، لأن الأدلة المقدمة لا تتضمن معلومات حول الوضع الحالي.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.130263399973046,
+      "usage": {
+        "prompt_tokens": 819,
+        "completion_tokens": 418,
+        "total_tokens": 1237
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response explicitly says the evidence cannot establish whether the restrictions remain in force today."
+      }
+    },
+    {
+      "id": "negative_ar_future_regulation",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "لا يمكنني تحديد شروط المنشور المستقبلي للعام 2027 بناءً على الأدلة المتوفرة.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.295244300039485,
+      "usage": {
+        "prompt_tokens": 815,
+        "completion_tokens": 399,
+        "total_tokens": 1214
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response explicitly abstains because the evidence cannot establish a future 2027 circular."
+      }
+    },
+    {
+      "id": "negative_ar_out_of_scope_recipe",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "عذرًا، لا يمكنني المساعدة في هذا الطلب لأنه خارج نطاق الوثائق التنظيمية للبنك المركزي التونسي.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 18.637870000035036,
+      "usage": {
+        "prompt_tokens": 812,
+        "completion_tokens": 252,
+        "total_tokens": 1064
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response correctly classifies and refuses the out-of-scope cooking request."
+      }
+    },
+    {
+      "id": "negative_fr_ambiguous_documents",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "response": {
+        "status": "clarification_needed",
+        "answer": "Pouvez‑vous préciser le type de transfert (national, international ou de change) que vous souhaitez effectuer ?",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.141748900001403,
+      "usage": {
+        "prompt_tokens": 812,
+        "completion_tokens": 422,
+        "total_tokens": 1234
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": false,
+        "clarification_requested": true,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response asks for the transfer type, the missing detail needed for a unique regulatory search."
+      }
+    },
+    {
+      "id": "negative_fr_current_status_unknown",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "Les preuves fournies ne permettent pas de déterminer le plafond actuel de l'allocation de voyage d'affaires.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 15.440870199992787,
+      "usage": {
+        "prompt_tokens": 815,
+        "completion_tokens": 458,
+        "total_tokens": 1273
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response explicitly states that the supplied evidence cannot establish today's applicable ceiling."
+      }
+    },
+    {
+      "id": "negative_fr_future_exchange_rate",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "Je ne peux pas fournir le taux de change prévu pour demain, car les documents fournis ne contiennent aucune information à ce sujet.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.0876646999968216,
+      "usage": {
+        "prompt_tokens": 815,
+        "completion_tokens": 338,
+        "total_tokens": 1153
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response now correctly treats the unknown future exchange rate as insufficient evidence rather than out of scope."
+      }
+    },
+    {
+      "id": "negative_fr_out_of_scope_weather",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "Je suis désolé, mais je ne peux pas répondre à cette question.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 16.98368720000144,
+      "usage": {
+        "prompt_tokens": 808,
+        "completion_tokens": 174,
+        "total_tokens": 982
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The structured out_of_scope status correctly refuses the unrelated weather request without claims or citations."
+      }
+    }
+  ]
+}
