@@ -253,6 +253,26 @@ case-level answer, citation, grounding, refusal, and clarification labels. Its
 labels are an agent evidence review and explicitly do not claim independent
 human adjudication.
 
+Test the unchanged answer model with a strict claim-linked response contract:
+
+```powershell
+python -u -m experiments.structured_answer_experiment `
+  --suite experiments/stress_suites/answer_safety_development_v1.json `
+  --dotenv "C:\path\to\the\existing\.env" `
+  --output-dir "$env:TEMP\structured-answer-v1" `
+  --confirm-public-documents
+
+python -m experiments.answer_evidence_review `
+  --suite experiments/stress_suites/answer_safety_development_v1.json `
+  --generated-result "$env:TEMP\structured-answer-v1\result.json" `
+  --review experiments/reviews/structured_answer_review_v1.json `
+  --output experiments/results/structured_answer_prompt_v1.json
+```
+
+The contract exposes status, atomic claims, evidence IDs, and structured
+citations. Valid links are declared provenance, not proof of entailment; the
+same evidence review remains mandatory.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell

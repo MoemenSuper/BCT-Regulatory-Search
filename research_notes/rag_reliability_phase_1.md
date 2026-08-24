@@ -429,6 +429,61 @@ retrieved context.
 Tracked result SHA-256:
 `D2F3D0BBB93F8CB3D2652BD287480DA69F42684AB56134F6CE959215B71EB63F`.
 
+### Claim-linked structured answer ablation
+
+The answer model, gold-evidence cases, and temperature were held fixed. The
+only change was a strict JSON contract with four statuses (`answered`,
+`insufficient_evidence`, `clarification_needed`, `out_of_scope`), atomic claims
+linked to supplied evidence IDs, and separate exact source/page citations. The
+prompt also prohibited inferred durations, synonym glosses that alter legal
+operations, and ungrounded current-applicability claims.
+
+| Reviewed outcome | Current prompt | Claim-linked v1 |
+|---|---:|---:|
+| Answer correct | 93.75% (30/32) | 93.75% (30/32) |
+| Grounded | 93.75% (30/32) | 100% (32/32) |
+| Answered with exact citation | 100% (32/32) | 93.75% (30/32) |
+| Safe negative response | 100% (8/8) | 100% (8/8) |
+| Expected negative behavior | 75% (6/8) | 37.5% (3/8) |
+| Ambiguous query clarified | 0% (0/2) | 50% (1/2) |
+
+The contract repairs both prior semantic failures. It preserves
+`التنزيل نقدا` without the incorrect withdrawal gloss, and it removes the
+unsupported French “until reactivated” duration. All 30 answered relevant cases
+carry the exact structured source/page and all declared claim links reference
+the supplied evidence.
+
+The two new answer failures are conservative abstentions, not hallucinations:
+
+- `cir_2019_02_fr_amount_or_rate_02`: the frozen evidence quote contains the
+  100,000 DT amount and Startup condition but omits the query's Carte
+  Technologique/internet-payment condition.
+- `note_2022_16_ar_ceramic_importer_02`: the quote contains the company row and
+  taxpayer identifier but omits the table heading that establishes the row as
+  a ceramic importer.
+
+This means the supposed gold context was not sufficient for those two
+questions. The current free-form prompt guessed through that gap; the strict
+prompt correctly refused. The next context experiment must attach the verified
+heading or page neighborhood and rerun, rather than weakening grounding.
+
+Negative routing remains poor. It clarifies the French ambiguous transfer but
+misclassifies the Arabic ambiguous allowance. Two Arabic `insufficient_evidence`
+responses contain an empty user-facing `answer`, which the schema incorrectly
+allowed. A French current-status question is clarified instead of abstained,
+and a future exchange-rate request is labeled out of scope rather than
+insufficient evidence. Token usage is 45,963 total; mean/median latency rises
+from 5.30s/3.22s to 6.73s/6.49s.
+
+**Decision: REJECT V1 AS A COMPLETE REPLACEMENT.** Keep the claim-linked
+citation contract as a component, but separately test (1) provenance-based
+context expansion for the two insufficient snippets and (2) a non-empty,
+deterministic status policy for ambiguity/current-status/future/out-of-scope
+requests. Do not make the model guess from incomplete evidence.
+
+Tracked result SHA-256:
+`6E41C0E50557CD43118EA7E64BBE008A70ECFFFE22BF04A6A1D8D11B2A4DDE86`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

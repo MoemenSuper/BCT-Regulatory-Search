@@ -1,0 +1,2535 @@
+{
+  "inputs": {
+    "answer_suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "generated_result_sha256": "0C8CFB90219A71BBA75AF87C05E909DDC7DA1FE196193E5E3D81366FA02D47FB",
+    "review_sha256": "53FAE3EC3E0046A967437D60B0A4B583D04AEB67C498B53FD34350658B784835"
+  },
+  "status": "complete",
+  "experiment_id": "claim-linked-structured-answer-development-v1",
+  "configuration": {
+    "model": "openai/gpt-oss-120b",
+    "prompt_version": "bct-claim-linked-answer-v1",
+    "response_format": "strict JSON schema",
+    "candidate_and_evidence": "identical frozen gold-evidence suite"
+  },
+  "automatic_metrics": {
+    "overall": {
+      "case_count": 40,
+      "relevant_count": 32,
+      "answered_status_rate": 0.9375,
+      "exact_structured_citation_rate": 0.9375,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 8,
+      "negative_expected_status_rate": 0.625
+    },
+    "fr": {
+      "case_count": 21,
+      "relevant_count": 17,
+      "answered_status_rate": 0.9411764705882353,
+      "exact_structured_citation_rate": 0.9411764705882353,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 4,
+      "negative_expected_status_rate": 0.5
+    },
+    "ar": {
+      "case_count": 19,
+      "relevant_count": 15,
+      "answered_status_rate": 0.9333333333333333,
+      "exact_structured_citation_rate": 0.9333333333333333,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 4,
+      "negative_expected_status_rate": 0.75
+    }
+  },
+  "reviewed_metrics": {
+    "overall": {
+      "case_count": 40,
+      "relevant_count": 32,
+      "answer_correct": {
+        "true_count": 30,
+        "rate": 0.9375
+      },
+      "citation_correct": {
+        "true_count": 32,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 32,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 8,
+        "abstained_or_refused": {
+          "true_count": 6,
+          "rate": 0.75
+        },
+        "clarification_requested": {
+          "true_count": 2,
+          "rate": 0.25
+        },
+        "safe_response": {
+          "true_count": 8,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 3,
+          "rate": 0.375
+        }
+      }
+    },
+    "fr": {
+      "case_count": 21,
+      "relevant_count": 17,
+      "answer_correct": {
+        "true_count": 16,
+        "rate": 0.9411764705882353
+      },
+      "citation_correct": {
+        "true_count": 17,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 17,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 2,
+          "rate": 0.5
+        },
+        "clarification_requested": {
+          "true_count": 2,
+          "rate": 0.5
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 2,
+          "rate": 0.5
+        }
+      }
+    },
+    "ar": {
+      "case_count": 19,
+      "relevant_count": 15,
+      "answer_correct": {
+        "true_count": 14,
+        "rate": 0.9333333333333333
+      },
+      "citation_correct": {
+        "true_count": 15,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 15,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 4,
+        "abstained_or_refused": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "clarification_requested": {
+          "true_count": 0,
+          "rate": 0.0
+        },
+        "safe_response": {
+          "true_count": 4,
+          "rate": 1.0
+        },
+        "expected_behavior_met": {
+          "true_count": 1,
+          "rate": 0.25
+        }
+      }
+    }
+  },
+  "latency_seconds": {
+    "mean": 6.726197642502666,
+    "median": 6.4892646499793045
+  },
+  "review_status": {
+    "reviewer_type": "Codex agent evidence review",
+    "reviewed_against": "verified expected answer, supplied evidence quote, structured claims, citation object, source, and page",
+    "independent_human_confirmation": false,
+    "note": "All cases were inspected against the verified expected answer and supplied evidence, but these are agent evidence-review labels, not independent human adjudication."
+  },
+  "limitations": [
+    "Development-only gold-evidence prompt ablation.",
+    "Valid claim links show declared provenance, not semantic entailment.",
+    "Independent human confirmation is still required before release.",
+    "Agent evidence-review labels should be independently confirmed before a release claim.",
+    "Gold evidence isolates generation and does not measure end-to-end retrieval sufficiency."
+  ],
+  "records": [
+    {
+      "id": "cir_2016_09_fr_exception_or_condition_01",
+      "language": "fr",
+      "answer_suite_role": "context_or_version",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Oui, un acompte pouvait être versé sans garantie de restitution, dans la limite de 25 % de la valeur de l’opération pour une prestation entrant dans le cycle de production.",
+        "claims": [
+          {
+            "text": "Un acompte pouvait être versé sans garantie de restitution.",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "Le plafond était de 25 % de la valeur de l’opération pour une prestation entrant dans le cycle de production.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2016_09_fr.pdf",
+            "page": 3
+          }
+        ]
+      },
+      "latency_seconds": 1.5920309000066482,
+      "usage": {
+        "prompt_tokens": 631,
+        "completion_tokens": 535,
+        "total_tokens": 1166
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "25"
+        ],
+        "matched_expected_numbers": [
+          "25"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 2,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "language": "ar",
+      "answer_suite_role": "context_or_version",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "يجب إغلاق حساب الحملة خلال 15 يوماً من إغلاق الحملة، وتُحفظ ملفاته لمدة 10 سنوات.",
+        "claims": [
+          {
+            "text": "يجب إغلاق حساب الحملة خلال 15 يوماً من إغلاق الحملة",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "تُحفظ ملفاته لمدة 10 سنوات",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2018_03_ar.pdf",
+            "page": 3
+          }
+        ]
+      },
+      "latency_seconds": 1.7728340000030585,
+      "usage": {
+        "prompt_tokens": 642,
+        "completion_tokens": 631,
+        "total_tokens": 1273
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "15"
+        ],
+        "matched_expected_numbers": [
+          "15"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 2,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2019_02_fr_amount_or_rate_02",
+      "language": "fr",
+      "answer_suite_role": "clean_top1_fr",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 7.943907500011846,
+      "usage": {
+        "prompt_tokens": 658,
+        "completion_tokens": 266,
+        "total_tokens": 924
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "100000"
+        ],
+        "matched_expected_numbers": [],
+        "number_recall": 0.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": false,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "answer_correct": false,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The model safely returns insufficient_evidence and no citation. The supplied snippet states the 100000 DT amount and Startup label but omits the query's Carte Technologique/internet condition, so this is a context-sufficiency failure rather than a hallucinated answer."
+      }
+    },
+    {
+      "id": "cir_2020_02_fr_amount_or_rate_01",
+      "language": "fr",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "50 %",
+        "claims": [
+          {
+            "text": "Le pourcentage maximal d’acompte autorisé est de 50 % pour une importation dont la valeur dépasse 20 000 dinars.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2020_02_fr.pdf",
+            "page": 3
+          }
+        ]
+      },
+      "latency_seconds": 7.32972769998014,
+      "usage": {
+        "prompt_tokens": 691,
+        "completion_tokens": 371,
+        "total_tokens": 1062
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "50"
+        ],
+        "matched_expected_numbers": [
+          "50"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2020_15_fr_effective_date_01",
+      "language": "fr",
+      "answer_suite_role": "clean_top1_fr",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Non, les dispositions des articles 2 et 4 de la circulaire du 19 mars 2020 ont été abrogées par la circulaire du 19 juin 2020.",
+        "claims": [
+          {
+            "text": "Les dispositions des articles 2 et 4 de la circulaire du 19 mars 2020 ont été abrogées par la circulaire du 19 juin 2020.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2020_15_fr.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 2.0138533000135794,
+      "usage": {
+        "prompt_tokens": 1004,
+        "completion_tokens": 539,
+        "total_tokens": 1543
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "19",
+          "2",
+          "2020",
+          "4"
+        ],
+        "matched_expected_numbers": [
+          "19",
+          "2",
+          "2020",
+          "4"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_01_fr_amount_or_rate_01",
+      "language": "fr",
+      "answer_suite_role": "french_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Le taux de majoration (Δgi) à appliquer aux taux de migration historiques pour le groupe des exportateurs d’huile d’olive est de 1,00 %.",
+        "claims": [
+          {
+            "text": "Le taux de majoration (Δgi) pour les exportateurs d’huile d’olive est de 1,00 %",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_01_fr.pdf",
+            "page": 4
+          }
+        ]
+      },
+      "latency_seconds": 13.689343100006226,
+      "usage": {
+        "prompt_tokens": 637,
+        "completion_tokens": 474,
+        "total_tokens": 1111
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "1.00"
+        ],
+        "matched_expected_numbers": [
+          "1.00"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_02_fr_definition_01",
+      "language": "fr",
+      "answer_suite_role": "french_long_document",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Les cinq éléments principaux sont : l’identification des risques, la quantification de l’exposition aux risques, la détermination des marchés et des instruments de couverture éligibles, le processus décisionnel et le monitoring et reporting.",
+        "claims": [
+          {
+            "text": "l’identification des risques",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "la quantification de l’exposition aux risques",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "la détermination des marchés et des instruments de couverture éligibles",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "le processus décisionnel",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "le monitoring et reporting",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_02_fr.pdf",
+            "page": 17
+          }
+        ]
+      },
+      "latency_seconds": 11.716153100016527,
+      "usage": {
+        "prompt_tokens": 669,
+        "completion_tokens": 517,
+        "total_tokens": 1186
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 5,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_03_fr_deadline_or_duration_01",
+      "language": "fr",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "L’horaire conventionnel de fonctionnement des marchés interbancaires pour les opérations de change et monétaires en devises est de 8h00 à 17h00 heure locale (de 8h00 à 14h00 pendant la séance unique), sauf décision dérogatoire de la Banque Centrale de Tunisie.",
+        "claims": [
+          {
+            "text": "L’horaire conventionnel de fonctionnement des marchés interbancaires pour les opérations de change et monétaires en devises est de 8h00 à 17h00 heure locale (de 8h00 à 14h00 pendant la séance unique), sauf décision dérogatoire de la Banque Centrale de Tunisie.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_03_fr.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 4.620585900032893,
+      "usage": {
+        "prompt_tokens": 674,
+        "completion_tokens": 538,
+        "total_tokens": 1212
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "00",
+          "14",
+          "17",
+          "8"
+        ],
+        "matched_expected_numbers": [
+          "00",
+          "14",
+          "17",
+          "8"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [
+          "14h",
+          "17h",
+          "8h"
+        ],
+        "matched_expected_identifiers": [],
+        "identifier_recall": 0.0,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_05_fr_deadline_or_duration_01",
+      "language": "fr",
+      "answer_suite_role": "french_long_document",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Annuellement.",
+        "claims": [
+          {
+            "text": "La fréquence minimale d'évaluation est annuelle.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_05_fr.pdf",
+            "page": 9
+          }
+        ]
+      },
+      "latency_seconds": 9.160955899977125,
+      "usage": {
+        "prompt_tokens": 631,
+        "completion_tokens": 286,
+        "total_tokens": 917
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_05_fr_deadline_or_duration_05",
+      "language": "fr",
+      "answer_suite_role": "french_long_document",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Le délai imparti est de 15 jours à compter de la notification de la demande de documents complémentaires.",
+        "claims": [
+          {
+            "text": "Le délai imparti est de 15 jours à compter de la notification de la demande de documents complémentaires.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_05_fr.pdf",
+            "page": 29
+          }
+        ]
+      },
+      "latency_seconds": 6.449566799972672,
+      "usage": {
+        "prompt_tokens": 729,
+        "completion_tokens": 342,
+        "total_tokens": 1071
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "15"
+        ],
+        "matched_expected_numbers": [
+          "15"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2021_06_fr_amount_or_rate_03",
+      "language": "fr",
+      "answer_suite_role": "french_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Fourrages d'hiver en sec : plafond de 870 DT/ha, échéance le 31 août. Fourrages d'été en irrigué : plafond de 1140 DT/ha, échéance le 30 septembre.",
+        "claims": [
+          {
+            "text": "Le plafond pour les fourrages d'hiver en sec est de 870 DT/ha, avec une échéance au 31 août.",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "Le plafond pour les fourrages d'été en irrigué est de 1140 DT/ha, avec une échéance au 30 septembre.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_06_fr.pdf",
+            "page": 2
+          },
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2021_06_fr.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 9.067962200031616,
+      "usage": {
+        "prompt_tokens": 652,
+        "completion_tokens": 748,
+        "total_tokens": 1400
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "1140",
+          "30",
+          "31",
+          "870"
+        ],
+        "matched_expected_numbers": [
+          "1140",
+          "30",
+          "31",
+          "870"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 2,
+        "citation_count": 2
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2022_02_fr_migration_history_02",
+      "language": "fr",
+      "answer_suite_role": "french_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Sur un historique de 5 ans, en excluant l'année 2020 et l'année de référence.",
+        "claims": [
+          {
+            "text": "Le taux de migration moyen doit être estimé sur un historique de 5 ans, l'année 2020 et l'année de référence étant exclues.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2022_02_fr.pdf",
+            "page": 4
+          }
+        ]
+      },
+      "latency_seconds": 10.360411500034388,
+      "usage": {
+        "prompt_tokens": 643,
+        "completion_tokens": 359,
+        "total_tokens": 1002
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2020",
+          "5"
+        ],
+        "matched_expected_numbers": [
+          "2020",
+          "5"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2023_08_ar_deadline_or_duration_01",
+      "language": "ar",
+      "answer_suite_role": "clean_top1_ar",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "يستمر انتفاع المؤسسات الصغرى والمتوسطة بامتياز تكفل الدولة بالفارق في نسبة الفائدة على قروض الاستثمار حتى 31 ديسمبر 2024.",
+        "claims": [
+          {
+            "text": "انتفاع المؤسسات الصغرى والمتوسطة بامتياز تكفل الدولة بالفارق في نسبة الفائدة على قروض الاستثمار ممتد حتى 31 ديسمبر 2024",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2023_08_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 3.4979141000076197,
+      "usage": {
+        "prompt_tokens": 694,
+        "completion_tokens": 505,
+        "total_tokens": 1199
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2024",
+          "31"
+        ],
+        "matched_expected_numbers": [
+          "2024",
+          "31"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2024_01_fr_amount_or_rate_01",
+      "language": "fr",
+      "answer_suite_role": "context_or_version",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Le taux de majoration appliqué aux engagements agricoles est de 6,50 %.",
+        "claims": [
+          {
+            "text": "Le taux de majoration appliqué aux engagements agricoles est de 6,50 %",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2024_01_fr.pdf",
+            "page": 4
+          }
+        ]
+      },
+      "latency_seconds": 9.408559900010005,
+      "usage": {
+        "prompt_tokens": 632,
+        "completion_tokens": 411,
+        "total_tokens": 1043
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "6.50"
+        ],
+        "matched_expected_numbers": [
+          "6.50"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2024_14_fr_amount_or_rate_01",
+      "language": "fr",
+      "answer_suite_role": "french_long_document",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "5000 dinars",
+        "claims": [
+          {
+            "text": "Le montant maximum qu’une banque doit payer sans provision pour un chèque tiré sur une formule délivrée par la banque est de 5000 dinars.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2024_14_fr.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 6.528962499985937,
+      "usage": {
+        "prompt_tokens": 694,
+        "completion_tokens": 471,
+        "total_tokens": 1165
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "5000"
+        ],
+        "matched_expected_numbers": [
+          "5000"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "cir_2026_05_fr_eligibility_or_scope_01",
+      "language": "fr",
+      "answer_suite_role": "french_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Les institutions suivantes figurent sur la liste des adhérents à la Plateforme électronique unique des chèques : Al Baraka Bank Tunisie, ALUBAF, Amen Bank, Arab Tunisian Bank (ATB), Attijari Bank, Bank ABC, BH Bank, Banque Internationale Arabe de Tunisie (BIAT), Banque Nationale Agricole (BNA), Banque de Tunisie (BT), Banque de Tunisie et des Émirats (BTE), Banque Tuniso‑Koweïtïenne (BTK), Banque Tuniso‑Libyenne (BTL), Banque Tunisienne de Solidarité (BTS), Banque Zitouna, Citi Bank, North Africa International Bank (NAIB), Office National des Postes, Qatar National Bank (QNB), Société Tunisienne de Banque (STB), Tunis International Bank (TIB), Tunisian Saudi Bank (TSB), Union Bancaire pour le Commerce et l’Industrie (UBCI), Union Internationale de Banques (UIB), Wifak Bank.",
+        "claims": [
+          {
+            "text": "Les institutions suivantes figurent sur la liste des adhérents à la Plateforme électronique unique des chèques : Al Baraka Bank Tunisie, ALUBAF, Amen Bank, Arab Tunisian Bank (ATB), Attijari Bank, Bank ABC, BH Bank, Banque Internationale Arabe de Tunisie (BIAT), Banque Nationale Agricole (BNA), Banque de Tunisie (BT), Banque de Tunisie et des Émirats (BTE), Banque Tuniso‑Koweïtïenne (BTK), Banque Tuniso‑Libyenne (BTL), Banque Tunisienne de Solidarité (BTS), Banque Zitouna, Citi Bank, North Africa International Bank (NAIB), Office National des Postes, Qatar National Bank (QNB), Société Tunisienne de Banque (STB), Tunis International Bank (TIB), Tunisian Saudi Bank (TSB), Union Bancaire pour le Commerce et l’Industrie (UBCI), Union Internationale de Banques (UIB), Wifak Bank.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2026_05_fr.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 12.804257799987681,
+      "usage": {
+        "prompt_tokens": 844,
+        "completion_tokens": 1157,
+        "total_tokens": 2001
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "negative_ar_ambiguous_allowance",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "عذرًا، لا أستطيع المساعدة في هذا السؤال.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 10.95891169999959,
+      "usage": {
+        "prompt_tokens": 565,
+        "completion_tokens": 485,
+        "total_tokens": 1050
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The response safely refuses as out of scope but should ask which travel allowance is meant."
+      }
+    },
+    {
+      "id": "negative_ar_current_status_unknown",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 4.119226899987552,
+      "usage": {
+        "prompt_tokens": 571,
+        "completion_tokens": 303,
+        "total_tokens": 874
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The insufficient_evidence status is safe and correct, but the user-facing answer is empty instead of explicitly abstaining."
+      }
+    },
+    {
+      "id": "negative_ar_future_regulation",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 3.120778299984522,
+      "usage": {
+        "prompt_tokens": 567,
+        "completion_tokens": 321,
+        "total_tokens": 888
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The insufficient_evidence status is safe and correct, but the user-facing answer is empty instead of explicitly abstaining from predicting the future circular."
+      }
+    },
+    {
+      "id": "negative_ar_out_of_scope_recipe",
+      "language": "ar",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "عذرًا، لا يمكنني المساعدة في هذا الموضوع.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 5.774485999951139,
+      "usage": {
+        "prompt_tokens": 564,
+        "completion_tokens": 214,
+        "total_tokens": 778
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response correctly classifies and refuses the out-of-scope cooking request."
+      }
+    },
+    {
+      "id": "negative_fr_ambiguous_documents",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "clarify",
+      "response": {
+        "status": "clarification_needed",
+        "answer": "Pour pouvoir vous répondre précisément, pourriez‑vous préciser le type de transfert (par exemple, un virement national, un virement international, un virement SEPA, etc.) ?",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 9.6671310000238,
+      "usage": {
+        "prompt_tokens": 564,
+        "completion_tokens": 550,
+        "total_tokens": 1114
+      },
+      "automatic_audit": {
+        "expected_behavior": "clarify",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": false,
+        "clarification_requested": true,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response asks for the transfer type, which is the missing detail needed to search safely."
+      }
+    },
+    {
+      "id": "negative_fr_current_status_unknown",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "clarification_needed",
+        "answer": "Pouvez‑vous préciser la référence réglementaire ou l'année du document concernant le plafond de l’allocation de voyage d’affaires que vous souhaitez connaître ?",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 4.52130500000203,
+      "usage": {
+        "prompt_tokens": 567,
+        "completion_tokens": 514,
+        "total_tokens": 1081
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": false,
+        "preliminary_clarification_marker": true,
+        "preliminary_safe_response": false,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": false,
+        "clarification_requested": true,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The response asks for a document reference/year instead of abstaining on current applicability; a supplied old reference still would not prove current status."
+      }
+    },
+    {
+      "id": "negative_fr_future_exchange_rate",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "abstain",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "Je suis désolé, mais je ne peux pas fournir de prévision du taux de change futur.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 12.206187900039367,
+      "usage": {
+        "prompt_tokens": 567,
+        "completion_tokens": 270,
+        "total_tokens": 837
+      },
+      "automatic_audit": {
+        "expected_behavior": "abstain",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": false,
+        "note": "The response safely refuses the prediction but classifies it out of scope rather than explicitly insufficient evidence for a future rate."
+      }
+    },
+    {
+      "id": "negative_fr_out_of_scope_weather",
+      "language": "fr",
+      "answer_suite_role": "negative_or_ambiguous",
+      "relevant": false,
+      "expected_behavior": "reject_out_of_scope",
+      "response": {
+        "status": "out_of_scope",
+        "answer": "Je suis désolé, mais je ne peux pas fournir d'informations météorologiques.",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 5.8153531000134535,
+      "usage": {
+        "prompt_tokens": 560,
+        "completion_tokens": 207,
+        "total_tokens": 767
+      },
+      "automatic_audit": {
+        "expected_behavior": "reject_out_of_scope",
+        "cited_filenames": [],
+        "preliminary_refusal_marker": true,
+        "preliminary_clarification_marker": false,
+        "preliminary_safe_response": true,
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "abstained_or_refused": true,
+        "clarification_requested": false,
+        "safe_response": true,
+        "expected_behavior_met": true,
+        "note": "The response correctly classifies and refuses the out-of-scope weather request."
+      }
+    },
+    {
+      "id": "note_2016_02_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_numeric",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "نعم، شركة BOUZGARROU DESIGN مدرجة ضمن موردي المقاعد والأثاث وأجزائه الخاضعة لكراس الشروط.",
+        "claims": [
+          {
+            "text": "شركة BOUZGARROU DESIGN كانت مدرجة ضمن موردي المقاعد والأثاث وأجزائه الخاضعة لكراس الشروط",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2016_02_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 7.629966500040609,
+      "usage": {
+        "prompt_tokens": 1078,
+        "completion_tokens": 467,
+        "total_tokens": 1545
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2016_14_ar_deadline_or_duration_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_visual_non_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "فتحت البنوك في عيد الفطر 2016 يوم الخميس 7 جويلية من الساعة 9 صباحًا حتى منتصف النهار، وكانت العمليات المسموح بها التنزيل نقدًا، السحب، والصرف اليدوي.",
+        "claims": [
+          {
+            "text": "فتحت البنوك في عيد الفطر 2016 يوم الخميس 7 جويلية",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "كانت ساعات العمل من الساعة 9 صباحًا حتى منتصف النهار",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "العمليات المسموح بها كانت التنزيل نقدًا، السحب، والصرف اليدوي",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2016_14_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 4.725571900024079,
+      "usage": {
+        "prompt_tokens": 642,
+        "completion_tokens": 651,
+        "total_tokens": 1293
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2016",
+          "7"
+        ],
+        "matched_expected_numbers": [
+          "2016",
+          "7"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [
+          "9"
+        ],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 3,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2016_31_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_numeric",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "نعم، كانت شركة SEVAC CERAMIC مدرجة ضمن موردي المربعات الخزفية الخاضعة لكراس الشروط.",
+        "claims": [
+          {
+            "text": "شركة SEVAC CERAMIC مدرجة ضمن موردي المربعات الخزفية الخاضعة لكراس الشروط",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2016_31_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 9.330381400010083,
+      "usage": {
+        "prompt_tokens": 1188,
+        "completion_tokens": 383,
+        "total_tokens": 1571
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2017_18_ar_deadline_or_duration_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_visual_non_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "يجب إعلام البنك المركزي قبل بداية النيابة أو التعويض بـ24 ساعة على الأقل.",
+        "claims": [
+          {
+            "text": "الإعلام يجب أن يتم قبل بداية النيابة أو التعويض بـ24 ساعة على الأقل",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2017_18_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 6.354209800017998,
+      "usage": {
+        "prompt_tokens": 641,
+        "completion_tokens": 344,
+        "total_tokens": 985
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "24"
+        ],
+        "matched_expected_numbers": [
+          "24"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2018_03_ar_amount_or_rate_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_visual_non_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "تم تحديد مبلغ القرض التكميلي لزراعة الحبوب في موسم 2017-2018 بنسبة 80 % من الكلفة المرجعية، وأجل سداده هو 31 أوت 2018.",
+        "claims": [
+          {
+            "text": "مبلغ القرض التكميلي يُحدَّد بنسبة 80 % من الكلفة المرجعية",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "أجل السداد هو 31 أوت 2018",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2018_03_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 1.5408263999852352,
+      "usage": {
+        "prompt_tokens": 650,
+        "completion_tokens": 479,
+        "total_tokens": 1129
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2018",
+          "31",
+          "80"
+        ],
+        "matched_expected_numbers": [
+          "2018",
+          "31",
+          "80"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 2,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2018_06_ar_effective_date_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_visual_non_table",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "1 مارس 2018",
+        "claims": [
+          {
+            "text": "سحب Clydesdale Bank أوراقه القديمة من فئتي 5 و10 جنيهات إسترلينية من التداول في 1 مارس 2018",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2018_06_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 3.732142799999565,
+      "usage": {
+        "prompt_tokens": 640,
+        "completion_tokens": 499,
+        "total_tokens": 1139
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2018"
+        ],
+        "matched_expected_numbers": [
+          "2018"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2018_13_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "answer_suite_role": "clean_top1_ar",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "الشرط هو أن تكون البضاعة أو الخدمة ذات منشأ تونسي.",
+        "claims": [
+          {
+            "text": "الشرط هو أن تكون البضاعة أو الخدمة ذات منشأ تونسي",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2018_13_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 6.361210300005041,
+      "usage": {
+        "prompt_tokens": 845,
+        "completion_tokens": 426,
+        "total_tokens": 1271
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2019_17_fr_amount_or_rate_02",
+      "language": "fr",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "2,75 % l’an au maximum",
+        "claims": [
+          {
+            "text": "Le taux d'intérêt applicable pour les bénéficiaires finals dans le cas d'une rétrocession en euro est de 2,75 % l’an au maximum.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2019_17_fr.pdf",
+            "page": 3
+          }
+        ]
+      },
+      "latency_seconds": 7.3119918999727815,
+      "usage": {
+        "prompt_tokens": 633,
+        "completion_tokens": 380,
+        "total_tokens": 1013
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2.75"
+        ],
+        "matched_expected_numbers": [
+          "2.75"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2019_24_ar_effective_date_01",
+      "language": "ar",
+      "answer_suite_role": "context_or_version",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "12 سبتمبر 2019",
+        "claims": [
+          {
+            "text": "بدأ تداول الورقة السويسرية من فئة 100 فرنك الصادرة ضمن السلسلة التاسعة في 12 سبتمبر 2019",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2019_24_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 7.958305700041819,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 509,
+        "total_tokens": 1139
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "12",
+          "2019"
+        ],
+        "matched_expected_numbers": [
+          "12",
+          "2019"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_numeric",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "بدأ تداول الورقة النرويجية الجديدة من فئة 1000 كرونة في 14 نوفمبر 2019.",
+        "claims": [
+          {
+            "text": "بدأ تداول الورقة النرويجية الجديدة من فئة 1000 كرونة في 14 نوفمبر 2019.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2020_02_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 4.653683100012131,
+      "usage": {
+        "prompt_tokens": 628,
+        "completion_tokens": 401,
+        "total_tokens": 1029
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "14",
+          "2019"
+        ],
+        "matched_expected_numbers": [
+          "14",
+          "2019"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2020_21_fr_required_action_01",
+      "language": "fr",
+      "answer_suite_role": "clean_top1_fr",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "En cas d’incident de paiement d’un chèque, les banques et l’Office National des Postes doivent surseoir à l’accomplissement des procédures légales prévues par la circulaire de la Banque Centrale de Tunisie n° 2007‑18 du 5 juillet 2007, notamment inviter le tireur à provisionner son compte, établir un certificat de non‑paiement et procéder à la régularisation.",
+        "claims": [
+          {
+            "text": "En cas d’incident de paiement d’un chèque, les banques et l’Office National des Postes doivent surseoir à l’accomplissement des procédures légales prévues par la circulaire de la Banque Centrale de Tunisie n° 2007‑18 du 5 juillet 2007, notamment inviter le tireur à provisionner son compte, établir un certificat de non‑paiement et procéder à la régularisation.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2020_21_fr.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 9.619535599951632,
+      "usage": {
+        "prompt_tokens": 731,
+        "completion_tokens": 677,
+        "total_tokens": 1408
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "18",
+          "2007"
+        ],
+        "matched_expected_numbers": [
+          "18",
+          "2007"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2021_05_fr_procedure_or_documents_01",
+      "language": "fr",
+      "answer_suite_role": "clean_top1_fr",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "dgsb@bct.gov.tn",
+        "claims": [
+          {
+            "text": "L’adresse e‑mail est dgsb@bct.gov.tn",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2021_05_fr.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 1.3303993999725208,
+      "usage": {
+        "prompt_tokens": 644,
+        "completion_tokens": 322,
+        "total_tokens": 966
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "language": "ar",
+      "answer_suite_role": "arabic_numeric",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "آخر أجل لتقديم مطلب جدولة ديون الفلاحين المتضررين من الجفاف خلال الموسم الفلاحي 2020-2021 هو موفى ديسمبر 2021.",
+        "claims": [
+          {
+            "text": "الآجل الأخير لتقديم مطلب الجدولة هو موفى ديسمبر 2021.",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2021_33_ar.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 6.353877099987585,
+      "usage": {
+        "prompt_tokens": 646,
+        "completion_tokens": 423,
+        "total_tokens": 1069
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "2021"
+        ],
+        "matched_expected_numbers": [
+          "2021"
+        ],
+        "number_recall": 1.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2022_16_ar_ceramic_importer_02",
+      "language": "ar",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "insufficient_evidence",
+        "answer": "",
+        "claims": [],
+        "citations": []
+      },
+      "latency_seconds": 1.5234235000098124,
+      "usage": {
+        "prompt_tokens": 629,
+        "completion_tokens": 400,
+        "total_tokens": 1029
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "1605423"
+        ],
+        "matched_expected_numbers": [],
+        "number_recall": 0.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [
+          "1605423p"
+        ],
+        "matched_expected_identifiers": [],
+        "identifier_recall": 0.0,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": false,
+        "exact_structured_citation": false,
+        "claim_evidence_links_valid": true,
+        "claim_count": 0,
+        "citation_count": 0
+      },
+      "answer_evaluation": {
+        "answer_correct": false,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The model safely returns insufficient_evidence and no citation. The supplied snippet contains the company row and identifier but omits the table heading that establishes it as a ceramic importer, so this is a context-sufficiency failure."
+      }
+    },
+    {
+      "id": "note_2026_129_ar_required_action_01",
+      "language": "ar",
+      "answer_suite_role": "clean_top1_ar",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "على البنوك تأمين التزويد المستمر للموزعات الآلية بأوراق نقدية ذات جودة عالية وفئات متنوعة، وضمان جاهزية المنصات التقنية المؤمنة لخدمات الدفع الإلكتروني، واتخاذ جميع التدابير اللازمة لمعالجة أي عطل أو انقطاع في الخدمات بأسرع وقت ممكن.",
+        "claims": [
+          {
+            "text": "يجب على البنوك تأمين التزويد المستمر للموزعات الآلية بأوراق نقدية ذات جودة عالية وفئات متنوعة",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "يجب على البنوك السهر على حسن جاهزية المنصات التقنية المؤمنة لخدمات الدفع الإلكتروني",
+            "evidence_ids": [
+              "E1"
+            ]
+          },
+          {
+            "text": "يجب على البنوك اتخاذ جميع التدابير اللازمة لمعالجة أي عطل أو انقطاع للخدمات في أسرع وقت ممكن",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2026_129_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 8.081151599995792,
+      "usage": {
+        "prompt_tokens": 751,
+        "completion_tokens": 715,
+        "total_tokens": 1466
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 3,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    },
+    {
+      "id": "note_2026_30_ar_definition_01",
+      "language": "ar",
+      "answer_suite_role": "clean_top1_ar",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "شهادة المطابقة للتراتيب الغذائية عند التصدير",
+        "claims": [
+          {
+            "text": "التسمية الموحّدة والشاملة للشهادة المعتمدة عند تصدير المنتجات النباتية والمنتجات ذات الأصل النباتي الخاضعة للمراقبة الفنية هي \"شهادة المطابقة للتراتيب الغذائية عند التصدير\"",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2026_30_ar.pdf",
+            "page": 1
+          }
+        ]
+      },
+      "latency_seconds": 8.400822600000538,
+      "usage": {
+        "prompt_tokens": 736,
+        "completion_tokens": 511,
+        "total_tokens": 1247
+      },
+      "automatic_audit": {
+        "expected_numbers": [],
+        "matched_expected_numbers": [],
+        "number_recall": null,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+      }
+    }
+  ]
+}
