@@ -106,7 +106,9 @@ def build_reviewed_answer_result(
         "status": "complete",
         "experiment_id": generated["experiment_id"],
         "configuration": generated["configuration"],
-        "automatic_metrics": generated["metrics"],
+        "automatic_metrics": generated.get(
+            "metrics", generated.get("automatic_metrics", {})
+        ),
         "reviewed_metrics": {
             label: _metrics(
                 [record for record in records if language is None or record["language"] == language]

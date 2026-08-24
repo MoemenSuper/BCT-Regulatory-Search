@@ -64,3 +64,21 @@ def test_review_requires_exact_negative_coverage():
 
     with pytest.raises(ValueError, match="exactly cover"):
         expand_review_labels(_suite(), review)
+
+
+def test_review_accepts_structured_experiment_automatic_metrics_key():
+    generated = {
+        "experiment_id": "structured",
+        "configuration": {},
+        "automatic_metrics": {"overall": {"status_rate": 1.0}},
+        "latency_seconds": {},
+        "limitations": [],
+        "records": [
+            {"id": "relevant", "relevant": True, "language": "fr"},
+            {"id": "negative", "relevant": False, "language": "ar"},
+        ],
+    }
+
+    result = build_reviewed_answer_result(_suite(), generated, _review())
+
+    assert result["automatic_metrics"]["overall"]["status_rate"] == 1.0

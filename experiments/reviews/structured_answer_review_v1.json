@@ -1,0 +1,83 @@
+{
+  "status": "complete_agent_evidence_review",
+  "reviewer_type": "Codex agent evidence review",
+  "reviewed_against": "verified expected answer, supplied evidence quote, structured claims, citation object, source, and page",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "The answer matches the expected answer, every claim is supported by E1, and the structured citation matches the frozen source and page."
+  },
+  "relevant_overrides": {
+    "cir_2019_02_fr_amount_or_rate_02": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The model safely returns insufficient_evidence and no citation. The supplied snippet states the 100000 DT amount and Startup label but omits the query's Carte Technologique/internet condition, so this is a context-sufficiency failure rather than a hallucinated answer."
+    },
+    "note_2022_16_ar_ceramic_importer_02": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The model safely returns insufficient_evidence and no citation. The supplied snippet contains the company row and identifier but omits the table heading that establishes it as a ceramic importer, so this is a context-sufficiency failure."
+    }
+  },
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response safely refuses as out of scope but should ask which travel allowance is meant."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The insufficient_evidence status is safe and correct, but the user-facing answer is empty instead of explicitly abstaining."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The insufficient_evidence status is safe and correct, but the user-facing answer is empty instead of explicitly abstaining from predicting the future circular."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response correctly classifies and refuses the out-of-scope cooking request."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response asks for the transfer type, which is the missing detail needed to search safely."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response asks for a document reference/year instead of abstaining on current applicability; a supplied old reference still would not prove current status."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": false,
+      "note": "The response safely refuses the prediction but classifies it out of scope rather than explicitly insufficient evidence for a future rate."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response correctly classifies and refuses the out-of-scope weather request."
+    }
+  }
+}
