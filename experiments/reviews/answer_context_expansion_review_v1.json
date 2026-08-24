@@ -1,0 +1,19 @@
+{
+  "reviewer_type": "agent_evidence_review_not_independent_human",
+  "reviewed_against": "frozen expected answer, expanded exact-page evidence, structured claims, citation object, source, and page",
+  "relevant_default": {
+    "answer_correct": true,
+    "citation_correct": true,
+    "grounded": true,
+    "note": "The answer directly resolves the question, every claim is supported by the expanded exact-page evidence, and the structured citation matches the frozen source and page."
+  },
+  "relevant_overrides": {
+    "cir_2019_02_fr_amount_or_rate_02": {
+      "note": "The response correctly gives cent mille dinars (100.000 DT), exactly as the expanded page states, and the same page establishes the internet-payment and Carte Technologique Internationale conditions in the preceding Article 14 paragraphs."
+    },
+    "note_2022_16_ar_ceramic_importer_02": {
+      "note": "The response correctly confirms that CASA NOVA DISTRIBUTION is registered among ceramic-tile importers. The governing heading and the company row are both present in the expanded page context; omitting the supporting tax identifier does not make the yes/no answer incorrect."
+    }
+  },
+  "negative_labels": {}
+}

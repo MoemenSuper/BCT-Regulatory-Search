@@ -484,6 +484,53 @@ requests. Do not make the model guess from incomplete evidence.
 Tracked result SHA-256:
 `6E41C0E50557CD43118EA7E64BBE008A70ECFFFE22BF04A6A1D8D11B2A4DDE86`.
 
+### Exact-page context-sufficiency diagnostic
+
+The two safe relevant abstentions above were rerun with the answer model,
+claim-linked v1 prompt, temperature, question, expected source, and expected
+page held fixed. The only change was evidence scope: the incomplete quote was
+replaced with all non-empty blocks from the exact labeled StructuredDocument
+page in source order. The French page restores the internet/Card condition;
+the Arabic page restores the ceramic-importer heading before the company row.
+
+| Agent-reviewed paired outcome | Incomplete quote | Exact page |
+|---|---:|---:|
+| Answered | 0/2 | 2/2 |
+| Answer correct | 0/2 | 2/2 |
+| Grounded | 2/2 | 2/2 |
+| Citation correct or correctly omitted | 2/2 | 2/2 |
+| Exact structured citation when answered | 0/2 | 2/2 |
+| Valid declared claim links | 2/2 | 2/2 |
+
+The French response gives `cent mille dinars (100.000 DT)` and cites
+`Cir_2019_02_fr.pdf`, page 2. The Arabic response correctly confirms that CASA
+NOVA DISTRIBUTION is registered among ceramic-tile importers and cites
+`Note_2022_16_ar.pdf`, page 3. Both claims are supported by the expanded page.
+The Arabic answer omits the supporting taxpayer identifier, but that identifier
+is not required to resolve the yes/no query and the same completeness standard
+was used in the current-prompt baseline review.
+
+The generic free-text literal audit is not the semantic gate here: it does not
+inspect structured citation objects, and it treats expected `100 000` versus
+evidence-form `100.000` as different strings. Exact structured diagnostics and
+the documented agent evidence review were used instead; independent human
+adjudication is still absent.
+
+Token usage was 3,122 total and mean/median latency was 1.65 seconds across two
+calls. These timings are descriptive only.
+
+**Decision: KEEP FOR BROADER VALIDATION, NOT DEPLOYMENT.** The result supports
+provenance-based page-neighborhood reattachment as the next retrieved-context
+experiment. It does not support unconditional full-page injection: both cases
+were selected after inspecting development failures, retrieval was bypassed,
+and two cases cannot establish generalization.
+
+Tracked suite SHA-256:
+`BF3CE61BC6778C75DD05BEDCD5EDAE752D09860264DBA8A55A561F5D892BF20E`.
+
+Tracked reviewed result SHA-256:
+`CF0E87B2C670364A4039CC346FF1971B2F2C59791483C35E8AFFA98B8FD1A7C6`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

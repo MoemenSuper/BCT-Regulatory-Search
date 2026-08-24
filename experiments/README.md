@@ -273,6 +273,32 @@ The contract exposes status, atomic claims, evidence IDs, and structured
 citations. Valid links are declared provenance, not proof of entailment; the
 same evidence review remains mandatory.
 
+Test the two claim-linked safe abstentions with exact-page context only:
+
+```powershell
+python -m experiments.answer_context_expansion `
+  --base-suite experiments/stress_suites/answer_safety_development_v1.json `
+  --manifest "$env:TEMP\structured-ingestion\ingestion_manifest.json" `
+  --case-id cir_2019_02_fr_amount_or_rate_02 `
+  --case-id note_2022_16_ar_ceramic_importer_02 `
+  --output experiments/stress_suites/answer_context_expansion_development_v1.json
+
+python -u -m experiments.structured_answer_experiment `
+  --suite experiments/stress_suites/answer_context_expansion_development_v1.json `
+  --dotenv "C:\path\to\the\existing\.env" `
+  --output-dir "$env:TEMP\answer-context-expansion-v1" `
+  --confirm-public-documents
+
+python -m experiments.answer_evidence_review `
+  --suite experiments/stress_suites/answer_context_expansion_development_v1.json `
+  --generated-result "$env:TEMP\answer-context-expansion-v1\result.json" `
+  --review experiments/reviews/answer_context_expansion_review_v1.json `
+  --output experiments/results/answer_context_expansion_v1.json
+```
+
+This is a post-hoc two-case context-sufficiency diagnostic. It bypasses
+retrieval and cannot establish that full-page context generalizes.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell

@@ -1,0 +1,292 @@
+{
+  "inputs": {
+    "answer_suite_sha256": "BF3CE61BC6778C75DD05BEDCD5EDAE752D09860264DBA8A55A561F5D892BF20E",
+    "generated_result_sha256": "BDD5380AE4F1D2490D960930BB2EEE378D9117B24584BF9D9577472B71E59268",
+    "review_sha256": "BDE7B1DC2FD4F22E8B10FC48C4FF806B5E017ADB0346DB26A2F8C43D297251D7"
+  },
+  "status": "complete",
+  "experiment_id": "structured-full-page-context-development-v1",
+  "configuration": {
+    "model": "openai/gpt-oss-120b",
+    "prompt_version": "bct-claim-linked-answer-v1",
+    "response_format": "strict JSON schema",
+    "candidate_and_evidence": "targeted full exact-page StructuredDocument context"
+  },
+  "automatic_metrics": {
+    "overall": {
+      "case_count": 2,
+      "relevant_count": 2,
+      "answered_status_rate": 1.0,
+      "exact_structured_citation_rate": 1.0,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 0,
+      "negative_expected_status_rate": null
+    },
+    "fr": {
+      "case_count": 1,
+      "relevant_count": 1,
+      "answered_status_rate": 1.0,
+      "exact_structured_citation_rate": 1.0,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 0,
+      "negative_expected_status_rate": null
+    },
+    "ar": {
+      "case_count": 1,
+      "relevant_count": 1,
+      "answered_status_rate": 1.0,
+      "exact_structured_citation_rate": 1.0,
+      "claim_link_valid_rate": 1.0,
+      "negative_count": 0,
+      "negative_expected_status_rate": null
+    }
+  },
+  "reviewed_metrics": {
+    "overall": {
+      "case_count": 2,
+      "relevant_count": 2,
+      "answer_correct": {
+        "true_count": 2,
+        "rate": 1.0
+      },
+      "citation_correct": {
+        "true_count": 2,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 2,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 0,
+        "abstained_or_refused": {
+          "true_count": 0,
+          "rate": null
+        },
+        "clarification_requested": {
+          "true_count": 0,
+          "rate": null
+        },
+        "safe_response": {
+          "true_count": 0,
+          "rate": null
+        },
+        "expected_behavior_met": {
+          "true_count": 0,
+          "rate": null
+        }
+      }
+    },
+    "fr": {
+      "case_count": 1,
+      "relevant_count": 1,
+      "answer_correct": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "citation_correct": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 0,
+        "abstained_or_refused": {
+          "true_count": 0,
+          "rate": null
+        },
+        "clarification_requested": {
+          "true_count": 0,
+          "rate": null
+        },
+        "safe_response": {
+          "true_count": 0,
+          "rate": null
+        },
+        "expected_behavior_met": {
+          "true_count": 0,
+          "rate": null
+        }
+      }
+    },
+    "ar": {
+      "case_count": 1,
+      "relevant_count": 1,
+      "answer_correct": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "citation_correct": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "grounded": {
+        "true_count": 1,
+        "rate": 1.0
+      },
+      "negative": {
+        "case_count": 0,
+        "abstained_or_refused": {
+          "true_count": 0,
+          "rate": null
+        },
+        "clarification_requested": {
+          "true_count": 0,
+          "rate": null
+        },
+        "safe_response": {
+          "true_count": 0,
+          "rate": null
+        },
+        "expected_behavior_met": {
+          "true_count": 0,
+          "rate": null
+        }
+      }
+    }
+  },
+  "latency_seconds": {
+    "mean": 1.654065200011246,
+    "median": 1.654065200011246
+  },
+  "review_status": {
+    "reviewer_type": "agent_evidence_review_not_independent_human",
+    "reviewed_against": "frozen expected answer, expanded exact-page evidence, structured claims, citation object, source, and page",
+    "independent_human_confirmation": false,
+    "note": "All cases were inspected against the verified expected answer and supplied evidence, but these are agent evidence-review labels, not independent human adjudication."
+  },
+  "limitations": [
+    "Development-only gold-evidence prompt ablation.",
+    "Valid claim links show declared provenance, not semantic entailment.",
+    "Independent human confirmation is still required before release.",
+    "Agent evidence-review labels should be independently confirmed before a release claim.",
+    "Gold evidence isolates generation and does not measure end-to-end retrieval sufficiency."
+  ],
+  "records": [
+    {
+      "id": "cir_2019_02_fr_amount_or_rate_02",
+      "language": "fr",
+      "answer_suite_role": "clean_top1_fr",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "Le montant maximum de l'allocation annuelle est de cent mille dinars (100.000 DT).",
+        "claims": [
+          {
+            "text": "Le montant maximum de l'allocation annuelle est de cent mille dinars (100.000 DT).",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Cir_2019_02_fr.pdf",
+            "page": 2
+          }
+        ]
+      },
+      "latency_seconds": 1.4298468000488356,
+      "usage": {
+        "prompt_tokens": 1076,
+        "completion_tokens": 413,
+        "total_tokens": 1489
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "100000"
+        ],
+        "matched_expected_numbers": [],
+        "number_recall": 0.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [],
+        "matched_expected_identifiers": [],
+        "identifier_recall": null,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The response correctly gives cent mille dinars (100.000 DT), exactly as the expanded page states, and the same page establishes the internet-payment and Carte Technologique Internationale conditions in the preceding Article 14 paragraphs."
+      }
+    },
+    {
+      "id": "note_2022_16_ar_ceramic_importer_02",
+      "language": "ar",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "relevant": true,
+      "expected_behavior": null,
+      "response": {
+        "status": "answered",
+        "answer": "نعم، شركة CASA NOVA DISTRIBUTION مسجلة ضمن موردي المربعات الخزفية.",
+        "claims": [
+          {
+            "text": "شركة CASA NOVA DISTRIBUTION مسجلة ضمن موردي المربعات الخزفية",
+            "evidence_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "evidence_id": "E1",
+            "source": "Note_2022_16_ar.pdf",
+            "page": 3
+          }
+        ]
+      },
+      "latency_seconds": 1.8782835999736562,
+      "usage": {
+        "prompt_tokens": 1171,
+        "completion_tokens": 462,
+        "total_tokens": 1633
+      },
+      "automatic_audit": {
+        "expected_numbers": [
+          "1605423"
+        ],
+        "matched_expected_numbers": [],
+        "number_recall": 0.0,
+        "unmatched_number_literals": [],
+        "expected_identifiers": [
+          "1605423p"
+        ],
+        "matched_expected_identifiers": [],
+        "identifier_recall": 0.0,
+        "expected_source_present": false,
+        "expected_page_cited": false,
+        "cited_filenames": [],
+        "manual_review_required": true
+      },
+      "structured_diagnostics": {
+        "status_expected": true,
+        "exact_structured_citation": true,
+        "claim_evidence_links_valid": true,
+        "claim_count": 1,
+        "citation_count": 1
+      },
+      "answer_evaluation": {
+        "answer_correct": true,
+        "citation_correct": true,
+        "grounded": true,
+        "note": "The response correctly confirms that CASA NOVA DISTRIBUTION is registered among ceramic-tile importers. The governing heading and the company row are both present in the expanded page context; omitting the supporting tax identifier does not make the yes/no answer incorrect."
+      }
+    }
+  ]
+}
