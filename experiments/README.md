@@ -150,6 +150,23 @@ The suite scores only verified literals from development evidence snippets.
 It does not treat unrelated page numbers as hallucinations and does not permit
 OCR text to override conflicting native digits.
 
+Freeze the broader targeted development catalog from the reproduced baseline
+and canonical StructuredDocument artifacts:
+
+```powershell
+python -m experiments.targeted_stress_catalog `
+  --evaluation evaluation_queries.json `
+  --result "$env:TEMP\reproduction\results\structured_baseline_chunking.json" `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --output experiments/stress_suites/targeted_development_catalog_v1.json
+```
+
+The catalog fixes table-page, visual non-table, wrong-version, long-document,
+primary context-failure, negative/ambiguous, and Latin alphanumeric identifier
+cohorts. Wrong-version and context failures receive unique deterministic
+same-language/category Top-5 controls. Membership does not consult OCR-fusion
+or VLM outputs, and every cohort remains development-only.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell

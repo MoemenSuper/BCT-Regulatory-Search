@@ -122,9 +122,11 @@ Until new validation and holdout questions are independently verified and frozen
 - **KEEP:** fixed hybrid candidate union and BGE reranker as controls for isolating the next experiment.
 - **KEEP FOR NEXT EXPERIMENT ONLY:** the language-aware Arabic risk trigger; do not deploy it until fallback fidelity and downstream retrieval improve on frozen validation data.
 - **DO NOT CLAIM:** answer correctness, citation correctness, grounding, abstention, or generalization; none has been evaluated by this phase.
-- **NEXT:** finish the remaining stress manifests and compare native/OCR/VLM only on a bounded, cached Arabic-heavy page set before any corpus-wide fallback change.
+- **NEXT:** complete the bounded native/OCR/VLM fidelity comparison, then use the frozen targeted cohorts to isolate versioning, tables, long-document retrieval, context assembly, and abstention.
 
-The extraction-quality set is only the first targeted suite. Tables, identifiers, numeric fidelity, temporal/versioning, near-duplicates, long documents, image annexes, context dependence, and ambiguity still require separate frozen manifests.
+The extraction-quality and numeric-fidelity sets are supplemented by the
+broader catalog below. Some requested categories remain proxies rather than
+fully semantic annotations; those limits are preserved in the artifact.
 
 ## Phase 2 checkpoint: explicit Arabic OCR replacement
 
@@ -223,6 +225,32 @@ layer must preserve extraction provenance, prefer source-page/native agreement,
 and flag or abstain on unresolved native/OCR numeric conflicts. A VLM fallback
 must beat this frozen numeric suite as well as retrieval metrics; readable
 Arabic prose alone is not sufficient.
+
+### Frozen targeted development catalog
+
+The remaining high-risk cohorts were frozen without consulting OCR-fusion or
+VLM outputs. Selection uses only the 697-case development labels, the exactly
+reproduced winner's failure diagnostics, and canonical StructuredDocument
+page/block metadata.
+
+| Cohort | Cases | Arabic | French | Selection note |
+|---|---:|---:|---:|---|
+| Structured table pages | 181 | 122 | 59 | Expected page contains a `table` block |
+| Visual review, no table block | 88 | 77 | 11 | Image/visual-annex proxy only |
+| Wrong-version diagnostic + controls | 34 | 12 | 22 | 17 failures + 17 unique matched controls |
+| Documents with at least 20 pages | 53 | 0 | 53 | Arabic long-document coverage gap |
+| Primary context failures + controls | 4 | 0 | 4 | 2 failures + 2 unique matched controls |
+| Negative/ambiguous queries | 8 | 4 | 4 | All `relevant=false` cases |
+| Latin alphanumeric identifiers | 42 | 20 | 22 | Numeric-only article references excluded |
+
+The visual cohort does not prove that every page is a full-page image or annex,
+and table-block presence does not prove the labeled answer lies inside the
+table. The versioning cohort is a retrieval-diagnostic sample rather than a
+complete amendments/supersession graph. These distinctions prevent the catalog
+from claiming annotations it does not contain.
+
+Canonical catalog SHA-256:
+`296C670D8CCBB5B46D3830D19AA98337468B0F11931CA9D5C86797A48931B99C`.
 
 ## Reproduction artifacts
 
