@@ -153,6 +153,15 @@ Audit SHA-256:
 Human review packet SHA-256:
 `B0F2E5D4BE07CD23CC822A855BCC76FA9CC9E8EFBF67CBC39791193941FECBB6`.
 
+The accompanying machine-readable decision template binds the same candidate
+and audit hashes. It starts with 24 pending decisions and false attestations.
+The approval tool refuses output unless an independent reviewer confirms the
+hash, source-document review, and absence of model-output exposure and approves
+all 24 cases. Corrections and rejections require a new candidate version.
+
+Decision-template SHA-256:
+`12D47F848E0EBCFE39C81A28C56EF0D73F12DECFC6E85006063C2E2375C18F27`.
+
 ## Current decisions
 
 - **KEEP:** `StructuredDocument` as canonical extraction/provenance representation.

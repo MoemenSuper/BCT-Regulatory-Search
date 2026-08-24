@@ -1,0 +1,135 @@
+{
+  "review_version": 1,
+  "candidate_sha256": "0B73B70C0BA48D1382DAAC5D83C9C4F787CFAD581BBA194D3079DE942343D0A1",
+  "audit_sha256": "AE1A39588EE5A191B094B80322606E364F0FAF5EA290A23D973A5DFC1B82875B",
+  "reviewer": {
+    "name": "",
+    "reviewed_at": "",
+    "independent_of_candidate_curation": false,
+    "confirmed_candidate_hash": false,
+    "reviewed_source_documents": false,
+    "saw_no_retrieval_or_model_outputs": false
+  },
+  "case_decisions": [
+    {
+      "id": "val_fr_2020_import_anticipation_split_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2021_hedging_weekly_reporting_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2022_early_warning_inputs_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2023_consolidated_supervision_scope_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2024_product_correspondent_role_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2025_cheque_platform_checks_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2025_cheque_arbitration_tie_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_fr_2026_exchange_office_enhanced_vigilance_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2018_refinancing_duration_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2021_qatari_fifth_issue_denominations_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2022_auditor_change_notification_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2021_england_50_reverse_portrait_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2023_uae_1000_reverse_image_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2024_state_benefit_audit_report_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2026_rescheduling_corruption_exclusion_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_ar_2023_uae_500_note_serial_01",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_fr_ambiguous_transfer_ceiling",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_fr_current_circular_status",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_fr_future_tourist_allowance",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_fr_out_of_scope_restaurant",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_ar_ambiguous_authorization_documents",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_ar_current_circular_status",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_ar_future_tourist_allowance",
+      "decision": "pending",
+      "note": ""
+    },
+    {
+      "id": "val_negative_ar_out_of_scope_sports",
+      "decision": "pending",
+      "note": ""
+    }
+  ]
+}

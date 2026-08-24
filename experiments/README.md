@@ -70,6 +70,24 @@ The audit also fails on normalized query/evidence duplicates and emits lexical
 near-duplicate review flags; lexical non-matches are not treated as proof of
 semantic independence.
 
+After reviewing the Markdown packet, fill a copy of
+`experiments/reviews/validation_candidate_v1_human_decisions.json`. Approval is
+fail-closed and produces the validation dataset only when every case is
+approved and every independent-review attestation is true:
+
+```powershell
+python -m experiments.validation_human_approval approve `
+  --candidate evaluation_validation_candidate_v1.json `
+  --audit experiments/results/validation_candidate_v1_audit.json `
+  --review "$env:TEMP\validation_candidate_v1_human_decisions.json" `
+  --output evaluation_validation_v1.json `
+  --receipt "$env:TEMP\validation_candidate_v1_approval_receipt.json"
+```
+
+Any `correct`, `reject`, or `pending` decision refuses approval and requires a
+new candidate/audit version. Keep reviewer identity outside the repository
+unless the reviewer explicitly authorizes recording it.
+
 Evaluate a frozen split through the access-logged boundary:
 
 ```powershell
