@@ -68,6 +68,7 @@ def test_build_context_suite_changes_only_selected_evidence(tmp_path):
         selected_ids={"case-1"},
         base_suite_sha256="B" * 64,
         manifest_sha256="C" * 64,
+        prompt_version="bct-claim-linked-answer-v4",
     )
 
     assert [item["id"] for item in result["cases"]] == ["case-1"]
@@ -77,6 +78,9 @@ def test_build_context_suite_changes_only_selected_evidence(tmp_path):
     assert "NEVER COPY" not in expanded["evidence_quote"]
     assert expanded["evidence_quote"].startswith("[HEADING]\nCeramic importers")
     assert expanded["context_expansion"]["block_count"] == 2
+    assert result["answer_experiment"]["prompt_version"] == (
+        "bct-claim-linked-answer-v4"
+    )
 
 
 def test_build_context_suite_rejects_unknown_case():

@@ -22,6 +22,7 @@ MODEL = "openai/gpt-oss-120b"
 PROMPT_VERSION = "bct-claim-linked-answer-v1"
 PROMPT_VERSION_V2 = "bct-claim-linked-answer-v2"
 PROMPT_VERSION_V3 = "bct-claim-linked-answer-v3"
+PROMPT_VERSION_V4 = "bct-claim-linked-answer-v4"
 _STATUSES = {"answered", "insufficient_evidence", "clarification_needed", "out_of_scope"}
 _SCHEMA = {
     "type": "object",
@@ -92,6 +93,12 @@ The answer field must always contain a concise user-facing explanation or clarif
 _SYSTEM_V3 = _SYSTEM_V2 + """
 
 A request for an unknown future exchange rate, financial value, or BCT-related rule remains in scope even when it cannot be answered. With no supporting evidence, classify it as insufficient_evidence, never out_of_scope. Reserve out_of_scope for clearly unrelated subjects such as recipes, weather, restaurants, or sports."""
+_SYSTEM_V4 = _SYSTEM_V3 + """
+
+For a supported answer, preserve the evidence's exact literal fidelity:
+- when answering an amount, rate, date, or time question, include the exact value and unit shown in evidence;
+- when confirming that a named entity appears in a list or table, include the entity's row identifier when one is present;
+- do not normalize, translate, or silently omit those supporting literals."""
 
 
 def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
@@ -102,6 +109,8 @@ def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
         return PROMPT_VERSION_V2, _SYSTEM_V2, _SCHEMA_V2, True
     if requested == PROMPT_VERSION_V3:
         return PROMPT_VERSION_V3, _SYSTEM_V3, _SCHEMA_V2, True
+    if requested == PROMPT_VERSION_V4:
+        return PROMPT_VERSION_V4, _SYSTEM_V4, _SCHEMA_V2, True
     raise ValueError(f"Unsupported structured answer prompt version: {requested}")
 
 

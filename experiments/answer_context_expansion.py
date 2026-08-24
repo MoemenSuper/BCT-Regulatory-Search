@@ -39,6 +39,7 @@ def build_context_expansion_suite(
     base_suite_sha256: str,
     manifest_sha256: str,
     include_verified_excerpt: bool = False,
+    prompt_version: str | None = None,
 ) -> dict[str, Any]:
     base_by_id = {case["id"]: case for case in base_suite["cases"]}
     if len(base_by_id) != len(base_suite["cases"]):
@@ -142,6 +143,7 @@ def build_context_expansion_suite(
                 if include_verified_excerpt
                 else "targeted full exact-page StructuredDocument context"
             ),
+            **({"prompt_version": prompt_version} if prompt_version else {}),
         },
         "counts": {
             "total": len(cases),
@@ -168,6 +170,7 @@ def main() -> None:
     selection.add_argument("--case-id", action="append")
     selection.add_argument("--all-relevant", action="store_true")
     parser.add_argument("--include-verified-excerpt", action="store_true")
+    parser.add_argument("--prompt-version")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     base_suite = json.loads(args.base_suite.read_text(encoding="utf-8"))
@@ -184,6 +187,7 @@ def main() -> None:
         base_suite_sha256=sha256_file(args.base_suite),
         manifest_sha256=sha256_file(args.manifest),
         include_verified_excerpt=args.include_verified_excerpt,
+        prompt_version=args.prompt_version,
     )
     write_json_atomic(args.output, artifact)
 

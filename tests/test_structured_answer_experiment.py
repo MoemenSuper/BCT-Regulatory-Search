@@ -85,3 +85,13 @@ def test_v3_contract_keeps_future_financial_requests_in_scope():
     assert "future exchange rate" in prompt
     assert "insufficient_evidence" in prompt
     assert require_nonempty is True
+
+
+def test_v4_contract_requires_row_identifiers_for_entity_confirmation():
+    version, prompt, _schema, require_nonempty = _contract(
+        {"answer_experiment": {"prompt_version": "bct-claim-linked-answer-v4"}}
+    )
+
+    assert version == "bct-claim-linked-answer-v4"
+    assert "include the entity's row identifier" in prompt
+    assert require_nonempty is True
