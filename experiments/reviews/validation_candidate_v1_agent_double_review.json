@@ -1,0 +1,70 @@
+{
+  "review_version": 1,
+  "candidate_sha256": "A21E231A1B9AD8007ACA99ABC010D69E5E3AC2A85F26A7E53F0C4F0BF904B64D",
+  "audit_sha256": "346351FF97561720346BED385818DCD753274F91A87F8C7085CE7973CF01E9EC",
+  "reviewer": {
+    "agent_label": "validation_blind_review (Goodall)",
+    "reviewed_at": "2026-08-24",
+    "independent_of_candidate_curation": true,
+    "confirmed_candidate_hash": true,
+    "reviewed_source_documents": true,
+    "saw_no_retrieval_or_model_outputs": true,
+    "is_human_reviewer": false
+  },
+  "verdict_counts": {
+    "approve": 24,
+    "correct": 0,
+    "reject": 0
+  },
+  "approved_case_ids": [
+    "val_fr_2020_import_anticipation_split_01",
+    "val_fr_2021_hedging_weekly_reporting_01",
+    "val_fr_2022_early_warning_inputs_01",
+    "val_fr_2023_consolidated_supervision_scope_01",
+    "val_fr_2024_product_correspondent_role_01",
+    "val_fr_2025_cheque_platform_checks_01",
+    "val_fr_2025_cheque_arbitration_tie_01",
+    "val_fr_2026_exchange_office_enhanced_vigilance_01",
+    "val_ar_2018_refinancing_duration_01",
+    "val_ar_2021_qatari_fifth_issue_denominations_01",
+    "val_ar_2022_auditor_change_notification_01",
+    "val_ar_2021_england_50_reverse_portrait_01",
+    "val_ar_2023_uae_1000_reverse_image_01",
+    "val_ar_2024_state_benefit_audit_report_01",
+    "val_ar_2026_rescheduling_false_declaration_01",
+    "val_ar_2023_uae_500_note_serial_01",
+    "val_negative_fr_ambiguous_transfer_ceiling",
+    "val_negative_fr_current_circular_status",
+    "val_negative_fr_future_tourist_allowance",
+    "val_negative_fr_out_of_scope_restaurant",
+    "val_negative_ar_ambiguous_authorization_documents",
+    "val_negative_ar_current_circular_status",
+    "val_negative_ar_future_tourist_allowance",
+    "val_negative_ar_out_of_scope_sports"
+  ],
+  "correction_history": [
+    {
+      "superseded_case_id": "val_ar_2026_rescheduling_corruption_exclusion_01",
+      "decision": "correct",
+      "reason": "The prior page-12 quote stated a condition but did not independently support the expected negative answer.",
+      "replacement_case_id": "val_ar_2026_rescheduling_false_declaration_01",
+      "replacement_decision": "approve",
+      "source_pdf_sha256": "7994D011703F0CBA7DAC9EBD0CBE2004DA61479F6023B7717D76467243625937",
+      "rendered_page_sha256": "98E225005F45FB49E0C4C99CE2C6FAC98346C4546BD54C78503A1F2FB95DA963"
+    }
+  ],
+  "human_partial_review_observed": {
+    "reviewer_name": "Moemen Ouerghui",
+    "review_date_as_entered": "24 aug 2026",
+    "checklists_marked_approve_case_ids": [
+      "val_fr_2020_import_anticipation_split_01",
+      "val_fr_2021_hedging_weekly_reporting_01",
+      "val_ar_2018_refinancing_duration_01",
+      "val_negative_fr_out_of_scope_restaurant",
+      "val_negative_ar_out_of_scope_sports"
+    ],
+    "complete_human_approval": false,
+    "note": "The partial Markdown review lacks per-case decisions, hash confirmation, no-output attestation, and an overall decision. It is preserved as user work and is not promoted to independent human approval."
+  },
+  "limitation": "This is an independent second-agent source review, not independent human adjudication."
+}

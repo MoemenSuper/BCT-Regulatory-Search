@@ -1,0 +1,19 @@
+{
+  "status": "provisionally_double_agent_verified_not_human_adjudicated",
+  "candidate_sha256": "A21E231A1B9AD8007ACA99ABC010D69E5E3AC2A85F26A7E53F0C4F0BF904B64D",
+  "audit_sha256": "346351FF97561720346BED385818DCD753274F91A87F8C7085CE7973CF01E9EC",
+  "review_sha256": "21D2D14B27A811292AB16A6C5779768C19AA154DBEB392F20F0D701D76CC03F1",
+  "reviewer": {
+    "agent_label": "validation_blind_review (Goodall)",
+    "reviewed_at": "2026-08-24",
+    "independent_of_candidate_curation": true,
+    "confirmed_candidate_hash": true,
+    "reviewed_source_documents": true,
+    "saw_no_retrieval_or_model_outputs": true,
+    "is_human_reviewer": false
+  },
+  "approved_case_count": 24,
+  "independent_human_approval": false,
+  "allowed_use": "provisional_validation_only",
+  "rule": "This source-only second-agent review permits provisional validation; it does not replace independent human adjudication or a future family-disjoint holdout."
+}
