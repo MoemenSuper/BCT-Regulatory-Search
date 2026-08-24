@@ -22,6 +22,10 @@ def _load_dataset(path: Path) -> list[dict[str, Any]]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, list):
         raise ValueError(f"Evaluation dataset must be a JSON array: {path}")
+    if not value:
+        raise ValueError(f"Evaluation dataset must not be empty: {path}")
+    if any(not isinstance(case, dict) for case in value):
+        raise ValueError(f"Every evaluation case must be a JSON object: {path}")
     ids = [case.get("id") for case in value]
     if any(not case_id for case_id in ids):
         raise ValueError(f"Every evaluation case needs a non-empty id: {path}")
@@ -31,6 +35,10 @@ def _load_dataset(path: Path) -> list[dict[str, Any]]:
         missing = [field for field in ("query", "language", "relevant") if field not in case]
         if missing:
             raise ValueError(f"Case {case['id']} is missing required fields: {', '.join(missing)}")
+        if case["language"] not in {"fr", "ar"}:
+            raise ValueError(f"Case {case['id']} language must be 'fr' or 'ar'")
+        if not isinstance(case["relevant"], bool):
+            raise ValueError(f"Case {case['id']} relevant must be Boolean")
         if case["relevant"]:
             missing = [
                 field
@@ -41,6 +49,11 @@ def _load_dataset(path: Path) -> list[dict[str, Any]]:
                 raise ValueError(
                     f"Relevant case {case['id']} is missing evidence fields: {', '.join(missing)}"
                 )
+    relevant_languages = {case["language"] for case in value if case["relevant"]}
+    if relevant_languages != {"fr", "ar"}:
+        raise ValueError(
+            f"Evaluation dataset must contain relevant French and Arabic cases: {path}"
+        )
     return value
 
 
@@ -56,18 +69,23 @@ def _family(
     require_identity: bool,
     role: str,
 ) -> tuple[str, bool]:
+    normalized_explicit = (
+        explicit_family.strip().casefold() if explicit_family is not None else None
+    )
+    if normalized_explicit == "":
+        raise ValueError("document_family must be non-empty")
     match = _DOCUMENT_ID.match(source)
     if match:
         values = match.groupdict()
         inferred = f"{values['kind'].casefold()}:{int(values['number'])}"
-        if explicit_family and explicit_family.strip().casefold() != inferred:
+        if normalized_explicit is not None and normalized_explicit != inferred:
             raise ValueError(
                 f"Recognized source {source} has fixed family {inferred}; "
                 "document_family cannot override it"
             )
         return inferred, True
-    if explicit_family:
-        return explicit_family.strip().casefold(), True
+    if normalized_explicit is not None:
+        return normalized_explicit, True
     if require_identity:
         raise ValueError(
             f"{role} source {source} has no recognized document identity; "

@@ -119,10 +119,19 @@ def analyze_retrieval(
     cases_by_id = {case["id"]: case for case in evaluation}
     if len(cases_by_id) != len(evaluation):
         raise ValueError("Evaluation case IDs must be unique")
+    record_ids = [record["id"] for record in result["records"]]
+    duplicate_record_ids = sorted(
+        record_id for record_id, count in Counter(record_ids).items() if count > 1
+    )
+    if duplicate_record_ids:
+        raise ValueError(f"Result artifact has duplicate case IDs: {duplicate_record_ids}")
     records_by_id = {record["id"]: record for record in result["records"]}
     missing_records = [case_id for case_id in cases_by_id if case_id not in records_by_id]
     if missing_records:
         raise ValueError(f"Result artifact is missing {len(missing_records)} evaluation cases")
+    extra_records = sorted(case_id for case_id in records_by_id if case_id not in cases_by_id)
+    if extra_records:
+        raise ValueError(f"Result artifact has {len(extra_records)} unexpected evaluation cases")
 
     groups: dict[str, Any] = {}
     for label, language in (("overall", None), ("fr", "fr"), ("ar", "ar")):

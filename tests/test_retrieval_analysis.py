@@ -122,3 +122,19 @@ def test_analysis_separates_candidate_recall_from_ranking_by_language():
     incomplete_result = {"records": result["records"][:-1]}
     with pytest.raises(ValueError, match="missing 1 evaluation cases"):
         analyze_retrieval(evaluation, incomplete_result, candidate_cache)
+
+    duplicate_result = {"records": [*result["records"], result["records"][0]]}
+    with pytest.raises(ValueError, match="duplicate case IDs"):
+        analyze_retrieval(evaluation, duplicate_result, candidate_cache)
+
+    extra_result = {
+        "records": [
+            *result["records"],
+            {
+                "id": "unexpected",
+                "result": {"source_rank": None, "exact_page_rank": None},
+            },
+        ]
+    }
+    with pytest.raises(ValueError, match="1 unexpected evaluation cases"):
+        analyze_retrieval(evaluation, extra_result, candidate_cache)
