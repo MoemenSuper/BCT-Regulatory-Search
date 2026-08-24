@@ -1,0 +1,1942 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-24T17:28:02.304788+00:00",
+  "scope": "public_BCT_development_numeric_pages_only",
+  "external_processing": {
+    "provider": "Groq",
+    "model": "qwen/qwen3.6-27b",
+    "document_classification": "public",
+    "secret_values_persisted": false
+  },
+  "configuration": {
+    "prompt_version": "bct-numeric-inventory-v1",
+    "render_scale": 2.0,
+    "response_format": "json_object_locally_validated",
+    "reasoning_effort": "none",
+    "temperature": 0,
+    "seed": 20260824,
+    "max_completion_tokens": 4096
+  },
+  "inputs": {
+    "numeric_suite_sha256": "D955CC3BA2BE2F945B47FFB1B670A14961846B0285E427A1623050523238D79A",
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA"
+  },
+  "selected_page_count": 35,
+  "total_frozen_page_count": 35,
+  "decision_gate": {
+    "minimum_mean_number_recall_delta_vs_native": 0.1,
+    "minimum_full_number_recall_rate_delta_vs_native": 0.0,
+    "minimum_identifier_recall_delta_vs_native": -0.05
+  },
+  "metrics": {
+    "native": {
+      "case_count": 38,
+      "identifier_case_count": 4,
+      "mean_number_recall": 0.6744664692033113,
+      "full_number_recall_rate": 0.5,
+      "mean_identifier_recall": 1.0,
+      "full_identifier_recall_rate": 1.0
+    },
+    "ocr": {
+      "case_count": 38,
+      "identifier_case_count": 4,
+      "mean_number_recall": 0.2736576289207868,
+      "full_number_recall_rate": 0.15789473684210525,
+      "mean_identifier_recall": 1.0,
+      "full_identifier_recall_rate": 1.0
+    },
+    "vlm": {
+      "case_count": 38,
+      "identifier_case_count": 4,
+      "mean_number_recall": 0.8753721424774057,
+      "full_number_recall_rate": 0.6842105263157895,
+      "mean_identifier_recall": 1.0,
+      "full_identifier_recall_rate": 1.0
+    },
+    "usage": {
+      "prompt_tokens": 69650,
+      "completion_tokens": 45419,
+      "total_tokens": 115069
+    },
+    "latency": {
+      "page_count": 35,
+      "mean_seconds": 33.41129927142257,
+      "median_seconds": 33.36228010000195
+    }
+  },
+  "vlm_number_improvements": [
+    "note_2016_26_ar_effective_date_01",
+    "note_2017_04_ar_effective_date_01",
+    "note_2017_15_ar_effective_date_01",
+    "note_2017_22_ar_deadline_or_duration_01",
+    "note_2017_36_ar_effective_date_01",
+    "cir_2018_03_ar_prohibition_or_limit_01",
+    "cir_2018_03_ar_deadline_or_duration_01",
+    "cir_2018_05_ar_eligibility_or_scope_01",
+    "note_2018_07_ar_effective_date_01",
+    "note_2018_14_ar_deadline_or_duration_01",
+    "note_2018_29_ar_deadline_or_duration_01",
+    "note_2020_02_ar_effective_date_01",
+    "note_2020_25_ar_eligibility_or_scope_01",
+    "note_2020_34_ar_definition_01",
+    "note_2021_09_ar_eligibility_or_scope_01"
+  ],
+  "vlm_number_regressions": [
+    "note_2016_10_ar_definition_01",
+    "note_2016_25_ar_other_operational_rule_01",
+    "note_2016_31_ar_eligibility_or_scope_01"
+  ],
+  "vlm_number_unchanged_count": 20,
+  "decision": "KEEP_FOR_FULL_TEXT_VLM_ABLATION",
+  "cases": [
+    {
+      "id": "note_2016_02_ar_eligibility_or_scope_01",
+      "expected_source": "Note_2016_02_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.8888888888888888,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "01",
+          "02",
+          "2016",
+          "29",
+          "94013000002",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "missing_numbers": [
+          "2"
+        ],
+        "matched_identifiers": [
+          "0381091n",
+          "0544435x",
+          "0785343h",
+          "0871109h",
+          "1167201k",
+          "1225545j",
+          "1234055w",
+          "1260005j",
+          "1283035p",
+          "1398389y",
+          "1399191p",
+          "1400475s",
+          "1403170q",
+          "1428095e"
+        ],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.3333333333333333,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "01",
+          "2016",
+          "29"
+        ],
+        "missing_numbers": [
+          "02",
+          "2",
+          "94013000002",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "matched_identifiers": [
+          "0381091n",
+          "0544435x",
+          "0785343h",
+          "0871109h",
+          "1167201k",
+          "1225545j",
+          "1234055w",
+          "1260005j",
+          "1283035p",
+          "1398389y",
+          "1399191p",
+          "1400475s",
+          "1403170q",
+          "1428095e"
+        ],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.8888888888888888,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "01",
+          "02",
+          "2",
+          "2016",
+          "29",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "missing_numbers": [
+          "94013000002"
+        ],
+        "matched_identifiers": [
+          "0381091n",
+          "0544435x",
+          "0785343h",
+          "0871109h",
+          "1167201k",
+          "1225545j",
+          "1234055w",
+          "1260005j",
+          "1283035p",
+          "1398389y",
+          "1399191p",
+          "1400475s",
+          "1403170q",
+          "1428095e"
+        ],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2016_10_ar_definition_01",
+      "expected_source": "Note_2016_10_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0",
+          "01",
+          "0612",
+          "10",
+          "1000",
+          "20",
+          "200",
+          "6102",
+          "9"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "0",
+          "01",
+          "0612",
+          "10",
+          "1000",
+          "20",
+          "200",
+          "6102",
+          "9"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.5555555555555556,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "1000",
+          "20",
+          "200",
+          "9"
+        ],
+        "missing_numbers": [
+          "0",
+          "01",
+          "0612",
+          "6102"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2016_25_ar_other_operational_rule_01",
+      "expected_source": "Note_2016_25_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0",
+          "02",
+          "0202",
+          "11",
+          "2016",
+          "25",
+          "3",
+          "4",
+          "5"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.1111111111111111,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "3"
+        ],
+        "missing_numbers": [
+          "0",
+          "02",
+          "0202",
+          "11",
+          "2016",
+          "25",
+          "4",
+          "5"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.6666666666666666,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "11",
+          "2016",
+          "25",
+          "3",
+          "4",
+          "5"
+        ],
+        "missing_numbers": [
+          "0",
+          "02",
+          "0202"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2016_26_ar_effective_date_01",
+      "expected_source": "Note_2016_26_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.75,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "100",
+          "3",
+          "500"
+        ],
+        "missing_numbers": [
+          "2016"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "100",
+          "2016",
+          "3",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "100",
+          "2016",
+          "3",
+          "500"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2016_31_ar_eligibility_or_scope_01",
+      "expected_source": "Note_2016_31_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.9090909090909091,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "11",
+          "2016",
+          "23",
+          "31",
+          "69079080916",
+          "69079080994",
+          "70900900006",
+          "70900999006",
+          "70960969906",
+          "70960999996"
+        ],
+        "missing_numbers": [
+          "2"
+        ],
+        "matched_identifiers": [
+          "0040122g",
+          "0407970b",
+          "0504283c",
+          "0634097a",
+          "0839474q",
+          "0868542x",
+          "0876173n",
+          "1200666k",
+          "1222544v",
+          "1222831z",
+          "1255367a",
+          "1283035p",
+          "1290294a",
+          "1365866c",
+          "1393309j",
+          "1416540q",
+          "1428095e",
+          "1456376t"
+        ],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.45454545454545453,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "11",
+          "2016",
+          "23",
+          "69079080916",
+          "69079080994"
+        ],
+        "missing_numbers": [
+          "2",
+          "31",
+          "70900900006",
+          "70900999006",
+          "70960969906",
+          "70960999996"
+        ],
+        "matched_identifiers": [
+          "0040122g",
+          "0407970b",
+          "0504283c",
+          "0634097a",
+          "0839474q",
+          "0868542x",
+          "0876173n",
+          "1200666k",
+          "1222544v",
+          "1222831z",
+          "1255367a",
+          "1283035p",
+          "1290294a",
+          "1365866c",
+          "1393309j",
+          "1416540q",
+          "1428095e",
+          "1456376t"
+        ],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.6363636363636364,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "11",
+          "2",
+          "2016",
+          "23",
+          "31",
+          "69079080916",
+          "69079080994"
+        ],
+        "missing_numbers": [
+          "70900900006",
+          "70900999006",
+          "70960969906",
+          "70960999996"
+        ],
+        "matched_identifiers": [
+          "0040122g",
+          "0407970b",
+          "0504283c",
+          "0634097a",
+          "0839474q",
+          "0868542x",
+          "0876173n",
+          "1200666k",
+          "1222544v",
+          "1222831z",
+          "1255367a",
+          "1283035p",
+          "1290294a",
+          "1365866c",
+          "1393309j",
+          "1416540q",
+          "1428095e",
+          "1456376t"
+        ],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2017_04_ar_effective_date_01",
+      "expected_source": "Note_2017_04_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.14285714285714285,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "26"
+        ],
+        "missing_numbers": [
+          "10",
+          "100",
+          "2016",
+          "5",
+          "50",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "10",
+          "100",
+          "2016",
+          "26",
+          "5",
+          "50",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "100",
+          "2016",
+          "26",
+          "5",
+          "50",
+          "500"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2017_15_ar_effective_date_01",
+      "expected_source": "Note_2017_15_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.3333333333333333,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "4"
+        ],
+        "missing_numbers": [
+          "2017",
+          "50"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.3333333333333333,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "4"
+        ],
+        "missing_numbers": [
+          "2017",
+          "50"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2017",
+          "4",
+          "50"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2017_22_ar_deadline_or_duration_01",
+      "expected_source": "Note_2017_22_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "1",
+          "10",
+          "100",
+          "2017",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "1",
+          "10",
+          "100",
+          "2017",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.8,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "100",
+          "2017",
+          "500"
+        ],
+        "missing_numbers": [
+          "1"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2017_36_ar_effective_date_01",
+      "expected_source": "Note_2017_36_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.25,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "30"
+        ],
+        "missing_numbers": [
+          "100",
+          "200",
+          "2017"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "100",
+          "200",
+          "2017",
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "100",
+          "200",
+          "2017",
+          "30"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2018_03_ar_prohibition_or_limit_01",
+      "expected_source": "Cir_2018_03_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "2018"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "2018"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2018"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "expected_source": "Cir_2018_03_ar.pdf",
+      "expected_page": 3,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "10",
+          "15"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "10",
+          "15"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "15"
+        ],
+        "missing_numbers": [
+          "10"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2018_05_ar_amount_or_rate_01",
+      "expected_source": "Cir_2018_05_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2018_05_ar_eligibility_or_scope_01",
+      "expected_source": "Cir_2018_05_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "100",
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "100",
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "100"
+        ],
+        "missing_numbers": [
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2018_05_ar_deadline_or_duration_01",
+      "expected_source": "Cir_2018_05_ar.pdf",
+      "expected_page": 3,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "5"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "5"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "5"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2018_04_ar_effective_date_01",
+      "expected_source": "Note_2018_04_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.6666666666666666,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "2018"
+        ],
+        "missing_numbers": [
+          "1"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.3333333333333333,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "1"
+        ],
+        "missing_numbers": [
+          "10",
+          "2018"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.6666666666666666,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "2018"
+        ],
+        "missing_numbers": [
+          "1"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2018_07_ar_effective_date_01",
+      "expected_source": "Note_2018_07_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2018",
+          "5"
+        ],
+        "missing_numbers": [
+          "1",
+          "10"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "1",
+          "5"
+        ],
+        "missing_numbers": [
+          "10",
+          "2018"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.75,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "10",
+          "2018",
+          "5"
+        ],
+        "missing_numbers": [
+          "1"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2018_14_ar_deadline_or_duration_01",
+      "expected_source": "Note_2018_14_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.4,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2018",
+          "21"
+        ],
+        "missing_numbers": [
+          "10",
+          "100",
+          "200"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "10",
+          "100",
+          "200",
+          "2018",
+          "21"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.8,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "100",
+          "200",
+          "2018",
+          "21"
+        ],
+        "missing_numbers": [
+          "10"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2018_29_ar_deadline_or_duration_01",
+      "expected_source": "Note_2018_29_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "2018",
+          "5"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2018"
+        ],
+        "missing_numbers": [
+          "5"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2018"
+        ],
+        "missing_numbers": [
+          "5"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2018_30_ar_effective_date_01",
+      "expected_source": "Note_2018_30_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "18",
+          "2018",
+          "50",
+          "500"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "18",
+          "2018",
+          "50",
+          "500"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "18",
+          "2018",
+          "50",
+          "500"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "expected_source": "Note_2020_02_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "1000",
+          "14",
+          "2019"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "1000",
+          "14",
+          "2019"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "1000",
+          "14",
+          "2019"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_25_ar_eligibility_or_scope_01",
+      "expected_source": "Note_2020_25_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.9,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "06",
+          "08",
+          "2020",
+          "25",
+          "69072100008",
+          "69072200092",
+          "69072300097",
+          "69073000009",
+          "69074000005"
+        ],
+        "missing_numbers": [
+          "2"
+        ],
+        "matched_identifiers": [
+          "1609768f",
+          "1646322l"
+        ],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.5,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "69072100008",
+          "69072200092",
+          "69072300097",
+          "69073000009",
+          "69074000005"
+        ],
+        "missing_numbers": [
+          "06",
+          "08",
+          "2",
+          "2020",
+          "25"
+        ],
+        "matched_identifiers": [
+          "1609768f",
+          "1646322l"
+        ],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "06",
+          "08",
+          "2",
+          "2020",
+          "25",
+          "69072100008",
+          "69072200092",
+          "69072300097",
+          "69073000009",
+          "69074000005"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [
+          "1609768f",
+          "1646322l"
+        ],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_34_ar_definition_01",
+      "expected_source": "Note_2020_34_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "0113",
+          "0114"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0113",
+          "0114"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0113",
+          "0114"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_35_ar_effective_date_01",
+      "expected_source": "Note_2020_35_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "14",
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "14",
+          "20",
+          "2020"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "14",
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_36_ar_effective_date_01",
+      "expected_source": "Note_2020_36_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "20",
+          "2020"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_37_ar_effective_date_01",
+      "expected_source": "Note_2020_37_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "20",
+          "2020"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "20",
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2020_39_ar_deadline_or_duration_01",
+      "expected_source": "Note_2020_39_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2020"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2021_09_ar_eligibility_or_scope_01",
+      "expected_source": "Note_2021_09_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 0.8888888888888888,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "03",
+          "09",
+          "2021",
+          "31",
+          "94013000002",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "missing_numbers": [
+          "2"
+        ],
+        "matched_identifiers": [
+          "0033128w",
+          "0382285b",
+          "0411640p",
+          "0580348d",
+          "0736298y",
+          "0745222c",
+          "1119432f",
+          "1124503m",
+          "1155762b",
+          "1177800j",
+          "1195231z",
+          "1207411s",
+          "1234431a",
+          "1238520s",
+          "1260061s",
+          "1271539w",
+          "1340704b",
+          "1423578y",
+          "1484681h",
+          "1489955m",
+          "1521556p",
+          "1564725y",
+          "1649925x"
+        ],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.3333333333333333,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "03",
+          "2021",
+          "31"
+        ],
+        "missing_numbers": [
+          "09",
+          "2",
+          "94013000002",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "matched_identifiers": [
+          "0033128w",
+          "0382285b",
+          "0411640p",
+          "0580348d",
+          "0736298y",
+          "0745222c",
+          "1119432f",
+          "1124503m",
+          "1155762b",
+          "1177800j",
+          "1195231z",
+          "1207411s",
+          "1234431a",
+          "1238520s",
+          "1260061s",
+          "1271539w",
+          "1340704b",
+          "1423578y",
+          "1484681h",
+          "1489955m",
+          "1521556p",
+          "1564725y",
+          "1649925x"
+        ],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": 1.0,
+        "matched_numbers": [
+          "03",
+          "09",
+          "2",
+          "2021",
+          "31",
+          "94013000002",
+          "94018000900",
+          "94031051007",
+          "94039090008"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [
+          "0033128w",
+          "0382285b",
+          "0411640p",
+          "0580348d",
+          "0736298y",
+          "0745222c",
+          "1119432f",
+          "1124503m",
+          "1155762b",
+          "1177800j",
+          "1195231z",
+          "1207411s",
+          "1234431a",
+          "1238520s",
+          "1260061s",
+          "1271539w",
+          "1340704b",
+          "1423578y",
+          "1484681h",
+          "1489955m",
+          "1521556p",
+          "1564725y",
+          "1649925x"
+        ],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "expected_source": "Note_2021_33_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2021"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2021"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2021"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2023_07_ar_deadline_or_duration_01",
+      "expected_source": "Note_2023_07_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2023_30_ar_deadline_or_duration_01",
+      "expected_source": "Note_2023_30_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2023_40_ar_effective_date_01",
+      "expected_source": "Note_2023_40_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023",
+          "30"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "2023",
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2023",
+          "30"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2024_187_ar_definition_01",
+      "expected_source": "Note_2024_187_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0150"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0150"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "0150"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2026_06_ar_application_deadline_03",
+      "expected_source": "Cir_2026_06_ar.pdf",
+      "expected_page": 3,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2026",
+          "31"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2026"
+        ],
+        "missing_numbers": [
+          "31"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2026",
+          "31"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2026_06_ar_full_payment_relief_02",
+      "expected_source": "Cir_2026_06_ar.pdf",
+      "expected_page": 3,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "50",
+          "6"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "50",
+          "6"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "50",
+          "6"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "cir_2026_06_ar_rescheduling_terms_01",
+      "expected_source": "Cir_2026_06_ar.pdf",
+      "expected_page": 3,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "5",
+          "7"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.5,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "5"
+        ],
+        "missing_numbers": [
+          "7"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "5",
+          "7"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2026_161_ar_deadline_or_duration_01",
+      "expected_source": "Note_2026_161_ar.pdf",
+      "expected_page": 2,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "15",
+          "2026"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "15",
+          "2026"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "15",
+          "2026"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2026_59_ar_definition_01",
+      "expected_source": "Note_2026_59_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "173",
+          "50",
+          "76"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "173",
+          "50",
+          "76"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "173",
+          "50",
+          "76"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    },
+    {
+      "id": "note_2022_25_ar_bank_of_england_withdrawal_01",
+      "expected_source": "Note_2022_25_ar.pdf",
+      "expected_page": 1,
+      "native": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2022",
+          "30"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "ocr": {
+        "number_recall": 0.0,
+        "identifier_recall": null,
+        "matched_numbers": [],
+        "missing_numbers": [
+          "2022",
+          "30"
+        ],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      },
+      "vlm": {
+        "number_recall": 1.0,
+        "identifier_recall": null,
+        "matched_numbers": [
+          "2022",
+          "30"
+        ],
+        "missing_numbers": [],
+        "matched_identifiers": [],
+        "missing_identifiers": []
+      }
+    }
+  ],
+  "limitations": [
+    "Development suite only; the decision permits only a full-text cached VLM ablation.",
+    "The benchmark measures recall of verified literals, not completeness or hallucinated extra values.",
+    "Hosted processing is permitted here only for the current public corpus; this does not authorize confidential documents.",
+    "Model availability, retention controls, rate limits, and pricing remain external operational dependencies."
+  ]
+}

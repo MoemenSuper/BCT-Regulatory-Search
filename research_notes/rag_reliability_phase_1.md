@@ -339,6 +339,47 @@ separate from human-verified correctness and claim-support labels.
 Canonical suite SHA-256:
 `5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1`.
 
+### Bounded VLM numeric fidelity
+
+The frozen 38-case Arabic numeric suite covers 35 unique public pages. Each
+page was rendered locally at 2× and sent once (with resumable caching) to the
+live model ID `qwen/qwen3.6-27b` through Groq. The constrained prompt requested
+an exact visible-literal inventory in locally validated JSON; only each item's
+explicit `literal` received recall credit, never incidental digits in its
+context.
+
+| Verified-literal metric | Native | Arabic OCR | Qwen 3.6 VLM |
+|---|---:|---:|---:|
+| Mean critical-number recall | 67.45% | 27.37% | 87.54% |
+| Cases with full number recall | 50.00% | 15.79% | 68.42% |
+| Identifier recall (4 cases) | 100.00% | 100.00% | 100.00% |
+
+The predeclared gate required VLM mean number recall at least 10 points above
+native, full-number recall no worse than native, and identifier recall no more
+than five points below native. It passes: +20.09 points mean recall and +18.42
+points full-case recall. VLM improves 15 cases, regresses 3, and leaves 20
+unchanged. The regressions are:
+
+- `note_2016_10_ar_definition_01` (100%→55.56%);
+- `note_2016_25_ar_other_operational_rule_01` (100%→66.67%);
+- `note_2016_31_ar_eligibility_or_scope_01` (90.91%→63.64%).
+
+The 35 calls used 69,650 prompt tokens and 45,419 completion tokens (115,069
+total), with mean/median page latency 33.41s/33.36s. Nominal cost at the
+documented model rates is approximately $0.178, though actual account billing
+may differ.
+
+**Decision: KEEP FOR A FULL-TEXT CACHED VLM ABLATION, NOT AS AUTHORITATIVE
+EVIDENCE.** Numeric fidelity is materially better than native on this bounded
+development subset, but three regressions prove that VLM cannot silently
+override native values. The next VLM experiment must preserve separate
+provenance, test full evidence text and downstream retrieval, and force
+review/abstention on unresolved native/OCR/VLM disagreement. High per-page
+latency also favors selective offline fallback rather than query-time use.
+
+Tracked result SHA-256:
+`C97B91AFB58ECCE197164EABC47AC41DD58B67FCC19E23E83977FB8B5B4262D8`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

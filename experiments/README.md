@@ -214,6 +214,23 @@ roles and all eight negative/ambiguous questions. Relevant generation receives
 only the verified evidence snippet and exact source/page; negatives receive no
 regulatory evidence. This isolates generation safety from retrieval quality.
 
+Run the bounded hosted-VLM numeric inventory on the frozen public Arabic pages:
+
+```powershell
+python -u -m experiments.vlm_numeric_experiment `
+  --numeric-suite experiments/stress_suites/numeric_identifier_development_v1.json `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --dotenv "C:\path\to\the\existing\.env" `
+  --output-dir "$env:TEMP\vlm-numeric-v1" `
+  --confirm-public-documents `
+  --summary-output experiments/results/vlm_numeric_fidelity_v1.json
+```
+
+Per-page outputs are cached by PDF hash, page, model, and prompt version. The
+tracked result contains literal-level metrics but no rendered images, base64,
+API key, or raw provider errors. A KEEP decision permits only a separate
+full-text VLM retrieval ablation; it does not make VLM output authoritative.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
