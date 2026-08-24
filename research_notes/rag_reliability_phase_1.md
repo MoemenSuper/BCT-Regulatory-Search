@@ -131,16 +131,27 @@ requires at least 75% evidence-token coverage. The minimum observed coverage is
 also checked against rendered source pages. No retrieval, ranking, answer, or
 citation model has been run on the candidate.
 
+A second leakage screen found three semantically recycled candidates that the
+page check missed: cheque-platform membership, campaign chequebook timing, and
+campaign-file retention. They were replaced before model access. On the revised
+candidate, normalized query/evidence duplicates are both zero, maximum query
+token Jaccard against development is 0.357, maximum evidence Jaccard is 0.433,
+and no pair crosses the 0.5/0.7 review thresholds. These lexical results are a
+screen only, not proof of semantic independence.
+
 This is **not yet validation evidence**. Labels are agent-curated and remain
 pending independent human verification, and exact-page disjointness does not
 remove source/family familiarity. A family-disjoint final holdout is still
 prospective because all 439 current sources are legacy development.
 
 Candidate SHA-256:
-`E3214A4C6A5082AAB4292E7BB031A7AD78D7A6025B2BBDA104634E77D9140ABA`.
+`0B73B70C0BA48D1382DAAC5D83C9C4F787CFAD581BBA194D3079DE942343D0A1`.
 
 Audit SHA-256:
-`C762D17C808115BDB336C72964D117AC2D9AC7E9FA36379FB3E77B936C96DFA3`.
+`AE1A39588EE5A191B094B80322606E364F0FAF5EA290A23D973A5DFC1B82875B`.
+
+Human review packet SHA-256:
+`B0F2E5D4BE07CD23CC822A855BCC76FA9CC9E8EFBF67CBC39791193941FECBB6`.
 
 ## Current decisions
 

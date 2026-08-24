@@ -13,13 +13,13 @@ def _write(path, value):
 def _case(case_id, source, language, page=1):
     return {
         "id": case_id,
-        "query": "Question",
+        "query": f"Question {case_id}",
         "language": language,
         "category": "test",
         "relevant": True,
         "expected_source": source,
         "expected_page": page,
-        "evidence_quote": "required evidence text",
+        "evidence_quote": f"required evidence text {case_id}",
         "verification_status": "agent_curated_pending_independent_human_verification",
     }
 
@@ -29,9 +29,10 @@ def test_audit_accepts_bilingual_page_disjoint_candidate(tmp_path):
     validation = [_case("val-fr", "Val_fr.pdf", "fr"), _case("val-ar", "Val_ar.pdf", "ar")]
     records = {}
     for source in ("Val_fr.pdf", "Val_ar.pdf"):
+        source_words = source.removesuffix(".pdf").replace("_", " ")
         artifact = _write(
             tmp_path / f"{source}.json",
-            {"pages": [{"page_number": 1, "raw_text": "required evidence text"}]},
+            {"pages": [{"page_number": 1, "raw_text": f"required evidence text {source_words}"}]},
         )
         records[source] = {
             "source": source,
@@ -63,5 +64,25 @@ def test_audit_rejects_exact_development_page_overlap(tmp_path):
         audit_validation_candidate(
             development_path=_write(tmp_path / "development.json", cases),
             validation_path=_write(tmp_path / "validation.json", cases),
+            structured_manifest_path=_write(tmp_path / "manifest.json", {"records": records}),
+        )
+
+
+def test_audit_rejects_normalized_query_duplicate_on_different_pages(tmp_path):
+    development = [_case("dev-fr", "Dev_fr.pdf", "fr"), _case("dev-ar", "Dev_ar.pdf", "ar")]
+    validation = [_case("val-fr", "Val_fr.pdf", "fr"), _case("val-ar", "Val_ar.pdf", "ar")]
+    validation[0]["query"] = development[0]["query"].upper()
+    records = {}
+    for source in ("Val_fr.pdf", "Val_ar.pdf"):
+        artifact = _write(
+            tmp_path / f"{source}.json",
+            {"pages": [{"page_number": 1, "raw_text": "required evidence text"}]},
+        )
+        records[source] = {"source": source, "sha256": "A" * 64, "artifact": str(artifact)}
+
+    with pytest.raises(ValueError, match="query duplicates"):
+        audit_validation_candidate(
+            development_path=_write(tmp_path / "development.json", development),
+            validation_path=_write(tmp_path / "validation.json", validation),
             structured_manifest_path=_write(tmp_path / "manifest.json", {"records": records}),
         )

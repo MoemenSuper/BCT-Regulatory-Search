@@ -54,6 +54,11 @@ python -m experiments.validation_candidate_audit `
   --validation evaluation_validation_candidate_v1.json `
   --structured-manifest "$env:TEMP\structured-ingestion\ingestion_manifest.json" `
   --output experiments/results/validation_candidate_v1_audit.json
+
+python -m experiments.validation_review_packet `
+  --validation evaluation_validation_candidate_v1.json `
+  --audit experiments/results/validation_candidate_v1_audit.json `
+  --output experiments/reviews/validation_candidate_v1_human_review.md
 ```
 
 The tracked v1 candidate is agent-curated and remains pending independent human
@@ -61,6 +66,9 @@ verification. Its audit records `retrieval_access: not_run`; do not rename it
 as release validation or evaluate it until that verification occurs. No
 current-corpus final holdout is claimed: all 439 sources are legacy
 development, so the family-disjoint holdout remains prospective.
+The audit also fails on normalized query/evidence duplicates and emits lexical
+near-duplicate review flags; lexical non-matches are not treated as proof of
+semantic independence.
 
 Evaluate a frozen split through the access-logged boundary:
 
