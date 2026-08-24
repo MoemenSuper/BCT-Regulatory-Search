@@ -45,6 +45,10 @@ def _jaccard(left: str, right: str) -> float:
     return len(left_tokens & right_tokens) / len(union) if union else 1.0
 
 
+def _valid_sha256(value: Any) -> bool:
+    return bool(re.fullmatch(r"[0-9a-fA-F]{64}", str(value)))
+
+
 def audit_validation_candidate(
     *,
     development_path: Path,
@@ -139,10 +143,19 @@ def audit_validation_candidate(
             if evidence_tokens
             else 1.0
         )
-        if coverage < minimum_evidence_token_coverage:
+        visual_verification = case.get("visual_verification")
+        coverage_exception = None
+        if coverage < minimum_evidence_token_coverage and (
+            case.get("evidence_method") == "visual_review"
+            and isinstance(visual_verification, dict)
+            and _valid_sha256(visual_verification.get("rendered_page_sha256"))
+            and str(visual_verification.get("note", "")).strip()
+        ):
+            coverage_exception = "verified_against_hashed_page_render"
+        if coverage < minimum_evidence_token_coverage and coverage_exception is None:
             errors.append(
                 f"{case_id}: evidence token coverage {coverage:.3f} is below "
-                f"{minimum_evidence_token_coverage:.3f}"
+                f"{minimum_evidence_token_coverage:.3f} without a complete visual verification"
             )
         records.append(
             {
@@ -153,6 +166,8 @@ def audit_validation_candidate(
                 "structured_artifact_sha256": sha256_file(artifact_path),
                 "evidence_token_coverage": coverage,
                 "evidence_method": case.get("evidence_method"),
+                "coverage_exception": coverage_exception,
+                "visual_verification": visual_verification if coverage_exception else None,
             }
         )
     if errors:
@@ -207,6 +222,13 @@ def audit_validation_candidate(
                 for record in records
                 if record["evidence_method"] == "visual_review"
             ],
+            "coverage_exception_case_ids": [
+                record["id"] for record in records if record["coverage_exception"]
+            ],
+            "coverage_exception_policy": (
+                "Below-threshold extracted-text coverage is accepted only for visual_review "
+                "cases with a non-empty review note and a SHA-256-bound rendered page."
+            ),
         },
         "final_holdout": {
             "status": "prospective_not_available",

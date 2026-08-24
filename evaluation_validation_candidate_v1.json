@@ -182,16 +182,20 @@
     "verification_status": "agent_curated_pending_independent_human_verification"
   },
   {
-    "id": "val_ar_2026_rescheduling_corruption_exclusion_01",
-    "query": "هل يمكن مواصلة التسوية إذا ثبت أن الدين محل تتبعات قضائية في جرائم فساد أو غسل أموال سابقة لإبرام العقد؟",
+    "id": "val_ar_2026_rescheduling_false_declaration_01",
+    "query": "ما أثر ثبوت عدم صحة تصريح المقترض بأن الدين موضوع التسوية ليس محل تتبعات قضائية في جرائم فساد أو غسل أموال عند إبرام العقد؟",
     "language": "ar",
-    "category": "exception_or_condition",
+    "category": "legal_consequence",
     "relevant": true,
     "expected_source": "Cir_2026_06_ar.pdf",
-    "expected_page": 12,
-    "expected_answer": "لا؛ ثبوت أن الدين محل تتبعات قضائية في جرائم فساد أو غسل أموال سابقة لإبرام العقد يُعد حالة مانعة.",
-    "evidence_quote": "في صورة ما إذا ثبت للبنك بصفة قاطعة أن الدين موضوع التسوية هو محل تتبعات قضائية في جرائم فساد أو غسل أموال في تاريخ سابق لإبرام هذا العقد.",
+    "expected_page": 11,
+    "expected_answer": "يُفسخ العقد دون حاجة إلى تنبيه أو حكم قضائي.",
+    "evidence_quote": "يصرح المقترض بأن الدين موضوع هذه التسوية ليس محل تتبعات قضائية في جرائم فساد أو غسل أموال في تاريخ إبرام هذا العقد. وفي صورة ثبوت عدم صحة هذا التصريح، يفسخ هذا العقد دون حاجة إلى تنبيه أو حكم قضائي.",
     "evidence_method": "visual_review",
+    "visual_verification": {
+      "rendered_page_sha256": "98E225005F45FB49E0C4C99CE2C6FAC98346C4546BD54C78503A1F2FB95DA963",
+      "note": "The rendered source page visibly supports both the declaration and the rescission consequence; StructuredDocument extraction corrupts several Arabic characters."
+    },
     "verification_status": "agent_curated_pending_independent_human_verification"
   },
   {
