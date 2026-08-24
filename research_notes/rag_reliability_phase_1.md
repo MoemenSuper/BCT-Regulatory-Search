@@ -320,6 +320,25 @@ answer quality.
 Tracked result SHA-256:
 `1A0ABFD6D97CDAC7AC102987B1E274DD7958295A9E18D2577B694C9F566CDE40`.
 
+### Frozen gold-evidence answer-safety suite
+
+Before changing the answer prompt or model, a 40-case development suite was
+frozen to separate generation failures from retrieval failures. It contains 32
+relevant questions—four each for Arabic numeric fidelity, Arabic visual
+non-table evidence, French tables, French long documents, context/version
+failures, Latin alphanumeric identifiers, clean Arabic Top-1 controls, and
+clean French Top-1 controls—plus all eight negative/ambiguous cases.
+
+Relevant cases will receive only their human-verified evidence snippet and
+exact source/page. Negative cases receive no regulatory evidence. This answers
+the controlled question “can the generator preserve and cite sufficient
+evidence?” before testing the harder end-to-end question “did retrieval provide
+sufficient evidence?” Automated numeric/citation/refusal checks will remain
+separate from human-verified correctness and claim-support labels.
+
+Canonical suite SHA-256:
+`5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

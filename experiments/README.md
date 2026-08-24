@@ -198,6 +198,22 @@ The ablation fails if its undiversified ranks do not exactly match the tracked
 fusion result. Diversity keeps the highest-scored chunk for each source/start
 page; context assembly may still reattach other chunks from a selected page.
 
+Freeze the bounded gold-evidence answer-safety development suite:
+
+```powershell
+python -m experiments.answer_safety_suite `
+  --evaluation evaluation_queries.json `
+  --current-result "$env:TEMP\reproduction\results\structured_baseline_chunking.json" `
+  --targeted-catalog experiments/stress_suites/targeted_development_catalog_v1.json `
+  --numeric-suite experiments/stress_suites/numeric_identifier_development_v1.json `
+  --output experiments/stress_suites/answer_safety_development_v1.json
+```
+
+The 40 disjoint cases contain 32 relevant questions across eight risk/control
+roles and all eight negative/ambiguous questions. Relevant generation receives
+only the verified evidence snippet and exact source/page; negatives receive no
+regulatory evidence. This isolates generation safety from retrieval quality.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
