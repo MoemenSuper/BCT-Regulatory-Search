@@ -13,6 +13,22 @@ from experiments.artifacts import sha256_file, write_json_atomic
 from experiments.structured_answer_experiment import _aggregate
 
 
+def _deduplicate_citations(record: dict[str, Any]) -> None:
+    citations = record["response"]["citations"]
+    seen = set()
+    unique = []
+    for citation in citations:
+        key = (
+            citation["evidence_id"],
+            citation["source"].casefold(),
+            int(citation["page"]),
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(citation)
+    record["response"]["citations"] = unique
+
+
 def compose_selective_answer_candidate(
     *,
     suite: dict[str, Any],
@@ -61,6 +77,7 @@ def compose_selective_answer_candidate(
                 raise ValueError(
                     f"Relevant base case has unsupported status {base_status}: {case_id}"
                 )
+        _deduplicate_citations(selected)
         records.append(selected)
 
     latency = [float(record["latency_seconds"]) for record in records]
@@ -74,6 +91,7 @@ def compose_selective_answer_candidate(
             ),
             "negative_path": "explicit query state plus deterministic status and text",
             "model": "openai/gpt-oss-120b",
+            "citation_normalization": "exact duplicate citations removed locally",
         },
         "automatic_metrics": {
             "overall": _aggregate(records),

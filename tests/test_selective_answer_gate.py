@@ -1,99 +1,99 @@
-from copy import deepcopy
+import json
+from pathlib import Path
 
-from experiments.selective_answer_gate import evaluate_selective_answer_gate
+from experiments.artifacts import sha256_file
+from experiments.selective_answer_gate import (
+    EXPECTED_CANDIDATE_SHA256,
+    EXPECTED_SUITE_SHA256,
+    _identifier_present,
+    _number_literals,
+    evaluate_selective_answer_gate,
+)
 
 
-def _record(
-    case_id: str,
-    *,
-    relevant: bool,
-    clarification: bool = False,
-    retried: bool = False,
-):
-    status = "clarification_needed" if clarification else (
-        "answered" if relevant else "insufficient_evidence"
+ROOT = Path(__file__).resolve().parents[1]
+RESULT_PATH = ROOT / "experiments/results/selective_answer_candidate_v2.json"
+SUITE_PATH = ROOT / "experiments/stress_suites/answer_safety_development_v1.json"
+
+
+def _inputs():
+    return (
+        json.loads(RESULT_PATH.read_text(encoding="utf-8")),
+        json.loads(SUITE_PATH.read_text(encoding="utf-8")),
     )
-    return {
-        "id": case_id,
-        "language": "fr",
-        "relevant": relevant,
-        "answer_path": (
-            "single_full_page_context_retry"
-            if retried
-            else "verified_excerpt_claim_linked_answer"
-        ),
-        "response": {
-            "status": status,
-            "answer": "10 ABC1" if relevant else "Safe response",
-            "claims": [{}] if relevant else [],
-            "citations": [{}] if relevant else [],
-        },
-        "structured_diagnostics": {
-            "exact_structured_citation": True,
-            "claim_evidence_links_valid": True,
-        },
-        "automatic_audit": {
-            "expected_numbers": ["10"],
-            "matched_expected_numbers": ["10"],
-            "expected_identifiers": ["ABC1"],
-            "matched_expected_identifiers": ["ABC1"],
-        },
-        "answer_evaluation": {
-            "answer_correct": True,
-            "citation_correct": True,
-            "grounded": True,
-            "safe_response": True,
-            "expected_behavior_met": True,
-            "clarification_requested": clarification,
-        },
-    }
 
 
-def _passing_result():
-    relevant = [_record(f"relevant-{index}", relevant=True) for index in range(30)]
-    relevant.extend(
-        [
-            _record(
-                "cir_2019_02_fr_amount_or_rate_02", relevant=True, retried=True
-            ),
-            _record(
-                "note_2022_16_ar_ceramic_importer_02", relevant=True, retried=True
-            ),
-        ]
+def _evaluate(result, suite, candidate_sha256=EXPECTED_CANDIDATE_SHA256):
+    return evaluate_selective_answer_gate(
+        result,
+        suite,
+        candidate_sha256=candidate_sha256,
+        suite_sha256=EXPECTED_SUITE_SHA256,
     )
-    negative = [
-        _record(f"negative-{index}", relevant=False, clarification=index < 2)
-        for index in range(8)
-    ]
-    return {"records": relevant + negative}
 
 
-def test_frozen_selective_answer_gate_passes_complete_candidate():
-    receipt = evaluate_selective_answer_gate(_passing_result())
+def test_frozen_selective_answer_gate_passes_exact_candidate():
+    result, suite = _inputs()
+
+    receipt = _evaluate(result, suite, sha256_file(RESULT_PATH))
 
     assert receipt["status"] == "passed"
     assert receipt["failed_checks"] == []
 
 
-def test_frozen_selective_answer_gate_rejects_literal_omission():
-    result = deepcopy(_passing_result())
-    result["records"][0]["response"]["answer"] = "No literal is present."
+def test_gate_binds_semantic_labels_to_exact_reviewed_candidate_hash():
+    result, suite = _inputs()
+    result["records"][0]["response"]["answer"] = "A wholly false answer."
 
-    receipt = evaluate_selective_answer_gate(result)
+    receipt = _evaluate(result, suite, candidate_sha256="0" * 64)
 
     assert receipt["status"] == "failed"
-    assert receipt["failed_checks"] == ["all_expected_literals_preserved"]
+    assert receipt["checks"]["frozen_artifact_binding"] is False
 
 
-def test_literal_gate_accepts_equivalent_grouping_and_time_spelling():
-    result = _passing_result()
-    record = result["records"][0]
-    record["response"]["answer"] = (
-        "Le montant est 100.000 DT au taux de 1,00 %, de 8h00 à 17h00."
-    )
-    record["automatic_audit"].update(
-        expected_numbers=["100000", "1.00", "8", "17", "00"],
-        expected_identifiers=["8h", "17h"],
-    )
+def test_gate_recomputes_claims_citations_and_negative_statuses():
+    result, suite = _inputs()
+    result["records"][0]["response"]["claims"] = []
+    result["records"][0]["response"]["citations"] = []
+    negative = next(record for record in result["records"] if not record["relevant"])
+    negative["response"].update(status="answered", answer="", claims=[{}])
 
-    assert evaluate_selective_answer_gate(result)["status"] == "passed"
+    receipt = _evaluate(result, suite)
+
+    assert receipt["checks"]["all_relevant_responses_recompute_as_structurally_cited"] is False
+    assert receipt["checks"]["all_negative_statuses_and_payloads_recomputed"] is False
+
+
+def test_gate_requires_exact_unique_frozen_ids_and_suite_metadata():
+    result, suite = _inputs()
+    result["records"][0]["id"] = "bogus_not_in_suite"
+    result["records"][1]["language"] = "ar"
+
+    receipt = _evaluate(result, suite)
+
+    assert receipt["checks"]["exact_frozen_case_ids_and_order"] is False
+    assert receipt["checks"]["all_case_metadata_matches_suite"] is False
+
+
+def test_literal_requirements_are_derived_from_suite_not_candidate_audit():
+    result, suite = _inputs()
+    for record in result["records"]:
+        if record["relevant"]:
+            record["automatic_audit"]["expected_numbers"] = []
+            record["automatic_audit"]["expected_identifiers"] = []
+
+    assert _evaluate(result, suite)["checks"][
+        "all_expected_literals_recomputed_from_suite"
+    ] is True
+
+
+def test_number_normalization_preserves_decimal_scale_and_grouping():
+    assert "100000" in _number_literals("100.000 DT")
+    assert "1.00" in _number_literals("1,00 %")
+    assert "1.00" not in _number_literals("100 %")
+    assert "6.50" not in _number_literals("650 %")
+
+
+def test_time_identifier_accepts_only_exact_zero_minute_suffix():
+    assert _identifier_present("14h", {"14h00"}) is True
+    assert _identifier_present("14h", {"14h999"}) is False

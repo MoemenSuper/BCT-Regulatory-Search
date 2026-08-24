@@ -1,0 +1,35 @@
+{
+  "experiment_id": "selective-answer-candidate-development-gate-v2",
+  "input_sha256": "DD3F3F35335243E2511EE1F945717B4462FCDDCC837F3C1AEE7D11670A5D6E70",
+  "suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+  "status": "passed",
+  "checks": {
+    "frozen_artifact_binding": true,
+    "exact_frozen_case_ids_and_order": true,
+    "frozen_case_counts": true,
+    "all_case_metadata_matches_suite": true,
+    "all_bound_review_labels_pass": true,
+    "all_relevant_responses_recompute_as_structurally_cited": true,
+    "all_expected_literals_recomputed_from_suite": true,
+    "all_negative_statuses_and_payloads_recomputed": true,
+    "exactly_two_clarifications": true,
+    "only_frozen_context_retries": true
+  },
+  "failed_checks": [],
+  "counts": {
+    "cases": 40,
+    "relevant": 32,
+    "negative": 8,
+    "clarifications": 2,
+    "context_retries": 2
+  },
+  "retry_ids": [
+    "cir_2019_02_fr_amount_or_rate_02",
+    "note_2022_16_ar_ceramic_importer_02"
+  ],
+  "qualification": "development_only_gold_evidence_components",
+  "limitations": [
+    "Passing binds only the exact frozen candidate and suite; semantic correctness remains agent evidence review.",
+    "Passing does not establish retrieval-time evidence sufficiency or release readiness."
+  ]
+}

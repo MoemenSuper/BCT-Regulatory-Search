@@ -8,7 +8,7 @@ def _record(case_id, language, status):
         "id": case_id,
         "language": language,
         "relevant": case_id != "negative",
-        "response": {"status": status},
+        "response": {"status": status, "citations": []},
         "structured_diagnostics": {
             "exact_structured_citation": True,
             "claim_evidence_links_valid": True,
@@ -69,3 +69,23 @@ def test_composition_fails_closed_when_retry_policy_does_not_match_base_status()
             retry_result=retry,
             negative_result=negative,
         )
+
+
+def test_composition_removes_exact_duplicate_citations():
+    suite, base, retry_suite, retry, negative = _inputs()
+    citation = {
+        "evidence_id": "E1",
+        "source": "Cir.pdf",
+        "page": 2,
+    }
+    base["records"][0]["response"]["citations"] = [citation, dict(citation)]
+
+    result = compose_selective_answer_candidate(
+        suite=suite,
+        base_result=base,
+        retry_suite=retry_suite,
+        retry_result=retry,
+        negative_result=negative,
+    )
+
+    assert result["records"][0]["response"]["citations"] == [citation]
