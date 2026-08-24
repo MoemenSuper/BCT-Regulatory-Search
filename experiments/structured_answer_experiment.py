@@ -200,6 +200,13 @@ def run_structured_answer_experiment(
         raise ValueError("GROQ_API_KEY is not configured")
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     suite_hash = sha256_file(suite_path)
+    experiment = suite.get("answer_experiment", {})
+    experiment_id = experiment.get(
+        "experiment_id", "claim-linked-structured-answer-development-v1"
+    )
+    candidate_and_evidence = experiment.get(
+        "candidate_and_evidence", "identical frozen gold-evidence suite"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = output_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -304,12 +311,12 @@ def run_structured_answer_experiment(
     artifact = {
         "status": "complete",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "experiment_id": "claim-linked-structured-answer-development-v1",
+        "experiment_id": experiment_id,
         "configuration": {
             "model": MODEL,
             "prompt_version": PROMPT_VERSION,
             "response_format": "strict JSON schema",
-            "candidate_and_evidence": "identical frozen gold-evidence suite",
+            "candidate_and_evidence": candidate_and_evidence,
         },
         "inputs": {"answer_suite_sha256": suite_hash},
         "automatic_metrics": {

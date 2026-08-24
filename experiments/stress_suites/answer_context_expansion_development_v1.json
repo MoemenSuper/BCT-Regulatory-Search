@@ -1,0 +1,82 @@
+{
+  "status": "frozen",
+  "frozen_at": "2026-08-24T17:56:10.766854+00:00",
+  "inputs": {
+    "base_answer_suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "structured_documents": {
+      "Cir_2019_02_fr.pdf": {
+        "pdf_sha256": "4EAA6144FE2BEA83FCC2A21B80E4F82415709255A90416493C9C4F3834535853",
+        "artifact_sha256": "FBE157A8CE5F6EDBA4DE201B5257F3ABAF1A746671DD951B02C948B797303F36"
+      },
+      "Note_2022_16_ar.pdf": {
+        "pdf_sha256": "91C4266F54466B293DBFAD16DD34F1626535D593B0BEC18E35ED0C8F6E135A2C",
+        "artifact_sha256": "36AFB5C6DE7DE6BCDF2B637C201739438B03E18B044D52102B3FDAB32947A9AA"
+      }
+    }
+  },
+  "suite_type": "targeted_gold_evidence_context_sufficiency_development",
+  "selection": "The two claim-linked v1 relevant failures whose frozen snippets omitted a query condition or governing table heading.",
+  "evaluation_protocol": "Keep question, source, page, expected answer, model, and prompt fixed; replace only the insufficient evidence quote with all ordered blocks from the exact labeled page.",
+  "answer_experiment": {
+    "experiment_id": "structured-full-page-context-development-v1",
+    "candidate_and_evidence": "targeted full exact-page StructuredDocument context"
+  },
+  "counts": {
+    "total": 2,
+    "relevant": 2,
+    "by_language": {
+      "ar": 1,
+      "fr": 1
+    }
+  },
+  "limitations": [
+    "Development-only cases selected after inspecting claim-linked v1 failures.",
+    "Exact labeled pages isolate context sufficiency and do not measure whether retrieval supplies that context.",
+    "A two-case result cannot establish generalization or justify production page expansion."
+  ],
+  "cases": [
+    {
+      "id": "cir_2019_02_fr_amount_or_rate_02",
+      "expected_source": "Cir_2019_02_fr.pdf",
+      "query": "Quel est le montant maximum de l'allocation annuelle pour les sociétés résidentes ayant obtenu le Label « Startup » qui utilisent la « Carte Technologique Internationale » pour les paiements de transactions via internet ?",
+      "category": "amount_or_rate",
+      "expected_page": 2,
+      "expected_answer": "L'allocation annuelle maximale est de 100 000 dinars.",
+      "evidence_start_line": 22,
+      "evidence_end_line": 23,
+      "evidence_quote": "[HEADING]\nDécide :\n\n[PARAGRAPH]\nArticle unique  : Les dispositions de l'article 14 de la circulaire aux Intermédiaires  Agréés  n°  2016-09  du  30  décembre  2016  relative  aux  transferts  au titre des opérations courantes sont abrogées et remplacées comme suit :\n\n[HEADING]\n« Article 14 (nouveau) :\n\n[PARAGRAPH]\nLorsque  le  paiement  par  des  sociétés  résidentes  des  transactions  visées  au paragraphe H-1 de l'annexe n°1 à la présente circulaire, est exigé via internet, le transfert peut être effectué par carte de paiement internationale nominative réservée  spécialement  à  ces  transactions  appelée  «  Carte  Technologique Internationale » et dont la durée de validité est d'une année civile.\n\n[PARAGRAPH]\nA  cet  effet,  l'intermédiaire  agréé  est  autorisé  à  délivrer  à  toute société résidente, qui lui en fait la demande, une allocation annuelle maximale de dix mille dinars (10.000 DT) transférable en une ou plusieurs fois pour réaliser les paiements visés au paragraphe premier du présent  article par utilisation de la « Carte Technologique Internationale » visée ci-dessus.\n\n[PARAGRAPH]\nLe  montant  de  l'allocation  annuelle  maximale  est  fixé  à  cent  mille  dinars (100.000  DT)  pour  toute  société  résidente  ayant  obtenu  le  Label  « Startup » conformément  à  la  réglementation  en  vigueur.  Dans  ce  cas,  l'intermédiaire agréé doit exiger une copie de la décision du ministre en charge de l'économie numérique pour l'octroi du label « startup », en cours de validité. »\n\n[HEADING]\nLE GOUVERNEUR\n\n[HEADING]\nMAROUANE EL ABASSI",
+      "language": "fr",
+      "relevant": true,
+      "evidence_method": "structured_full_labeled_page",
+      "answer_suite_role": "clean_top1_fr",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "FBE446DE712F16D71EEBDCE38D658B672CDA911858527BCE5C0F0555BED55B56",
+        "structured_document_pdf_sha256": "4EAA6144FE2BEA83FCC2A21B80E4F82415709255A90416493C9C4F3834535853",
+        "structured_document_artifact_sha256": "FBE157A8CE5F6EDBA4DE201B5257F3ABAF1A746671DD951B02C948B797303F36",
+        "block_count": 8
+      }
+    },
+    {
+      "id": "note_2022_16_ar_ceramic_importer_02",
+      "query": "هل شركة CASA NOVA DISTRIBUTION مسجلة ضمن موردي المربعات الخزفية الخاضعين لكراس الشروط؟",
+      "language": "ar",
+      "category": "eligibility_or_scope",
+      "relevant": true,
+      "expected_source": "Note_2022_16_ar.pdf",
+      "expected_page": 3,
+      "expected_answer": "نعم، شركة CASA NOVA DISTRIBUTION ذات المعرف الجبائي 1605423P مدرجة في القائمة.",
+      "evidence_quote": "[HEADING]\nالمور ّ دون المسجلون بقائمة مور ّدي المربعات الخزفية المدرجة بالتعريفات الديوانية التالية :\n\n[TABLE]\n69072100008 و 69072200092 و 69072300097 و 69073000009 و 69074000005\n\n| الإجتماعي الإسم                  | الإجتماعي الإسم               | الجبائي ّف المعر   |\n|----------------------------------|-------------------------------|-------------------|\n| STE GAFSI DE COMMERCE            | شركة للتجار القفصي ة          | 1304808E          |\n| CASA NOVA DISTRIBUTION           | شركة كازانوفا لل توزيع        | 1605423P          |\n| STE BUILDING TRADE BUSINESS      | شركة تونس ترايد بولدينغ       | 1075399G          |\n| STE TENDENCIA CERAMICA ELGHADDAB | شركة سيراميك تاندانسيا الغضاب | 1515571A          |\n| STE URBAT                        | شركة أوروبات                  | 1521556P          |\n| EDIFIS GROUP                     | اٍدف شركة ي قروب س             | 0610160L          |\n| SOCIETE IS & G                   | شركة ج و س ا                  | 1662423J          |\n| LUX ALU                          | ألي لوكس                      | 1329144T          |\n| STE ESPACE PRIVILEGE             | شركة الام فضاء تياز           | 1501734D          |\n| STE O CERAMPLUS                  | شركة أوسيرامبلوس              | 1697821H          |\n\n[PARAGRAPH]\n69072100008 و 69072200092 و 69072300097 و 69073000009 و 69074000005\n\n[HEADING]\nالمور ّ دون المسجلون بقائمة مور ّ دي أجهزة الاستقبال التلفزية المدرجة بالتعريفات الديوانية التالية   :\n\n[PARAGRAPH]\n85287260015 - 85287240095 - 85287240017 - 85287230091 - 85287230013 - 85287220097 85287280091 - 85287280013 - 85287260093 -\n\n[TABLE]\n| الإجتماعي الإسم                                                                | الجبائي ّف المعر   |\n|--------------------------------------------------------------------------------|-------------------|\n| الصورة في المحترف والاٍعهمية للتوزيع STE PROFESSIONAL IMAGING & IT DISTRIBUTION | 0710750K          |",
+      "evidence_method": "structured_full_labeled_page",
+      "answer_suite_role": "latin_alphanumeric_identifier",
+      "context_expansion": {
+        "selection": "all non-empty blocks from the exact labeled StructuredDocument page, in source order",
+        "baseline_evidence_quote_sha256": "E1D84571EE4772EE1F66F518FEFE352BCA3ECEB13A9E25735F3B6289FFDFAC75",
+        "structured_document_pdf_sha256": "91C4266F54466B293DBFAD16DD34F1626535D593B0BEC18E35ED0C8F6E135A2C",
+        "structured_document_artifact_sha256": "36AFB5C6DE7DE6BCDF2B637C201739438B03E18B044D52102B3FDAB32947A9AA",
+        "block_count": 6
+      }
+    }
+  ]
+}

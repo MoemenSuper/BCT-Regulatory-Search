@@ -1,0 +1,90 @@
+import json
+
+import pytest
+
+from experiments.answer_context_expansion import (
+    build_context_expansion_suite,
+    render_structured_page,
+)
+
+
+def test_render_structured_page_preserves_order_and_block_roles():
+    page = {
+        "page_number": 3,
+        "blocks": [
+            {"type": "heading", "text": "Ceramic importers"},
+            {"type": "table", "text": "| CASA NOVA | 1605423P |"},
+        ],
+    }
+
+    assert render_structured_page(page) == (
+        "[HEADING]\nCeramic importers\n\n[TABLE]\n| CASA NOVA | 1605423P |"
+    )
+
+
+def test_build_context_suite_changes_only_selected_evidence(tmp_path):
+    document_path = tmp_path / "document.json"
+    document_path.write_text(
+        json.dumps(
+            {
+                "pages": [
+                    {
+                        "page_number": 3,
+                        "blocks": [
+                            {"type": "heading", "text": "Ceramic importers"},
+                            {"type": "table", "text": "CASA NOVA 1605423P"},
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    case = {
+        "id": "case-1",
+        "query": "Is CASA NOVA listed?",
+        "language": "fr",
+        "relevant": True,
+        "expected_source": "Note.pdf",
+        "expected_page": 3,
+        "expected_answer": "NEVER COPY THIS INTO EVIDENCE",
+        "evidence_quote": "CASA NOVA 1605423P",
+        "answer_suite_role": "identifier",
+    }
+    suite = {"cases": [case, {**case, "id": "case-2"}]}
+    manifest = {
+        "records": {
+            "folder/Note.pdf": {
+                "source": "Note.pdf",
+                "sha256": "A" * 64,
+                "artifact": str(document_path),
+            }
+        }
+    }
+
+    result = build_context_expansion_suite(
+        base_suite=suite,
+        manifest=manifest,
+        selected_ids={"case-1"},
+        base_suite_sha256="B" * 64,
+        manifest_sha256="C" * 64,
+    )
+
+    assert [item["id"] for item in result["cases"]] == ["case-1"]
+    expanded = result["cases"][0]
+    assert expanded["query"] == case["query"]
+    assert expanded["expected_answer"] == case["expected_answer"]
+    assert "NEVER COPY" not in expanded["evidence_quote"]
+    assert expanded["evidence_quote"].startswith("[HEADING]\nCeramic importers")
+    assert expanded["context_expansion"]["block_count"] == 2
+
+
+def test_build_context_suite_rejects_unknown_case():
+    with pytest.raises(ValueError, match="absent"):
+        build_context_expansion_suite(
+            base_suite={"cases": []},
+            manifest={"records": {}},
+            selected_ids={"missing"},
+            base_suite_sha256="B" * 64,
+            manifest_sha256="C" * 64,
+        )
