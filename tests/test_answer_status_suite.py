@@ -52,3 +52,25 @@ def test_status_suite_requires_negative_cases():
             base_suite={"cases": [{"id": "only", "relevant": True}]},
             base_suite_sha256="A" * 64,
         )
+
+
+def test_status_suite_can_freeze_v3_without_changing_case_selection():
+    case = {
+        "id": "future-fr",
+        "relevant": False,
+        "language": "fr",
+        "expected_behavior": "abstain",
+    }
+
+    result = build_answer_status_suite(
+        base_suite={"cases": [case]},
+        base_suite_sha256="A" * 64,
+        prompt_version="bct-claim-linked-answer-v3",
+    )
+
+    assert result["cases"] == [case]
+    assert result["answer_experiment"] == {
+        "experiment_id": "claim-linked-status-policy-development-v3",
+        "candidate_and_evidence": "all frozen negative and ambiguous cases with no evidence",
+        "prompt_version": "bct-claim-linked-answer-v3",
+    }

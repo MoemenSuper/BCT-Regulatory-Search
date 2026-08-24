@@ -21,6 +21,7 @@ from experiments.gold_evidence_answer_experiment import automatic_answer_audit
 MODEL = "openai/gpt-oss-120b"
 PROMPT_VERSION = "bct-claim-linked-answer-v1"
 PROMPT_VERSION_V2 = "bct-claim-linked-answer-v2"
+PROMPT_VERSION_V3 = "bct-claim-linked-answer-v3"
 _STATUSES = {"answered", "insufficient_evidence", "clarification_needed", "out_of_scope"}
 _SCHEMA = {
     "type": "object",
@@ -88,6 +89,9 @@ For a question with no supplied evidence, apply this decision order exactly:
 4. Use insufficient_evidence for any other in-scope factual request that has no supporting evidence.
 
 The answer field must always contain a concise user-facing explanation or clarifying question, including for abstentions and refusals."""
+_SYSTEM_V3 = _SYSTEM_V2 + """
+
+A request for an unknown future exchange rate, financial value, or BCT-related rule remains in scope even when it cannot be answered. With no supporting evidence, classify it as insufficient_evidence, never out_of_scope. Reserve out_of_scope for clearly unrelated subjects such as recipes, weather, restaurants, or sports."""
 
 
 def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
@@ -96,6 +100,8 @@ def _contract(suite: dict[str, Any]) -> tuple[str, str, dict[str, Any], bool]:
         return PROMPT_VERSION, _SYSTEM, _SCHEMA, False
     if requested == PROMPT_VERSION_V2:
         return PROMPT_VERSION_V2, _SYSTEM_V2, _SCHEMA_V2, True
+    if requested == PROMPT_VERSION_V3:
+        return PROMPT_VERSION_V3, _SYSTEM_V3, _SCHEMA_V2, True
     raise ValueError(f"Unsupported structured answer prompt version: {requested}")
 
 

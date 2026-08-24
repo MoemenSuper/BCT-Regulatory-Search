@@ -3,6 +3,7 @@ import json
 import pytest
 
 from experiments.structured_answer_experiment import (
+    _contract,
     parse_structured_answer,
     structured_diagnostics,
 )
@@ -73,3 +74,14 @@ def test_diagnostics_require_exact_citation_and_expected_negative_status():
     assert structured_diagnostics(relevant, answer)["exact_structured_citation"] is True
     assert structured_diagnostics(relevant, answer)["claim_evidence_links_valid"] is True
     assert structured_diagnostics(negative, clarification)["status_expected"] is True
+
+
+def test_v3_contract_keeps_future_financial_requests_in_scope():
+    version, prompt, _schema, require_nonempty = _contract(
+        {"answer_experiment": {"prompt_version": "bct-claim-linked-answer-v3"}}
+    )
+
+    assert version == "bct-claim-linked-answer-v3"
+    assert "future exchange rate" in prompt
+    assert "insufficient_evidence" in prompt
+    assert require_nonempty is True

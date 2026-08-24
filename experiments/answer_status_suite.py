@@ -13,8 +13,17 @@ from experiments.artifacts import sha256_file, write_json_atomic
 
 
 def build_answer_status_suite(
-    *, base_suite: dict[str, Any], base_suite_sha256: str
+    *,
+    base_suite: dict[str, Any],
+    base_suite_sha256: str,
+    prompt_version: str = "bct-claim-linked-answer-v2",
 ) -> dict[str, Any]:
+    versions = {
+        "bct-claim-linked-answer-v2": "claim-linked-status-policy-development-v2",
+        "bct-claim-linked-answer-v3": "claim-linked-status-policy-development-v3",
+    }
+    if prompt_version not in versions:
+        raise ValueError(f"Unsupported status prompt version: {prompt_version}")
     cases = [deepcopy(case) for case in base_suite["cases"] if not case.get("relevant")]
     if not cases:
         raise ValueError("Base answer suite has no negative or ambiguous cases")
@@ -37,9 +46,9 @@ def build_answer_status_suite(
             "schema's non-empty answer constraint and the status decision policy."
         ),
         "answer_experiment": {
-            "experiment_id": "claim-linked-status-policy-development-v2",
+            "experiment_id": versions[prompt_version],
             "candidate_and_evidence": "all frozen negative and ambiguous cases with no evidence",
-            "prompt_version": "bct-claim-linked-answer-v2",
+            "prompt_version": prompt_version,
         },
         "counts": {
             "total": len(cases),
@@ -63,12 +72,18 @@ def build_answer_status_suite(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-suite", type=Path, required=True)
+    parser.add_argument(
+        "--prompt-version",
+        choices=("bct-claim-linked-answer-v2", "bct-claim-linked-answer-v3"),
+        default="bct-claim-linked-answer-v2",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     base_suite = json.loads(args.base_suite.read_text(encoding="utf-8"))
     artifact = build_answer_status_suite(
         base_suite=base_suite,
         base_suite_sha256=sha256_file(args.base_suite),
+        prompt_version=args.prompt_version,
     )
     write_json_atomic(args.output, artifact)
 
