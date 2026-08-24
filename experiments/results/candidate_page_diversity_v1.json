@@ -1,0 +1,4483 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-24T17:09:23.433038+00:00",
+  "experiment_id": "post-reranker-source-page-diversity-development-v1",
+  "decision": "KEEP_FOR_UNSEEN_VALIDATION",
+  "deployment_status": "PROHIBITED_PENDING_UNSEEN_VALIDATION",
+  "hypothesis": "Stable source-page diversity after reranking removes redundant native/OCR chunks from final slots without sacrificing exact-page recall.",
+  "predeclared_gate": "No exact Page@1 or Page@5 regression overall or by language versus additive OCR, and at least one Page@5 repair.",
+  "configuration": {
+    "candidate_pool": "identical additive Arabic OCR exact union",
+    "reranker": "BAAI/bge-reranker-v2-m3 unchanged",
+    "diversity": "stable first occurrence per casefolded source plus start page",
+    "final_page_slots": 5
+  },
+  "inputs": {
+    "evaluation_sha256": "00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1",
+    "current_result_sha256": "A785228676583BE0961F3163E56B3B2D9D33C8B0E9D5F8D5EAB0866A31F9562F",
+    "current_candidates_sha256": "A061D88BEE3F4C221EFC8612AC13272C83AA1C8A2EEA475409C2DC6E0CF65B33",
+    "fusion_slim_result_sha256": "045EC8D869F5D31730187A74F0A9C779910B1A772E23482BB4FB29CF212950A0",
+    "ocr_representation_manifest_sha256": "8CBD9A468B2D017DB46218252B555231460A64381245786CCA020C84F3CD05AB"
+  },
+  "summary": {
+    "overall": {
+      "current": {
+        "n": 689,
+        "exact_page_top1": 0.7039187227866474,
+        "exact_page_top5": 0.8795355587808418,
+        "exact_page_top20": 0.9317851959361393,
+        "mrr_page": 0.7796704142495144
+      },
+      "fusion": {
+        "n": 689,
+        "exact_page_top1": 0.7024673439767779,
+        "exact_page_top5": 0.8925979680696662,
+        "exact_page_top20": 0.9462989840348331,
+        "mrr_page": 0.7852146361984017
+      },
+      "diverse": {
+        "n": 689,
+        "exact_page_top1": 0.7024673439767779,
+        "exact_page_top5": 0.8940493468795355,
+        "exact_page_top20": 0.9477503628447025,
+        "mrr_page": 0.786059971744497
+      },
+      "diverse_vs_fusion_at_1": {
+        "repairs": 0,
+        "regressions": 0,
+        "net": 0
+      },
+      "diverse_vs_fusion_at_5": {
+        "repairs": 1,
+        "regressions": 0,
+        "net": 1
+      },
+      "diverse_vs_current_at_5": {
+        "repairs": 12,
+        "regressions": 2,
+        "net": 10
+      }
+    },
+    "fr": {
+      "current": {
+        "n": 377,
+        "exact_page_top1": 0.7294429708222812,
+        "exact_page_top5": 0.9018567639257294,
+        "exact_page_top20": 0.9549071618037135,
+        "mrr_page": 0.8071570302671098
+      },
+      "fusion": {
+        "n": 377,
+        "exact_page_top1": 0.7294429708222812,
+        "exact_page_top5": 0.9018567639257294,
+        "exact_page_top20": 0.9549071618037135,
+        "mrr_page": 0.8071570302671098
+      },
+      "diverse": {
+        "n": 377,
+        "exact_page_top1": 0.7294429708222812,
+        "exact_page_top5": 0.9018567639257294,
+        "exact_page_top20": 0.9549071618037135,
+        "mrr_page": 0.8071570302671098
+      },
+      "diverse_vs_fusion_at_1": {
+        "repairs": 0,
+        "regressions": 0,
+        "net": 0
+      },
+      "diverse_vs_fusion_at_5": {
+        "repairs": 0,
+        "regressions": 0,
+        "net": 0
+      },
+      "diverse_vs_current_at_5": {
+        "repairs": 0,
+        "regressions": 0,
+        "net": 0
+      }
+    },
+    "ar": {
+      "current": {
+        "n": 312,
+        "exact_page_top1": 0.6730769230769231,
+        "exact_page_top5": 0.8525641025641025,
+        "exact_page_top20": 0.9038461538461539,
+        "mrr_page": 0.7464574198949199
+      },
+      "fusion": {
+        "n": 312,
+        "exact_page_top1": 0.6698717948717948,
+        "exact_page_top5": 0.8814102564102564,
+        "exact_page_top20": 0.9358974358974359,
+        "mrr_page": 0.758700910032046
+      },
+      "diverse": {
+        "n": 312,
+        "exact_page_top1": 0.6698717948717948,
+        "exact_page_top5": 0.8846153846153846,
+        "exact_page_top20": 0.9391025641025641,
+        "mrr_page": 0.76056769269634
+      },
+      "diverse_vs_fusion_at_1": {
+        "repairs": 0,
+        "regressions": 0,
+        "net": 0
+      },
+      "diverse_vs_fusion_at_5": {
+        "repairs": 1,
+        "regressions": 0,
+        "net": 1
+      },
+      "diverse_vs_current_at_5": {
+        "repairs": 12,
+        "regressions": 2,
+        "net": 10
+      }
+    },
+    "queries_with_page_duplicates": 259,
+    "duplicate_page_candidates_removed": 1444,
+    "changed_page_ranks": [
+      "cir_2016_04_ar_amount_or_rate_01",
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "cir_2018_03_ar_procedure_or_documents_01",
+      "cir_2020_07_ar_eligibility_or_scope_01",
+      "note_2017_25_ar_effective_date_01",
+      "note_2018_31_ar_effective_date_01",
+      "note_2020_12_ar_deadline_or_duration_01",
+      "note_2020_14_ar_deadline_or_duration_01",
+      "note_2020_25_ar_eligibility_or_scope_01",
+      "note_2020_39_ar_deadline_or_duration_01",
+      "note_2026_22_ar_eligibility_or_scope_01"
+    ]
+  },
+  "latency_seconds": {
+    "mean_arabic_rerun": 1.1859166721514607,
+    "diversity_postprocess": "included but not separately measurable; linear over ranked candidates"
+  },
+  "limitations": [
+    "Development-only post-hoc ablation; this does not establish generalization.",
+    "Page diversity improves citation-page coverage mechanically but may discard a second useful chunk from the same page.",
+    "A generation context builder should retain provenance and may reattach additional same-page or neighboring context after page selection."
+  ],
+  "artifact_hashes": {
+    "full_result_sha256": "4687B5F13EDB8ADBB1154E6A220884E29EFEB0F7926E04878BB9EC30C89598B0"
+  },
+  "changed_rank_records": [
+    {
+      "id": "cir_2016_04_ar_amount_or_rate_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 16,
+      "fusion_page": 18,
+      "diverse_page": 14,
+      "candidate_count": 37,
+      "unique_page_count": 26,
+      "duplicate_page_candidate_count": 11,
+      "latency_seconds": 1.5118780999910086
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": null,
+      "fusion_page": 11,
+      "diverse_page": 9,
+      "candidate_count": 34,
+      "unique_page_count": 23,
+      "duplicate_page_candidate_count": 11,
+      "latency_seconds": 0.810437899956014
+    },
+    {
+      "id": "cir_2018_03_ar_procedure_or_documents_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": null,
+      "fusion_page": 12,
+      "diverse_page": 9,
+      "candidate_count": 31,
+      "unique_page_count": 20,
+      "duplicate_page_candidate_count": 11,
+      "latency_seconds": 0.8053450000006706
+    },
+    {
+      "id": "cir_2020_07_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 11,
+      "fusion_page": 15,
+      "diverse_page": 12,
+      "candidate_count": 41,
+      "unique_page_count": 36,
+      "duplicate_page_candidate_count": 5,
+      "latency_seconds": 1.39836719998857
+    },
+    {
+      "id": "note_2017_25_ar_effective_date_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 2,
+      "candidate_count": 37,
+      "unique_page_count": 34,
+      "duplicate_page_candidate_count": 3,
+      "latency_seconds": 1.1908616999862716
+    },
+    {
+      "id": "note_2018_31_ar_effective_date_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 4,
+      "fusion_page": 6,
+      "diverse_page": 5,
+      "candidate_count": 30,
+      "unique_page_count": 22,
+      "duplicate_page_candidate_count": 8,
+      "latency_seconds": 1.0889448000234552
+    },
+    {
+      "id": "note_2020_12_ar_deadline_or_duration_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 10,
+      "fusion_page": 17,
+      "diverse_page": 14,
+      "candidate_count": 42,
+      "unique_page_count": 38,
+      "duplicate_page_candidate_count": 4,
+      "latency_seconds": 1.5511119000148028
+    },
+    {
+      "id": "note_2020_14_ar_deadline_or_duration_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 12,
+      "fusion_page": 17,
+      "diverse_page": 13,
+      "candidate_count": 44,
+      "unique_page_count": 37,
+      "duplicate_page_candidate_count": 7,
+      "latency_seconds": 1.5614994000061415
+    },
+    {
+      "id": "note_2020_25_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 5,
+      "fusion_page": 4,
+      "diverse_page": 3,
+      "candidate_count": 37,
+      "unique_page_count": 31,
+      "duplicate_page_candidate_count": 6,
+      "latency_seconds": 1.251124800008256
+    },
+    {
+      "id": "note_2020_39_ar_deadline_or_duration_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": 15,
+      "fusion_page": 22,
+      "diverse_page": 15,
+      "candidate_count": 40,
+      "unique_page_count": 30,
+      "duplicate_page_candidate_count": 10,
+      "latency_seconds": 1.6122578000067733
+    },
+    {
+      "id": "note_2026_22_ar_eligibility_or_scope_01",
+      "language": "ar",
+      "relevant": true,
+      "current_page": null,
+      "fusion_page": 3,
+      "diverse_page": 2,
+      "candidate_count": 38,
+      "unique_page_count": 35,
+      "duplicate_page_candidate_count": 3,
+      "latency_seconds": 1.1469510000315495
+    }
+  ],
+  "rank_records": {
+    "cb_2017_08_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cb_2017_08_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "ci_2022_03_ar_change_notification_04": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "ci_2022_03_ar_final_file_deadline_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "ci_2022_03_ar_final_file_documents_03": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "ci_2022_03_ar_initial_file_deadline_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir202204fr_savings_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir202205ar_chequebook_deadline_02": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir202205ar_record_retention_03": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir202205ar_single_account_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_01_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_01_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_02_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_02_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_03_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_04_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 16,
+      "fusion_page": 18,
+      "diverse_page": 14
+    },
+    "cir_2016_04_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2016_05_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_05_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2016_06_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_06_fr_reporting_or_control_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2016_07_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_07_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2016_08_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2016_08_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "cir_2016_09_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_09_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "cir_2016_10_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2016_10_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2017_01_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_02_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_02_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2017_03_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2017_04_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_04_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_05_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2017_05_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2017_06_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2017_06_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_07_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2017_09_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2017_09_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2017_10_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_11_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_11_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2017_12_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2017_12_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_01_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2018_01_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2018_02_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_03_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 11,
+      "diverse_page": 9
+    },
+    "cir_2018_03_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 12,
+      "diverse_page": 9
+    },
+    "cir_2018_03_ar_prohibition_or_limit_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2018_04_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_04_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_05_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_05_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_05_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_06_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_06_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_07_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2018_07_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_08_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_09_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_10_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_10_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2018_11_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2018_11_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_11_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2018_12_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_12_fr_reporting_or_control_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_13_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_14_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_15_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_15_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2018_16_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2018_16_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_01_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_02_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_02_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_03_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2019_03_ar_prohibition_or_limit_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_04_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_05_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_05_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2019_06_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2019_06_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 10,
+      "fusion_page": 10,
+      "diverse_page": 10
+    },
+    "cir_2019_06_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 11,
+      "fusion_page": 11,
+      "diverse_page": 11
+    },
+    "cir_2019_07_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2019_07_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_08_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_08_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_09_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_09_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_10_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_10_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2019_11_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_11_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2019_12_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2019_12_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2020_01_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "cir_2020_01_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_02_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_02_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2020_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_03_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_03_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2020_03_fr_definition_01": {
+      "language": "fr",
+      "current_page": 14,
+      "fusion_page": 14,
+      "diverse_page": 14
+    },
+    "cir_2020_03_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_04_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_04_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2020_05_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_06_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2020_07_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 11,
+      "fusion_page": 15,
+      "diverse_page": 12
+    },
+    "cir_2020_08_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_09_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_10_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_11_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_11_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_11_fr_deadline_or_duration_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_11_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_11_fr_required_action_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_12_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_12_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_13_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_13_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_14_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_14_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_15_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_16_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_17_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2020_17_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_18_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2020_18_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_18_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 6,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "cir_2020_19_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2020_19_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_20_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_20_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2020_21_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2021_01_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "cir_2021_02_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2021_02_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_02_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_03_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_03_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_03_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2021_03_fr_deadline_or_duration_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_03_fr_deadline_or_duration_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2021_03_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2021_03_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 9,
+      "fusion_page": 9,
+      "diverse_page": 9
+    },
+    "cir_2021_04_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2021_05_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_deadline_or_duration_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_deadline_or_duration_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_deadline_or_duration_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_deadline_or_duration_06": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_eligibility_or_scope_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_eligibility_or_scope_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_reporting_or_control_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_reporting_or_control_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_05_fr_reporting_or_control_03": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2021_05_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_06_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2021_06_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2021_06_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_07_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_07_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_07_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2021_07_fr_amount_or_rate_04": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2021_07_fr_amount_or_rate_05": {
+      "language": "fr",
+      "current_page": 11,
+      "fusion_page": 11,
+      "diverse_page": 11
+    },
+    "cir_2021_08_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_09_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2021_09_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2022_01_fr_npl_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_01_fr_resolution_horizon_03": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2022_01_fr_roadmap_deadline_06": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_01_fr_viability_review_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_01_fr_workout_reporting_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_01_fr_writeoff_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_02_fr_agriculture_rate_03": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2022_02_fr_annual_recalculation_04": {
+      "language": "fr",
+      "current_page": 9,
+      "fusion_page": 9,
+      "diverse_page": 9
+    },
+    "cir_2022_02_fr_collective_provisions_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_02_fr_migration_history_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_06_ar_application_deadline_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_06_ar_auditor_report_05": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2022_06_ar_default_notification_04": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_06_ar_eligible_investment_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_06_ar_refund_transfer_03": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_07_fr_durum_wheat_cap_01": {
+      "language": "fr",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "cir_2022_07_fr_summer_fodder_deadline_02": {
+      "language": "fr",
+      "current_page": 21,
+      "fusion_page": 21,
+      "diverse_page": 21
+    },
+    "cir_2022_08_fr_audit_frequency_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_08_fr_complaint_definition_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_08_fr_compliance_period_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_08_fr_response_deadline_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_08_fr_scope_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2022_09_fr_business_plan_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_09_fr_cloud_prohibition_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2022_09_fr_security_approval_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_09_fr_submission_location_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_10_fr_effective_date_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_10_fr_savings_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_11_ar_foreign_funding_prohibition_03": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_11_ar_opening_documents_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_11_ar_single_account_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_11_ar_statement_deadlines_04": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2022_12_fr_currency_arbitrage_code_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_12_fr_database_subscription_code_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2022_12_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2022_12_fr_student_stay_code_02": {
+      "language": "fr",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "cir_2023_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_02_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_02_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_03_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_04_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_05_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2023_05_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_06_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_06_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2023_07_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2023_08_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 13,
+      "fusion_page": 13,
+      "diverse_page": 13
+    },
+    "cir_2024_01_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2024_02_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 11,
+      "fusion_page": 11,
+      "diverse_page": 11
+    },
+    "cir_2024_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_03_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_03_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_04_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_04_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_04_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_05_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_05_fr_definition_02": {
+      "language": "fr",
+      "current_page": 7,
+      "fusion_page": 7,
+      "diverse_page": 7
+    },
+    "cir_2024_06_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_06_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_07_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_07_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_08_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_08_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_08_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_09_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2024_09_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2024_09_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_09_fr_amount_or_rate_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2024_09_fr_amount_or_rate_05": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2024_10_ar_prohibition_or_limit_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2024_11_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 10,
+      "fusion_page": 10,
+      "diverse_page": 10
+    },
+    "cir_2024_12_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_12_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_12_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_13_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_14_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2024_14_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 13,
+      "fusion_page": 13,
+      "diverse_page": 13
+    },
+    "cir_2025_01_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "cir_2025_01_fr_effective_date_03": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2025_01_fr_eligibility_or_scope_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2025_02_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_02_fr_eligibility_or_scope_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_03_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_03_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_03_fr_prohibition_or_limit_03": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2025_03_fr_required_action_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_04_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_04_fr_effective_date_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_05_fr_deadline_or_duration_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_05_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_05_fr_procedure_or_documents_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2025_05_fr_reporting_or_control_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_06_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_06_fr_deadline_or_duration_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_06_fr_reporting_or_control_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_07_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_08_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_08_fr_eligibility_or_scope_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_08_fr_procedure_or_documents_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_08_fr_required_action_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_09_fr_eligibility_or_scope_02": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2025_09_fr_other_operational_rule_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_deadline_or_duration_06": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_deadline_or_duration_07": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_procedure_or_documents_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_procedure_or_documents_08": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_10_fr_prohibition_or_limit_03": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2025_10_fr_required_action_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_11_fr_credit_ceiling_adjustment_03": {
+      "language": "fr",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "cir_2025_11_fr_northern_almond_credit_02": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2025_11_fr_seasonal_tomato_credit_01": {
+      "language": "fr",
+      "current_page": 16,
+      "fusion_page": 16,
+      "diverse_page": 16
+    },
+    "cir_2025_12_fr_authorization_types_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_12_fr_platform_only_deadline_04": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2025_12_fr_remote_exchange_request_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_12_fr_transfer_authorization_validity_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_13_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_13_fr_eligibility_or_scope_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_14_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2025_15_fr_definition_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_15_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_15_fr_other_operational_rule_04": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2025_15_fr_required_action_03": {
+      "language": "fr",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "cir_2025_16_fr_pilgrimage_allowance_start_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_16_fr_pilgrimage_allowance_use_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_16_fr_pilgrimage_export_validity_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_17_fr_ctaf_designation_deadline_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_17_fr_frozen_assets_reporting_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_17_fr_proliferation_financing_risk_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_17_fr_risk_assessment_update_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2025_17_fr_suspicious_transaction_channel_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_02_fr_definition_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "cir_2026_02_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_02_fr_procedure_or_documents_04": {
+      "language": "fr",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "cir_2026_02_fr_procedure_or_documents_06": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "cir_2026_02_fr_prohibition_or_limit_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_02_fr_reporting_or_control_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_03_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2026_03_fr_exception_or_condition_02": {
+      "language": "fr",
+      "current_page": 6,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "cir_2026_04_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_05_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "cir_2026_06_ar_application_deadline_03": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "cir_2026_06_ar_full_payment_relief_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "cir_2026_06_ar_rescheduling_terms_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2018_28_1110_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_13_ar_eid_hours_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_14_fr_five_dinar_characteristics_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_14_fr_five_dinar_portrait_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_15_fr_fifty_dinar_characteristics_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_15_fr_fifty_dinar_portrait_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "nb_2022_27_ar_enda_cash_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "negative_ar_ambiguous_allowance": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_ar_current_status_unknown": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_ar_future_regulation": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_fr_ambiguous_documents": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_fr_current_status_unknown": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_fr_future_exchange_rate": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "negative_fr_out_of_scope_weather": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2016_01_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2016_02_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_03_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_04_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_05_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_06_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "note_2016_07_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_08_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2016_09_ar_definition_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2016_10_ar_definition_01": {
+      "language": "ar",
+      "current_page": 11,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2016_11_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_12_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_13_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2016_14_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_15_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_16_ar_reporting_or_control_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2016_17_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_18_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_19_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2016_20_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_21_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_22_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_23_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_24_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_25_ar_other_operational_rule_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2016_26_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_27_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_28_ar_definition_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2016_29_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_30_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_31_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_32_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2016_33_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2016_34_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_01_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "note_2017_04_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_05_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_06_ar_other_operational_rule_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_07_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_08_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_09_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_10_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_11_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_12_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_13_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_14_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_15_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 7,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2017_16_ar_definition_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2017_17_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_18_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_19_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_20_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_21_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_22_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_23_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_24_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_25_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 2
+    },
+    "note_2017_26_ar_definition_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_27_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_34_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_36_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2017_38_ar_reporting_or_control_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "note_2017_46_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_55_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_56_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_57_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "note_2017_60_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2017_61_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_64_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_65_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_66_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_67_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_70_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_73_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_75_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_78_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_79_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2017_81_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_01_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_02_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_03_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2018_04_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_05_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_06_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2018_07_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2018_11_ar_required_action_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2018_12_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_13_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_14_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2018_18_ar_required_action_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2018_20_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_21_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_22_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_23_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2018_24_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2018_29_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2018_30_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2018_31_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 6,
+      "diverse_page": 5
+    },
+    "note_2018_33_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_01_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_02_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_04_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 7,
+      "fusion_page": 7,
+      "diverse_page": 7
+    },
+    "note_2019_05_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_06_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "note_2019_07_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_08_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2019_08_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2019_09_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_09_ar_deadline_or_duration_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_10_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_11_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_12_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_13_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_15_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_16_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_17_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_17_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_18_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_19_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_21_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_22_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_23_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_24_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "note_2019_25_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2019_26_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2019_27_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_01_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_01_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_01_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_02_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "note_2020_03_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_04_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_05_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_06_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_07_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2020_08_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2020_09_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_10_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_11_ar_definition_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2020_12_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 10,
+      "fusion_page": 17,
+      "diverse_page": 14
+    },
+    "note_2020_13_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2020_14_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 12,
+      "fusion_page": 17,
+      "diverse_page": 13
+    },
+    "note_2020_15_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2020_16_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_16_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_17_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_18_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2020_19_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2020_20_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_21_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_21_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_22_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_23_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_24_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 8,
+      "fusion_page": 8,
+      "diverse_page": 8
+    },
+    "note_2020_25_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 4,
+      "diverse_page": 3
+    },
+    "note_2020_26_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_27_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_28_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_28_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_28_fr_amount_or_rate_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_29_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_30_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 9,
+      "fusion_page": 9,
+      "diverse_page": 9
+    },
+    "note_2020_31_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_32_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 6,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "note_2020_33_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_33_fr_required_action_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2020_34_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_35_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2020_36_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 8,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2020_37_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 7,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "note_2020_38_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_38_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_39_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 15,
+      "fusion_page": 22,
+      "diverse_page": 15
+    },
+    "note_2020_40_ar_definition_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 5,
+      "diverse_page": 5
+    },
+    "note_2020_41_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2020_42_ar_definition_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2021_01_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_02_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_03_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2021_04_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_05_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_06_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_07_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_08_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_08_fr_prohibition_or_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_09_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 5,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "note_2021_10_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_11_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_12_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2021_12_fr_reporting_or_control_01": {
+      "language": "fr",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2021_13_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_14_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_15_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_16_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2021_16_fr_amount_or_rate_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_16_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_16_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_17_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_18_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_19_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_20_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_21_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_22_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_23_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_25_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_26_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_27_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_28_fr_pdf_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_29_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_30_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_31_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2021_32_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2021_33_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2021_33_ar_deadline_or_duration_02": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2021_34_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_01_ar_zitouna_payment_code_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2022_02_ar_uae_fifty_dirham_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_02_ar_uae_fifty_dirham_material_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_03_ar_uib_assurances_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_04_ar_supplementary_credit_purpose_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2022_05_fr_indirect_participant_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_05_fr_membership_submission_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_05_fr_payment_irrevocability_05": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_05_fr_representation_approval_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_05_fr_settlement_interest_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_06_ar_tax_settlement_due_diligence_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_07_ar_swedish_gym_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_08_fr_bft_payment_instruments_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_08_fr_bft_suspension_dates_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_09_ar_segpv_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_10_fr_coin_release_date_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_10_fr_coin_weights_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_11_fr_dividend_limit_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_11_fr_unlimited_dividend_condition_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_16_ar_ceramic_importer_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_16_ar_furniture_importer_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_17_ar_hajj_daily_reporting_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_17_ar_hajj_exchange_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_18_ar_uae_notes_dates_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_18_ar_uae_notes_images_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_19_ar_republic_day_hours_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_20_ar_hijri_new_year_hours_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_22_ar_rbs_withdrawal_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2022_23_ar_clydesdale_withdrawal_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_24_ar_bank_of_scotland_withdrawal_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_25_ar_bank_of_england_withdrawal_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_28_ar_wafacash_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_29_ar_olympe_gym_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_30_ar_sotacib_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2022_32_ar_go_gym_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_02_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_03_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_05_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2023_05_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2023_06_fr_procedure_or_documents_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_06_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_07_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2023_08_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_09_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_10_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_10_fr_exception_or_condition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_11_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_12_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_13_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_15_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_16_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_19_ar_reporting_or_control_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_20_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_26_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_28_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_29_fr_eligibility_or_scope_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_30_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2023_30_ar_exception_or_condition_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2023_33_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_35_ar_prohibition_or_limit_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_40_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_44_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2023_45_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_04_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_05_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_05_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_101_fr_amount_or_rate_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_101_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_119_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_129_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_131_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_136_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_140_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_145_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_147_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_163_fr_deadline_or_duration_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_165_ar_definition_01": {
+      "language": "ar",
+      "current_page": 28,
+      "fusion_page": 29,
+      "diverse_page": 29
+    },
+    "note_2024_178_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_187_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_29_ar_amount_or_rate_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_44_ar_procedure_or_documents_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_56_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_60_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_77_fr_required_action_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_85_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_86_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2024_87_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2024_92_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_03_ar_issuer_codes_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_142_fr_fifty_dinar_concurrent_02": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2025_142_fr_fifty_dinar_issue_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_152_ar_peps_fitness_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_163_fr_ten_dinar_issue_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_163_fr_ten_dinar_issue_date_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_168_ar_kidzy_ben_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_175_ar_same_day_cash_supply_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_175_ar_strike_continuity_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_195_ar_tunisianet_code_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_199_fr_account_nomenclature_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_199_fr_compliance_deadline_05": {
+      "language": "fr",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2025_199_fr_incoming_swift_rules_04": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_199_fr_regulatory_tag_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2025_199_fr_swift_archive_03": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_111_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 6,
+      "fusion_page": 6,
+      "diverse_page": 6
+    },
+    "note_2026_128_ar_definition_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2026_129_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_132_fr_definition_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_132_fr_procedure_or_documents_02": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_140_ar_issuer_codes_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_141_ar_procedure_or_documents_02": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2026_141_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2026_145_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 4,
+      "fusion_page": 4,
+      "diverse_page": 4
+    },
+    "note_2026_15_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2026_15_ar_exception_or_condition_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_161_ar_deadline_or_duration_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2026_161_ar_prohibition_or_limit_02": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": null,
+      "diverse_page": null
+    },
+    "note_2026_166_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_22_ar_eligibility_or_scope_01": {
+      "language": "ar",
+      "current_page": null,
+      "fusion_page": 3,
+      "diverse_page": 2
+    },
+    "note_2026_30_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_31_ar_irrigated_grain_credit_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_31_ar_rainfed_grain_credit_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_43_fr_definition_02": {
+      "language": "fr",
+      "current_page": 3,
+      "fusion_page": 3,
+      "diverse_page": 3
+    },
+    "note_2026_43_fr_effective_date_01": {
+      "language": "fr",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_56_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_59_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_73_ar_effective_date_01": {
+      "language": "ar",
+      "current_page": 2,
+      "fusion_page": 2,
+      "diverse_page": 2
+    },
+    "note_2026_73_ar_exception_or_condition_02": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_74_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_76_ar_definition_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    },
+    "note_2026_80_ar_required_action_01": {
+      "language": "ar",
+      "current_page": 1,
+      "fusion_page": 1,
+      "diverse_page": 1
+    }
+  }
+}

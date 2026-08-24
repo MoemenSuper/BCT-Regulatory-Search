@@ -285,6 +285,41 @@ without allowing redundant OCR/native candidates to displace exact evidence.
 Canonical targeted retrieval result SHA-256:
 `90A5BADE399E29467AEDC78D901E762DC00D0B4A095A2AB2540C6F3B4F2EF20F`.
 
+### Post-reranker source-page diversity
+
+The full additive-OCR candidate union was reranked again with the unchanged
+BGE model. Every undiversified exact-page rank matched the tracked fusion run,
+which verifies that page diversity is the isolated change. Stable filtering
+then retained only the highest-scored chunk for each case-folded source/start
+page.
+
+| Exact-page metric | Additive OCR | Page-diverse OCR | Delta |
+|---|---:|---:|---:|
+| Overall Page@1 | 70.25% | 70.25% | 0.00 pp |
+| Overall Page@5 | 89.26% | 89.40% | +0.15 pp |
+| Overall Page@20 | 94.63% | 94.78% | +0.15 pp |
+| Arabic Page@1 | 66.99% | 66.99% | 0.00 pp |
+| Arabic Page@5 | 88.14% | 88.46% | +0.32 pp |
+| Arabic Page@20 | 93.59% | 93.91% | +0.32 pp |
+
+The predeclared gate required no Page@1 or Page@5 regressions overall or by
+language and at least one Page@5 repair. It passes with one repair and zero
+regressions versus additive OCR. The repair is
+`note_2018_31_ar_effective_date_01`, restored from rank 6 to 5 after a duplicate
+native/OCR page ahead of it was collapsed. Across all 697 queries, 259 candidate
+lists contained page duplicates; stable filtering removed 1,444 duplicate-page
+candidates and improved 11 exact-page ranks. French ranks are unchanged.
+
+**Decision: KEEP FOR UNSEEN VALIDATION, DO NOT DEPLOY.** The gain is small and
+mechanically monotonic for first-page occurrence. A second chunk from the same
+page may still carry useful answer context, so the eventual context builder
+should select diverse evidence pages first and then reattach provenance-linked
+same-page or neighboring context. This retrieval-only ablation does not prove
+answer quality.
+
+Tracked result SHA-256:
+`1A0ABFD6D97CDAC7AC102987B1E274DD7958295A9E18D2577B694C9F566CDE40`.
+
 ## Reproduction artifacts
 
 - Evaluation SHA-256: `00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1`

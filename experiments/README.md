@@ -180,6 +180,24 @@ This is a cached rank analysis: it performs no retrieval, reranking, OCR, or
 hosted-model calls. Negative/ambiguous cases are deliberately marked not
 evaluated because retrieval ranks cannot measure abstention.
 
+Rerun the identical additive-OCR candidates and scores, then apply stable
+source-page diversity after reranking:
+
+```powershell
+python -u -m experiments.candidate_diversity_ablation `
+  --evaluation evaluation_queries.json `
+  --current-result "$env:TEMP\reproduction\results\structured_baseline_chunking.json" `
+  --current-candidates "$env:TEMP\reproduction\candidate_caches\structured_baseline_chunking.json" `
+  --fusion-slim-result experiments/results/arabic_ocr_fusion_retrieval_v1.json `
+  --representation-manifest "$env:TEMP\arabic-ocr-fusion\representation\manifest.json" `
+  --output "$env:TEMP\candidate-page-diversity-full.json" `
+  --slim-output experiments/results/candidate_page_diversity_v1.json
+```
+
+The ablation fails if its undiversified ranks do not exactly match the tracked
+fusion result. Diversity keeps the highest-scored chunk for each source/start
+page; context assembly may still reattach other chunks from a selected page.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
