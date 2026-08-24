@@ -12,6 +12,74 @@ The experiment keeps these retrieval controls fixed:
 - `BAAI/bge-reranker-v2-m3` reranker;
 - final top 5.
 
+## Stage-aware analysis
+
+Generate overall, French, Arabic, candidate-pool, dense-channel, BM25-channel,
+ranking, and failure metrics from frozen artifacts without rerunning models:
+
+```powershell
+python -m experiments.retrieval_analysis `
+  --evaluation evaluation_queries.json `
+  --result "$env:TEMP\experiment\results\configuration.json" `
+  --candidate-cache "$env:TEMP\experiment\candidate_caches\configuration.json" `
+  --output "$env:TEMP\experiment\stage_analysis.json"
+```
+
+## Freeze evaluation sets
+
+The original 697 cases are development data because their failures have already
+been inspected. Once newly curated validation and holdout files exist, freeze
+their hashes and audit leakage with:
+
+```powershell
+python -m experiments.evaluation_protocol `
+  --development evaluation_queries.json `
+  --validation evaluation_validation.json `
+  --holdout evaluation_final_holdout.json `
+  --corpus-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --output evaluation_protocol.json
+```
+
+Final holdout is required to be disjoint from both development and validation
+by conservative type-number family across years and languages. Unknown validation/holdout filename forms
+require an explicit `document_family` instead of silently becoming unique.
+Validation/development overlap is audited. A legacy development/holdout override
+exists for explicitly documenting a weaker protocol, but is disabled by default.
+
+## Record experiments
+
+Append one schema-checked entry at a time. Entries require dataset hashes,
+overall development metrics, validation status/metrics, French and Arabic
+metrics, latency/cost, failure distribution, and a KEEP/REJECT decision:
+
+```powershell
+python -m experiments.experiment_registry `
+  --registry experiments/registry/experiments.jsonl `
+  --entry "$env:TEMP\experiment-entry.json"
+```
+
+## Freeze the extraction-quality development stress set
+
+```powershell
+python -m experiments.stress_suite `
+  --evaluation evaluation_queries.json `
+  --result "$env:TEMP\experiment\results\structured_baseline_chunking.json" `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --output "$env:TEMP\experiment\extraction_stress_development_v1.json"
+```
+
+The frozen set contains all current development extraction failures plus unique,
+deterministic same-language and same-category Top-5 controls. It is development
+data and must not be reported as validation or holdout evidence.
+
+Screen a proposed Arabic fallback gate without changing ingestion:
+
+```powershell
+python -m experiments.arabic_quality_experiment `
+  --stress-suite experiments/stress_suites/extraction_development_v1.json `
+  --output "$env:TEMP\experiment\arabic_quality_gate_v1.json"
+```
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell

@@ -1,0 +1,40 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-24T15:19:46.078297+00:00",
+  "stress_suite_sha256": "3A83F92AB5DFE0A90EB66281E22DDB22EC956811BB7F4DDAC0DD665807BA9496",
+  "configuration": {
+    "quality_score_below": 0.55,
+    "latin_character_ratio_above": 0.2,
+    "single_arabic_token_ratio_at_least": 0.1,
+    "decision_gate": "recall improvement >= 0.25 and false-positive rate <= 0.10"
+  },
+  "current_gate": {
+    "true_positive": 2,
+    "false_negative": 18,
+    "false_positive": 0,
+    "true_negative": 20,
+    "recall": 0.1,
+    "false_positive_rate": 0.0
+  },
+  "proposed_gate": {
+    "true_positive": 17,
+    "false_negative": 3,
+    "false_positive": 1,
+    "true_negative": 19,
+    "recall": 0.85,
+    "false_positive_rate": 0.05
+  },
+  "trigger_reasons": {
+    "control:fragmented_arabic_tokens": 1,
+    "failure:current_low_quality": 2,
+    "failure:fragmented_arabic_tokens": 14,
+    "failure:latin_heavy": 3
+  },
+  "decision": "KEEP_FOR_CONTROLLED_FALLBACK_COMPARISON",
+  "limitations": [
+    "Development stress set only; this does not establish generalization.",
+    "Thresholds were explored on this same development suite, so recall and false-positive rates are resubstitution estimates.",
+    "Extraction-failure labels derive from benchmark evidence coverage and require independent validation.",
+    "A better trigger does not prove that the available OCR or VLM fallback is more faithful."
+  ]
+}
