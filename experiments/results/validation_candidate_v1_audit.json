@@ -1,0 +1,201 @@
+{
+  "status": "candidate_frozen_pending_independent_human_verification",
+  "retrieval_access": "not_run",
+  "inputs": {
+    "development_sha256": "00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1",
+    "validation_candidate_sha256": "E3214A4C6A5082AAB4292E7BB031A7AD78D7A6025B2BBDA104634E77D9140ABA",
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA"
+  },
+  "counts": {
+    "total": 24,
+    "relevant": 16,
+    "negative_or_ambiguous": 8,
+    "by_language": {
+      "ar": 12,
+      "fr": 12
+    },
+    "by_category": {
+      "ambiguous": 2,
+      "current_status_unknown": 2,
+      "deadline_or_duration": 4,
+      "eligibility_or_scope": 1,
+      "exception_or_condition": 1,
+      "future_unknown": 2,
+      "numeric_identifier": 2,
+      "out_of_scope": 2,
+      "procedure_or_documents": 1,
+      "reporting_frequency": 1,
+      "required_action": 4,
+      "role_or_responsibility": 1,
+      "table_membership": 1
+    }
+  },
+  "leakage_audit": {
+    "exact_development_source_page_overlap": 0,
+    "note": "Sources and conservative document families may overlap because all current corpus sources are legacy development; exact labeled pages do not overlap."
+  },
+  "evidence_audit": {
+    "minimum_required_token_coverage": 0.75,
+    "minimum_observed_token_coverage": 0.75,
+    "visual_review_case_ids": [
+      "val_ar_2018_refinancing_duration_01",
+      "val_ar_2024_state_benefit_audit_report_01",
+      "val_ar_2026_rescheduling_corruption_exclusion_01"
+    ]
+  },
+  "final_holdout": {
+    "status": "prospective_not_available",
+    "reason": "All 439 current sources are legacy development; a family-disjoint final holdout requires future BCT document families."
+  },
+  "limitations": [
+    "Labels were curated and source-checked by the agent, not independently adjudicated by a human.",
+    "No retrieval, ranking, or answer model has been run on this candidate file.",
+    "Page disjointness reduces exact-evidence reuse but does not remove source/family familiarity."
+  ],
+  "records": [
+    {
+      "id": "val_fr_2020_import_anticipation_split_01",
+      "source": "Cir_2020_02_fr.pdf",
+      "page": 5,
+      "pdf_sha256": "8498357E3FE000F59FC9CF3865BF7DBC1231E82B3D08B1B614F86A5C16A256E1",
+      "structured_artifact_sha256": "6E6903452EDB0CC44A78D82B846A417E63BAF21A5D61AC7781F550EAA51891BC",
+      "evidence_token_coverage": 0.9642857142857143,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2021_hedging_weekly_reporting_01",
+      "source": "Cir_2021_02_fr.pdf",
+      "page": 10,
+      "pdf_sha256": "42126ABFFFFAA1AD2F7545427D69B1CF4224AE5E38D428A91E0DFE4190C21A01",
+      "structured_artifact_sha256": "1DFEBDAB2FF77797147CBD8948010E1B47520AB111988FA79CEE29A2B432B930",
+      "evidence_token_coverage": 0.9411764705882353,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2022_early_warning_inputs_01",
+      "source": "Cir_2022_01_fr.pdf",
+      "page": 6,
+      "pdf_sha256": "22EAEF51F998DB2339DF715A7528DE0BF842E75D8FE78624A8F2EC19B6E77866",
+      "structured_artifact_sha256": "8ACEC9537009F4D460194269CE7E6F538512CF2DB07B3F038EB677DA062BD390",
+      "evidence_token_coverage": 1.0,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2023_consolidated_supervision_scope_01",
+      "source": "Cir_2023_05_fr.pdf",
+      "page": 2,
+      "pdf_sha256": "8B7DF4A1A3FEE0239E2197B2F1114E3603E770BC01B6057173BD5403294627FE",
+      "structured_artifact_sha256": "9FC827B2819A003933CF051861EE311452A3EF9B9C09304E692C39E486854396",
+      "evidence_token_coverage": 0.9583333333333334,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2024_product_correspondent_role_01",
+      "source": "Cir_2024_02_fr.pdf",
+      "page": 10,
+      "pdf_sha256": "BEABB4746D85D419FE026091D24BFF7953BC0F3466C387E57D74065F01E0B109",
+      "structured_artifact_sha256": "3601D24489A4EA822919DD4B15FE24E5B22FC06C596D9863AD2D604415C9352B",
+      "evidence_token_coverage": 1.0,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2025_cheque_platform_checks_01",
+      "source": "Cir_2025_03_fr.pdf",
+      "page": 4,
+      "pdf_sha256": "0C3954837AA9C50E7C0036CCE03025E31C2FF23502A51A7CA498990ECB7E223B",
+      "structured_artifact_sha256": "E5B886A01DEF122AB11B066E1FDAEBEE139A85A8BE8709511439DD5B2DD4E583",
+      "evidence_token_coverage": 0.9714285714285714,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_fr_2025_cheque_platform_member_01",
+      "source": "Cir_2025_04_fr.pdf",
+      "page": 3,
+      "pdf_sha256": "B9670CABAFD572841A7FD994DED54A1C07CF67DC51B7FDE99C011C1750B87D6F",
+      "structured_artifact_sha256": "0F61F04C420D9C65875CE55CB8BB3C9EE544F03FB5E04B3AF7334C0B1C50F656",
+      "evidence_token_coverage": 0.9090909090909091,
+      "evidence_method": "structured_table_and_source_review"
+    },
+    {
+      "id": "val_fr_2026_exchange_office_enhanced_vigilance_01",
+      "source": "Cir_2026_02_fr.pdf",
+      "page": 8,
+      "pdf_sha256": "FC46A9A99E48FDEF74EC6D614B201FE139FD21F7D24536DEBF175D4F48A35847",
+      "structured_artifact_sha256": "C76972ADF7A64A0476B90C2A79A04AD7C11ADF9EA8145728722E68C6E4023786",
+      "evidence_token_coverage": 0.9736842105263158,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_ar_2018_refinancing_duration_01",
+      "source": "Cir_2018_05_ar.pdf",
+      "page": 8,
+      "pdf_sha256": "CE4CD292672A02787DACDF2A7539C36F510A5F8F3B0E96D3A2C79A28563CE36C",
+      "structured_artifact_sha256": "3758B62DAF474816F4F0850F1E81246EE9DF509E4EE39A34FC34C5FDEF7A3050",
+      "evidence_token_coverage": 0.8421052631578947,
+      "evidence_method": "visual_review"
+    },
+    {
+      "id": "val_ar_2021_qatari_fifth_issue_denominations_01",
+      "source": "Note_2021_04_ar.pdf",
+      "page": 1,
+      "pdf_sha256": "010694513896DA96071CB90430B4F31F0612336C1C67BDB54022E2A99654F325",
+      "structured_artifact_sha256": "66456DEE5D190C1623C6931377C6E2D73838E7284F4DD6E455D187622FC3D880",
+      "evidence_token_coverage": 0.75,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_ar_2022_auditor_change_notification_01",
+      "source": "CI_2022_03_ar.pdf",
+      "page": 7,
+      "pdf_sha256": "C01F0D223650B58ECFC6A11D601450CF466E9F6A89572FE7E80817A2D030F254",
+      "structured_artifact_sha256": "912B9421D73D7091653A88E0D80F674539FB6BD010522C50D7570629B0571C3A",
+      "evidence_token_coverage": 0.9090909090909091,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_ar_2023_campaign_file_retention_01",
+      "source": "Cir_2023_07_ar.pdf",
+      "page": 4,
+      "pdf_sha256": "B4DA8AF8D9C0C6B11339413CFB5116BA2B67BA5AFCF2543A3CE52F9DC4115F52",
+      "structured_artifact_sha256": "53EDCE6058A62DC501811577CDC8B15F4CC817E9EF39FC0EF7054C5877EEC664",
+      "evidence_token_coverage": 0.9523809523809523,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_ar_2024_campaign_chequebook_deadline_01",
+      "source": "Cir_2024_10_ar.pdf",
+      "page": 4,
+      "pdf_sha256": "56F67B3C03FBE68CB0899957FFF7613C8498BDE09C651515CB002B11EEDB9071",
+      "structured_artifact_sha256": "6D14F93119BE24A010526A5127983E36448555E472BCF3AC8244B846CC8535E1",
+      "evidence_token_coverage": 0.90625,
+      "evidence_method": "structured_text_and_source_review"
+    },
+    {
+      "id": "val_ar_2024_state_benefit_audit_report_01",
+      "source": "Cir_2024_12_ar.pdf",
+      "page": 5,
+      "pdf_sha256": "05CADDC0CF573FE0ECEA5BD72D5EC99451B7C4ECD9AC19C28B8A2741F4208AEE",
+      "structured_artifact_sha256": "40EAB83AFC771A0CCE489CD564A4F57DEC63523BDD13FD8018DEE54555F0ABA4",
+      "evidence_token_coverage": 0.92,
+      "evidence_method": "visual_review"
+    },
+    {
+      "id": "val_ar_2026_rescheduling_corruption_exclusion_01",
+      "source": "Cir_2026_06_ar.pdf",
+      "page": 12,
+      "pdf_sha256": "7994D011703F0CBA7DAC9EBD0CBE2004DA61479F6023B7717D76467243625937",
+      "structured_artifact_sha256": "6A8407BBBC880FDD00CF6BF911004515FF4AEDB3ECAB2994346BA2D68C694BAB",
+      "evidence_token_coverage": 0.75,
+      "evidence_method": "visual_review"
+    },
+    {
+      "id": "val_ar_2023_uae_500_note_serial_01",
+      "source": "Note_2023_40_ar.pdf",
+      "page": 2,
+      "pdf_sha256": "F891E2DBE84A902995A72FC3F655D0F7F345262EB8F28DF5D6372E2824FBF2D3",
+      "structured_artifact_sha256": "A13D39006751A815F04A1E07918406C7C0CD52F58FB4CA8394D580FA31565821",
+      "evidence_token_coverage": 0.85,
+      "evidence_method": "structured_text_and_source_review"
+    }
+  ]
+}

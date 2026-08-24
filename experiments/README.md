@@ -46,6 +46,22 @@ require an explicit `document_family` instead of silently becoming unique.
 Validation/development overlap is audited. A legacy development/holdout override
 exists for explicitly documenting a weaker protocol, but is disabled by default.
 
+Audit the page-disjoint validation candidate before any retrieval access:
+
+```powershell
+python -m experiments.validation_candidate_audit `
+  --development evaluation_queries.json `
+  --validation evaluation_validation_candidate_v1.json `
+  --structured-manifest "$env:TEMP\structured-ingestion\ingestion_manifest.json" `
+  --output experiments/results/validation_candidate_v1_audit.json
+```
+
+The tracked v1 candidate is agent-curated and remains pending independent human
+verification. Its audit records `retrieval_access: not_run`; do not rename it
+as release validation or evaluate it until that verification occurs. No
+current-corpus final holdout is claimed: all 439 sources are legacy
+development, so the family-disjoint holdout remains prospective.
+
 Evaluate a frozen split through the access-logged boundary:
 
 ```powershell

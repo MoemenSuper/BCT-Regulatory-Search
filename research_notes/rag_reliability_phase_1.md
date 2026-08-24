@@ -115,6 +115,33 @@ curation before this boundary can be used for a generalization claim.
 
 Until new validation and holdout questions are independently verified and frozen, any additional result is development evidence only and cannot establish generalization.
 
+### Page-disjoint validation candidate v1
+
+A new 24-query candidate has been frozen before retrieval access: 16 relevant
+questions (8 French and 8 Arabic) plus 8 negative/ambiguous controls, balanced
+at 12 queries per language. It spans deadlines, numeric identifiers, tables,
+reporting, scope, required actions, current/future uncertainty, ambiguity, and
+unrelated requests. None of its 16 relevant source/page pairs occurs in the
+relevant development labels.
+
+The deterministic audit verifies every source and page against the unchanged
+StructuredDocument manifest, binds the source PDF and artifact hashes, and
+requires at least 75% evidence-token coverage. The minimum observed coverage is
+75%. Three Arabic pages with corrupted extraction around decisive text were
+also checked against rendered source pages. No retrieval, ranking, answer, or
+citation model has been run on the candidate.
+
+This is **not yet validation evidence**. Labels are agent-curated and remain
+pending independent human verification, and exact-page disjointness does not
+remove source/family familiarity. A family-disjoint final holdout is still
+prospective because all 439 current sources are legacy development.
+
+Candidate SHA-256:
+`E3214A4C6A5082AAB4292E7BB031A7AD78D7A6025B2BBDA104634E77D9140ABA`.
+
+Audit SHA-256:
+`C762D17C808115BDB336C72964D117AC2D9AC7E9FA36379FB3E77B936C96DFA3`.
+
 ## Current decisions
 
 - **KEEP:** `StructuredDocument` as canonical extraction/provenance representation.
