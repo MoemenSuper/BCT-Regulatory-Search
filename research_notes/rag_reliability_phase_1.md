@@ -2,7 +2,7 @@
 
 Date: 2026-08-24
 
-Status: retrieval baseline reproduced; evaluation freeze and registry scaffolding implemented; unseen splits and access-enforcement tooling remain pending; no production merge or production-index write.
+Status: retrieval baseline reproduced; evaluation freeze, access enforcement, and registry tooling implemented; unseen splits remain pending; no production merge or production-index write.
 
 ## Verified current foundation
 
@@ -108,7 +108,10 @@ Before architecture/model selection:
 
 The freeze tool fails closed for unknown validation/holdout filename conventions and requires an explicit `document_family`. A legacy development/holdout overlap override exists only to document a weaker protocol explicitly; it is disabled by default.
 
-The current tool freezes hashes and leakage policy only. An append-only validation-access ledger and an aggregate-only final-holdout runner still need to be implemented before those datasets are used; policy strings alone do not enforce access discipline.
+The access boundary now verifies frozen hashes and exact case coverage, records
+successful validation and holdout accesses in an append-only ledger, and rejects
+case-level final-holdout output. Actual unseen datasets still need independent
+curation before this boundary can be used for a generalization claim.
 
 Until new validation and holdout questions are independently verified and frozen, any additional result is development evidence only and cannot establish generalization.
 
@@ -122,6 +125,41 @@ Until new validation and holdout questions are independently verified and frozen
 - **NEXT:** finish the remaining stress manifests and compare native/OCR/VLM only on a bounded, cached Arabic-heavy page set before any corpus-wide fallback change.
 
 The extraction-quality set is only the first targeted suite. Tables, identifiers, numeric fidelity, temporal/versioning, near-duplicates, long documents, image annexes, context dependence, and ambiguity still require separate frozen manifests.
+
+## Phase 2 checkpoint: explicit Arabic OCR replacement
+
+The frozen language-aware gate selected 18 Arabic development cases over 15
+unique pages: 17 known extraction failures and one matched control. A cached
+comparison held page selection fixed and measured three extraction variants:
+
+- cached native Docling text;
+- the current `OcrAutoOptions(force_full_page_ocr=True)` behavior;
+- explicit `RapidOcrOptions(lang=["arabic"], backend="onnxruntime",
+  force_full_page_ocr=True)`.
+
+The installed Docling 2.120.2 auto selector resolved to RapidOCR's generic
+PP-OCRv6 recognizer. The explicit arm resolved to the Arabic PP-OCRv5
+recognizer. This is recorded execution behavior for the current environment,
+not an assumption based on package names.
+
+| Triggered development metric | Native | Auto OCR | Explicit Arabic OCR |
+|---|---:|---:|---:|
+| Failure evidence-token coverage (17) | 9.44% | 3.11% | 66.76% |
+| Failure critical-number recall (12 numeric cases) | 51.19% | 30.65% | 37.50% |
+| False-positive control evidence coverage (1) | 91.30% | 0.00% | 21.74% |
+| Mean OCR latency per failure page | 0.00s cached | 3.81s | 2.82s |
+
+The predeclared replacement gate required gains in semantic coverage and
+critical-number recall without more than five points of control degradation.
+The result is **REJECT**: explicit Arabic OCR fixes much of the Arabic word
+recognition, but loses critical digits and damages the false-positive native
+control. Auto OCR is worse than native on both evidence coverage and numbers.
+
+This rules out replacing native text with either OCR output. It supports one
+new development hypothesis: preserve native text and add explicit Arabic OCR as
+a secondary candidate representation, so OCR can contribute readable words
+without discarding native digits. That fusion must pass a separate cached
+retrieval ablation and still cannot be deployed without unseen validation.
 
 ## Reproduction artifacts
 

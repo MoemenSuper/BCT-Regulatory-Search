@@ -1,0 +1,1086 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-24T15:49:51.063718+00:00",
+  "experiment_scope": "development_gate_triggered_arabic_pages",
+  "inputs": {
+    "stress_suite_sha256": "3A83F92AB5DFE0A90EB66281E22DDB22EC956811BB7F4DDAC0DD665807BA9496",
+    "evaluation_sha256": "00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1",
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA"
+  },
+  "configuration": {
+    "native": "cached Docling native_raw_text",
+    "auto_ocr": "OcrAutoOptions(force_full_page_ocr=True)",
+    "arabic_rapidocr": "RapidOcrOptions(lang=['arabic'], backend='onnxruntime', force_full_page_ocr=True)",
+    "docling_version": "2.120.2",
+    "rapidocr_version": "3.9.2",
+    "selected_case_count": 18,
+    "selected_unique_page_count": 15
+  },
+  "decision_gate": {
+    "minimum_arabic_vs_native_failure_coverage_delta": 0.15,
+    "minimum_arabic_vs_auto_failure_coverage_delta": 0.1,
+    "minimum_arabic_vs_native_failure_numeric_delta": 0.1,
+    "minimum_arabic_vs_native_control_coverage_delta": -0.05
+  },
+  "aggregates": {
+    "failure": {
+      "arabic_rapidocr": {
+        "case_count": 17,
+        "numeric_case_count": 12,
+        "mean_evidence_token_coverage": 0.6675510959273103,
+        "median_evidence_token_coverage": 0.6666666666666666,
+        "mean_critical_number_recall": 0.375,
+        "empty_page_count": 0,
+        "mean_elapsed_seconds": 2.8231358353034866
+      },
+      "auto_ocr": {
+        "case_count": 17,
+        "numeric_case_count": 12,
+        "mean_evidence_token_coverage": 0.03113666519239275,
+        "median_evidence_token_coverage": 0.0,
+        "mean_critical_number_recall": 0.30654761904761907,
+        "empty_page_count": 0,
+        "mean_elapsed_seconds": 3.8092965882285226
+      },
+      "native": {
+        "case_count": 17,
+        "numeric_case_count": 12,
+        "mean_evidence_token_coverage": 0.09444130935474136,
+        "median_evidence_token_coverage": 0.1,
+        "mean_critical_number_recall": 0.5119047619047619,
+        "empty_page_count": 3,
+        "mean_elapsed_seconds": 0.0
+      }
+    },
+    "control": {
+      "arabic_rapidocr": {
+        "case_count": 1,
+        "numeric_case_count": 1,
+        "mean_evidence_token_coverage": 0.21739130434782608,
+        "median_evidence_token_coverage": 0.21739130434782608,
+        "mean_critical_number_recall": 0.0,
+        "empty_page_count": 0,
+        "mean_elapsed_seconds": 2.258720899990294
+      },
+      "auto_ocr": {
+        "case_count": 1,
+        "numeric_case_count": 1,
+        "mean_evidence_token_coverage": 0.0,
+        "median_evidence_token_coverage": 0.0,
+        "mean_critical_number_recall": 0.0,
+        "empty_page_count": 0,
+        "mean_elapsed_seconds": 2.8149016000097618
+      },
+      "native": {
+        "case_count": 1,
+        "numeric_case_count": 1,
+        "mean_evidence_token_coverage": 0.9130434782608695,
+        "median_evidence_token_coverage": 0.9130434782608695,
+        "mean_critical_number_recall": 1.0,
+        "empty_page_count": 0,
+        "mean_elapsed_seconds": 0.0
+      }
+    }
+  },
+  "comparisons": {
+    "arabic_vs_native_failure_coverage_delta": 0.573109786572569,
+    "arabic_vs_auto_failure_coverage_delta": 0.6364144307349175,
+    "arabic_vs_native_failure_numeric_delta": -0.13690476190476186,
+    "arabic_vs_native_control_coverage_delta": -0.6956521739130435
+  },
+  "decision": "REJECT",
+  "case_scores": [
+    {
+      "id": "note_2022_25_ar_bank_of_england_withdrawal_01",
+      "role": "control",
+      "source": "Note_2022_25_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.9130434782608695,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2022",
+        "30"
+      ],
+      "extracted_critical_numbers": [
+        "2022",
+        "30"
+      ],
+      "character_count": 1010,
+      "arabic_character_ratio": 0.8746666666666667,
+      "latin_character_ratio": 0.034666666666666665
+    },
+    {
+      "id": "note_2022_25_ar_bank_of_england_withdrawal_01",
+      "role": "control",
+      "source": "Note_2022_25_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.8149016000097618,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2022",
+        "30"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 35,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.5714285714285714
+    },
+    {
+      "id": "note_2022_25_ar_bank_of_england_withdrawal_01",
+      "role": "control",
+      "source": "Note_2022_25_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.258720899990294,
+      "evidence_token_coverage": 0.21739130434782608,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2022",
+        "30"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 573,
+      "arabic_character_ratio": 0.9688149688149689,
+      "latin_character_ratio": 0.02702702702702703
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 3,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "10",
+        "15"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 0,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 3,
+      "method": "auto_ocr",
+      "elapsed_seconds": 4.053903499967419,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "10",
+        "15"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 37,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.875
+    },
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 3,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 3.805005300033372,
+      "evidence_token_coverage": 0.5,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "10",
+        "15"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1844,
+      "arabic_character_ratio": 0.9850552306692657,
+      "latin_character_ratio": 0.014944769330734242
+    },
+    {
+      "id": "cir_2018_03_ar_procedure_or_documents_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 0,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "cir_2018_03_ar_procedure_or_documents_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 4.1719518000027165,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 34,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.896551724137931
+    },
+    {
+      "id": "cir_2018_03_ar_procedure_or_documents_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 4.208228100033011,
+      "evidence_token_coverage": 0.6666666666666666,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 1770,
+      "arabic_character_ratio": 0.9832775919732442,
+      "latin_character_ratio": 0.015384615384615385
+    },
+    {
+      "id": "cir_2018_03_ar_prohibition_or_limit_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2018"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 0,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "cir_2018_03_ar_prohibition_or_limit_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 16.116104599961545,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2018"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 69,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.5172413793103449
+    },
+    {
+      "id": "cir_2018_03_ar_prohibition_or_limit_01",
+      "role": "failure",
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 5.692734099982772,
+      "evidence_token_coverage": 0.5,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2018"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 934,
+      "arabic_character_ratio": 0.959079283887468,
+      "latin_character_ratio": 0.029411764705882353
+    },
+    {
+      "id": "note_2016_26_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2016_26_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.2727272727272727,
+      "critical_number_recall": 0.75,
+      "expected_critical_numbers": [
+        "100",
+        "2016",
+        "3",
+        "500"
+      ],
+      "extracted_critical_numbers": [
+        "100",
+        "3",
+        "500"
+      ],
+      "character_count": 1674,
+      "arabic_character_ratio": 0.6635859519408502,
+      "latin_character_ratio": 0.09519408502772643
+    },
+    {
+      "id": "note_2016_26_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2016_26_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 3.812973799998872,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "100",
+        "2016",
+        "3",
+        "500"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 292,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.3503184713375796
+    },
+    {
+      "id": "note_2016_26_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2016_26_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 3.2421574000036344,
+      "evidence_token_coverage": 0.2727272727272727,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "100",
+        "2016",
+        "3",
+        "500"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1277,
+      "arabic_character_ratio": 0.7665544332210998,
+      "latin_character_ratio": 0.04489337822671156
+    },
+    {
+      "id": "note_2017_04_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_04_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.21428571428571427,
+      "critical_number_recall": 0.14285714285714285,
+      "expected_critical_numbers": [
+        "10",
+        "100",
+        "2016",
+        "26",
+        "5",
+        "50",
+        "500"
+      ],
+      "extracted_critical_numbers": [
+        "26"
+      ],
+      "character_count": 2338,
+      "arabic_character_ratio": 0.7219330855018588,
+      "latin_character_ratio": 0.0044609665427509295
+    },
+    {
+      "id": "note_2017_04_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_04_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 3.535238499986008,
+      "evidence_token_coverage": 0.07142857142857142,
+      "critical_number_recall": 0.42857142857142855,
+      "expected_critical_numbers": [
+        "10",
+        "100",
+        "2016",
+        "26",
+        "5",
+        "50",
+        "500"
+      ],
+      "extracted_critical_numbers": [
+        "100",
+        "50",
+        "500"
+      ],
+      "character_count": 287,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.07801418439716312
+    },
+    {
+      "id": "note_2017_04_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_04_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 3.3596011999761686,
+      "evidence_token_coverage": 0.21428571428571427,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "10",
+        "100",
+        "2016",
+        "26",
+        "5",
+        "50",
+        "500"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1448,
+      "arabic_character_ratio": 0.7740440324449595,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2017_36_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_36_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.1,
+      "critical_number_recall": 0.25,
+      "expected_critical_numbers": [
+        "100",
+        "200",
+        "2017",
+        "30"
+      ],
+      "extracted_critical_numbers": [
+        "30"
+      ],
+      "character_count": 2032,
+      "arabic_character_ratio": 0.6441402908468776,
+      "latin_character_ratio": 0.055603079555175364
+    },
+    {
+      "id": "note_2017_36_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_36_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 3.3678228999488056,
+      "evidence_token_coverage": 0.1,
+      "critical_number_recall": 0.25,
+      "expected_critical_numbers": [
+        "100",
+        "200",
+        "2017",
+        "30"
+      ],
+      "extracted_critical_numbers": [
+        "2017"
+      ],
+      "character_count": 187,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.3211009174311927
+    },
+    {
+      "id": "note_2017_36_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2017_36_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 3.1910012000007555,
+      "evidence_token_coverage": 0.2,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "100",
+        "200",
+        "2017",
+        "30"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1609,
+      "arabic_character_ratio": 0.741,
+      "latin_character_ratio": 0.014
+    },
+    {
+      "id": "note_2018_29_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2018_29_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2018",
+        "5"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1049,
+      "arabic_character_ratio": 0.9689922480620154,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2018_29_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2018_29_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.7139321000431664,
+      "evidence_token_coverage": 0.1,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2018",
+        "5"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 75,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.1111111111111111
+    },
+    {
+      "id": "note_2018_29_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2018_29_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.383421799982898,
+      "evidence_token_coverage": 0.8,
+      "critical_number_recall": 0.5,
+      "expected_critical_numbers": [
+        "2018",
+        "5"
+      ],
+      "extracted_critical_numbers": [
+        "2018"
+      ],
+      "character_count": 950,
+      "arabic_character_ratio": 0.988621997471555,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2020_02_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "1000",
+        "14",
+        "2019"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 1424,
+      "arabic_character_ratio": 0.8792735042735043,
+      "latin_character_ratio": 0.042735042735042736
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2020_02_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 3.2177548999898136,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "1000",
+        "14",
+        "2019"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 95,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.3493975903614458
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "role": "failure",
+      "source": "Note_2020_02_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.84142160002375,
+      "evidence_token_coverage": 0.5,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "1000",
+        "14",
+        "2019"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 928,
+      "arabic_character_ratio": 0.9767141009055628,
+      "latin_character_ratio": 0.015523932729624839
+    },
+    {
+      "id": "note_2020_39_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2020_39_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.1,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2020"
+      ],
+      "extracted_critical_numbers": [
+        "2020"
+      ],
+      "character_count": 1046,
+      "arabic_character_ratio": 0.9689922480620154,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2020_39_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2020_39_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.564115100016352,
+      "evidence_token_coverage": 0.1,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2020"
+      ],
+      "extracted_critical_numbers": [
+        "2020"
+      ],
+      "character_count": 67,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.09523809523809523
+    },
+    {
+      "id": "note_2020_39_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2020_39_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.054967099975329,
+      "evidence_token_coverage": 0.9,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2020"
+      ],
+      "extracted_critical_numbers": [
+        "2020"
+      ],
+      "character_count": 883,
+      "arabic_character_ratio": 0.9877216916780355,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.15789473684210525,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2021"
+      ],
+      "extracted_critical_numbers": [
+        "2021"
+      ],
+      "character_count": 1019,
+      "arabic_character_ratio": 0.9690721649484536,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.997139999992214,
+      "evidence_token_coverage": 0.05263157894736842,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2021"
+      ],
+      "extracted_critical_numbers": [
+        "2021"
+      ],
+      "character_count": 99,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0851063829787234
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.358574600017164,
+      "evidence_token_coverage": 0.5789473684210527,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2021"
+      ],
+      "extracted_critical_numbers": [
+        "2021"
+      ],
+      "character_count": 811,
+      "arabic_character_ratio": 0.9866863905325444,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_02",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.07142857142857142,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 1019,
+      "arabic_character_ratio": 0.9690721649484536,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_02",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.997139999992214,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 99,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0851063829787234
+    },
+    {
+      "id": "note_2021_33_ar_deadline_or_duration_02",
+      "role": "failure",
+      "source": "Note_2021_33_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.358574600017164,
+      "evidence_token_coverage": 0.9642857142857143,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 811,
+      "arabic_character_ratio": 0.9866863905325444,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_07_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_07_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.10526315789473684,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [
+        "2023"
+      ],
+      "character_count": 1052,
+      "arabic_character_ratio": 0.9702970297029703,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_07_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_07_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.547569799993653,
+      "evidence_token_coverage": 0.05263157894736842,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [
+        "2023"
+      ],
+      "character_count": 11,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_07_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_07_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.3072219000314362,
+      "evidence_token_coverage": 1.0,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [
+        "2023"
+      ],
+      "character_count": 845,
+      "arabic_character_ratio": 0.9868804664723032,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_30_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.15789473684210525,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [
+        "2023"
+      ],
+      "character_count": 954,
+      "arabic_character_ratio": 0.9653739612188366,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_30_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.5213915000203997,
+      "evidence_token_coverage": 0.05263157894736842,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 93,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.06741573033707865
+    },
+    {
+      "id": "note_2023_30_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.0876535000279546,
+      "evidence_token_coverage": 0.5789473684210527,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "2023"
+      ],
+      "extracted_critical_numbers": [
+        "2023"
+      ],
+      "character_count": 745,
+      "arabic_character_ratio": 0.9838449111470113,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_30_ar_exception_or_condition_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.07142857142857142,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 954,
+      "arabic_character_ratio": 0.9653739612188366,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2023_30_ar_exception_or_condition_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.5213915000203997,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 93,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.06741573033707865
+    },
+    {
+      "id": "note_2023_30_ar_exception_or_condition_01",
+      "role": "failure",
+      "source": "Note_2023_30_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.0876535000279546,
+      "evidence_token_coverage": 0.9642857142857143,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 745,
+      "arabic_character_ratio": 0.9838449111470113,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_161_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.19230769230769232,
+      "critical_number_recall": 1.0,
+      "expected_critical_numbers": [
+        "15",
+        "2026"
+      ],
+      "extracted_critical_numbers": [
+        "15",
+        "2026"
+      ],
+      "character_count": 895,
+      "arabic_character_ratio": 0.9693721286370597,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_161_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.7113635999849066,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "15",
+        "2026"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 42,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0975609756097561
+    },
+    {
+      "id": "note_2026_161_ar_deadline_or_duration_01",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.1367829000228085,
+      "evidence_token_coverage": 0.8461538461538461,
+      "critical_number_recall": 0.0,
+      "expected_critical_numbers": [
+        "15",
+        "2026"
+      ],
+      "extracted_critical_numbers": [],
+      "character_count": 650,
+      "arabic_character_ratio": 1.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_161_ar_prohibition_or_limit_02",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.10344827586206896,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 895,
+      "arabic_character_ratio": 0.9693721286370597,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_161_ar_prohibition_or_limit_02",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.7113635999849066,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 42,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0975609756097561
+    },
+    {
+      "id": "note_2026_161_ar_prohibition_or_limit_02",
+      "role": "failure",
+      "source": "Note_2026_161_ar.pdf",
+      "page": 2,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 2.1367829000228085,
+      "evidence_token_coverage": 0.8620689655172413,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 650,
+      "arabic_character_ratio": 1.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_22_ar_eligibility_or_scope_01",
+      "role": "failure",
+      "source": "Note_2026_22_ar.pdf",
+      "page": 1,
+      "method": "native",
+      "elapsed_seconds": 0.0,
+      "evidence_token_coverage": 0.058823529411764705,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 535,
+      "arabic_character_ratio": 0.9547738693467337,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_22_ar_eligibility_or_scope_01",
+      "role": "failure",
+      "source": "Note_2026_22_ar.pdf",
+      "page": 1,
+      "method": "auto_ocr",
+      "elapsed_seconds": 2.1968847999814898,
+      "evidence_token_coverage": 0.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 1,
+      "arabic_character_ratio": 0.0,
+      "latin_character_ratio": 0.0
+    },
+    {
+      "id": "note_2026_22_ar_eligibility_or_scope_01",
+      "role": "failure",
+      "source": "Note_2026_22_ar.pdf",
+      "page": 1,
+      "method": "arabic_rapidocr",
+      "elapsed_seconds": 1.7415274999802932,
+      "evidence_token_coverage": 1.0,
+      "critical_number_recall": null,
+      "expected_critical_numbers": [],
+      "extracted_critical_numbers": [],
+      "character_count": 435,
+      "arabic_character_ratio": 1.0,
+      "latin_character_ratio": 0.0
+    }
+  ],
+  "limitations": [
+    "Development stress cases only; thresholds and trigger were selected on development data.",
+    "Evidence snippets verify key answer-bearing text, not complete page transcription or hallucination rate.",
+    "Only gate-triggered pages are measured, so the control sample may be small.",
+    "Passing this screen permits only a cached retrieval ablation, not ingestion deployment."
+  ]
+}

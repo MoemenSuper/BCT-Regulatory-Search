@@ -99,6 +99,21 @@ python -m experiments.arabic_quality_experiment `
   --output "$env:TEMP\experiment\arabic_quality_gate_v1.json"
 ```
 
+Compare the current native text and auto-OCR with an explicit Arabic RapidOCR
+recognizer on only the frozen gate-triggered development pages:
+
+```powershell
+python -u -m experiments.ocr_fallback_experiment `
+  --stress-suite experiments/stress_suites/extraction_development_v1.json `
+  --evaluation evaluation_queries.json `
+  --structured-manifest "$env:TEMP\structured\ingestion_manifest.json" `
+  --output-dir "$env:TEMP\bct-arabic-ocr-fallback"
+```
+
+The output is resumable from per-page caches. Its KEEP/REJECT screen measures
+verified evidence-token and critical-number recall; it does not deploy or alter
+the ingestion fallback.
+
 Run the complete experiment with an empty output directory outside the repository:
 
 ```powershell
