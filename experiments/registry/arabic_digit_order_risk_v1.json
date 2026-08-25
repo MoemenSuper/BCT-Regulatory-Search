@@ -1,0 +1,73 @@
+{
+  "experiment_id": "arabic-contextual-digit-order-risk-development-v1",
+  "timestamp": "2026-08-25T15:35:22+01:00",
+  "hypothesis": "Contextually impossible four-digit years in Arabic extracted text can expose semantically corrupt digit order that character-density quality scores miss.",
+  "changed_variable": "add_document_year_and_date_context_digit_order_risk_screening",
+  "configuration": {
+    "scope": "273 Arabic StructuredDocument artifacts",
+    "rule": "flag four-digit tokens outside 1900 through document year plus five when directly preceded by explicit Arabic or French year, season, or month context",
+    "propagation": "a risky page marks its document for possible query-time visual fallback",
+    "intended_use": "post-retrieval risk signal for date or numeric claims, not unconditional text replacement"
+  },
+  "model_identifiers": {
+    "detector": "deterministic regex and document metadata"
+  },
+  "providers": {
+    "screening": "local"
+  },
+  "code_commit": "b62e522",
+  "dataset_hashes": {
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "result": "4AED0BB5D893D45FA812599F00672403D88A2B3471913BCD1B3D244B3F5FF13C"
+  },
+  "development_metrics": {
+    "arabic_document_count": 273,
+    "flagged_document_count": 123,
+    "flagged_document_rate": 0.45054945054945056,
+    "flagged_page_count": 153,
+    "retrieval_answer_known_digit_corruption_cases_caught": 4,
+    "retrieval_answer_known_digit_corruption_case_count": 4,
+    "answer_suite_arabic_expected_documents_flagged": 8,
+    "answer_suite_arabic_relevant_count": 15
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "This is a development-derived risk signal and has not yet been used to access validation."
+  },
+  "language_metrics": {
+    "fr": {
+      "status": "not_applicable",
+      "reason": "The failure mode and detector are Arabic-specific."
+    },
+    "ar": {
+      "document_count": 273,
+      "flagged_document_count": 123,
+      "flagged_document_rate": 0.45054945054945056,
+      "flagged_page_count": 153
+    }
+  },
+  "repairs": {
+    "count": 0,
+    "ids": []
+  },
+  "regressions": {
+    "count": 0,
+    "ids": []
+  },
+  "failure_distribution": {
+    "known_answer_digit_corruption_detected": 4,
+    "known_answer_digit_corruption_missed": 0,
+    "flagged_documents_requiring_selective_followup": 123
+  },
+  "latency": {
+    "status": "operationally_negligible",
+    "note": "The complete local manifest screen ran in under five seconds including artifact I/O."
+  },
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "status": "zero_incremental_hosted_cost"
+  },
+  "conclusion": "KEEP only as a query-time risk signal. It catches all four visually confirmed Arabic digit-order answer failures, but flags 45.05 percent of Arabic documents, so it does not justify unconditional OCR or VLM processing and does not itself repair evidence.",
+  "decision": "KEEP"
+}
