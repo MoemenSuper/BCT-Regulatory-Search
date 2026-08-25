@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from experiments.artifacts import sha256_file, write_json_atomic
 from experiments.numeric_fidelity_stress import critical_numbers
 
 
@@ -138,6 +141,61 @@ def route_visual_pages(
     return routes
 
 
+def build_routing_receipt(
+    *,
+    suite: dict[str, Any],
+    retrieved_result: dict[str, Any],
+    risk_result: dict[str, Any],
+    input_hashes: dict[str, str],
+) -> dict[str, Any]:
+    routes = route_visual_pages(
+        suite=suite,
+        retrieved_result=retrieved_result,
+        risk_result=risk_result,
+    )
+    return {
+        "status": "frozen_before_visual_calls",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "experiment_id": "arabic-query-time-visual-routing-development-v1",
+        "inputs": input_hashes,
+        "policy": {
+            "language": "Arabic query text only",
+            "intent": "runtime lexical numeric or date signal",
+            "answered": "verify only cited pages from risky documents",
+            "insufficient_evidence": "verify at most the first two reranked pages from risky documents",
+            "excluded_statuses": ["clarification_needed", "out_of_scope"],
+            "excluded_temporal_queries": "explicit current or future lexical requests",
+            "max_visual_pages_per_query": MAX_VISUAL_PAGES_PER_QUERY,
+            "gold_fields_used_for_routing": [],
+        },
+        "component_gate": {
+            "minimum_known_extraction_repairs_or_safe_corrections": 3,
+            "maximum_new_wrong_numeric_or_date_assertions": 0,
+            "maximum_routed_control_strict_answer_or_citation_regressions": 0,
+            "all_affirmative_changed_claims_require_valid_source_page_links": True,
+            "malformed_uncertain_or_unavailable_visual_output": "fail_closed",
+            "validation_access_on_component_pass": False,
+        },
+        "counts": {
+            "routed_cases": len(routes),
+            "routed_pages": sum(len(route["pages"]) for route in routes),
+            "unique_pages": len(
+                {
+                    _page_key(page["source"], page["page"])
+                    for route in routes
+                    for page in route["pages"]
+                }
+            ),
+        },
+        "routes": routes,
+        "limitations": [
+            "Development-only routing receipt; gold fields may be used only after this artifact is frozen for scoring.",
+            "A routed page is a risk candidate, not proof that native extraction is wrong.",
+            "Passing the component gate permits only full development recomposition, not validation or production use.",
+        ],
+    }
+
+
 def parse_visual_payload(content: str) -> dict[str, Any]:
     try:
         value = json.loads(content)
@@ -235,3 +293,30 @@ def visual_evidence(
             "visual_only_numbers": sorted(visual_numbers - native_numbers),
         },
     }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--suite", type=Path, required=True)
+    parser.add_argument("--retrieved-result", type=Path, required=True)
+    parser.add_argument("--risk-result", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    suite = json.loads(args.suite.read_text(encoding="utf-8"))
+    retrieved = json.loads(args.retrieved_result.read_text(encoding="utf-8"))
+    risk = json.loads(args.risk_result.read_text(encoding="utf-8"))
+    receipt = build_routing_receipt(
+        suite=suite,
+        retrieved_result=retrieved,
+        risk_result=risk,
+        input_hashes={
+            "answer_suite_sha256": sha256_file(args.suite),
+            "retrieved_result_sha256": sha256_file(args.retrieved_result),
+            "risk_result_sha256": sha256_file(args.risk_result),
+        },
+    )
+    write_json_atomic(args.output, receipt)
+
+
+if __name__ == "__main__":
+    main()

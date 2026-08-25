@@ -7,6 +7,7 @@ import pytest
 from experiments.arabic_visual_fallback import (
     MODEL_ID,
     PROMPT_VERSION,
+    build_routing_receipt,
     parse_visual_payload,
     route_visual_pages,
     validate_visual_cache_binding,
@@ -159,6 +160,19 @@ def test_routing_is_gold_blind_and_enforces_page_budget():
         }
     ]
     assert [page["page"] for page in routes[1]["pages"]] == [3, 4]
+
+    receipt = build_routing_receipt(
+        suite=suite,
+        retrieved_result=_retrieved_result(),
+        risk_result=_risk_result(),
+        input_hashes={"suite": "A" * 64},
+    )
+    assert receipt["counts"] == {
+        "routed_cases": 2,
+        "routed_pages": 3,
+        "unique_pages": 3,
+    }
+    assert receipt["policy"]["gold_fields_used_for_routing"] == []
 
 
 def test_visual_payload_requires_exact_contract_and_literal_traceability():

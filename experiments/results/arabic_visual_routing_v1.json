@@ -1,0 +1,139 @@
+{
+  "status": "frozen_before_visual_calls",
+  "timestamp": "2026-08-25T15:06:24.741050+00:00",
+  "experiment_id": "arabic-query-time-visual-routing-development-v1",
+  "inputs": {
+    "answer_suite_sha256": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "retrieved_result_sha256": "5E6BE4C8D05A144248821156A03F5789D91D63F2D6928EC599E997905E2DE450",
+    "risk_result_sha256": "4AED0BB5D893D45FA812599F00672403D88A2B3471913BCD1B3D244B3F5FF13C"
+  },
+  "policy": {
+    "language": "Arabic query text only",
+    "intent": "runtime lexical numeric or date signal",
+    "answered": "verify only cited pages from risky documents",
+    "insufficient_evidence": "verify at most the first two reranked pages from risky documents",
+    "excluded_statuses": [
+      "clarification_needed",
+      "out_of_scope"
+    ],
+    "excluded_temporal_queries": "explicit current or future lexical requests",
+    "max_visual_pages_per_query": 2,
+    "gold_fields_used_for_routing": []
+  },
+  "component_gate": {
+    "minimum_known_extraction_repairs_or_safe_corrections": 3,
+    "maximum_new_wrong_numeric_or_date_assertions": 0,
+    "maximum_routed_control_strict_answer_or_citation_regressions": 0,
+    "all_affirmative_changed_claims_require_valid_source_page_links": true,
+    "malformed_uncertain_or_unavailable_visual_output": "fail_closed",
+    "validation_access_on_component_pass": false
+  },
+  "counts": {
+    "routed_cases": 6,
+    "routed_pages": 8,
+    "unique_pages": 8
+  },
+  "routes": [
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "language": "ar",
+      "query": "في أي أجل كان يجب إغلاق حساب الحملة الانتخابية البلدية لسنة 2018، وكم تدوم مدة حفظ ملفاته؟",
+      "original_status": "answered",
+      "pages": [
+        {
+          "evidence_id": "E4",
+          "source": "Cir_2019_03_ar.pdf",
+          "page": 4,
+          "reason": "answered_numeric_or_date_query_cited_risky_document"
+        }
+      ]
+    },
+    {
+      "id": "note_2016_14_ar_deadline_or_duration_01",
+      "language": "ar",
+      "query": "متى فتحت البنوك شبابيكها بمناسبة عطلة عيد الفطر سنة 2016، وما العمليات المسموح بها؟",
+      "original_status": "answered",
+      "pages": [
+        {
+          "evidence_id": "E1",
+          "source": "Note_2016_14_ar.pdf",
+          "page": 1,
+          "reason": "answered_numeric_or_date_query_cited_risky_document"
+        }
+      ]
+    },
+    {
+      "id": "note_2017_18_ar_deadline_or_duration_01",
+      "language": "ar",
+      "query": "قبل كم من الوقت يجب إعلام البنك المركزي بمن سينوب مفوضا أو وكيلا مصرفيا أو يعوضه مؤقتا؟",
+      "original_status": "answered",
+      "pages": [
+        {
+          "evidence_id": "E1",
+          "source": "Note_2017_18_ar.pdf",
+          "page": 2,
+          "reason": "answered_numeric_or_date_query_cited_risky_document"
+        }
+      ]
+    },
+    {
+      "id": "note_2018_03_ar_amount_or_rate_01",
+      "language": "ar",
+      "query": "كيف حُدّد مبلغ القرض التكميلي لزراعة الحبوب في موسم 2017-2018، وما أجل سداده؟",
+      "original_status": "insufficient_evidence",
+      "pages": [
+        {
+          "evidence_id": "E2",
+          "source": "Note_2018_03_ar.pdf",
+          "page": 2,
+          "reason": "insufficient_numeric_or_date_query_ranked_risky_evidence"
+        }
+      ]
+    },
+    {
+      "id": "note_2018_06_ar_effective_date_01",
+      "language": "ar",
+      "query": "متى سحب Clydesdale Bank أوراقه القديمة من فئتي 5 و10 جنيهات إسترلينية من التداول؟",
+      "original_status": "insufficient_evidence",
+      "pages": [
+        {
+          "evidence_id": "E1",
+          "source": "Note_2017_61_ar.pdf",
+          "page": 1,
+          "reason": "insufficient_numeric_or_date_query_ranked_risky_evidence"
+        },
+        {
+          "evidence_id": "E3",
+          "source": "Note_2018_06_ar.pdf",
+          "page": 1,
+          "reason": "insufficient_numeric_or_date_query_ranked_risky_evidence"
+        }
+      ]
+    },
+    {
+      "id": "note_2020_02_ar_effective_date_01",
+      "language": "ar",
+      "query": "متى بدأ تداول الورقة النرويجية الجديدة من فئة 1000 كرونة؟",
+      "original_status": "insufficient_evidence",
+      "pages": [
+        {
+          "evidence_id": "E1",
+          "source": "Note_2020_02_ar.pdf",
+          "page": 3,
+          "reason": "insufficient_numeric_or_date_query_ranked_risky_evidence"
+        },
+        {
+          "evidence_id": "E4",
+          "source": "Note_2017_36_ar.pdf",
+          "page": 1,
+          "reason": "insufficient_numeric_or_date_query_ranked_risky_evidence"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Development-only routing receipt; gold fields may be used only after this artifact is frozen for scoring.",
+    "A routed page is a risk candidate, not proof that native extraction is wrong.",
+    "Passing the component gate permits only full development recomposition, not validation or production use."
+  ]
+}
