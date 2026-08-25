@@ -5,6 +5,7 @@ import pytest
 from experiments.gemini_visual_transcription_experiment import (
     MODEL_ID,
     PROMPT_VERSION,
+    build_generate_content_payload,
     extract_generate_content_response,
     validate_cached_page,
 )
@@ -59,6 +60,14 @@ def test_generate_content_response_is_locally_validated_and_usage_is_preserved()
 def test_missing_text_response_fails_closed():
     with pytest.raises(ValueError, match="text part"):
         extract_generate_content_response({"candidates": []})
+
+
+def test_rest_payload_uses_live_json_mime_enum():
+    payload = build_generate_content_payload(b"png")
+    assert (
+        payload["generationConfig"]["responseFormat"]["text"]["mimeType"]
+        == "APPLICATION_JSON"
+    )
 
 
 def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():

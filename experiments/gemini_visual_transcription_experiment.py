@@ -82,6 +82,34 @@ def _usage(metadata: dict[str, Any]) -> dict[str, int]:
     }
 
 
+def build_generate_content_payload(image: bytes) -> dict[str, Any]:
+    return {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": _PROMPT},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": base64.b64encode(image).decode("ascii"),
+                        }
+                    },
+                ],
+            }
+        ],
+        "generationConfig": {
+            "maxOutputTokens": MAX_OUTPUT_TOKENS,
+            "responseFormat": {
+                "text": {
+                    "mimeType": "APPLICATION_JSON",
+                    "schema": _VISUAL_SCHEMA,
+                }
+            },
+        },
+    }
+
+
 def extract_generate_content_response(body: dict[str, Any]) -> dict[str, Any]:
     text_parts = [
         part["text"]
@@ -150,31 +178,7 @@ def _request_page(
     page_number: int,
     source_pdf_sha256: str,
 ) -> dict[str, Any]:
-    payload = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [
-                    {"text": _PROMPT},
-                    {
-                        "inlineData": {
-                            "mimeType": "image/png",
-                            "data": base64.b64encode(image).decode("ascii"),
-                        }
-                    },
-                ],
-            }
-        ],
-        "generationConfig": {
-            "maxOutputTokens": MAX_OUTPUT_TOKENS,
-            "responseFormat": {
-                "text": {
-                    "mimeType": "application/json",
-                    "schema": _VISUAL_SCHEMA,
-                }
-            },
-        },
-    }
+    payload = build_generate_content_payload(image)
     started = time.perf_counter()
     body, _headers = _api_json(
         method="POST",
