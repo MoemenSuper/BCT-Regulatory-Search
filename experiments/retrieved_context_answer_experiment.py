@@ -44,7 +44,9 @@ from experiments.structured_answer_experiment import (
 from reranker import create_reranker, score_documents
 
 
-PROMPT_VERSION = "bct-retrieved-context-answer-v1"
+PROMPT_VERSION = "bct-retrieved-context-answer-v2-low-reasoning"
+REASONING_EFFORT = "low"
+MAX_COMPLETION_TOKENS = 1024
 
 
 def _query_states(
@@ -250,10 +252,10 @@ def run_retrieved_context_answer_experiment(
                             "schema": _SCHEMA_V2,
                         },
                     },
-                    reasoning_effort="medium",
+                    reasoning_effort=REASONING_EFFORT,
                     temperature=0,
                     seed=20260824,
-                    max_completion_tokens=2048,
+                    max_completion_tokens=MAX_COMPLETION_TOKENS,
                 )
             except RateLimitError as error:
                 checkpoint = {
@@ -323,6 +325,8 @@ def run_retrieved_context_answer_experiment(
             "retrieval": "frozen native candidate union plus additive Arabic OCR, BGE reranker, diverse top-5 pages",
             "answer_model": MODEL,
             "prompt_version": PROMPT_VERSION,
+            "reasoning_effort": REASONING_EFFORT,
+            "max_completion_tokens": MAX_COMPLETION_TOKENS,
             "post_retrieval_status": "query state is consulted only after the generator declines to answer",
         },
         "inputs": {

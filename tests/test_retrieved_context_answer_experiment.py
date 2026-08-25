@@ -1,10 +1,19 @@
 import pytest
 
 from experiments.retrieved_context_answer_experiment import (
+    MAX_COMPLETION_TOKENS,
+    PROMPT_VERSION,
+    REASONING_EFFORT,
     _query_states,
     apply_post_retrieval_query_state,
     retrieved_structured_diagnostics,
 )
+
+
+def test_v2_budget_changes_only_reasoning_budget_not_evidence_count():
+    assert PROMPT_VERSION == "bct-retrieved-context-answer-v2-low-reasoning"
+    assert REASONING_EFFORT == "low"
+    assert MAX_COMPLETION_TOKENS == 1024
 
 
 def test_query_state_inputs_must_exactly_cover_suite():
