@@ -1,0 +1,249 @@
+{
+  "experiment_id": "gemini-arabic-query-time-visual-fallback-development-v1",
+  "timestamp": "2026-08-25T22:00:14.2363247+00:00",
+  "status": "complete",
+  "hypothesis": "For runtime-routed Arabic numeric and date queries whose retrieved documents carry the contextual digit-order risk signal, a bounded Gemini visual transcription can repair corrupted native evidence or preserve a safe abstention without regressing routed controls.",
+  "changed_variable": "replace_the_visual_transcription_provider_with_google_gemini_3_7_flash_while_holding_the_frozen_route_and_answer_policy_constant",
+  "configuration": {
+    "visual_provider": "Google Gemini API",
+    "visual_model": "gemini-3.7-flash",
+    "thinking_level": "low",
+    "visual_contract": "strict numeric and date transcription with local context and uncertainty flags",
+    "answer_provider": "Groq",
+    "answer_model": "openai/gpt-oss-120b",
+    "routing": "frozen runtime-observable Arabic numeric/date policy",
+    "maximum_visual_pages_per_query": 2,
+    "routed_case_count": 6,
+    "routed_page_count": 8,
+    "untouched_case_count": 34,
+    "untouched_case_policy": "copied from the frozen raw retrieval-first result",
+    "failure_policy": "malformed, unavailable, uncertain, or conflicting visual evidence fails closed",
+    "gold_fields_used_for_routing": false
+  },
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "raw_retrieval_first_answer_result": "5E6BE4C8D05A144248821156A03F5789D91D63F2D6928EC599E997905E2DE450",
+    "reviewed_retrieval_first_answer_result": "4178FA45C21BBAE2900B22D9585F289E0FA6342436C320AB1FB4C2A377082C5F",
+    "arabic_digit_order_risk_result": "4AED0BB5D893D45FA812599F00672403D88A2B3471913BCD1B3D244B3F5FF13C",
+    "structured_ingestion_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "frozen_routing_receipt": "4CBEA3960FB4FA05DA5956C213668334DD33B71D954E9AED98B1AFB03028C050",
+    "gemini_visual_transcription_raw": "C13F77A4CD56E19F9A462E1D3944B2B063B613C507E64D392B7BEFB39D1F1828",
+    "gemini_recomposed_answer_raw": "CA5E2B7D8FA563C9405838EAC06AE28C2F3E430E25704B093AF383EEA039BA4D",
+    "gemini_provider_research_note": "6DAC14810A5D7E88E1BF924F62345176A12006E693E8E73846882A628235AD87"
+  },
+  "routing_receipt": [
+    {
+      "case_id": "cir_2018_03_ar_deadline_or_duration_01",
+      "pages": ["Cir_2019_03_ar.pdf#page=4"],
+      "reason": "answered Arabic numeric/date query with a cited page from a digit-order-risk document"
+    },
+    {
+      "case_id": "note_2016_14_ar_deadline_or_duration_01",
+      "pages": ["Note_2016_14_ar.pdf#page=1"],
+      "reason": "answered Arabic numeric/date query with a cited page from a digit-order-risk document"
+    },
+    {
+      "case_id": "note_2017_18_ar_deadline_or_duration_01",
+      "pages": ["Note_2017_18_ar.pdf#page=2"],
+      "reason": "answered Arabic numeric/date query with a cited page from a digit-order-risk document"
+    },
+    {
+      "case_id": "note_2018_03_ar_amount_or_rate_01",
+      "pages": ["Note_2018_03_ar.pdf#page=2"],
+      "reason": "answered Arabic numeric/date query with a cited page from a digit-order-risk document"
+    },
+    {
+      "case_id": "note_2018_06_ar_effective_date_01",
+      "pages": ["Note_2017_61_ar.pdf#page=1", "Note_2018_06_ar.pdf#page=1"],
+      "reason": "Arabic numeric/date abstention routed the first two risky pages in reranker order"
+    },
+    {
+      "case_id": "note_2020_02_ar_effective_date_01",
+      "pages": ["Note_2020_02_ar.pdf#page=3", "Note_2017_36_ar.pdf#page=1"],
+      "reason": "Arabic numeric/date abstention routed the first two risky pages in reranker order"
+    }
+  ],
+  "visual_review": {
+    "schema_valid_page_count": 8,
+    "schema_valid_page_rate": 1.0,
+    "locally_usable_page_count": 8,
+    "manual_literal_fidelity_page_count": 7,
+    "manual_literal_fidelity_page_rate": 0.875,
+    "known_corruption_target_count": 4,
+    "known_corruption_target_recovered_count": 4,
+    "known_corruption_target_recovery_rate": 1.0,
+    "manual_fidelity_failure": {
+      "page": "Cir_2019_03_ar.pdf#page=4",
+      "finding": "The response contained only the page number despite marking the transcription complete; it was not used as affirmative evidence."
+    }
+  },
+  "changed_case_reviews": [
+    {
+      "case_id": "cir_2018_03_ar_deadline_or_duration_01",
+      "outcome": "unchanged_strict_failure",
+      "semantic_answer_correct": true,
+      "strict_expected_answer_correct": true,
+      "citation_correct": false,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": false,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "The answer states 15 days and ten years but cites analogous Cir_2023_07_ar.pdf page 4 and Cir_2019_04_ar.pdf page 4 instead of the requested Cir_2018_03_ar.pdf page 3."
+    },
+    {
+      "case_id": "note_2016_14_ar_deadline_or_duration_01",
+      "outcome": "repaired",
+      "semantic_answer_correct": true,
+      "strict_expected_answer_correct": true,
+      "citation_correct": true,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": false,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "Recovered 07 July 2016, the opening hours, and the permitted operations from Note_2016_14_ar.pdf page 1."
+    },
+    {
+      "case_id": "note_2017_18_ar_deadline_or_duration_01",
+      "outcome": "repaired",
+      "semantic_answer_correct": true,
+      "strict_expected_answer_correct": true,
+      "citation_correct": true,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": false,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "Recovered the 24-hour notice requirement from Note_2017_18_ar.pdf page 2."
+    },
+    {
+      "case_id": "note_2018_03_ar_amount_or_rate_01",
+      "outcome": "repaired",
+      "semantic_answer_correct": true,
+      "strict_expected_answer_correct": true,
+      "citation_correct": true,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": false,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "Recovered 80 percent of reference cost and the 31 August 2018 deadline from Note_2018_03_ar.pdf page 2."
+    },
+    {
+      "case_id": "note_2018_06_ar_effective_date_01",
+      "outcome": "repaired",
+      "semantic_answer_correct": true,
+      "strict_expected_answer_correct": true,
+      "citation_correct": true,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": false,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "Recovered the first of March 2018 effective date from Note_2018_06_ar.pdf page 1."
+    },
+    {
+      "case_id": "note_2020_02_ar_effective_date_01",
+      "outcome": "unchanged_safe_abstention",
+      "semantic_answer_correct": false,
+      "strict_expected_answer_correct": false,
+      "citation_correct": false,
+      "grounded_in_supplied_evidence": true,
+      "safe_abstention": true,
+      "new_wrong_numeric_or_date_assertion": false,
+      "finding": "The two runtime-routed pages did not establish the requested start date, so the system correctly declined to assert one."
+    }
+  ],
+  "development_metrics": {
+    "before": {
+      "overall": {
+        "relevant_count": 32,
+        "answered_count": 26,
+        "semantic_answer_correct_count": 20,
+        "strict_expected_answer_correct_count": 18,
+        "citation_correct_count": 24,
+        "grounded_count": 29,
+        "full_strict_answer_citation_grounding_count": 17,
+        "negative_count": 8,
+        "negative_safe_and_expected_count": 6
+      },
+      "fr": {
+        "relevant_count": 17,
+        "semantic_answer_correct_count": 13,
+        "strict_expected_answer_correct_count": 12,
+        "citation_correct_count": 12,
+        "grounded_count": 16,
+        "full_strict_answer_citation_grounding_count": 12
+      },
+      "ar": {
+        "relevant_count": 15,
+        "semantic_answer_correct_count": 7,
+        "strict_expected_answer_correct_count": 6,
+        "citation_correct_count": 12,
+        "grounded_count": 13,
+        "full_strict_answer_citation_grounding_count": 5
+      }
+    },
+    "after": {
+      "overall": {
+        "relevant_count": 32,
+        "answered_count": 28,
+        "semantic_answer_correct_count": 24,
+        "strict_expected_answer_correct_count": 22,
+        "citation_correct_count": 26,
+        "grounded_count": 31,
+        "full_strict_answer_citation_grounding_count": 21,
+        "negative_count": 8,
+        "negative_safe_and_expected_count": 6
+      },
+      "fr": {
+        "relevant_count": 17,
+        "semantic_answer_correct_count": 13,
+        "strict_expected_answer_correct_count": 12,
+        "citation_correct_count": 12,
+        "grounded_count": 16,
+        "full_strict_answer_citation_grounding_count": 12
+      },
+      "ar": {
+        "relevant_count": 15,
+        "semantic_answer_correct_count": 11,
+        "strict_expected_answer_correct_count": 10,
+        "citation_correct_count": 14,
+        "grounded_count": 15,
+        "full_strict_answer_citation_grounding_count": 9
+      }
+    },
+    "repairs": 4,
+    "regressions": 0,
+    "new_wrong_numeric_or_date_assertions": 0,
+    "unchanged_cases": 36
+  },
+  "usage": {
+    "successful_visual_page_requests": 8,
+    "visual_prompt_tokens": 10976,
+    "visual_completion_tokens": 5755,
+    "visual_thinking_tokens": 323,
+    "visual_total_tokens": 17054,
+    "visual_successful_page_latency_seconds": 239.8871762,
+    "answer_requests": 6,
+    "answer_prompt_tokens": 17059,
+    "answer_completion_tokens": 1636,
+    "answer_total_tokens": 18695,
+    "answer_latency_seconds": 105.4844268,
+    "transient_visual_capacity_failures": 9,
+    "transient_visual_capacity_failures_used_as_evidence": 0
+  },
+  "approximate_cost": {
+    "visual_standard_paid_rate_estimate_usd": 0.0310245,
+    "actual_billing_status": "unknown_may_be_zero_on_free_tier",
+    "answer_cost_status": "not_calculated"
+  },
+  "gate": {
+    "repair_at_least_three_of_four_or_safe_abstain": "PASS_4_OF_4_REPAIRED",
+    "zero_new_wrong_numeric_or_date_assertions": "PASS",
+    "zero_routed_control_strict_answer_or_citation_regressions": "PASS",
+    "every_affirmative_changed_claim_has_correct_source_and_page": "FAIL_CIR_2018_03",
+    "malformed_unavailable_uncertain_or_conflicting_visual_fails_closed": "PASS",
+    "gold_blind_routing_and_page_budget": "PASS",
+    "all_clauses_required": true
+  },
+  "decision": "REJECT_CURRENT_FALLBACK_POLICY_KEEP_GEMINI_PROVIDER_CANDIDATE",
+  "conclusion": "Gemini 3.7 Flash materially helps: it recovered all four visually confirmed Arabic extraction-corruption failures with no routed regression or new wrong numeric/date assertion. The current end-to-end fallback policy nevertheless fails its predeclared all-clauses gate because one changed affirmative answer still lacks the correct requested source/page. Keep Gemini as the visual provider candidate for a revised retrieval and version-selection policy; do not promote this exact fallback composition.",
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The predeclared development component gate failed, so provisional validation remained unopened."
+  },
+  "production_changes": false,
+  "dominant_next_first_stage_bottleneck": "exact-page retrieval and cross-document or version selection"
+}

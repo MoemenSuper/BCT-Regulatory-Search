@@ -1,0 +1,131 @@
+{
+  "experiment_id": "gemini-arabic-query-time-visual-fallback-development-v1",
+  "timestamp": "2026-08-25T22:00:14.2363247+00:00",
+  "hypothesis": "A bounded Gemini 3.7 Flash visual transcription can repair runtime-routed Arabic numeric and date extraction corruption without regressing routed controls.",
+  "changed_variable": "replace_the_visual_transcription_provider_with_google_gemini_3_7_flash_while_holding_the_frozen_route_and_answer_policy_constant",
+  "configuration": {
+    "visual_model": "gemini-3.7-flash",
+    "thinking_level": "low",
+    "routing": "frozen runtime-observable Arabic numeric/date policy",
+    "maximum_visual_pages_per_query": 2,
+    "routed_cases": 6,
+    "routed_pages": 8,
+    "answer_model": "openai/gpt-oss-120b",
+    "untouched_cases": "copied from the frozen raw retrieval-first result"
+  },
+  "model_identifiers": {
+    "visual_transcription": "gemini-3.7-flash",
+    "answer_model": "openai/gpt-oss-120b",
+    "reranker": "BAAI/bge-reranker-v2-m3"
+  },
+  "providers": {
+    "visual_transcription": "Google Gemini API",
+    "answer_model": "Groq",
+    "routing_and_composition": "local"
+  },
+  "code_commit": "37fff7c",
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "raw_retrieval_first_answer_result": "5E6BE4C8D05A144248821156A03F5789D91D63F2D6928EC599E997905E2DE450",
+    "reviewed_retrieval_first_answer_result": "4178FA45C21BBAE2900B22D9585F289E0FA6342436C320AB1FB4C2A377082C5F",
+    "arabic_digit_order_risk_result": "4AED0BB5D893D45FA812599F00672403D88A2B3471913BCD1B3D244B3F5FF13C",
+    "structured_ingestion_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "frozen_routing_receipt": "4CBEA3960FB4FA05DA5956C213668334DD33B71D954E9AED98B1AFB03028C050",
+    "gemini_visual_transcription_raw": "C13F77A4CD56E19F9A462E1D3944B2B063B613C507E64D392B7BEFB39D1F1828",
+    "gemini_recomposed_answer_raw": "CA5E2B7D8FA563C9405838EAC06AE28C2F3E430E25704B093AF383EEA039BA4D",
+    "reviewed_result": "370DF0ACD6F95E8D239072AF746DB192CA8154AD201917E0700137678FD73666",
+    "gemini_provider_research_note": "6DAC14810A5D7E88E1BF924F62345176A12006E693E8E73846882A628235AD87"
+  },
+  "development_metrics": {
+    "visual_schema_valid_rate": 1.0,
+    "visual_manual_literal_fidelity_rate": 0.875,
+    "known_corruption_target_recovery_rate": 1.0,
+    "known_corruption_targets_recovered": 4,
+    "known_corruption_target_count": 4,
+    "before_full_strict_answer_citation_grounding_rate": 0.53125,
+    "after_full_strict_answer_citation_grounding_rate": 0.65625,
+    "before_strict_expected_answer_correct_rate": 0.5625,
+    "after_strict_expected_answer_correct_rate": 0.6875,
+    "before_citation_correct_rate": 0.75,
+    "after_citation_correct_rate": 0.8125,
+    "before_grounded_rate": 0.90625,
+    "after_grounded_rate": 0.96875,
+    "negative_safe_and_expected_rate": 0.75,
+    "new_wrong_numeric_or_date_assertions": 0
+  },
+  "language_metrics": {
+    "fr": {
+      "relevant_count": 17,
+      "before_full_strict_count": 12,
+      "after_full_strict_count": 12,
+      "regressions": 0
+    },
+    "ar": {
+      "relevant_count": 15,
+      "before_strict_expected_answer_correct_count": 6,
+      "after_strict_expected_answer_correct_count": 10,
+      "before_full_strict_count": 5,
+      "after_full_strict_count": 9,
+      "before_citation_correct_count": 12,
+      "after_citation_correct_count": 14,
+      "before_grounded_count": 13,
+      "after_grounded_count": 15
+    }
+  },
+  "repairs": {
+    "count": 4,
+    "ids": [
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01"
+    ]
+  },
+  "regressions": {
+    "count": 0,
+    "ids": []
+  },
+  "failure_distribution": {
+    "current_gate_failure_incorrect_requested_source_or_page": 1,
+    "visual_page_manual_fidelity_failure": 1,
+    "unchanged_safe_abstention": 1,
+    "new_wrong_numeric_or_date_assertion": 0
+  },
+  "latency": {
+    "successful_visual_page_total_seconds": 239.8871762,
+    "routed_answer_total_seconds": 105.4844268,
+    "routed_answer_mean_seconds": 17.5807378,
+    "routed_answer_median_seconds": 22.6054589
+  },
+  "usage": {
+    "successful_visual_page_requests": 8,
+    "visual_prompt_tokens": 10976,
+    "visual_completion_tokens": 5755,
+    "visual_thinking_tokens": 323,
+    "visual_total_tokens": 17054,
+    "answer_requests": 6,
+    "answer_prompt_tokens": 17059,
+    "answer_completion_tokens": 1636,
+    "answer_total_tokens": 18695
+  },
+  "approximate_cost": {
+    "visual_standard_paid_rate_estimate": 0.0310245,
+    "currency": "USD",
+    "actual_billing_status": "unknown_may_be_zero_on_free_tier",
+    "answer_cost_status": "not_calculated"
+  },
+  "gate": {
+    "repair_at_least_three_of_four_or_safe_abstain": "PASS_4_OF_4_REPAIRED",
+    "zero_new_wrong_numeric_or_date_assertions": "PASS",
+    "zero_routed_control_strict_answer_or_citation_regressions": "PASS",
+    "every_affirmative_changed_claim_has_correct_source_and_page": "FAIL_CIR_2018_03",
+    "malformed_unavailable_uncertain_or_conflicting_visual_fails_closed": "PASS",
+    "gold_blind_routing_and_page_budget": "PASS"
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The all-clauses development component gate failed."
+  },
+  "conclusion": "Gemini 3.7 Flash is a materially better visual provider candidate and repaired all four known Arabic extraction corruptions. REJECT the exact current fallback policy because one changed affirmative answer still cites the wrong circular versions/pages; retain Gemini for the next retrieval and version-selection experiment.",
+  "decision": "REJECT_CURRENT_FALLBACK_POLICY_KEEP_GEMINI_PROVIDER_CANDIDATE"
+}
