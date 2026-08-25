@@ -30,7 +30,7 @@ from experiments.artifacts import sha256_file, write_json_atomic
 RENDER_SCALE = 2.0
 MIN_REQUEST_INTERVAL_SECONDS = 2.1
 SEED = 20260825
-MAX_COMPLETION_TOKENS = 8192
+MAX_COMPLETION_TOKENS = 4096
 _PROMPT = """Inspect this public Tunisian regulatory PDF page visually.
 
 Return one JSON object with exactly these top-level keys:

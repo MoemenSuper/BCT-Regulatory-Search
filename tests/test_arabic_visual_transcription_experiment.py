@@ -4,6 +4,7 @@ import pytest
 
 from experiments.arabic_visual_fallback import MODEL_ID, PROMPT_VERSION
 from experiments.arabic_visual_transcription_experiment import (
+    MAX_COMPLETION_TOKENS,
     frozen_routed_pages,
     validate_cached_page,
 )
@@ -56,6 +57,10 @@ def test_frozen_pages_are_deduplicated_and_budget_bound():
     over_budget["routes"][0]["pages"].append({"source": "C.pdf", "page": 3})
     with pytest.raises(ValueError, match="exceeds visual page budget"):
         frozen_routed_pages(over_budget)
+
+
+def test_visual_completion_budget_stays_within_proven_provider_ceiling():
+    assert MAX_COMPLETION_TOKENS <= 4096
 
 
 def test_cached_page_binding_and_invalid_receipt_fail_closed():
