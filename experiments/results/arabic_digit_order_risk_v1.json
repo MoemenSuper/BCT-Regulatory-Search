@@ -1,0 +1,1927 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-25T14:35:01.752523+00:00",
+  "experiment_id": "arabic-contextual-digit-order-risk-development-v1",
+  "inputs": {
+    "structured_manifest_sha256": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA"
+  },
+  "arabic_document_count": 273,
+  "flagged_document_count": 123,
+  "flagged_document_rate": 0.45054945054945056,
+  "flagged_page_count": 153,
+  "decision": "KEEP_AS_QUERY_TIME_VISUAL_FALLBACK_SIGNAL",
+  "decision_basis": "The signal catches all four visually confirmed Arabic digit-order failures from the retrieval-first answer run, but its corpus trigger rate is too broad for unconditional VLM ingestion.",
+  "records": [
+    {
+      "source": "Cir_2016_04_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6112",
+            "6118"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "6112",
+            "6118"
+          ]
+        },
+        {
+          "page": 7,
+          "suspicious_tokens": [
+            "6114"
+          ]
+        },
+        {
+          "page": 8,
+          "suspicious_tokens": [
+            "6110",
+            "6113"
+          ]
+        },
+        {
+          "page": 9,
+          "suspicious_tokens": [
+            "6113",
+            "6118"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_06_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6112",
+            "6152",
+            "6600"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "2102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_09_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "6112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_10_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_11_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7610",
+            "7615"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_13_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "6110",
+            "6112"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "6112"
+          ]
+        },
+        {
+          "page": 3,
+          "suspicious_tokens": [
+            "6112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_14_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_16_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1437"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_17_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "6105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "5141",
+            "5142",
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_19_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0216",
+            "1026"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_20_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_21_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_23_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_24_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "6112"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1551"
+          ]
+        },
+        {
+          "page": 3,
+          "suspicious_tokens": [
+            "6112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_26_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_28_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8802"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_29_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_31_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "2102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_32_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_33_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2016_34_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2016,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2017_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1012",
+            "1017"
+          ]
+        },
+        {
+          "page": 3,
+          "suspicious_tokens": [
+            "2102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2017_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "6102"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_01_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1107",
+            "4102"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "4102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_04_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_06_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "5002",
+            "5111",
+            "7111",
+            "7112",
+            "7115",
+            "7117",
+            "7152",
+            "9111"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "5002",
+            "5092",
+            "7151"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7111",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_08_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_09_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_10_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_11_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7152"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_12_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_13_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_14_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7117"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_15_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_16_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0997",
+            "5102",
+            "7702"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_17_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1022",
+            "1027"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1191",
+            "7112"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1191"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_19_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7192"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_21_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_22_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7110"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_24_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1022",
+            "1027"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_25_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "5112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_26_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0991",
+            "6101",
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_27_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "7022"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_34_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1122"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_36_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_38_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7112",
+            "7182",
+            "7402"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "0038"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_46_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0991",
+            "5102",
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_55_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_56_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "6102",
+            "6105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_57_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_60_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_61_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_64_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_65_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1112",
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_66_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_67_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "6102",
+            "6105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_70_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "7112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_73_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "0205",
+            "1023"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_75_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7302"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_79_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1027",
+            "6102",
+            "6105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2017_81_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2017,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2018_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "6104",
+            "8502"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_01_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1028",
+            "6102",
+            "6105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_02_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1028",
+            "8300",
+            "8302"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_03_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1328",
+            "8102"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "8102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_04_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8142"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8112",
+            "8142"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_06_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8141",
+            "8142"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8102",
+            "8111"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_11_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8112",
+            "8602"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_12_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0100",
+            "1028",
+            "8102",
+            "8105"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_13_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "1038"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_14_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8102",
+            "8118"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8142",
+            "8181"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_20_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_21_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_23_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8800"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_24_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_29_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_31_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "8132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2018_33_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2018,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0169",
+            "0202",
+            "8102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2019_03_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1329"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2019_04_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1429",
+            "9710",
+            "9711",
+            "9712",
+            "9719"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "9711",
+            "9712"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2019_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1529",
+            "9710",
+            "9711",
+            "9712",
+            "9719"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "9711",
+            "9712"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_01_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1029",
+            "9112"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_04_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1429",
+            "9132"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "9132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_05_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "2102",
+            "2108"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "2108"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_06_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1629",
+            "9312"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9182",
+            "9185",
+            "9702"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_08_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1122",
+            "9442"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "2111"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_09_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9101",
+            "9102"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "9102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_10_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1109",
+            "9132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_11_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9112",
+            "9172"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "9172"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_13_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_15_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9152",
+            "9182",
+            "9185"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1089",
+            "9702"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_19_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9102",
+            "9191"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_21_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9302",
+            "9332"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_23_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "9970",
+            "9972"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_24_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "4029"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_25_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0200",
+            "0221"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_26_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "6102",
+            "9402",
+            "9405"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2019_27_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2019,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "7102",
+            "9131",
+            "9132"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2020_06_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "6112",
+            "6114"
+          ]
+        },
+        {
+          "page": 3,
+          "suspicious_tokens": [
+            "6161"
+          ]
+        },
+        {
+          "page": 4,
+          "suspicious_tokens": [
+            "6161"
+          ]
+        },
+        {
+          "page": 5,
+          "suspicious_tokens": [
+            "0202",
+            "0291"
+          ]
+        },
+        {
+          "page": 6,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Cir_2020_07_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "6112",
+            "6114",
+            "6161"
+          ]
+        },
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1881",
+            "6114",
+            "6118",
+            "6161"
+          ]
+        },
+        {
+          "page": 3,
+          "suspicious_tokens": [
+            "6161"
+          ]
+        },
+        {
+          "page": 4,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_02_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_03_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0303",
+            "0502",
+            "0505"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0101",
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_19_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_29_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "0229",
+            "9292"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_30_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "0303"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_31_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2020_32_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2020,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "0202",
+            "3232"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2022_17_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2022,
+      "page_hits": [
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1443"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2022_18_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2022,
+      "page_hits": [
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1443"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "note_2022_20_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2022,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1444"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2023_19_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2023,
+      "page_hits": [
+        {
+          "page": 2,
+          "suspicious_tokens": [
+            "1444"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "Note_2026_15_ar.pdf",
+      "requires_visual_fallback": true,
+      "document_year": 2026,
+      "page_hits": [
+        {
+          "page": 1,
+          "suspicious_tokens": [
+            "1446"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "This detector identifies risk; it does not repair or authorize extracted text.",
+    "A flagged document still requires visual, OCR, or VLM comparison before numeric claims are answered.",
+    "The corpus trigger rate is too broad for unconditional VLM processing; use only after retrieval for claims that depend on dates or numbers.",
+    "The rule is intentionally narrow and will miss digit corruption without explicit year or date context."
+  ]
+}
