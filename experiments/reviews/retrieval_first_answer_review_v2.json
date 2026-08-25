@@ -1,0 +1,257 @@
+{
+  "status": "complete_agent_evidence_review",
+  "reviewer_type": "Codex agent evidence review with independent agent cross-check",
+  "reviewed_against": "verified expected answer, retrieved evidence, structured claims, citations, source identity, and page in the frozen development suite",
+  "relevant_labels": {
+    "cir_2016_09_fr_exception_or_condition_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The exception, 25 percent ceiling, and guarantee requirement match the expected answer and the cited 2016 circular page."
+    },
+    "cir_2018_03_ar_deadline_or_duration_01": {
+      "answer_correct": true,
+      "citation_correct": false,
+      "grounded": true,
+      "note": "The 15-day closure period and ten-year retention period happen to be correct, but the requested 2018 page was not supplied and the response relies on analogous 2019 and 2023 circulars."
+    },
+    "cir_2019_02_fr_amount_or_rate_02": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The 100000 dinar annual maximum matches the expected answer and the cited 2019 circular."
+    },
+    "cir_2020_02_fr_amount_or_rate_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The 50 percent ceiling matches the expected answer and the cited page."
+    },
+    "cir_2020_15_fr_effective_date_01": {
+      "answer_correct": false,
+      "citation_correct": false,
+      "grounded": false,
+      "note": "The articles and publication effect are right, but the response falsely attributes the abrogation decision to the committee opinion; the circular itself decides after considering that opinion."
+    },
+    "cir_2021_01_fr_amount_or_rate_01": {
+      "answer_correct": true,
+      "citation_correct": false,
+      "grounded": true,
+      "note": "The 1.00 percent value is correct and supported by the cited 2022 repeat, although it does not cite the expected 2021 source."
+    },
+    "cir_2021_02_fr_definition_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "All five policy elements match the expected answer and the cited page."
+    },
+    "cir_2021_03_fr_deadline_or_duration_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The normal and single-session hours match the expected answer; the additional historical comparison is supported and clearly distinguished."
+    },
+    "cir_2021_05_fr_deadline_or_duration_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The at-least-annual frequency matches the expected answer and the cited page."
+    },
+    "cir_2021_05_fr_deadline_or_duration_05": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The 15-day period from notification matches the expected answer and cited page."
+    },
+    "cir_2021_06_fr_amount_or_rate_03": {
+      "answer_correct": false,
+      "citation_correct": false,
+      "grounded": true,
+      "note": "The response substitutes the later 2024 winter ceiling of 1030 for the requested 2021 value of 870 and also renders the ceiling unit incorrectly; it mixes a later circular with the requested source."
+    },
+    "cir_2022_02_fr_migration_history_02": {
+      "answer_correct": true,
+      "citation_correct": false,
+      "grounded": true,
+      "note": "The five-year history and exclusions are correct and supported by the cited 2023 repeat, although it does not cite the expected 2022 source."
+    },
+    "cir_2023_08_ar_deadline_or_duration_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The requested 31 December 2024 date is correct; the extra same-document deadline is supported and distinguished."
+    },
+    "cir_2024_01_fr_amount_or_rate_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The response safely abstains because the exact page was outside the final retrieved context, but it does not answer the relevant question."
+    },
+    "cir_2024_14_fr_amount_or_rate_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The 5000 dinar maximum matches the expected answer and cited page."
+    },
+    "cir_2026_05_fr_eligibility_or_scope_01": {
+      "answer_correct": false,
+      "citation_correct": false,
+      "grounded": true,
+      "note": "The response uses 2025 lists and provides only 14 institutions instead of the requested 2026 list of 25 institutions."
+    },
+    "note_2016_02_ar_eligibility_or_scope_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The company inclusion answer matches the expected answer and cited annex page."
+    },
+    "note_2016_14_ar_deadline_or_duration_01": {
+      "answer_correct": false,
+      "citation_correct": false,
+      "grounded": false,
+      "note": "Corrupted Arabic extraction changes 7 July 2016 to 10 July 6102, so the asserted date is false even though the correct source file was retrieved."
+    },
+    "note_2016_31_ar_eligibility_or_scope_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The company inclusion and ceramic-tile scope match the expected answer and cited annex page."
+    },
+    "note_2017_18_ar_deadline_or_duration_01": {
+      "answer_correct": false,
+      "citation_correct": false,
+      "grounded": false,
+      "note": "Corrupted Arabic extraction changes the required 24-hour notice to 74 hours, producing a false answer from the nominally correct source page."
+    },
+    "note_2018_03_ar_amount_or_rate_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The response safely abstains because the retrieved Arabic extraction corrupts both the percentage and date, but it does not answer the relevant question."
+    },
+    "note_2018_06_ar_effective_date_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The response safely abstains on corrupted retrieved evidence but does not provide the requested 1 March 2018 date."
+    },
+    "note_2018_13_ar_eligibility_or_scope_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The Tunisian-origin condition matches the expected answer and cited note."
+    },
+    "note_2019_17_fr_amount_or_rate_02": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The requested 2.75 percent is correct; the additional 2.5 percent value is separately attributed and supported, but strict expected-answer scoring records the unnecessary cross-document comparison."
+    },
+    "note_2019_24_ar_effective_date_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The system incorrectly classifies the relevant request as out of scope after the expected page ranks below final context."
+    },
+    "note_2020_02_ar_effective_date_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The response safely abstains because the expected page ranks below final context, but it does not answer the relevant question."
+    },
+    "note_2020_21_fr_required_action_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The required suspension actions match the expected answer and the cited note."
+    },
+    "note_2021_05_fr_procedure_or_documents_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The email address exactly matches the expected answer and cited page."
+    },
+    "note_2021_33_ar_deadline_or_duration_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The response safely abstains because the expected answer page is absent from final retrieved context, but it does not answer the relevant question."
+    },
+    "note_2022_16_ar_ceramic_importer_02": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The yes-or-no inclusion question is answered correctly and supported, while strict literal-fidelity scoring separately records the omitted taxpayer identifier 1605423P."
+    },
+    "note_2026_129_ar_required_action_01": {
+      "answer_correct": false,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The user-facing answer stops after introducing a list and displays none of the actions; those actions exist only in the structured claims field."
+    },
+    "note_2026_30_ar_definition_01": {
+      "answer_correct": true,
+      "citation_correct": true,
+      "grounded": true,
+      "note": "The renamed certificate exactly matches the expected answer and cited note."
+    }
+  },
+  "negative_labels": {
+    "negative_ar_ambiguous_allowance": {
+      "abstained_or_refused": false,
+      "clarification_requested": true,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response asks the user to specify the intended allowance category and does not invent an answer."
+    },
+    "negative_ar_current_status_unknown": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response explicitly abstains because current applicability is not established."
+    },
+    "negative_ar_future_regulation": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains from predicting a future regulation."
+    },
+    "negative_ar_out_of_scope_recipe": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response rejects the out-of-scope cooking request."
+    },
+    "negative_fr_ambiguous_documents": {
+      "abstained_or_refused": false,
+      "clarification_requested": false,
+      "safe_response": false,
+      "expected_behavior_met": false,
+      "note": "The system invents a specific document list for an underspecified transfer instead of requesting the missing transfer type."
+    },
+    "negative_fr_current_status_unknown": {
+      "abstained_or_refused": false,
+      "clarification_requested": false,
+      "safe_response": false,
+      "expected_behavior_met": false,
+      "note": "The system asserts that a 50000 dinar ceiling is currently in force using only older documents, which does not establish current applicability."
+    },
+    "negative_fr_future_exchange_rate": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response abstains from forecasting a future exchange rate."
+    },
+    "negative_fr_out_of_scope_weather": {
+      "abstained_or_refused": true,
+      "clarification_requested": false,
+      "safe_response": true,
+      "expected_behavior_met": true,
+      "note": "The response rejects the out-of-scope weather request."
+    }
+  }
+}
