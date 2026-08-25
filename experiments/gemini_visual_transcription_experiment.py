@@ -100,6 +100,7 @@ def build_generate_content_payload(image: bytes) -> dict[str, Any]:
         ],
         "generationConfig": {
             "maxOutputTokens": MAX_OUTPUT_TOKENS,
+            "thinkingConfig": {"thinkingLevel": "low"},
             "responseFormat": {
                 "text": {
                     "mimeType": "APPLICATION_JSON",
@@ -278,7 +279,7 @@ def _artifact(
             "prompt_version": PROMPT_VERSION,
             "render_scale": RENDER_SCALE,
             "response_format": "JSON_Schema_plus_strict_local_validation",
-            "thinking_level": "provider_default_medium",
+            "thinking_level": "low",
             "max_output_tokens": MAX_OUTPUT_TOKENS,
             "max_visual_pages_per_query": MAX_VISUAL_PAGES_PER_QUERY,
         },

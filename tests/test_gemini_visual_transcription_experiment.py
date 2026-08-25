@@ -68,6 +68,9 @@ def test_rest_payload_uses_live_json_mime_enum():
         payload["generationConfig"]["responseFormat"]["text"]["mimeType"]
         == "APPLICATION_JSON"
     )
+    assert payload["generationConfig"]["thinkingConfig"] == {
+        "thinkingLevel": "low"
+    }
 
 
 def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():
