@@ -281,6 +281,7 @@ def visual_evidence(
             | {"vlm_visual_transcription"}
         ),
         "visual_verification": {
+            "provider": visual_cache.get("provider", "Groq"),
             "model": visual_cache["model"],
             "prompt_version": visual_cache["prompt_version"],
             "source_pdf_sha256": visual_cache["source_pdf_sha256"],

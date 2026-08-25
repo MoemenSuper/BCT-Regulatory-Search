@@ -9,7 +9,7 @@ import statistics
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 from groq import Groq, RateLimitError
@@ -63,6 +63,7 @@ def prepare_routed_evidence(
     record: dict[str, Any],
     route: dict[str, Any],
     visual_pages: dict[tuple[str, int], dict[str, Any]],
+    cache_validator: Callable[..., None] = validate_visual_cache_binding,
 ) -> tuple[list[dict[str, Any]], str]:
     evidence = [dict(item) for item in record["retrieved_evidence"]]
     evidence_by_id = {item["evidence_id"]: item for item in evidence}
@@ -80,7 +81,7 @@ def prepare_routed_evidence(
             or not visual_payload_is_usable(cached["response"])
         ):
             return evidence, "fail_closed_visual_unavailable_invalid_or_uncertain"
-        validate_visual_cache_binding(
+        cache_validator(
             cached,
             source_pdf_sha256=cached["source_pdf_sha256"],
             page=cached["page"],
@@ -119,6 +120,7 @@ def run_routed_visual_answers(
     dotenv_path: Path,
     output_dir: Path,
     confirm_public_documents: bool,
+    visual_provider: str = "qwen_groq",
 ) -> dict[str, Any]:
     if not confirm_public_documents:
         raise ValueError("Hosted answer execution requires public-document confirmation")
@@ -141,6 +143,14 @@ def run_routed_visual_answers(
     visual_pages = {
         _page_key(page["source"], page["page"]): page for page in visual["pages"]
     }
+    if visual_provider == "qwen_groq":
+        cache_validator = validate_visual_cache_binding
+    elif visual_provider == "gemini_google":
+        from experiments.gemini_visual_transcription_experiment import (
+            validate_cached_page as cache_validator,
+        )
+    else:
+        raise ValueError(f"Unsupported visual provider: {visual_provider}")
 
     load_dotenv(dotenv_path=dotenv_path, override=False)
     if not os.getenv("GROQ_API_KEY"):
@@ -170,6 +180,7 @@ def run_routed_visual_answers(
             record=raw_record,
             route=routes[case_id],
             visual_pages=visual_pages,
+            cache_validator=cache_validator,
         )
         original_response = raw_record["response"]
         if action != "generate":
@@ -302,6 +313,7 @@ def run_routed_visual_answers(
             "reasoning_effort": REASONING_EFFORT,
             "untouched_cases": "copied byte-for-value from frozen raw records",
             "invalid_uncertain_or_unavailable_visual": "fail_closed_without_answer_call",
+            "visual_provider": visual_provider,
         },
         "inputs": {
             "answer_suite_sha256": suite_hash,
@@ -343,6 +355,11 @@ def main() -> None:
     parser.add_argument("--dotenv", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--confirm-public-documents", action="store_true")
+    parser.add_argument(
+        "--visual-provider",
+        choices=("qwen_groq", "gemini_google"),
+        default="qwen_groq",
+    )
     args = parser.parse_args()
     run_routed_visual_answers(
         suite_path=args.suite,
@@ -352,6 +369,7 @@ def main() -> None:
         dotenv_path=args.dotenv,
         output_dir=args.output_dir,
         confirm_public_documents=args.confirm_public_documents,
+        visual_provider=args.visual_provider,
     )
 
 

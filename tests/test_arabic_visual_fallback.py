@@ -218,6 +218,7 @@ def test_uncertain_visual_output_is_not_usable_and_conflicts_are_audited():
         "representations": ["native"],
     }
     cache = {
+        "provider": "Google Gemini API",
         "model": MODEL_ID,
         "prompt_version": PROMPT_VERSION,
         "source_pdf_sha256": "A" * 64,
@@ -232,6 +233,7 @@ def test_uncertain_visual_output_is_not_usable_and_conflicts_are_audited():
     assert evidence["text"] == cache["response"]["transcription"]
     assert "native 8102" not in evidence["text"]
     assert evidence["visual_verification"]["numeric_conflict"] is True
+    assert evidence["visual_verification"]["provider"] == "Google Gemini API"
     assert evidence["visual_verification"]["native_only_numbers"] == ["8102"]
     assert evidence["visual_verification"]["visual_only_numbers"] == ["2018", "31"]
     assert evidence["visual_verification"]["native_text_sha256"] == hashlib.sha256(
