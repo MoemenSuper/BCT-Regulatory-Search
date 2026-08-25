@@ -1,0 +1,117 @@
+{
+  "experiment_id": "retrieval-first-answer-development-v2",
+  "timestamp": "2026-08-25T15:26:23+01:00",
+  "hypothesis": "The development-qualified answer policy remains correct and safe when its evidence is supplied by the fixed hybrid retrieval pipeline rather than by the frozen gold excerpts.",
+  "changed_variable": "replace_gold_evidence_with_actual_dense20_bm15_arabic_ocr5_5_bge_reranked_diverse_top5_context",
+  "configuration": {
+    "retrieval": "native dense top20 plus BM25 top15; Arabic additive OCR dense top5 plus BM25 top5; exact union; BAAI/bge-reranker-v2-m3; diverse top5 pages",
+    "answer_model": "openai/gpt-oss-120b with bct-structured-answer-v2, low reasoning, and 1024 completion tokens",
+    "query_state": "consulted only after the generator returns a non-answered status",
+    "semantic_review": "primary Codex agent with independent blind Codex cross-check over all 40 cases",
+    "development_gate": "all 32 relevant answers must be strictly correct, citation-supported, and grounded; all eight negatives must be safe and meet expected behavior"
+  },
+  "model_identifiers": {
+    "answer_model": "openai/gpt-oss-120b",
+    "embedding_model": "intfloat/multilingual-e5-large",
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "blind_auditor": "Codex agent"
+  },
+  "providers": {
+    "answer_model": "Groq",
+    "retrieval_and_reranking": "local",
+    "semantic_review": "Codex agents"
+  },
+  "code_commit": "5cd4fb9",
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "generated_result": "5E6BE4C8D05A144248821156A03F5789D91D63F2D6928EC599E997905E2DE450",
+    "evidence_review": "628BD1227F0A7D0188F25EDE764136792F00A0CA75C4423BEA864C7EBD356143",
+    "reviewed_result": "4178FA45C21BBAE2900B22D9585F289E0FA6342436C320AB1FB4C2A377082C5F"
+  },
+  "development_metrics": {
+    "status": "failed_retrieval_first_answer_gate",
+    "case_count": 40,
+    "relevant_case_count": 32,
+    "answered_status_rate": 0.8125,
+    "semantic_answer_correct_rate": 0.625,
+    "strict_expected_answer_correct_rate": 0.5625,
+    "citation_correct_rate": 0.75,
+    "exact_expected_source_page_citation_rate": 0.65625,
+    "grounded_rate": 0.90625,
+    "full_strict_answer_citation_grounding_rate": 0.53125,
+    "negative_safe_response_rate": 0.75,
+    "negative_expected_behavior_rate": 0.75
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The retrieval-first development gate failed; accessing provisional answer validation would not be justified."
+  },
+  "language_metrics": {
+    "fr": {
+      "relevant_case_count": 17,
+      "semantic_answer_correct_rate": 0.7647058823529411,
+      "strict_expected_answer_correct_rate": 0.7058823529411765,
+      "citation_correct_rate": 0.7058823529411765,
+      "grounded_rate": 0.9411764705882353,
+      "full_strict_answer_citation_grounding_rate": 0.7058823529411765,
+      "negative_safe_response_rate": 0.5
+    },
+    "ar": {
+      "relevant_case_count": 15,
+      "semantic_answer_correct_rate": 0.4666666666666667,
+      "strict_expected_answer_correct_rate": 0.4,
+      "citation_correct_rate": 0.8,
+      "grounded_rate": 0.8666666666666667,
+      "full_strict_answer_citation_grounding_rate": 0.3333333333333333,
+      "negative_safe_response_rate": 1.0
+    }
+  },
+  "repairs": {
+    "count": 0,
+    "ids": []
+  },
+  "regressions": {
+    "count": 17,
+    "ids": [
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "cir_2020_15_fr_effective_date_01",
+      "cir_2021_06_fr_amount_or_rate_03",
+      "cir_2024_01_fr_amount_or_rate_01",
+      "cir_2026_05_fr_eligibility_or_scope_01",
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01",
+      "note_2019_17_fr_amount_or_rate_02",
+      "note_2019_24_ar_effective_date_01",
+      "note_2020_02_ar_effective_date_01",
+      "note_2021_33_ar_deadline_or_duration_01",
+      "note_2022_16_ar_ceramic_importer_02",
+      "note_2026_129_ar_required_action_01",
+      "negative_fr_ambiguous_documents",
+      "negative_fr_current_status_unknown"
+    ]
+  },
+  "failure_distribution": {
+    "exact_page_retrieval_miss": 5,
+    "arabic_extraction_corruption": 4,
+    "cross_document_or_version_selection": 3,
+    "generator_attribution_or_completeness": 3,
+    "negative_ambiguity_or_current_status_safety": 2
+  },
+  "latency": {
+    "mean_seconds": 16.812,
+    "median_seconds": 17.519
+  },
+  "approximate_cost": {
+    "status": "not_estimated",
+    "reason": "Token usage is recorded but no verified applicable account rate is assumed.",
+    "usage": {
+      "prompt_tokens": 94092,
+      "completion_tokens": 10248,
+      "total_tokens": 104340
+    }
+  },
+  "conclusion": "REJECT for validation or promotion. Actual retrieval reduced strict full answer-citation-grounding success to 17 of 32 relevant cases and produced two unsafe French negative answers. The first-stage bottlenecks are page retrieval misses, corrupted Arabic dates and numbers, cross-version selection, and generator completeness or attribution.",
+  "decision": "REJECT"
+}
