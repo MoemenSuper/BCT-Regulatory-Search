@@ -350,6 +350,7 @@ def run_gemini_visual_transcription(
     cache_dir = output_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     completed: list[dict[str, Any]] = []
+    unavailable_pages: list[dict[str, Any]] = []
     for index, page in enumerate(pages, start=1):
         source = page["source"]
         page_number = page["page"]
@@ -384,6 +385,19 @@ def run_gemini_visual_transcription(
                     source_pdf_sha256=pdf_sha,
                 )
             except GeminiAPIError as error:
+                if error.status == 503:
+                    unavailable_pages.append(
+                        {
+                            "source": source,
+                            "page": page_number,
+                            "status": "provider_temporarily_unavailable",
+                        }
+                    )
+                    print(
+                        f"[gemini-visual unavailable] {source} page {page_number} HTTP 503",
+                        flush=True,
+                    )
+                    continue
                 if error.status != 429:
                     raise
                 checkpoint = _artifact(
@@ -408,12 +422,14 @@ def run_gemini_visual_transcription(
         )
 
     artifact = _artifact(
-        status="complete",
+        status="partial_provider_unavailable" if unavailable_pages else "complete",
         routing_receipt_path=routing_receipt_path,
         structured_manifest_path=structured_manifest_path,
         frozen_page_count=len(pages),
         completed=completed,
     )
+    artifact["unavailable_pages"] = unavailable_pages
+    artifact["cache_is_resumable"] = bool(unavailable_pages)
     write_json_atomic(output_dir / "gemini_visual_transcription_v1.json", artifact)
     return artifact
 
