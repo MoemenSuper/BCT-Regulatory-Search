@@ -31,9 +31,8 @@ def _validated_label(label: dict[str, Any], fields: tuple[str, ...], case_id: st
 def expand_review_labels(
     suite: dict[str, Any], review: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
+    explicit_relevant = review.get("relevant_labels")
     default = review.get("relevant_default")
-    if not isinstance(default, dict):
-        raise ValueError("Review requires a relevant_default object")
     overrides = review.get("relevant_overrides", {})
     negative = review.get("negative_labels", {})
     labels: dict[str, dict[str, Any]] = {}
@@ -41,12 +40,23 @@ def expand_review_labels(
     negative_ids = {case["id"] for case in suite["cases"] if not case.get("relevant")}
     if not set(overrides).issubset(relevant_ids):
         raise ValueError("Relevant review overrides contain unknown or negative IDs")
+    if explicit_relevant is not None:
+        if not isinstance(explicit_relevant, dict) or set(explicit_relevant) != relevant_ids:
+            raise ValueError("Explicit relevant review labels must exactly cover relevant suite IDs")
+        if default is not None or overrides:
+            raise ValueError("Explicit relevant labels cannot be combined with defaults or overrides")
+    elif not isinstance(default, dict):
+        raise ValueError("Review requires relevant_labels or a relevant_default object")
     if set(negative) != negative_ids:
         raise ValueError("Negative review labels must exactly cover negative suite IDs")
     for case in suite["cases"]:
         case_id = case["id"]
         if case.get("relevant"):
-            value = {**default, **overrides.get(case_id, {})}
+            value = (
+                explicit_relevant[case_id]
+                if explicit_relevant is not None
+                else {**default, **overrides.get(case_id, {})}
+            )
             labels[case_id] = _validated_label(value, _RELEVANT_FIELDS, case_id)
         else:
             labels[case_id] = _validated_label(
@@ -128,7 +138,7 @@ def build_reviewed_answer_result(
         "limitations": [
             *generated["limitations"],
             "Agent evidence-review labels should be independently confirmed before a release claim.",
-            "Gold evidence isolates generation and does not measure end-to-end retrieval sufficiency.",
+            "Manual labels assess the evidence included in this artifact; their interpretation depends on whether the generating experiment supplied gold or retrieved evidence.",
         ],
         "records": records,
     }

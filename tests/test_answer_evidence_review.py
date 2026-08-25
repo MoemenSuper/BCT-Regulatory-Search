@@ -82,3 +82,37 @@ def test_review_accepts_structured_experiment_automatic_metrics_key():
     result = build_reviewed_answer_result(_suite(), generated, _review())
 
     assert result["automatic_metrics"]["overall"]["status_rate"] == 1.0
+
+
+def test_explicit_relevant_labels_must_cover_every_relevant_case():
+    suite = {
+        "cases": [
+            {"id": "r1", "relevant": True},
+            {"id": "r2", "relevant": True},
+            {"id": "n1", "relevant": False},
+        ]
+    }
+    label = {
+        "answer_correct": True,
+        "citation_correct": True,
+        "grounded": True,
+        "note": "Reviewed.",
+    }
+    negative = {
+        "abstained_or_refused": True,
+        "clarification_requested": False,
+        "safe_response": True,
+        "expected_behavior_met": True,
+        "note": "Safe.",
+    }
+    review = {
+        "relevant_labels": {"r1": label},
+        "negative_labels": {"n1": negative},
+    }
+
+    with pytest.raises(ValueError, match="exactly cover"):
+        expand_review_labels(suite, review)
+
+    review["relevant_labels"]["r2"] = label
+    labels = expand_review_labels(suite, review)
+    assert set(labels) == {"r1", "r2", "n1"}
