@@ -73,6 +73,46 @@ _VISUAL_SCHEMA = {
 }
 
 
+def _visual_configuration() -> dict[str, Any]:
+    return {
+        "provider": PROVIDER,
+        "model": MODEL_ID,
+        "prompt_version": PROMPT_VERSION,
+        "render_scale": RENDER_SCALE,
+        "response_format": "JSON_Schema_plus_strict_local_validation",
+        "response_schema": _VISUAL_SCHEMA,
+        "thinking_level": "low",
+        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "max_visual_pages_per_query": MAX_VISUAL_PAGES_PER_QUERY,
+    }
+
+
+def visual_configuration_sha256() -> str:
+    encoded = json.dumps(
+        _visual_configuration(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest().upper()
+
+
+def visual_cache_key(
+    *,
+    source_pdf_sha256: str,
+    page: int,
+    image_sha256: str,
+    configuration_sha256: str,
+) -> str:
+    binding = {
+        "source_pdf_sha256": source_pdf_sha256.upper(),
+        "page": int(page),
+        "image_sha256": image_sha256.upper(),
+        "model": MODEL_ID,
+        "prompt_version": PROMPT_VERSION,
+        "configuration_sha256": configuration_sha256.upper(),
+    }
+    encoded = json.dumps(binding, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest().casefold()
+
+
 def _usage(metadata: dict[str, Any]) -> dict[str, int]:
     return {
         "prompt_tokens": int(metadata.get("promptTokenCount", 0) or 0),
@@ -178,6 +218,7 @@ def _request_page(
     source: str,
     page_number: int,
     source_pdf_sha256: str,
+    configuration_sha256: str,
 ) -> dict[str, Any]:
     payload = build_generate_content_payload(image)
     started = time.perf_counter()
@@ -196,6 +237,7 @@ def _request_page(
         "prompt_version": PROMPT_VERSION,
         "source_pdf_sha256": source_pdf_sha256,
         "image_sha256": hashlib.sha256(image).hexdigest().upper(),
+        "configuration_sha256": configuration_sha256,
         "latency_seconds": elapsed,
     }
     try:
@@ -219,7 +261,9 @@ def validate_cached_page(
     source_pdf_sha256: str,
     page: int,
     image_sha256: str,
+    configuration_sha256: str | None = None,
 ) -> None:
+    expected_configuration = configuration_sha256 or visual_configuration_sha256()
     expected = {
         "provider": PROVIDER,
         "model": MODEL_ID,
@@ -227,6 +271,7 @@ def validate_cached_page(
         "source_pdf_sha256": source_pdf_sha256.upper(),
         "page": int(page),
         "image_sha256": image_sha256.upper(),
+        "configuration_sha256": expected_configuration.upper(),
     }
     mismatches = [key for key, value in expected.items() if payload.get(key) != value]
     if mismatches:
@@ -282,6 +327,7 @@ def _artifact(
             "thinking_level": "low",
             "max_output_tokens": MAX_OUTPUT_TOKENS,
             "max_visual_pages_per_query": MAX_VISUAL_PAGES_PER_QUERY,
+            "configuration_sha256": visual_configuration_sha256(),
         },
         "inputs": {
             "routing_receipt_sha256": sha256_file(routing_receipt_path),
@@ -295,6 +341,9 @@ def _artifact(
             "invalid_or_uncertain_pages": len(completed) - len(usable),
             "hosted_requests_this_run": sum(not page["cache_hit"] for page in completed),
             "cache_hits_this_run": sum(page["cache_hit"] for page in completed),
+            "reused_artifact_hits_this_run": sum(
+                page.get("cache_origin") == "reused_artifact" for page in completed
+            ),
             "unique_hosted_requests_for_cached_result": len(completed),
         },
         "usage": usage,
@@ -327,6 +376,7 @@ def run_gemini_visual_transcription(
     dotenv_path: Path,
     output_dir: Path,
     confirm_public_documents: bool,
+    reuse_visual_result_paths: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
     if not confirm_public_documents:
         raise ValueError("Hosted visual execution requires public-document confirmation")
@@ -349,6 +399,30 @@ def run_gemini_visual_transcription(
 
     cache_dir = output_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
+    configuration_sha256 = visual_configuration_sha256()
+    reusable_pages: dict[tuple[str, int], dict[str, Any]] = {}
+    expected_reuse_configuration = {
+        key: value
+        for key, value in _visual_configuration().items()
+        if key not in {"provider", "model", "response_schema"}
+    }
+    for reuse_path in reuse_visual_result_paths:
+        reusable = json.loads(reuse_path.read_text(encoding="utf-8"))
+        if reusable.get("status") != "complete":
+            raise ValueError(f"Reusable visual result is incomplete: {reuse_path}")
+        actual_configuration = reusable.get("configuration", {})
+        mismatches = [
+            key
+            for key, expected in expected_reuse_configuration.items()
+            if actual_configuration.get(key) != expected
+        ]
+        if mismatches:
+            raise ValueError(
+                f"Reusable visual result configuration differs: {mismatches}"
+            )
+        for reusable_page in reusable.get("pages", []):
+            key = (str(reusable_page["source"]).casefold(), int(reusable_page["page"]))
+            reusable_pages.setdefault(key, reusable_page)
     completed: list[dict[str, Any]] = []
     unavailable_pages: list[dict[str, Any]] = []
     for index, page in enumerate(pages, start=1):
@@ -364,9 +438,16 @@ def run_gemini_visual_transcription(
         image = _render_page(pdf_path, page_number)
         image_sha = hashlib.sha256(image).hexdigest().upper()
         cache_path = cache_dir / (
-            f"{pdf_sha.casefold()}-p{page_number}-{MODEL_ID}-{PROMPT_VERSION}.json"
+            visual_cache_key(
+                source_pdf_sha256=pdf_sha,
+                page=page_number,
+                image_sha256=image_sha,
+                configuration_sha256=configuration_sha256,
+            )
+            + ".json"
         )
         cache_hit = cache_path.exists()
+        cache_origin = "local_cache" if cache_hit else "hosted"
         if cache_hit:
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
             validate_cached_page(
@@ -374,7 +455,25 @@ def run_gemini_visual_transcription(
                 source_pdf_sha256=pdf_sha,
                 page=page_number,
                 image_sha256=image_sha,
+                configuration_sha256=configuration_sha256,
             )
+        elif (source.casefold(), page_number) in reusable_pages:
+            payload = {
+                **reusable_pages[(source.casefold(), page_number)],
+                "configuration_sha256": configuration_sha256,
+            }
+            payload.pop("cache_hit", None)
+            payload.pop("cache_origin", None)
+            validate_cached_page(
+                payload,
+                source_pdf_sha256=pdf_sha,
+                page=page_number,
+                image_sha256=image_sha,
+                configuration_sha256=configuration_sha256,
+            )
+            write_json_atomic(cache_path, payload)
+            cache_hit = True
+            cache_origin = "reused_artifact"
         else:
             try:
                 payload = _request_page(
@@ -383,6 +482,7 @@ def run_gemini_visual_transcription(
                     source=source,
                     page_number=page_number,
                     source_pdf_sha256=pdf_sha,
+                    configuration_sha256=configuration_sha256,
                 )
             except GeminiAPIError as error:
                 if error.status == 503:
@@ -414,7 +514,9 @@ def run_gemini_visual_transcription(
                 )
                 return checkpoint
             write_json_atomic(cache_path, payload)
-        completed.append({**payload, "cache_hit": cache_hit})
+        completed.append(
+            {**payload, "cache_hit": cache_hit, "cache_origin": cache_origin}
+        )
         print(
             f"[gemini-visual {index}/{len(pages)}] {source} page {page_number} "
             f"validation={payload['validation_status']} cache_hit={cache_hit}",
@@ -441,6 +543,9 @@ def main() -> None:
     parser.add_argument("--dotenv", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--confirm-public-documents", action="store_true")
+    parser.add_argument(
+        "--reuse-visual-result", type=Path, action="append", default=[]
+    )
     args = parser.parse_args()
     run_gemini_visual_transcription(
         routing_receipt_path=args.routing_receipt,
@@ -448,6 +553,7 @@ def main() -> None:
         dotenv_path=args.dotenv,
         output_dir=args.output_dir,
         confirm_public_documents=args.confirm_public_documents,
+        reuse_visual_result_paths=tuple(args.reuse_visual_result),
     )
 
 

@@ -21,6 +21,7 @@ from experiments.arabic_visual_fallback import (
 )
 from experiments.artifacts import sha256_file, write_json_atomic
 from experiments.gold_evidence_answer_experiment import automatic_answer_audit
+from experiments.numeric_fidelity_stress import critical_numbers
 from experiments.retrieved_context_answer_experiment import (
     MAX_COMPLETION_TOKENS,
     REASONING_EFFORT,
@@ -56,6 +57,59 @@ def _safe_abstention(language: str) -> dict[str, Any]:
         "claims": [],
         "citations": [],
     }
+
+
+def enforce_routed_numeric_authority(
+    *,
+    response: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    routed_evidence_ids: set[str],
+    language: str,
+) -> tuple[dict[str, Any], str]:
+    """Reject numeric/date assertions not traceable to authoritative evidence."""
+    if response["status"] != "answered":
+        return response, "generate"
+    evidence_by_id = {item["evidence_id"]: item for item in evidence}
+    linked_ids = {
+        evidence_id
+        for claim in response.get("claims", [])
+        for evidence_id in claim.get("evidence_ids", [])
+    } | {
+        citation["evidence_id"] for citation in response.get("citations", [])
+    }
+    used_routed_ids = linked_ids & routed_evidence_ids
+    if any(
+        "visual_verification" not in evidence_by_id.get(evidence_id, {})
+        for evidence_id in used_routed_ids
+    ):
+        return _safe_abstention(language), "fail_closed_missing_visual_authority"
+
+    for claim in response.get("claims", []):
+        claim_numbers = critical_numbers(str(claim.get("text", "")))
+        authoritative_numbers = {
+            number
+            for evidence_id in claim.get("evidence_ids", [])
+            for number in critical_numbers(
+                str(evidence_by_id.get(evidence_id, {}).get("text", ""))
+            )
+        }
+        if not claim_numbers.issubset(authoritative_numbers):
+            return (
+                _safe_abstention(language),
+                "fail_closed_unsupported_numeric_literal",
+            )
+
+    answer_numbers = critical_numbers(str(response.get("answer", "")))
+    cited_numbers = {
+        number
+        for evidence_id in linked_ids
+        for number in critical_numbers(
+            str(evidence_by_id.get(evidence_id, {}).get("text", ""))
+        )
+    }
+    if not answer_numbers.issubset(cited_numbers):
+        return _safe_abstention(language), "fail_closed_unsupported_numeric_literal"
+    return response, "generate"
 
 
 def prepare_routed_evidence(
@@ -270,6 +324,14 @@ def run_routed_visual_answers(
                 cache_hits += 1
             else:
                 hosted_requests += 1
+            generated, authority_action = enforce_routed_numeric_authority(
+                response=generated,
+                evidence=evidence,
+                routed_evidence_ids={page["evidence_id"] for page in routes[case_id]["pages"]},
+                language=case["language"],
+            )
+            if authority_action != "generate":
+                action = authority_action
         for field in new_usage:
             new_usage[field] += int(usage[field])
         if latency:

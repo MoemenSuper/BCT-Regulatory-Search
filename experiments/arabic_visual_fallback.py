@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from experiments.artifacts import sha256_file, write_json_atomic
+from experiments.document_identity_candidate_experiment import (
+    parse_query_identity,
+    parse_source_identity,
+)
 from experiments.numeric_fidelity_stress import critical_numbers
 
 
@@ -55,6 +59,29 @@ def _page_key(source: str, page: int) -> tuple[str, int]:
     return Path(source).name.casefold(), int(page)
 
 
+def _page_requires_visual(
+    evidence: dict[str, Any], risky_pages: set[tuple[str, int]]
+) -> bool:
+    return _page_key(evidence["source"], evidence["page"]) in risky_pages or (
+        "arabic_ocr_secondary" in evidence.get("representations", [])
+    )
+
+
+def _matches_query_identity(
+    evidence: dict[str, Any], query_identity: dict[str, Any] | None
+) -> bool:
+    if query_identity is None:
+        return False
+    source_identity = parse_source_identity(str(evidence["source"]))
+    if source_identity is None:
+        return False
+    return all(
+        query_identity[field] is None
+        or source_identity[field] == query_identity[field]
+        for field in ("kind", "year", "number")
+    )
+
+
 def route_visual_pages(
     *,
     suite: dict[str, Any],
@@ -72,10 +99,11 @@ def route_visual_pages(
     records = {record["id"]: record for record in retrieved_result["records"]}
     if set(runtime_cases) != set(records):
         raise ValueError("Suite and retrieved result IDs differ")
-    risky_sources = {
-        Path(record["source"]).name.casefold()
+    risky_pages = {
+        _page_key(record["source"], page_hit["page"])
         for record in risk_result["records"]
         if record.get("requires_visual_fallback")
+        for page_hit in record.get("page_hits", [])
     }
     routes = []
     for case_id, runtime_case in runtime_cases.items():
@@ -102,20 +130,37 @@ def route_visual_pages(
             )
             if not critical_numbers(response_text) and not _ANSWERED_DATE_OR_QUANTITATIVE.search(query):
                 continue
+            linked_ids = {
+                evidence_id
+                for claim in record["response"].get("claims", [])
+                for evidence_id in claim.get("evidence_ids", [])
+            } | {
+                citation["evidence_id"]
+                for citation in record["response"].get("citations", [])
+            }
             candidates = [
-                evidence_by_id[citation["evidence_id"]]
-                for citation in record["response"]["citations"]
-                if citation["evidence_id"] in evidence_by_id
+                evidence
+                for evidence in record["retrieved_evidence"]
+                if evidence["evidence_id"] in linked_ids
             ]
-            reason = "answered_numeric_or_date_query_cited_risky_document"
+            reason = "answered_numeric_or_date_query_cited_risky_page"
         else:
             candidates = record["retrieved_evidence"]
-            reason = "insufficient_numeric_or_date_query_ranked_risky_evidence"
+            query_identity = parse_query_identity(query)
+            candidates = sorted(
+                enumerate(candidates),
+                key=lambda item: (
+                    not _matches_query_identity(item[1], query_identity),
+                    item[0],
+                ),
+            )
+            candidates = [evidence for _index, evidence in candidates]
+            reason = "insufficient_numeric_or_date_query_ranked_risky_page"
         selected = []
         seen = set()
         for evidence in candidates:
             key = _page_key(evidence["source"], evidence["page"])
-            if key[0] not in risky_sources or key in seen:
+            if not _page_requires_visual(evidence, risky_pages) or key in seen:
                 continue
             seen.add(key)
             selected.append(
@@ -156,13 +201,14 @@ def build_routing_receipt(
     return {
         "status": "frozen_before_visual_calls",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "experiment_id": "arabic-query-time-visual-routing-development-v1",
+        "experiment_id": "arabic-query-time-visual-routing-development-v2",
         "inputs": input_hashes,
         "policy": {
             "language": "Arabic query text only",
             "intent": "runtime lexical numeric or date signal",
-            "answered": "verify only cited pages from risky documents",
-            "insufficient_evidence": "verify at most the first two reranked pages from risky documents",
+            "page_risk": "exact digit-order page hit or additive Arabic OCR page representation",
+            "answered": "verify only claim-linked or cited risky pages",
+            "insufficient_evidence": "prefer risky pages matching runtime query identity, then frozen retrieval order",
             "excluded_statuses": ["clarification_needed", "out_of_scope"],
             "excluded_temporal_queries": "explicit current or future lexical requests",
             "max_visual_pages_per_query": MAX_VISUAL_PAGES_PER_QUERY,
