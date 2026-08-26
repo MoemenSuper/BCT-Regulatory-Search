@@ -1,0 +1,143 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-26T14:20:00+00:00",
+  "experiment_id": "final-combined-page-visual-numeric-guard-development-v1",
+  "hypothesis": "Page-level runtime routing plus cache-bound Gemini evidence and a numeric authority guard can retain the four known Arabic repairs, select the identity-recovered page without gold fields, and prevent unsupported digit normalization.",
+  "changed_variable": "page_level_visual_routing_and_post_generation_numeric_evidence_authority",
+  "configuration": {
+    "retrieval_input": "kept document-identity answer recomposition",
+    "visual_provider": "Google Gemini API",
+    "visual_model": "gemini-3.7-flash",
+    "thinking_level": "low",
+    "maximum_visual_pages_per_query": 2,
+    "page_risk": "exact digit-order page hit or additive Arabic OCR representation",
+    "abstained_route_order": "runtime query identity match then frozen retrieval order",
+    "answered_route_scope": "claim-linked or cited pages only",
+    "numeric_authority": "every asserted numeric/date literal must occur in linked authoritative evidence",
+    "unavailable_or_uncertain": "per-route safe abstention without answer-model call",
+    "untouched_records": "copied from the frozen identity answer result"
+  },
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "identity_answer_input": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "arabic_digit_order_risk": "4AED0BB5D893D45FA812599F00672403D88A2B3471913BCD1B3D244B3F5FF13C",
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "routing_receipt": "7DAE6CA61ABFBC60AED1BB864A31BE886DE43C8DC538EF57C88C87C9CE258AC9",
+    "visual_result": "2593207C7C511948AE64843FA3069A09D757A9BAE30F4015D43BAE7521AA09A4",
+    "raw_answer_result": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C"
+  },
+  "routing": {
+    "routed_case_count": 7,
+    "routed_page_count": 10,
+    "identity_recovered_page": {
+      "source": "Cir_2018_03_ar.pdf",
+      "page": 3,
+      "rank_in_answer_evidence": 3,
+      "rank_in_visual_route": 1,
+      "selection_inputs": [
+        "Arabic numeric/date query",
+        "runtime query year 2018",
+        "candidate filename year 2018",
+        "additive Arabic OCR page representation",
+        "frozen retrieved evidence order"
+      ],
+      "gold_fields_used": []
+    },
+    "page_budget_passed": true
+  },
+  "visual_execution": {
+    "hosted_attempts_this_run": 4,
+    "successful_hosted_requests_this_run": 1,
+    "provider_503_attempts": 3,
+    "exact_reused_page_cache_hits": 6,
+    "successful_new_visual_usage": {
+      "prompt_tokens": 1372,
+      "completion_tokens": 1227,
+      "thinking_tokens": 0,
+      "total_tokens": 2599
+    },
+    "successful_new_visual_latency_seconds": 21.63458410000021,
+    "provider_503_latency_status": "not_recorded_by_preexisting_request_wrapper",
+    "incremental_standard_paid_rate_estimate_usd": 0.00563025,
+    "actual_billing_status": "unknown_may_be_zero_on_free_tier",
+    "unavailable_pages": [
+      {"source": "Cir_2018_03_ar.pdf", "page": 3},
+      {"source": "Note_2021_33_ar.pdf", "page": 1},
+      {"source": "Note_2023_30_ar.pdf", "page": 1}
+    ]
+  },
+  "answer_execution": {
+    "routed_cases": 7,
+    "hosted_answer_requests": 5,
+    "fail_closed_without_answer_call": 2,
+    "untouched_cases": 33,
+    "cache_hits": 0,
+    "usage": {
+      "prompt_tokens": 14731,
+      "completion_tokens": 1205,
+      "total_tokens": 15936
+    },
+    "latency_seconds": {
+      "total": 84.96569150000005,
+      "mean": 16.99313830000001,
+      "median": 27.064844600000015
+    },
+    "approximate_cost_status": "not_estimated_without_verified_applicable_Groq_account_rate"
+  },
+  "development_metrics": {
+    "before_identity_only": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 19,
+      "strict_expected_answer_correct_count": 17,
+      "citation_correct_count": 25,
+      "full_strict_answer_citation_grounding_count": 17,
+      "negative_safe_and_expected_count": 6
+    },
+    "after_checkpoint_a": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 23,
+      "strict_expected_answer_correct_count": 21,
+      "citation_correct_count": 26,
+      "grounded_count": 31,
+      "full_strict_answer_citation_grounding_count": 21,
+      "negative_count": 8,
+      "negative_safe_and_expected_count": 6,
+      "safe_relevant_abstention_count_among_changed_cases": 3
+    },
+    "language": {
+      "fr": {
+        "relevant_count": 17,
+        "before_full_strict_count": 12,
+        "after_full_strict_count": 12
+      },
+      "ar": {
+        "relevant_count": 15,
+        "before_full_strict_count": 5,
+        "after_full_strict_count": 9
+      }
+    },
+    "repairs": [
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01"
+    ],
+    "strict_regressions": [],
+    "new_wrong_numeric_or_date_assertions": 0
+  },
+  "gate": {
+    "zero_new_wrong_numeric_or_date_assertions": "PASS",
+    "all_four_verified_corruption_repairs_retained": "PASS_4_OF_4",
+    "identity_recovered_page_visually_selectable_without_gold": "PASS",
+    "zero_routed_control_strict_answer_or_citation_regressions": "PASS",
+    "every_affirmative_changed_claim_correct_requested_source_page": "PASS_4_OF_4",
+    "page_budget_cache_binding_and_fail_closed_tests": "PASS",
+    "all_clauses_required": true
+  },
+  "decision": "KEEP",
+  "conclusion": "KEEP checkpoint A for final combination. Page-level routing selected the recovered 2018 page without gold fields, retained all four known corruption repairs, and the numeric authority guard allowed no unsupported digit/date assertion. Provider-unavailable pages safely abstained and remain strict-answer failures.",
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "Checkpoint A alone does not pass the full development answer and negative-safety gate."
+  }
+}

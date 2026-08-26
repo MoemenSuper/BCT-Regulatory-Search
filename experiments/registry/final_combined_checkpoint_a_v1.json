@@ -1,0 +1,92 @@
+{
+  "experiment_id": "final-combined-page-visual-numeric-guard-development-v1",
+  "timestamp": "2026-08-26T14:20:00+00:00",
+  "hypothesis": "Page-level runtime routing plus cache-bound Gemini evidence and a numeric authority guard retain known Arabic repairs while preventing unsupported digit normalization.",
+  "changed_variable": "page_level_visual_routing_and_post_generation_numeric_evidence_authority",
+  "configuration": {
+    "retrieval_input": "kept identity-aware retrieval",
+    "visual_model": "gemini-3.7-flash",
+    "thinking_level": "low",
+    "maximum_visual_pages_per_query": 2,
+    "routed_cases": 7,
+    "routed_pages": 10,
+    "untouched_cases": 33
+  },
+  "model_identifiers": {
+    "answer_model": "openai/gpt-oss-120b",
+    "visual_model": "gemini-3.7-flash",
+    "reranker": "BAAI/bge-reranker-v2-m3"
+  },
+  "providers": {
+    "answer_model": "Groq",
+    "visual_transcription": "Google Gemini API",
+    "routing_numeric_guard_and_review": "local"
+  },
+  "code_commit": "6712b62",
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "identity_answer_input": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "routing_receipt": "7DAE6CA61ABFBC60AED1BB864A31BE886DE43C8DC538EF57C88C87C9CE258AC9",
+    "visual_result": "2593207C7C511948AE64843FA3069A09D757A9BAE30F4015D43BAE7521AA09A4",
+    "raw_answer_result": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C"
+  },
+  "development_metrics": {
+    "before_full_strict_answer_count": 17,
+    "after_full_strict_answer_count": 21,
+    "before_strict_expected_answer_count": 17,
+    "after_strict_expected_answer_count": 21,
+    "before_citation_correct_count": 25,
+    "after_citation_correct_count": 26,
+    "known_corruption_repairs": 4,
+    "new_wrong_numeric_or_date_assertions": 0,
+    "negative_safe_and_expected_count": 6
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The full combined development gate has not yet been evaluated."
+  },
+  "language_metrics": {
+    "fr": {
+      "relevant_count": 17,
+      "before_full_strict_count": 12,
+      "after_full_strict_count": 12
+    },
+    "ar": {
+      "relevant_count": 15,
+      "before_full_strict_count": 5,
+      "after_full_strict_count": 9
+    }
+  },
+  "repairs": {
+    "count": 4,
+    "ids": [
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01"
+    ]
+  },
+  "regressions": {
+    "strict_count": 0,
+    "numeric_or_date_count": 0,
+    "ids": []
+  },
+  "failure_distribution": {
+    "provider_unavailable_page_count": 3,
+    "safe_relevant_abstention_count_among_changed_cases": 3,
+    "unsupported_numeric_assertion_count": 0
+  },
+  "latency": {
+    "successful_new_visual_seconds": 21.63458410000021,
+    "answer_total_seconds": 84.96569150000005,
+    "provider_503_latency_status": "not_recorded"
+  },
+  "approximate_cost": {
+    "currency": "USD",
+    "incremental_visual_standard_paid_rate_estimate": 0.00563025,
+    "answer_cost_status": "not_estimated_without_verified_applicable_account_rate",
+    "actual_billing_status": "unknown"
+  },
+  "conclusion": "KEEP checkpoint A for final combination. It passed every predeclared component clause; provider-unavailable pages remained safe abstentions and therefore do not pass the later strict full-answer gate.",
+  "decision": "KEEP"
+}
