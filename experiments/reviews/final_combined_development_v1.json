@@ -1,0 +1,87 @@
+{
+  "status": "complete_agent_pdf_evidence_review",
+  "reviewer_type": "Codex primary agent",
+  "review_scope": "every response changed from the frozen identity-aware answer input",
+  "independent_human_confirmation": false,
+  "inputs": {
+    "identity_answer_input_sha256": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "checkpoint_a_review_sha256": "645FE99F4D8B5A51E34B3824106C6E7BAB64C9B0FFCD0854664A2C4448735DAA",
+    "checkpoint_b_review_sha256": "B1356D5EB70EA11E5EFF6A7A6B37415F121E8311D28C475702A21314A6D11710",
+    "final_raw_result_sha256": "3FD794F9DB65A99EF3233C4E480C381D74BFB3B35597BBEEE26F926552D7B72B"
+  },
+  "changed_responses": {
+    "count": 15,
+    "checkpoint_a_count": 7,
+    "checkpoint_b_count": 8,
+    "overlap_count": 0,
+    "ids": [
+      "cir_2016_09_fr_exception_or_condition_01",
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "cir_2020_15_fr_effective_date_01",
+      "cir_2021_06_fr_amount_or_rate_03",
+      "cir_2026_05_fr_eligibility_or_scope_01",
+      "negative_fr_ambiguous_documents",
+      "negative_fr_current_status_unknown",
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01",
+      "note_2019_24_ar_effective_date_01",
+      "note_2020_02_ar_effective_date_01",
+      "note_2021_33_ar_deadline_or_duration_01",
+      "note_2026_129_ar_required_action_01"
+    ],
+    "all_changed_responses_reviewed_against_rendered_pdf": true,
+    "detailed_records": [
+      "experiments/reviews/final_combined_checkpoint_a_v1.json",
+      "experiments/reviews/final_combined_checkpoint_b_v1.json"
+    ]
+  },
+  "final_labels": {
+    "relevant_count": 32,
+    "semantic_answer_correct_count": 23,
+    "affirmative_response_count": 23,
+    "affirmative_exact_requested_source_page_count": 21,
+    "citation_safe_or_correct_count_including_abstentions": 30,
+    "grounded_or_safe_abstention_count": 32,
+    "full_strict_answer_citation_grounding_count": 21,
+    "safe_relevant_abstention_count": 9,
+    "negative_count": 8,
+    "negative_safe_and_expected_count": 8,
+    "new_wrong_numeric_or_date_assertions": 0,
+    "malformed_or_conflicting_evidence_used_affirmatively": 0,
+    "unsupported_current_status_claims": 0,
+    "incomplete_affirmatives": 0,
+    "unsafe_affirmative_claims": 0
+  },
+  "strict_repairs_from_identity_input": [
+    "note_2016_14_ar_deadline_or_duration_01",
+    "note_2017_18_ar_deadline_or_duration_01",
+    "note_2018_03_ar_amount_or_rate_01",
+    "note_2018_06_ar_effective_date_01",
+    "note_2026_129_ar_required_action_01"
+  ],
+  "strict_regressions_from_identity_input": [
+    "cir_2016_09_fr_exception_or_condition_01"
+  ],
+  "remaining_strict_failures": {
+    "count": 11,
+    "safe_relevant_abstentions": [
+      "cir_2016_09_fr_exception_or_condition_01",
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "cir_2020_15_fr_effective_date_01",
+      "cir_2021_06_fr_amount_or_rate_03",
+      "cir_2024_01_fr_amount_or_rate_01",
+      "cir_2026_05_fr_eligibility_or_scope_01",
+      "note_2019_24_ar_effective_date_01",
+      "note_2020_02_ar_effective_date_01",
+      "note_2021_33_ar_deadline_or_duration_01"
+    ],
+    "semantically_correct_wrong_requested_instrument_citation": [
+      "cir_2021_01_fr_amount_or_rate_01",
+      "cir_2022_02_fr_migration_history_02"
+    ]
+  },
+  "metric_reconciliation": "The committed checkpoint-A aggregate reports 26 citation-correct cases, but its per-case review labels recompose to 27. The final count of 30 is derived from the auditable per-case identity, A, and B labels; the discrepancy is preserved explicitly rather than hidden.",
+  "conclusion": "All 15 changed responses were reviewed against rendered public source pages. The final composition contains no unsafe affirmative claim, but only 21 of 32 relevant questions satisfy the unchanged strict answer plus requested-source/page citation plus grounding gate."
+}

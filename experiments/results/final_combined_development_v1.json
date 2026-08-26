@@ -1,0 +1,186 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-26T14:49:42.0572642+00:00",
+  "experiment_id": "final-combined-development-qualification-v1",
+  "decision": "REJECT_NOT_READY_FOR_PROVISIONAL_ANSWER_VALIDATION",
+  "component_decisions": {
+    "checkpoint_a_page_level_gemini_numeric_authority": "KEEP",
+    "checkpoint_b_post_retrieval_answer_safety": "KEEP",
+    "final_combined_candidate": "REJECT"
+  },
+  "configuration": {
+    "pipeline": "StructuredDocument -> page-local sequential ~1000/200 chunks -> native dense top-20 + BM25 top-15 -> Arabic additive OCR dense top-5 + BM25 top-5 -> exact candidate union -> conditional filename-derived identity reranker prefix -> BAAI/bge-reranker-v2-m3 -> stable source/page-diverse top-5 -> same-page context -> claim-linked structured answer -> page-level Gemini authority when routed -> deterministic post-retrieval safety",
+    "visual_provider": "Google Gemini API",
+    "visual_model": "gemini-3.7-flash",
+    "visual_thinking_level": "low",
+    "maximum_visual_pages_per_query": 2,
+    "answer_model": "openai/gpt-oss-120b",
+    "answer_provider": "Groq",
+    "runtime_gold_access": false,
+    "production_integration": false,
+    "provisional_answer_validation_opened": false,
+    "final_holdout_opened": false
+  },
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "identity_retrieval_result": "4BCBBD54CF1C4D5E3CBE17C8ED29836482E48266BF83BD428B9898866BFCC722",
+    "identity_routing_receipt": "6AEBDA65F1BA272C80EE7943CF6618341A25BA54DE9BEF56A77383B3B13FF472",
+    "identity_answer_input": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "checkpoint_a_routing_receipt": "7DAE6CA61ABFBC60AED1BB864A31BE886DE43C8DC538EF57C88C87C9CE258AC9",
+    "checkpoint_a_visual_result": "2593207C7C511948AE64843FA3069A09D757A9BAE30F4015D43BAE7521AA09A4",
+    "checkpoint_a_raw_answer_result": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C",
+    "checkpoint_b_and_final_raw_result": "3FD794F9DB65A99EF3233C4E480C381D74BFB3B35597BBEEE26F926552D7B72B",
+    "checkpoint_a_tracked_result": "6CD92C698489678D9B8BEC584B65F975C21448E989B48CB0FE30BE44E020B686",
+    "checkpoint_a_tracked_review": "645FE99F4D8B5A51E34B3824106C6E7BAB64C9B0FFCD0854664A2C4448735DAA",
+    "checkpoint_b_tracked_result": "42E2CFEAB925B4F988487357C7E453E8CBEAF4F4CB18E081C0F81A121695125D",
+    "checkpoint_b_tracked_review": "B1356D5EB70EA11E5EFF6A7A6B37415F121E8311D28C475702A21314A6D11710",
+    "predeclaration": "59EEA2F4141230E00B381B54CA09C39B09C3802430A82EA594C468751BA6849E"
+  },
+  "execution": {
+    "response_changes_from_identity_input": 15,
+    "unchanged_responses_copied": 25,
+    "checkpoint_a_routed_cases": 7,
+    "checkpoint_b_changed_cases": 8,
+    "hosted_visual_attempts": 4,
+    "successful_new_visual_requests": 1,
+    "visual_provider_503_attempts": 3,
+    "visual_exact_cache_hits": 6,
+    "hosted_answer_requests": 5,
+    "answer_fail_closed_without_call": 2,
+    "checkpoint_b_hosted_requests": 0,
+    "recorded_usage": {
+      "prompt_tokens": 16103,
+      "completion_tokens": 2432,
+      "thinking_tokens": 0,
+      "total_tokens": 18535
+    },
+    "recorded_hosted_latency_seconds": {
+      "successful_new_visual": 21.63458410000021,
+      "answer_total": 84.96569150000005,
+      "combined_recorded": 106.60027560000026,
+      "provider_503_attempts": "not_recorded_by_preexisting_request_wrapper"
+    },
+    "checkpoint_b_latest_local_wrapper_wall_seconds": 23.1246827,
+    "approximate_cost": {
+      "currency": "USD",
+      "incremental_visual_standard_paid_rate_estimate": 0.00563025,
+      "answer_cost_status": "not_estimated_without_verified_applicable_Groq_account_rate",
+      "actual_billing_status": "unknown_may_be_zero_on_free_tier"
+    }
+  },
+  "development_metrics": {
+    "identity_aware_input": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 19,
+      "citation_correct_count": 25,
+      "grounded_count": 29,
+      "full_strict_answer_citation_grounding_count": 17,
+      "negative_safe_and_expected_count": 6
+    },
+    "final_combined": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 23,
+      "affirmative_response_count": 23,
+      "affirmative_exact_requested_source_page_count": 21,
+      "citation_safe_or_correct_count_including_abstentions": 30,
+      "grounded_or_safe_abstention_count": 32,
+      "full_strict_answer_citation_grounding_count": 21,
+      "safe_relevant_abstention_count": 9,
+      "negative_count": 8,
+      "negative_safe_and_expected_count": 8,
+      "new_wrong_numeric_or_date_assertions": 0,
+      "malformed_or_conflicting_evidence_used_affirmatively": 0,
+      "unsupported_current_status_claims": 0,
+      "incomplete_affirmatives": 0,
+      "unsafe_affirmative_claims": 0
+    },
+    "language": {
+      "fr": {
+        "relevant_count": 17,
+        "identity_input_full_strict_count": 12,
+        "final_full_strict_count": 11
+      },
+      "ar": {
+        "relevant_count": 15,
+        "identity_input_full_strict_count": 5,
+        "final_full_strict_count": 10
+      }
+    },
+    "net": {
+      "semantic_answer_correct": 4,
+      "full_strict_answer_citation_grounding": 4,
+      "safe_expected_negatives": 2,
+      "strict_repairs": 5,
+      "strict_regressions": 1
+    },
+    "metric_reconciliation": "Final citation reporting is recomposed from case-level reviews. Checkpoint A's committed aggregate reports 26, while its case-level review labels recompose to 27; the final case-level count is 30."
+  },
+  "repairs": {
+    "strict": [
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2017_18_ar_deadline_or_duration_01",
+      "note_2018_03_ar_amount_or_rate_01",
+      "note_2018_06_ar_effective_date_01",
+      "note_2026_129_ar_required_action_01"
+    ],
+    "negative_safety": [
+      "negative_fr_ambiguous_documents",
+      "negative_fr_current_status_unknown"
+    ],
+    "query_state_false_preemption_removed": [
+      "note_2019_24_ar_effective_date_01"
+    ],
+    "unsafe_affirmatives_removed": [
+      "cir_2020_15_fr_effective_date_01",
+      "cir_2021_06_fr_amount_or_rate_03",
+      "cir_2026_05_fr_eligibility_or_scope_01"
+    ]
+  },
+  "regressions": {
+    "strict_count": 1,
+    "unsafe_count": 0,
+    "ids": [
+      "cir_2016_09_fr_exception_or_condition_01"
+    ],
+    "note": "The PDF contains the correct 25 percent literal, but the retrieved claim-linked chunk ends before that literal; the numeric evidence guard therefore abstains."
+  },
+  "remaining_failure_classification": {
+    "answer_bearing_evidence_assembly_or_retrieval_coverage_recurring": [
+      "cir_2016_09_fr_exception_or_condition_01",
+      "cir_2024_01_fr_amount_or_rate_01",
+      "note_2019_24_ar_effective_date_01",
+      "note_2020_02_ar_effective_date_01",
+      "note_2021_33_ar_deadline_or_duration_01"
+    ],
+    "document_version_selection_or_requested_source_attribution_recurring": [
+      "cir_2021_01_fr_amount_or_rate_01",
+      "cir_2021_06_fr_amount_or_rate_03",
+      "cir_2022_02_fr_migration_history_02",
+      "cir_2026_05_fr_eligibility_or_scope_01"
+    ],
+    "legal_role_semantic_entailment_recurring_but_safely_caught": [
+      "cir_2020_15_fr_effective_date_01"
+    ],
+    "external_provider_unavailability_safely_caught": [
+      "cir_2018_03_ar_deadline_or_duration_01"
+    ],
+    "isolated_pathological_legacy_document_cases": [],
+    "unsafe_assertions_remaining": []
+  },
+  "gate": {
+    "thirty_two_of_thirty_two_relevant_full_strict": "FAIL_21_OF_32",
+    "eight_of_eight_safe_expected_negatives": "PASS_8_OF_8",
+    "zero_new_wrong_numeric_or_date_assertions": "PASS",
+    "zero_malformed_or_conflicting_evidence_used_affirmatively": "PASS",
+    "all_clauses_required": true,
+    "overall": "FAIL"
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened",
+    "reason": "The unchanged full strict development gate failed at 21/32."
+  },
+  "recommendation": "Continue only on the named recurring blocker: version-safe answer-bearing evidence assembly, covering exact requested-instrument selection plus complete answer-bearing page/chunk evidence. Do not integrate, open provisional validation, or run another broad retrieval or visual-provider experiment.",
+  "conclusion": "REJECT the final combined candidate for provisional answer validation. KEEP checkpoints A and B as development-only components because their independent gates pass and the composed output has 8/8 safe negatives with zero unsafe affirmatives, but the unchanged 32/32 strict gate remains 21/32."
+}

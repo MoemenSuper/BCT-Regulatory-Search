@@ -1,0 +1,114 @@
+{
+  "experiment_id": "final-combined-development-qualification-v1",
+  "timestamp": "2026-08-26T14:49:42.0572642+00:00",
+  "hypothesis": "The kept identity retrieval, page-level Gemini numeric authority, and deterministic post-retrieval safety components can jointly pass the existing full development gate.",
+  "changed_variable": "composition_of_kept_identity_retrieval_checkpoint_a_and_checkpoint_b",
+  "configuration": {
+    "changed_responses_from_identity_input": 15,
+    "untouched_responses": 25,
+    "visual_model": "gemini-3.7-flash",
+    "visual_thinking_level": "low",
+    "maximum_visual_pages_per_query": 2,
+    "answer_model": "openai/gpt-oss-120b",
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "runtime_gold_access": false
+  },
+  "model_identifiers": {
+    "answer_model": "openai/gpt-oss-120b",
+    "visual_model": "gemini-3.7-flash",
+    "reranker": "BAAI/bge-reranker-v2-m3"
+  },
+  "providers": {
+    "answer_model": "Groq",
+    "visual_transcription": "Google Gemini API",
+    "retrieval_safety_and_review": "local"
+  },
+  "code_commit": "1bc0f13",
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "identity_answer_input": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "checkpoint_a_raw_answer_result": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C",
+    "final_raw_result": "3FD794F9DB65A99EF3233C4E480C381D74BFB3B35597BBEEE26F926552D7B72B",
+    "checkpoint_a_review": "645FE99F4D8B5A51E34B3824106C6E7BAB64C9B0FFCD0854664A2C4448735DAA",
+    "checkpoint_b_review": "B1356D5EB70EA11E5EFF6A7A6B37415F121E8311D28C475702A21314A6D11710"
+  },
+  "development_metrics": {
+    "identity_input_full_strict_count": 17,
+    "final_full_strict_count": 21,
+    "final_semantic_answer_correct_count": 23,
+    "final_affirmative_exact_requested_source_page_count": 21,
+    "final_citation_safe_or_correct_count": 30,
+    "final_grounded_or_safe_count": 32,
+    "final_safe_expected_negative_count": 8,
+    "final_safe_relevant_abstention_count": 9,
+    "new_wrong_numeric_or_date_assertions": 0,
+    "unsafe_affirmative_claims": 0
+  },
+  "language_metrics": {
+    "fr": {
+      "relevant_count": 17,
+      "identity_input_full_strict_count": 12,
+      "final_full_strict_count": 11
+    },
+    "ar": {
+      "relevant_count": 15,
+      "identity_input_full_strict_count": 5,
+      "final_full_strict_count": 10
+    }
+  },
+  "repairs": {
+    "strict_count": 5,
+    "negative_safety_count": 2,
+    "unsafe_affirmative_removal_count": 3
+  },
+  "regressions": {
+    "strict_count": 1,
+    "unsafe_count": 0,
+    "ids": [
+      "cir_2016_09_fr_exception_or_condition_01"
+    ]
+  },
+  "failure_distribution": {
+    "safe_relevant_abstentions": 9,
+    "semantic_correct_wrong_requested_source": 2,
+    "recurring_answer_evidence_or_retrieval_coverage": 5,
+    "recurring_document_version_or_attribution": 4,
+    "recurring_legal_role_entailment": 1,
+    "external_provider_unavailability": 1,
+    "unsafe_assertions_remaining": 0
+  },
+  "usage": {
+    "hosted_visual_attempts": 4,
+    "hosted_answer_requests": 5,
+    "visual_cache_hits": 6,
+    "recorded_prompt_tokens": 16103,
+    "recorded_completion_tokens": 2432,
+    "recorded_total_tokens": 18535
+  },
+  "latency": {
+    "recorded_hosted_seconds": 106.60027560000026,
+    "provider_503_latency_status": "not_recorded",
+    "checkpoint_b_local_wrapper_seconds": 23.1246827
+  },
+  "approximate_cost": {
+    "currency": "USD",
+    "incremental_visual_standard_paid_rate_estimate": 0.00563025,
+    "answer_cost_status": "not_estimated_without_verified_applicable_account_rate",
+    "actual_billing_status": "unknown"
+  },
+  "gate": {
+    "relevant_full_strict": "FAIL_21_OF_32",
+    "safe_expected_negatives": "PASS_8_OF_8",
+    "new_wrong_numeric_or_date_assertions": "PASS_ZERO",
+    "malformed_or_conflicting_evidence_used_affirmatively": "PASS_ZERO",
+    "overall": "FAIL"
+  },
+  "conclusion": "REJECT the final combined candidate. KEEP checkpoints A and B as development-only components; do not open provisional answer validation or the final holdout.",
+  "decision": "REJECT_NOT_READY_FOR_PROVISIONAL_ANSWER_VALIDATION",
+  "recommendation": "Continue only on version-safe answer-bearing evidence assembly; do not run another broad retrieval or visual-provider experiment.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
