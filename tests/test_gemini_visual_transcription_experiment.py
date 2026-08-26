@@ -8,6 +8,8 @@ from experiments.gemini_visual_transcription_experiment import (
     build_generate_content_payload,
     extract_generate_content_response,
     validate_cached_page,
+    visual_cache_key,
+    visual_configuration_sha256,
 )
 
 
@@ -73,7 +75,8 @@ def test_rest_payload_uses_live_json_mime_enum():
     }
 
 
-def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():
+def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_image_and_configuration():
+    configuration_sha256 = visual_configuration_sha256()
     cache = {
         "provider": "Google Gemini API",
         "model": MODEL_ID,
@@ -81,6 +84,7 @@ def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():
         "source_pdf_sha256": "A" * 64,
         "page": 2,
         "image_sha256": "B" * 64,
+        "configuration_sha256": configuration_sha256,
         "validation_status": "valid",
         "response": _visual_response(),
     }
@@ -89,6 +93,7 @@ def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():
         source_pdf_sha256="A" * 64,
         page=2,
         image_sha256="B" * 64,
+        configuration_sha256=configuration_sha256,
     )
     cache["model"] = "different-model"
     with pytest.raises(ValueError, match="binding differs"):
@@ -97,4 +102,26 @@ def test_gemini_cache_is_bound_to_provider_model_prompt_pdf_page_and_image():
             source_pdf_sha256="A" * 64,
             page=2,
             image_sha256="B" * 64,
+            configuration_sha256=configuration_sha256,
         )
+
+
+def test_visual_cache_key_changes_with_image_or_configuration():
+    base = visual_cache_key(
+        source_pdf_sha256="A" * 64,
+        page=2,
+        image_sha256="B" * 64,
+        configuration_sha256="C" * 64,
+    )
+    assert base != visual_cache_key(
+        source_pdf_sha256="A" * 64,
+        page=2,
+        image_sha256="D" * 64,
+        configuration_sha256="C" * 64,
+    )
+    assert base != visual_cache_key(
+        source_pdf_sha256="A" * 64,
+        page=2,
+        image_sha256="B" * 64,
+        configuration_sha256="D" * 64,
+    )

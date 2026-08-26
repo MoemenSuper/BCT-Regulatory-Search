@@ -53,13 +53,13 @@ def _suite():
 
 
 def _retrieved_result():
-    def evidence(evidence_id, source, page):
+    def evidence(evidence_id, source, page, representations=None):
         return {
             "evidence_id": evidence_id,
             "source": source,
             "page": page,
             "text": "native 8102",
-            "representations": ["native"],
+            "representations": representations or ["native"],
         }
 
     return {
@@ -67,8 +67,8 @@ def _retrieved_result():
             {
                 "id": "answered",
                 "retrieved_evidence": [
-                    evidence("E1", "Risky.pdf", 1),
-                    evidence("E2", "Risky.pdf", 2),
+                    evidence("E1", "Note_2018_01_ar.pdf", 1),
+                    evidence("E2", "Note_2018_01_ar.pdf", 2),
                 ],
                 "response": {
                     "status": "answered",
@@ -78,25 +78,30 @@ def _retrieved_result():
             {
                 "id": "abstained",
                 "retrieved_evidence": [
-                    evidence("E1", "Risky.pdf", 3),
-                    evidence("E2", "Risky.pdf", 4),
-                    evidence("E3", "Risky.pdf", 5),
+                    evidence(
+                        "E1",
+                        "Cir_2018_03_ar.pdf",
+                        3,
+                        ["arabic_ocr_secondary"],
+                    ),
+                    evidence("E2", "Cir_2019_03_ar.pdf", 3),
+                    evidence("E3", "Cir_2019_03_ar.pdf", 4),
                 ],
                 "response": {"status": "insufficient_evidence", "citations": []},
             },
             {
                 "id": "clarify",
-                "retrieved_evidence": [evidence("E1", "Risky.pdf", 6)],
+                "retrieved_evidence": [evidence("E1", "Note_2018_01_ar.pdf", 6)],
                 "response": {"status": "clarification_needed", "citations": []},
             },
             {
                 "id": "future",
-                "retrieved_evidence": [evidence("E1", "Risky.pdf", 7)],
+                "retrieved_evidence": [evidence("E1", "Note_2018_01_ar.pdf", 7)],
                 "response": {"status": "insufficient_evidence", "citations": []},
             },
             {
                 "id": "non_numeric_answer",
-                "retrieved_evidence": [evidence("E1", "Risky.pdf", 8)],
+                "retrieved_evidence": [evidence("E1", "Note_2018_01_ar.pdf", 8)],
                 "response": {
                     "status": "answered",
                     "answer": "يجب أن تكون السلع ذات منشأ تونسي.",
@@ -111,7 +116,22 @@ def _retrieved_result():
 def _risk_result():
     return {
         "records": [
-            {"source": "Risky.pdf", "requires_visual_fallback": True}
+            {
+                "source": "Note_2018_01_ar.pdf",
+                "requires_visual_fallback": True,
+                "page_hits": [
+                    {"page": 1, "suspicious_tokens": ["8102"]},
+                    {"page": 2, "suspicious_tokens": ["8102"]},
+                ],
+            },
+            {
+                "source": "Cir_2019_03_ar.pdf",
+                "requires_visual_fallback": True,
+                "page_hits": [
+                    {"page": 3, "suspicious_tokens": ["9102"]},
+                    {"page": 4, "suspicious_tokens": ["9102"]},
+                ],
+            },
         ]
     }
 
@@ -154,12 +174,25 @@ def test_routing_is_gold_blind_and_enforces_page_budget():
     assert routes[0]["pages"] == [
         {
             "evidence_id": "E2",
-            "source": "Risky.pdf",
+            "source": "Note_2018_01_ar.pdf",
             "page": 2,
-            "reason": "answered_numeric_or_date_query_cited_risky_document",
+            "reason": "answered_numeric_or_date_query_cited_risky_page",
         }
     ]
-    assert [page["page"] for page in routes[1]["pages"]] == [3, 4]
+    assert routes[1]["pages"] == [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2018_03_ar.pdf",
+            "page": 3,
+            "reason": "insufficient_numeric_or_date_query_ranked_risky_page",
+        },
+        {
+            "evidence_id": "E2",
+            "source": "Cir_2019_03_ar.pdf",
+            "page": 3,
+            "reason": "insufficient_numeric_or_date_query_ranked_risky_page",
+        },
+    ]
 
     receipt = build_routing_receipt(
         suite=suite,
@@ -173,6 +206,26 @@ def test_routing_is_gold_blind_and_enforces_page_budget():
         "unique_pages": 3,
     }
     assert receipt["policy"]["gold_fields_used_for_routing"] == []
+
+
+def test_document_level_risk_does_not_route_an_unflagged_cited_page():
+    suite = {"cases": [_suite()["cases"][0]]}
+    retrieved = {"records": [_retrieved_result()["records"][0]]}
+    risk = {
+        "records": [
+            {
+                "source": "Note_2018_01_ar.pdf",
+                "requires_visual_fallback": True,
+                "page_hits": [{"page": 1, "suspicious_tokens": ["8102"]}],
+            }
+        ]
+    }
+
+    assert route_visual_pages(
+        suite=suite,
+        retrieved_result=retrieved,
+        risk_result=risk,
+    ) == []
 
 
 def test_visual_payload_requires_exact_contract_and_literal_traceability():

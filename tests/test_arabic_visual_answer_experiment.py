@@ -1,4 +1,7 @@
-from experiments.arabic_visual_answer_experiment import prepare_routed_evidence
+from experiments.arabic_visual_answer_experiment import (
+    enforce_routed_numeric_authority,
+    prepare_routed_evidence,
+)
 from experiments.arabic_visual_fallback import MODEL_ID, PROMPT_VERSION
 
 
@@ -79,3 +82,70 @@ def test_invalid_or_incomplete_visual_fails_closed_for_the_whole_route():
         )
         assert action == "fail_closed_visual_unavailable_invalid_or_uncertain"
         assert evidence == _record()["retrieved_evidence"]
+
+
+def test_routed_numeric_authority_rejects_silent_digit_normalization():
+    evidence = _record()["retrieved_evidence"]
+    evidence[0]["text"] = "visual 7 July 2016"
+    evidence[0]["visual_verification"] = {"provider": "Google Gemini API"}
+    response = {
+        "status": "answered",
+        "answer": "10 July 2016",
+        "claims": [{"text": "10 July 2016", "evidence_ids": ["E1"]}],
+        "citations": [{"evidence_id": "E1", "source": "Risky.pdf", "page": 1}],
+    }
+
+    guarded, action = enforce_routed_numeric_authority(
+        response=response,
+        evidence=evidence,
+        routed_evidence_ids={"E1"},
+        language="ar",
+    )
+
+    assert action == "fail_closed_unsupported_numeric_literal"
+    assert guarded["status"] == "insufficient_evidence"
+    assert guarded["claims"] == []
+    assert guarded["citations"] == []
+
+
+def test_routed_numeric_authority_requires_validated_visual_provenance():
+    evidence = _record()["retrieved_evidence"]
+    evidence[0]["text"] = "native 7 July 2016"
+    response = {
+        "status": "answered",
+        "answer": "7 July 2016",
+        "claims": [{"text": "7 July 2016", "evidence_ids": ["E1"]}],
+        "citations": [{"evidence_id": "E1", "source": "Risky.pdf", "page": 1}],
+    }
+
+    guarded, action = enforce_routed_numeric_authority(
+        response=response,
+        evidence=evidence,
+        routed_evidence_ids={"E1"},
+        language="ar",
+    )
+
+    assert action == "fail_closed_missing_visual_authority"
+    assert guarded["status"] == "insufficient_evidence"
+
+
+def test_routed_numeric_authority_accepts_supported_visual_literals():
+    evidence = _record()["retrieved_evidence"]
+    evidence[0]["text"] = "visual 7 July 2016"
+    evidence[0]["visual_verification"] = {"provider": "Google Gemini API"}
+    response = {
+        "status": "answered",
+        "answer": "7 July 2016",
+        "claims": [{"text": "7 July 2016", "evidence_ids": ["E1"]}],
+        "citations": [{"evidence_id": "E1", "source": "Risky.pdf", "page": 1}],
+    }
+
+    guarded, action = enforce_routed_numeric_authority(
+        response=response,
+        evidence=evidence,
+        routed_evidence_ids={"E1"},
+        language="ar",
+    )
+
+    assert guarded is response
+    assert action == "generate"
