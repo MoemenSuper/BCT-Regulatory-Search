@@ -23,7 +23,7 @@ from experiments.document_identity_candidate_experiment import (
     parse_source_identity,
 )
 from experiments.gold_evidence_answer_experiment import automatic_answer_audit
-from experiments.numeric_fidelity_stress import critical_numbers
+from experiments.numeric_fidelity_stress import critical_identifiers
 from experiments.retrieved_context_answer_experiment import (
     _query_states,
     retrieved_structured_diagnostics,
@@ -51,10 +51,11 @@ _CONTEXT_LABEL = re.compile(
     r"للمقارنة|على سبيل المقارنة|للسياق"
 )
 _CURRENT_QUERY = re.compile(
-    r"(?i)\b(?:aujourd['’]hui|actuellement|à ce jour|a ce jour|en vigueur|"
+    r"(?i)\b(?:aujourd['’]hui|actuellement|à ce jour|a ce jour|"
     r"encore applicable|le plus récent|la plus récente|latest|currently|"
-    r"in force)\b|حالياً|حاليا|الآن|ساري(?:ة)? المفعول|الأحدث"
+    r"in force)\b|حالياً|حاليا|الآن|الأحدث"
 )
+_IN_FORCE_QUERY = re.compile(r"(?i)\ben vigueur\b|ساري(?:ة)? المفعول")
 _EXPLICIT_CURRENT_SUPPORT = re.compile(
     r"(?i)\b(?:demeure|reste|est toujours|sont toujours|encore)\s+en vigueur\b|"
     r"\ben vigueur\s+(?:au|à la date du|a la date du|à ce jour|a ce jour)\b|"
@@ -121,8 +122,27 @@ def _content_words(text: str) -> set[str]:
     return {
         word
         for word in _WORD.findall(_fold(text))
-        if word not in _STOPWORDS and len(word) >= 4
+        if word not in _STOPWORDS and len(word) >= 3
     }
+
+
+def _numeric_literals(text: str) -> set[str]:
+    characters = []
+    for character in unicodedata.normalize("NFKC", str(text)):
+        if character.isdigit():
+            characters.append(str(unicodedata.digit(character)))
+        elif character == "\u066b":
+            characters.append(".")
+        elif character == "\u066c":
+            continue
+        else:
+            characters.append(character)
+    normalized = "".join(characters)
+    normalized = re.sub(
+        r"(?<=\d)[\s\u00a0\u202f.,](?=\d{3}(?:\D|$))", "", normalized
+    )
+    normalized = normalized.replace(",", ".")
+    return set(re.findall(r"\d+(?:\.\d+)?", normalized))
 
 
 def _safe_abstention(language: str, reason: str) -> dict[str, Any]:
@@ -142,6 +162,12 @@ def _safe_abstention(language: str, reason: str) -> dict[str, Any]:
 
 def _clarification(language: str, missing_detail: str) -> dict[str, Any]:
     detail = missing_detail.strip()
+    if language == "fr":
+        detail = {
+            "type of transfer": "type de transfert",
+            "instrument type": "type d'instrument",
+            "document type": "type de document",
+        }.get(detail.casefold(), detail)
     if language == "ar":
         answer = "يرجى تحديد الأداة أو العملية التنظيمية المقصودة"
         if detail:
@@ -193,16 +219,30 @@ def _adequate_linked_evidence(claim_text: str, linked: list[dict[str, Any]]) -> 
     evidence_text = "\n".join(
         f"{item.get('source', '')}\n{item.get('text', '')}" for item in linked
     )
-    claim_numbers = critical_numbers(claim_text)
-    if not claim_numbers.issubset(critical_numbers(evidence_text)):
+    claim_numbers = _numeric_literals(claim_text)
+    if not claim_numbers.issubset(_numeric_literals(evidence_text)):
+        return False
+    claim_identifiers = critical_identifiers(claim_text)
+    if not claim_identifiers.issubset(critical_identifiers(evidence_text)):
         return False
     claim_words = _content_words(claim_text)
     evidence_words = _content_words(evidence_text)
     if not claim_words:
         return bool(claim_numbers)
     overlap = claim_words & evidence_words
-    required = min(2, len(claim_words))
-    return len(overlap) >= required and len(overlap) / len(claim_words) >= 0.2
+    return bool(overlap)
+
+
+def _asks_current_status(question: str) -> bool:
+    if _CURRENT_QUERY.search(question):
+        return True
+    if not _IN_FORCE_QUERY.search(question):
+        return False
+    folded = _fold(question)
+    has_historical_anchor = bool(re.search(r"\b(?:19|20)\d{2}\b", folded)) or any(
+        marker in folded for marker in ("apres", "avant", "depuis le")
+    )
+    return not has_historical_anchor
 
 
 def _material_requirements(question: str) -> set[str]:
@@ -297,7 +337,7 @@ def apply_answer_safety(
             },
         )
 
-    if _CURRENT_QUERY.search(question):
+    if _asks_current_status(question):
         all_evidence_text = "\n".join(str(item.get("text", "")) for item in evidence)
         if not _EXPLICIT_CURRENT_SUPPORT.search(all_evidence_text):
             return _validation_failure(
@@ -341,7 +381,20 @@ def apply_answer_safety(
             is not None
         }
         if len(linked_identity_keys) > 1:
-            return _validation_failure(language, "fail_closed_mixed_instrument_claim")
+            claim_literals = _numeric_literals(claim_text) | critical_identifiers(
+                claim_text
+            )
+            independently_supported = bool(claim_literals) and all(
+                claim_literals.issubset(
+                    _numeric_literals(f"{item.get('source', '')}\n{item.get('text', '')}")
+                    | critical_identifiers(
+                        f"{item.get('source', '')}\n{item.get('text', '')}"
+                    )
+                )
+                for item in linked
+            )
+            if not independently_supported:
+                return _validation_failure(language, "fail_closed_mixed_instrument_claim")
 
         if requested is not None:
             matches = all(
@@ -368,13 +421,15 @@ def apply_answer_safety(
     if requested is not None and not requested_primary_found:
         return _validation_failure(language, "fail_closed_missing_requested_instrument_claim")
 
-    answer_numbers = critical_numbers(str(response.get("answer", "")))
+    answer_text = str(response.get("answer", ""))
+    answer_literals = _numeric_literals(answer_text) | critical_identifiers(answer_text)
     linked_text = "\n".join(
         f"{evidence_by_id[evidence_id].get('source', '')}\n"
         f"{evidence_by_id[evidence_id].get('text', '')}"
         for evidence_id in all_linked_ids
     )
-    if not answer_numbers.issubset(critical_numbers(linked_text)):
+    linked_literals = _numeric_literals(linked_text) | critical_identifiers(linked_text)
+    if not answer_literals.issubset(linked_literals):
         return _validation_failure(language, "fail_closed_unsupported_numeric_literal")
 
     completed = compose_incomplete_answer_from_claims(response)

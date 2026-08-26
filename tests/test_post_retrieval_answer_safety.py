@@ -91,8 +91,8 @@ def test_analogous_version_is_allowed_only_as_labeled_context_beside_primary_cla
         query_state=_state(),
     )
 
+    assert audit["action"] == "keep", audit
     assert guarded is response
-    assert audit["action"] == "keep"
 
 
 def test_structural_claim_link_is_not_enough_when_evidence_is_inadequate():
@@ -106,6 +106,29 @@ def test_structural_claim_link_is_not_enough_when_evidence_is_inadequate():
 
     assert guarded["status"] == "insufficient_evidence"
     assert audit["action"] == "fail_closed_inadequate_linked_evidence"
+
+
+def test_spaced_thousands_match_dot_thousands_with_currency_suffix():
+    response = _response(
+        answer="Le seuil est de 20 000 dinars et le taux maximal est de 50%.",
+        claim="Le seuil est de 20 000 dinars et le taux maximal est de 50%.",
+        source="Cir_2020_02_fr.pdf",
+    )
+    evidence = _evidence(
+        source="Cir_2020_02_fr.pdf",
+        text="Le taux maximal est 50% lorsque la valeur dépasse 20.000D.",
+    )
+
+    guarded, audit = apply_answer_safety(
+        question="Quel est le taux maximal au-dessus du seuil ?",
+        language="fr",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert audit["action"] == "keep", audit
+    assert guarded is response
 
 
 def test_claim_cannot_invert_the_legal_role_of_an_advisory_opinion():
@@ -199,6 +222,29 @@ def test_ambiguous_query_with_multiple_plausible_instruments_requests_detail():
     assert audit["action"] == "request_clarification_multiple_instruments"
 
 
+def test_classifier_detail_is_localized_in_the_clarification():
+    guarded, _audit = apply_answer_safety(
+        question="Quels documents dois-je fournir pour mon transfert ?",
+        language="fr",
+        response=_response(source="Cir_2025_10_fr.pdf"),
+        evidence=[
+            *_evidence(source="Cir_2025_10_fr.pdf"),
+            {
+                "evidence_id": "E2",
+                "source": "Cir_2018_14_fr.pdf",
+                "page": 11,
+                "text": "autres documents de transfert",
+            },
+        ],
+        query_state=_state(
+            ambiguity="missing_discriminating_detail", missing_detail="type of transfer"
+        ),
+    )
+
+    assert "type de transfert" in guarded["answer"]
+    assert "type of transfer" not in guarded["answer"]
+
+
 def test_current_claim_without_explicit_status_evidence_fails_closed():
     guarded, audit = apply_answer_safety(
         question="Quel est aujourd'hui le plafond en vigueur ?",
@@ -213,6 +259,110 @@ def test_current_claim_without_explicit_status_evidence_fails_closed():
     assert guarded["status"] == "insufficient_evidence"
     assert guarded["answer"].strip()
     assert audit["action"] == "fail_closed_current_status_not_established"
+
+
+def test_historical_in_force_question_with_date_is_not_treated_as_current():
+    response = _response(
+        answer="Après le 19 juin 2020, les articles 2 et 4 étaient abrogés.",
+        claim="Après le 19 juin 2020, les articles 2 et 4 étaient abrogés.",
+        source="Cir_2020_15_fr.pdf",
+    )
+    evidence = _evidence(
+        source="Cir_2020_15_fr.pdf",
+        text="Le 19 juin 2020, sont abrogées les dispositions des articles 2 et 4.",
+    )
+
+    guarded, audit = apply_answer_safety(
+        question="Ces articles sont-ils restés en vigueur après le 19 juin 2020 ?",
+        language="fr",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert audit["action"] == "keep", audit
+    assert guarded is response
+
+
+def test_cross_version_numeric_corroboration_is_not_treated_as_mixing():
+    response = {
+        "status": "answered",
+        "answer": "L'horaire conventionnel est de 8h à 17h.",
+        "claims": [
+            {
+                "text": "L'horaire conventionnel est de 8h à 17h.",
+                "evidence_ids": ["E1", "E2"],
+            }
+        ],
+        "citations": [
+            {"evidence_id": "E1", "source": "Cir_2021_03_fr.pdf", "page": 2},
+            {"evidence_id": "E2", "source": "Cir_2016_01_fr.pdf", "page": 2},
+        ],
+    }
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2021_03_fr.pdf",
+            "page": 2,
+            "text": "L'horaire conventionnel s'étend de 8h à 17h.",
+        },
+        {
+            "evidence_id": "E2",
+            "source": "Cir_2016_01_fr.pdf",
+            "page": 2,
+            "text": "L'horaire conventionnel s'étend de 8h à 17h.",
+        },
+    ]
+
+    guarded, audit = apply_answer_safety(
+        question="Quel est l'horaire conventionnel ?",
+        language="fr",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert audit["action"] == "keep", audit
+    assert guarded is response
+
+
+def test_arabic_numeric_claim_with_inflection_and_exact_literals_is_adequate():
+    response = {
+        "status": "answered",
+        "answer": "يحدد القرض في حدود 80% ويحل أجل سداده في 31 أوت 2018.",
+        "claims": [
+            {
+                "text": "يحدد مبلغ القرض في حدود 80% من الكلفة المرجعية.",
+                "evidence_ids": ["E1"],
+            },
+            {"text": "أجل سداده هو 31 أوت 2018.", "evidence_ids": ["E1"]},
+        ],
+        "citations": [
+            {"evidence_id": "E1", "source": "Note_2018_03_ar.pdf", "page": 2}
+        ],
+    }
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Note_2018_03_ar.pdf",
+            "page": 2,
+            "text": (
+                "يضبط مبلغ القروض في حدود 80% من الكلفة المرجعية "
+                "ويحل أجل خلاصها في 31 أوت 2018."
+            ),
+        }
+    ]
+
+    guarded, audit = apply_answer_safety(
+        question="ما مبلغ القرض وأجل سداده؟",
+        language="ar",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert audit["action"] == "keep", audit
+    assert guarded is response
 
 
 def test_historical_answer_is_not_blocked_by_query_state():
