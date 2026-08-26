@@ -1,0 +1,223 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-26T10:49:44.6015949+00:00",
+  "experiment_id": "document-identity-reranker-prefix-development-v1",
+  "hypothesis": "A compact filename-derived identity prefix improves explicit source/version selection without changing retrieval for unrouted queries.",
+  "changed_variable": "reranker_input_identity_prefix_for_runtime_routed_queries",
+  "configuration": {
+    "route": "one explicit source year in a narrow runtime-observable phrase",
+    "prefix": "[document kind=<kind>; year=<year>; number=<number>; language=<language>]",
+    "dense_top_k": 20,
+    "bm25_top_k": 15,
+    "arabic_ocr_dense_top_k": 5,
+    "arabic_ocr_bm25_top_k": 5,
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "final_selection": "stable source/page diverse top 5",
+    "gold_fields_used_for_routing_or_ranking": []
+  },
+  "full_artifact_hashes": {
+    "routing_receipt": "6AEBDA65F1BA272C80EE7943CF6618341A25BA54DE9BEF56A77383B3B13FF472",
+    "retrieval_result": "4BCBBD54CF1C4D5E3CBE17C8ED29836482E48266BF83BD428B9898866BFCC722",
+    "answer_recomposition_result": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "post_identity_visual_routing_receipt": "C3F6CA0201573F799E5BAABBC9EFA360690C7BAEDF4BB659EAA6F8DF5249DADE"
+  },
+  "routing": {
+    "queries": 697,
+    "routed": 48,
+    "unrouted": 649,
+    "languages": {
+      "fr": 30,
+      "ar": 18
+    },
+    "route_reasons": {
+      "explicit_source_year": 48,
+      "explicit_instrument_identity": 0
+    },
+    "routed_ids": [
+      "note_2016_14_ar_deadline_or_duration_01",
+      "note_2016_15_ar_deadline_or_duration_01",
+      "note_2016_23_ar_deadline_or_duration_01",
+      "cir_2017_05_ar_eligibility_or_scope_01",
+      "cir_2017_11_fr_effective_date_01",
+      "cir_2017_11_fr_definition_01",
+      "cir_2017_09_fr_prohibition_or_limit_01",
+      "note_2017_11_ar_deadline_or_duration_01",
+      "note_2017_34_ar_deadline_or_duration_01",
+      "note_2017_75_ar_required_action_01",
+      "cir_2018_02_fr_effective_date_01",
+      "cir_2018_04_fr_deadline_or_duration_01",
+      "cir_2018_03_ar_prohibition_or_limit_01",
+      "cir_2018_03_ar_procedure_or_documents_01",
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "cir_2018_11_fr_amount_or_rate_01",
+      "cir_2018_11_fr_amount_or_rate_02",
+      "cir_2018_11_fr_amount_or_rate_03",
+      "note_2018_22_fr_definition_01",
+      "note_2019_02_fr_effective_date_01",
+      "note_2019_08_ar_amount_or_rate_01",
+      "note_2019_08_ar_procedure_or_documents_01",
+      "note_2019_17_fr_amount_or_rate_01",
+      "cir_2020_12_fr_amount_or_rate_01",
+      "note_2020_16_fr_effective_date_01",
+      "note_2020_16_fr_definition_01",
+      "cir_2020_18_fr_amount_or_rate_01",
+      "cir_2020_18_fr_amount_or_rate_03",
+      "note_2020_22_ar_required_action_01",
+      "cir_2021_05_fr_deadline_or_duration_06",
+      "note_2021_16_fr_deadline_or_duration_01",
+      "note_2023_19_ar_reporting_or_control_01",
+      "note_2025_142_fr_fifty_dinar_concurrent_02",
+      "note_2025_142_fr_fifty_dinar_issue_01",
+      "note_2025_163_fr_ten_dinar_issue_01",
+      "note_2025_163_fr_ten_dinar_issue_date_02",
+      "cir_2026_03_fr_amount_or_rate_01",
+      "note_2026_111_fr_effective_date_01",
+      "note_2026_43_fr_definition_02",
+      "note_2026_43_fr_effective_date_01",
+      "nb_2022_13_ar_eid_hours_01",
+      "nb_2022_14_fr_five_dinar_characteristics_01",
+      "nb_2022_14_fr_five_dinar_portrait_02",
+      "nb_2022_15_fr_fifty_dinar_characteristics_01",
+      "nb_2022_15_fr_fifty_dinar_portrait_02",
+      "note_2022_17_ar_hajj_daily_reporting_02",
+      "note_2022_17_ar_hajj_exchange_rate_01",
+      "note_2022_19_ar_republic_day_hours_01"
+    ]
+  },
+  "retrieval_metrics": {
+    "overall": {
+      "n": 689,
+      "before_page_at_1": 0.7024673439767779,
+      "after_page_at_1": 0.706821480406386,
+      "before_page_at_5": 0.8984034833091437,
+      "after_page_at_5": 0.9013062409288825,
+      "before_source_at_5": 0.9492017416545718,
+      "after_source_at_5": 0.9521044992743106,
+      "before_mrr": 0.7874749029671205,
+      "after_mrr": 0.791143666069846
+    },
+    "fr": {
+      "n": 377,
+      "before_page_at_1": 0.7294429708222812,
+      "after_page_at_1": 0.726790450928382,
+      "before_page_at_5": 0.9098143236074271,
+      "after_page_at_5": 0.9098143236074271,
+      "before_mrr": 0.8097429390532839,
+      "after_mrr": 0.8093008524043007
+    },
+    "ar": {
+      "n": 312,
+      "before_page_at_1": 0.6698717948717948,
+      "after_page_at_1": 0.6826923076923077,
+      "before_page_at_5": 0.8846153846153846,
+      "after_page_at_5": 0.8910256410256411,
+      "before_source_at_5": 0.9294871794871795,
+      "after_source_at_5": 0.9358974358974359,
+      "before_mrr": 0.76056769269634,
+      "after_mrr": 0.7692037325823798
+    },
+    "routed": {
+      "n": 48,
+      "before_page_at_1": 0.6458333333333334,
+      "after_page_at_1": 0.7083333333333334,
+      "before_page_at_5": 0.9166666666666666,
+      "after_page_at_5": 0.9583333333333334
+    },
+    "temporal_failures": {
+      "n": 17,
+      "before_page_at_5": 0.11764705882352941,
+      "after_page_at_5": 0.23529411764705882,
+      "repairs_at_5": [
+        "cir_2018_03_ar_procedure_or_documents_01",
+        "cir_2018_03_ar_deadline_or_duration_01"
+      ],
+      "regressions_at_5": []
+    },
+    "temporal_controls": {
+      "n": 17,
+      "before_page_at_5": 1.0,
+      "after_page_at_5": 1.0,
+      "regressions_at_5": []
+    },
+    "page_at_1_repairs": [
+      "note_2017_34_ar_deadline_or_duration_01",
+      "cir_2018_03_ar_prohibition_or_limit_01",
+      "cir_2018_11_fr_amount_or_rate_01",
+      "cir_2018_11_fr_amount_or_rate_03",
+      "note_2019_08_ar_amount_or_rate_01",
+      "note_2019_08_ar_procedure_or_documents_01"
+    ],
+    "page_at_1_regressions": [
+      "note_2020_16_fr_effective_date_01",
+      "note_2025_163_fr_ten_dinar_issue_date_02",
+      "nb_2022_14_fr_five_dinar_portrait_02"
+    ],
+    "page_at_5_repairs": [
+      "cir_2018_03_ar_procedure_or_documents_01",
+      "cir_2018_03_ar_deadline_or_duration_01"
+    ],
+    "page_at_5_regressions": []
+  },
+  "answer_stage": {
+    "changed_case_ids": [
+      "cir_2018_03_ar_deadline_or_duration_01",
+      "note_2016_14_ar_deadline_or_duration_01"
+    ],
+    "untouched_cases": 38,
+    "known_hosted_attempts": 3,
+    "recorded_successful_requests": 2,
+    "uncached_structural_failure_attempts": 1,
+    "recorded_usage": {
+      "prompt_tokens": 5061,
+      "completion_tokens": 503,
+      "total_tokens": 5564
+    },
+    "recorded_latency_seconds": {
+      "total": 1.9156835999892792,
+      "mean": 0.9578417999946396,
+      "median": 0.9578417999946396
+    },
+    "before_full_strict_count": 17,
+    "after_full_strict_count": 17,
+    "before_strict_expected_answer_count": 18,
+    "after_strict_expected_answer_count": 17,
+    "before_semantic_answer_count": 20,
+    "after_semantic_answer_count": 19,
+    "before_citation_correct_count": 24,
+    "after_citation_correct_count": 25,
+    "before_grounded_count": 29,
+    "after_grounded_count": 29,
+    "negative_safe_and_expected_count": 6,
+    "negative_count": 8,
+    "new_wrong_numeric_or_date_assertions": 1,
+    "validation_opened": false
+  },
+  "post_identity_visual_routing_audit": {
+    "status": "scored_after_gold_blind_route_was_frozen",
+    "routed_cases": 6,
+    "routed_pages": 9,
+    "cir_2018_03_selected_pages": [
+      {"source": "Cir_2019_03_ar.pdf", "page": 3},
+      {"source": "Cir_2019_03_ar.pdf", "page": 4}
+    ],
+    "correct_repaired_page_selected": false,
+    "hosted_visual_calls_made": 0,
+    "reason_stopped": "The document-level digit-order risk signal did not mark Cir_2018_03_ar.pdf, so the frozen visual route could not consume the newly retrieved correct page."
+  },
+  "gate": {
+    "at_least_two_temporal_failure_repairs": true,
+    "zero_temporal_control_regressions": true,
+    "overall_french_arabic_page5_non_decrease": true,
+    "unrouted_rankings_identical": true,
+    "fixed_candidate_budgets_and_pipeline": true,
+    "gold_blind_routing_and_ranking": true
+  },
+  "decision": "KEEP",
+  "scope_of_keep": "development-only retrieval component for future combination testing",
+  "limitations": [
+    "The identity-only answer recomposition did not improve the 17/32 full strict answer gate.",
+    "French Page@1 decreased by one net hit although French Page@5 was unchanged.",
+    "The current visual risk route does not select the newly recovered Cir_2018_03_ar.pdf page 3.",
+    "No production, index, provisional validation, or final holdout state was accessed or changed."
+  ]
+}

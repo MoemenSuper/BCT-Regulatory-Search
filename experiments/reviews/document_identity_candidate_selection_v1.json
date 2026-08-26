@@ -1,0 +1,60 @@
+{
+  "status": "complete",
+  "reviewer_type": "primary_agent_manual_pdf_review",
+  "reviewed_against": "frozen answer-suite expected answer, rendered public source PDF page, retrieved evidence, response claims, and citations",
+  "changed_response_count": 2,
+  "records": [
+    {
+      "id": "cir_2018_03_ar_deadline_or_duration_01",
+      "source_pdf_sha256": "2D824F6222FBC82581D74F6AE25B817698412BC461906BA81756B4144699FB82",
+      "rendered_page": 3,
+      "rendered_image_sha256": "A10B8276730DF81505B166E6912A91C1417EC3ECE43E3537A0FC6920F6CD8C06",
+      "control_exact_page_rank": 9,
+      "candidate_exact_page_rank": 3,
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_before": true,
+      "answer_correct_after": false,
+      "citation_correct_before": false,
+      "citation_correct_after": true,
+      "grounded_before": true,
+      "grounded_after": true,
+      "full_strict_before": false,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "new_wrong_numeric_or_date_assertion": false,
+      "first_stage_failure_after": "correct_page_retrieved_but_native_extraction_omits_or_corrupts_answer_bearing_literal",
+      "note": "Identity ranking recovered the requested 2018 page at rank 3 and removed the prior wrong-version affirmative citation. The generator safely abstained because the native text loses the visible 15-day literal. The rendered page visibly contains 15 days and ten years."
+    },
+    {
+      "id": "note_2016_14_ar_deadline_or_duration_01",
+      "source_pdf_sha256": "4A01EA604A08BCF27E08F674D79E8B56E8A3C00832A7E73DDA2FB0A7A5507345",
+      "rendered_page": 1,
+      "rendered_image_sha256": "A2D215C3B9CBBFD86DE4BB1E3C19A8DECD75F7DB664A1FF00D16BB3AFD375AFC",
+      "control_exact_page_rank": 1,
+      "candidate_exact_page_rank": 1,
+      "response_status_before": "answered",
+      "response_status_after": "answered",
+      "answer_correct_before": false,
+      "answer_correct_after": false,
+      "citation_correct_before": false,
+      "citation_correct_after": false,
+      "grounded_before": false,
+      "grounded_after": false,
+      "full_strict_before": false,
+      "full_strict_after": false,
+      "safe_abstention_after": false,
+      "new_wrong_numeric_or_date_assertion": true,
+      "first_stage_failure_after": "generator_silently_normalized_filename_year_while_preserving_corrupted_day",
+      "note": "The rendered page visibly says Thursday 07 July 2016. Native extraction says 10 July 6102. The new answer asserted 10 July 2016, a plausible but false date not faithfully supported by either source transcription or the page."
+    }
+  ],
+  "aggregate": {
+    "strict_repairs": 0,
+    "strict_regressions": 0,
+    "safe_abstention_conversions": 1,
+    "new_wrong_numeric_or_date_assertions": 1,
+    "changed_claims_with_correct_source_page_and_support": 0
+  },
+  "conclusion": "KEEP the identity prefix only as a retrieval component. Do not promote the identity-only answer composition: it leaves strict success unchanged, creates one plausible wrong date through silent normalization, and exposes a missing visual-risk route for the newly recovered 2018 page."
+}

@@ -1,0 +1,137 @@
+{
+  "experiment_id": "document-identity-reranker-prefix-development-v1",
+  "timestamp": "2026-08-26T10:49:44.6015949+00:00",
+  "hypothesis": "A compact filename-derived identity prefix improves explicit source/version selection without changing retrieval for unrouted queries.",
+  "changed_variable": "reranker_input_identity_prefix_for_runtime_routed_queries",
+  "configuration": {
+    "routing": "runtime query text only: explicit instrument identity or one narrow source-year phrase",
+    "prefix_source": "candidate filename metadata",
+    "dense_top_k": 20,
+    "bm25_top_k": 15,
+    "arabic_ocr_dense_top_k": 5,
+    "arabic_ocr_bm25_top_k": 5,
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "final_selection": "stable source/page diverse top 5",
+    "routed_queries": 48,
+    "unrouted_queries": 649,
+    "answer_recomposition": "two changed answer-suite cases only; 38 frozen records copied byte-for-value"
+  },
+  "model_identifiers": {
+    "embedding": "intfloat/multilingual-e5-large",
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "answer_model": "openai/gpt-oss-120b"
+  },
+  "providers": {
+    "retrieval_and_reranking": "local",
+    "answer_model": "Groq",
+    "manual_pdf_review": "Codex primary agent"
+  },
+  "code_commit": "871e674",
+  "dataset_hashes": {
+    "development": "00964BA335B759D01BA42CED75FC6AE10F082AE4D45499426CEA69F3F1DF3CA1",
+    "native_candidate_cache": "A061D88BEE3F4C221EFC8612AC13272C83AA1C8A2EEA475409C2DC6E0CF65B33",
+    "native_manifest": "920159F84E87353256899370A2E8B7854BAB87FBBBDC05184FED7C3657B439C1",
+    "arabic_ocr_manifest": "8CBD9A468B2D017DB46218252B555231460A64381245786CCA020C84F3CD05AB",
+    "candidate_diversity_result": "1A0ABFD6D97CDAC7AC102987B1E274DD7958295A9E18D2577B694C9F566CDE40",
+    "targeted_catalog": "296C670D8CCBB5B46D3830D19AA98337468B0F11931CA9D5C86797A48931B99C",
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "raw_retrieval_first_answer_result": "5E6BE4C8D05A144248821156A03F5789D91D63F2D6928EC599E997905E2DE450",
+    "full_routing_receipt": "6AEBDA65F1BA272C80EE7943CF6618341A25BA54DE9BEF56A77383B3B13FF472",
+    "full_retrieval_result": "4BCBBD54CF1C4D5E3CBE17C8ED29836482E48266BF83BD428B9898866BFCC722",
+    "full_answer_recomposition_result": "1DAC012D773E94A5C75D512B504C0414668CF4B3EA7ECBE24910F5316F7D87A5",
+    "post_identity_visual_routing_receipt": "C3F6CA0201573F799E5BAABBC9EFA360690C7BAEDF4BB659EAA6F8DF5249DADE",
+    "tracked_result": "00F993BCEDCE9870F895C6D0F125462480986A7A4003F1CD4ED09FEA2D3486FC",
+    "manual_review": "69C654FB26F875A03D40226F9CE0948FB2A94CB06A22B879C7647920915CD756"
+  },
+  "development_metrics": {
+    "retrieval_case_count": 689,
+    "before_exact_page_at_5": 0.8984034833091437,
+    "after_exact_page_at_5": 0.9013062409288825,
+    "before_exact_page_at_1": 0.7024673439767779,
+    "after_exact_page_at_1": 0.706821480406386,
+    "temporal_failure_page_at_5_before": 0.11764705882352941,
+    "temporal_failure_page_at_5_after": 0.23529411764705882,
+    "temporal_control_page_at_5_before": 1.0,
+    "temporal_control_page_at_5_after": 1.0,
+    "unrouted_rankings_identical": true,
+    "before_full_strict_answer_count": 17,
+    "after_full_strict_answer_count": 17,
+    "before_strict_expected_answer_count": 18,
+    "after_strict_expected_answer_count": 17,
+    "before_semantic_answer_count": 20,
+    "after_semantic_answer_count": 19,
+    "before_citation_correct_count": 24,
+    "after_citation_correct_count": 25,
+    "new_wrong_numeric_or_date_assertions": 1
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The full development answer gate remained 17/32 strict with 6/8 safe expected negative behavior. Provisional validation and final holdout remained unopened."
+  },
+  "language_metrics": {
+    "fr": {
+      "retrieval_case_count": 377,
+      "before_exact_page_at_1": 0.7294429708222812,
+      "after_exact_page_at_1": 0.726790450928382,
+      "before_exact_page_at_5": 0.9098143236074271,
+      "after_exact_page_at_5": 0.9098143236074271,
+      "full_strict_answer_count_before": 12,
+      "full_strict_answer_count_after": 12
+    },
+    "ar": {
+      "retrieval_case_count": 312,
+      "before_exact_page_at_1": 0.6698717948717948,
+      "after_exact_page_at_1": 0.6826923076923077,
+      "before_exact_page_at_5": 0.8846153846153846,
+      "after_exact_page_at_5": 0.8910256410256411,
+      "full_strict_answer_count_before": 5,
+      "full_strict_answer_count_after": 5
+    }
+  },
+  "repairs": {
+    "exact_page_at_5_count": 2,
+    "exact_page_at_5_ids": [
+      "cir_2018_03_ar_procedure_or_documents_01",
+      "cir_2018_03_ar_deadline_or_duration_01"
+    ],
+    "answer_safe_abstention_conversions": [
+      "cir_2018_03_ar_deadline_or_duration_01"
+    ],
+    "full_strict_answer_count": 0
+  },
+  "regressions": {
+    "exact_page_at_5_count": 0,
+    "exact_page_at_1_count": 3,
+    "exact_page_at_1_ids": [
+      "note_2020_16_fr_effective_date_01",
+      "note_2025_163_fr_ten_dinar_issue_date_02",
+      "nb_2022_14_fr_five_dinar_portrait_02"
+    ],
+    "full_strict_answer_count": 0,
+    "semantic_answer_count": 1
+  },
+  "failure_distribution": {
+    "correct_page_retrieved_but_visual_risk_route_missed_document": 1,
+    "generator_silent_numeric_normalization": 1,
+    "safe_relevant_abstention": 1,
+    "new_wrong_numeric_or_date_assertion": 1
+  },
+  "latency": {
+    "control_reranking_total_seconds": 705.7930873002042,
+    "identity_reranking_total_seconds": 47.26877139991848,
+    "identity_reranking_mean_per_routed_query_seconds": 0.9847660708316349,
+    "recorded_answer_total_seconds": 1.9156835999892792,
+    "recorded_answer_mean_seconds": 0.9578417999946396
+  },
+  "approximate_cost": {
+    "status": "not_estimated",
+    "reason": "No verified applicable account rate was assumed; one failed hosted attempt ended before usage was cached.",
+    "known_answer_attempts": 3,
+    "recorded_answer_requests": 2,
+    "recorded_prompt_tokens": 5061,
+    "recorded_completion_tokens": 503,
+    "recorded_total_tokens": 5564
+  },
+  "conclusion": "KEEP the identity prefix as a development-only retrieval component: it met every predeclared retrieval clause, repaired two Arabic temporal Page@5 failures, and caused zero Page@5 regressions. Do not promote the identity-only answer composition. It left full strict success at 17/32, produced one plausible false date, and showed that the current document-level visual risk signal does not route the newly recovered Cir_2018_03_ar.pdf page 3.",
+  "decision": "KEEP"
+}
