@@ -56,12 +56,12 @@ def test_explicit_instrument_claim_must_cite_that_instrument():
 
 def test_analogous_version_is_allowed_only_as_labeled_context_beside_primary_claim():
     evidence = [
-        *_evidence(text="plafond 870"),
+        *_evidence(text="La circulaire n°2021-06 fixe le plafond à 870."),
         {
             "evidence_id": "E2",
             "source": "Cir_2024_11_fr.pdf",
             "page": 2,
-            "text": "plafond 1030",
+            "text": "La circulaire n°2024-11 fixe le plafond à 1030.",
         },
     ]
     response = {
@@ -122,7 +122,7 @@ def test_claim_cannot_invert_the_legal_role_of_an_advisory_opinion():
                 }
             ],
             "citations": [
-                {"evidence_id": "E1", "source": "Cir_2020_15_fr.pdf", "page": 1}
+                {"evidence_id": "E1", "source": "Cir_2020_15_fr.pdf", "page": 2}
             ],
         },
         evidence=_evidence(
