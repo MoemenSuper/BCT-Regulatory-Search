@@ -112,6 +112,11 @@ def enforce_routed_numeric_authority(
     return response, "generate"
 
 
+def validate_visual_result_for_composition(visual: dict[str, Any]) -> None:
+    if visual.get("status") not in {"complete", "partial_provider_unavailable"}:
+        raise ValueError("Visual result is incomplete or not safely resumable")
+
+
 def prepare_routed_evidence(
     *,
     record: dict[str, Any],
@@ -182,8 +187,7 @@ def run_routed_visual_answers(
     raw = json.loads(raw_result_path.read_text(encoding="utf-8"))
     routing = json.loads(routing_receipt_path.read_text(encoding="utf-8"))
     visual = json.loads(visual_result_path.read_text(encoding="utf-8"))
-    if visual.get("status") != "complete":
-        raise ValueError("Visual result is incomplete")
+    validate_visual_result_for_composition(visual)
     if visual.get("inputs", {}).get("routing_receipt_sha256") != sha256_file(
         routing_receipt_path
     ):

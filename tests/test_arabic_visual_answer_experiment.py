@@ -1,6 +1,7 @@
 from experiments.arabic_visual_answer_experiment import (
     enforce_routed_numeric_authority,
     prepare_routed_evidence,
+    validate_visual_result_for_composition,
 )
 from experiments.arabic_visual_fallback import MODEL_ID, PROMPT_VERSION
 
@@ -71,6 +72,12 @@ def test_valid_visual_replaces_only_selected_evidence_without_concatenation():
     assert "native 8102" not in evidence[0]["text"]
     assert evidence[0]["visual_verification"]["numeric_conflict"] is True
     assert evidence[1]["text"] == "unchanged"
+
+
+def test_partial_provider_result_reaches_per_route_fail_closed_handling():
+    validate_visual_result_for_composition(
+        {"status": "partial_provider_unavailable", "pages": []}
+    )
 
 
 def test_invalid_or_incomplete_visual_fails_closed_for_the_whole_route():
