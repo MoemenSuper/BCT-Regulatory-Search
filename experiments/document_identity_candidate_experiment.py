@@ -217,14 +217,17 @@ def _rank(
     query: str,
     candidates: list[dict[str, Any]],
     documents: list[Document],
-) -> list[tuple[dict[str, Any], float]]:
+) -> tuple[
+    list[tuple[dict[str, Any], float]],
+    list[tuple[dict[str, Any], float]],
+]:
     scored = score_documents(reranker, query, documents)
     ranked = sorted(
         zip(candidates, (float(score) for _document, score in scored)),
         key=lambda item: item[1],
         reverse=True,
     )
-    return diversify_ranked_pages(ranked)
+    return ranked, diversify_ranked_pages(ranked)
 
 
 def _signature_ranks(
@@ -299,8 +302,14 @@ def _score_records(
     for runtime in runtime_records:
         case = cases[runtime["id"]]
         relevant = bool(case["relevant"])
+        control_fusion_source = control_fusion_page = None
         control_source = control_page = candidate_source = candidate_page = None
         if relevant:
+            control_fusion_source, control_fusion_page = _signature_ranks(
+                runtime["control_undiversified_ranked"],
+                str(case["expected_source"]),
+                int(case["expected_page"]),
+            )
             control_source, control_page = _signature_ranks(
                 runtime["control_ranked"],
                 str(case["expected_source"]),
@@ -311,11 +320,11 @@ def _score_records(
                 str(case["expected_source"]),
                 int(case["expected_page"]),
             )
-            frozen_page = frozen_diversity["rank_records"][case["id"]]["diverse_page"]
-            if control_page != frozen_page:
+            frozen_page = frozen_diversity["rank_records"][case["id"]]["fusion_page"]
+            if control_fusion_page != frozen_page:
                 raise ValueError(
-                    f"Control diverse rank drift for {case['id']}: "
-                    f"expected {frozen_page}, reproduced {control_page}"
+                    f"Undiversified control rank drift for {case['id']}: "
+                    f"expected {frozen_page}, reproduced {control_fusion_page}"
                 )
         scored.append(
             {
@@ -329,6 +338,8 @@ def _score_records(
                     else None
                 ),
                 "temporal_role": temporal_roles.get(runtime["id"]),
+                "control_fusion_source_rank": control_fusion_source,
+                "control_fusion_page_rank": control_fusion_page,
                 "control_source_rank": control_source,
                 "control_page_rank": control_page,
                 "candidate_source_rank": candidate_source,
@@ -385,7 +396,7 @@ def run_experiment(
         )
         candidates = _merge_candidates((base, ocr_candidates))
         control_started = time.perf_counter()
-        control = _rank(
+        control_undiversified, control = _rank(
             reranker,
             case["query"],
             candidates,
@@ -398,7 +409,7 @@ def run_experiment(
             candidate_ranked = control
         else:
             candidate_started = time.perf_counter()
-            candidate_ranked = _rank(
+            _, candidate_ranked = _rank(
                 reranker,
                 case["query"],
                 candidates,
@@ -406,6 +417,7 @@ def run_experiment(
             )
             identity_seconds += time.perf_counter() - candidate_started
         control_signature = ranked_signature(control)
+        control_undiversified_signature = ranked_signature(control_undiversified)
         candidate_signature = ranked_signature(candidate_ranked)
         if query_identity is None and control_signature != candidate_signature:
             raise ValueError(f"Un-routed rank drift for {case['id']}")
@@ -417,6 +429,7 @@ def run_experiment(
                 "candidate_count": len(candidates),
                 "base_candidate_count": len(base),
                 "ocr_candidate_count": len(ocr_candidates),
+                "control_undiversified_ranked": control_undiversified_signature,
                 "control_ranked": control_signature,
                 "candidate_ranked": candidate_signature,
             }
@@ -523,6 +536,12 @@ def run_experiment(
         "routing": routing_artifact["counts"],
         "metrics": groups,
         "changed_top5_ids": [record["id"] for record in scored if record["top5_changed"]],
+        "control_diversity_recalibrations": [
+            record["id"]
+            for record in scored
+            if record["relevant"]
+            and record["control_fusion_page_rank"] != record["control_page_rank"]
+        ],
         "repairs": groups["overall"]["repairs_at_5"],
         "regressions": groups["overall"]["regressions_at_5"],
         "latency_seconds": {

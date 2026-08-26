@@ -1,3 +1,5 @@
+import pytest
+
 from langchain_core.documents import Document
 
 from experiments.document_identity_candidate_experiment import (
@@ -123,6 +125,9 @@ def test_gold_is_applied_only_after_runtime_rankings_are_frozen():
         {
             "id": "case",
             "query_identity": {"route_reason": "explicit_source_year"},
+            "control_undiversified_ranked": [
+                {"source": "Cir_2019_03_ar.pdf", "page": 3, "score": 0.8}
+            ],
             "control_ranked": [
                 {"source": "Cir_2019_03_ar.pdf", "page": 3, "score": 0.8}
             ],
@@ -140,9 +145,54 @@ def test_gold_is_applied_only_after_runtime_rankings_are_frozen():
             "expected_page": 3,
         }
     ]
-    frozen = {"rank_records": {"case": {"diverse_page": None}}}
+    frozen = {"rank_records": {"case": {"fusion_page": None, "diverse_page": None}}}
 
     scored = _score_records(runtime, evaluation, {"case": "failure"}, frozen)
 
     assert scored[0]["control_page_rank"] is None
     assert scored[0]["candidate_page_rank"] == 1
+
+
+def test_french_control_validates_frozen_undiversified_rank_before_real_diversity():
+    duplicate = {"source": "Other.pdf", "page": 1, "score": 0.85}
+    expected = {"source": "Cir_2018_03_fr.pdf", "page": 3, "score": 0.8}
+    runtime = [
+        {
+            "id": "case",
+            "query_identity": None,
+            "control_undiversified_ranked": [
+                {"source": "Other.pdf", "page": 1, "score": 0.9},
+                duplicate,
+                expected,
+            ],
+            "control_ranked": [
+                {"source": "Other.pdf", "page": 1, "score": 0.9},
+                expected,
+            ],
+            "candidate_ranked": [
+                {"source": "Other.pdf", "page": 1, "score": 0.9},
+                expected,
+            ],
+        }
+    ]
+    evaluation = [
+        {
+            "id": "case",
+            "language": "fr",
+            "relevant": True,
+            "expected_source": "Cir_2018_03_fr.pdf",
+            "expected_page": 3,
+        }
+    ]
+    frozen = {
+        "rank_records": {"case": {"fusion_page": 3, "diverse_page": 3}}
+    }
+
+    scored = _score_records(runtime, evaluation, {}, frozen)
+
+    assert scored[0]["control_fusion_page_rank"] == 3
+    assert scored[0]["control_page_rank"] == 2
+
+    runtime[0]["control_undiversified_ranked"] = runtime[0]["control_ranked"]
+    with pytest.raises(ValueError, match="Undiversified control rank drift"):
+        _score_records(runtime, evaluation, {}, frozen)
