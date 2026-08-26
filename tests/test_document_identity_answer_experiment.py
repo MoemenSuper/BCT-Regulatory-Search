@@ -3,6 +3,7 @@ import pytest
 from experiments.document_identity_answer_experiment import (
     answer_cache_binding,
     derive_changed_answer_case_ids,
+    parse_or_fail_closed,
     recompose_records,
     validate_top5_signature,
 )
@@ -66,3 +67,20 @@ def test_answer_cache_binding_includes_both_frozen_identity_artifacts():
     assert binding["identity_result_sha256"] == "C" * 64
     assert binding["routing_receipt_sha256"] == "D" * 64
     assert binding["user_payload"] == "payload"
+
+
+def test_structurally_inconsistent_nonanswer_fails_closed_without_claims():
+    malformed = """{
+      "status": "insufficient_evidence",
+      "answer": "لا تكفي الأدلة.",
+      "claims": [{"claim_id": "C1", "text": "ادعاء", "evidence_ids": ["E1"]}],
+      "citations": [{"evidence_id": "E1", "source": "x.pdf", "page": 0}]
+    }"""
+
+    response, status, error = parse_or_fail_closed(malformed, "ar")
+
+    assert status == "fail_closed_structured_validation"
+    assert error
+    assert response["status"] == "insufficient_evidence"
+    assert response["claims"] == []
+    assert response["citations"] == []

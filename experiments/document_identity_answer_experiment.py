@@ -63,6 +63,33 @@ SEED = 20260824
 EXPERIMENT_ID = "document-identity-answer-recomposition-development-v1"
 
 
+def _safe_abstention(language: str) -> dict[str, Any]:
+    answer = (
+        "الأدلة المسترجعة غير كافية أو تعذر التحقق من بنية الإجابة، لذلك لا يمكنني تقديم إجابة موثوقة."
+        if language == "ar"
+        else "Les preuves récupérées sont insuffisantes ou la réponse n'a pas pu être validée; je ne peux donc pas répondre de façon fiable."
+    )
+    return {
+        "status": "insufficient_evidence",
+        "answer": answer,
+        "claims": [],
+        "citations": [],
+    }
+
+
+def parse_or_fail_closed(
+    content: str, language: str
+) -> tuple[dict[str, Any], str, str | None]:
+    try:
+        return (
+            parse_structured_answer(content, require_nonempty_answer=True),
+            "valid",
+            None,
+        )
+    except (TypeError, ValueError) as error:
+        return _safe_abstention(language), "fail_closed_structured_validation", str(error)
+
+
 def derive_changed_answer_case_ids(
     suite: dict[str, Any], raw: dict[str, Any], identity_result: dict[str, Any]
 ) -> list[str]:
@@ -151,6 +178,7 @@ def run_identity_answer_recomposition(
     dotenv_path: Path,
     output_dir: Path,
     confirm_public_documents: bool,
+    prior_uncached_hosted_attempts: int = 0,
 ) -> dict[str, Any]:
     if not confirm_public_documents:
         raise ValueError("Hosted answer execution requires public-document confirmation")
@@ -277,6 +305,8 @@ def run_identity_answer_recomposition(
                 json.dumps(cached["response"], ensure_ascii=False),
                 require_nonempty_answer=True,
             )
+            validation_status = cached["structured_validation_status"]
+            validation_error = cached.get("structured_validation_error")
             cache_hits += 1
         else:
             started = time.perf_counter()
@@ -315,9 +345,9 @@ def run_identity_answer_recomposition(
                 write_json_atomic(output_dir / "checkpoint.json", checkpoint)
                 return checkpoint
             latency = time.perf_counter() - started
-            generated = parse_structured_answer(
-                completion.choices[0].message.content or "",
-                require_nonempty_answer=True,
+            raw_response_content = completion.choices[0].message.content or ""
+            generated, validation_status, validation_error = parse_or_fail_closed(
+                raw_response_content, case["language"]
             )
             cached = {
                 "id": case_id,
@@ -325,6 +355,9 @@ def run_identity_answer_recomposition(
                 "response_id": completion.id,
                 "usage": _usage(completion.usage),
                 "latency_seconds": latency,
+                "raw_response_content": raw_response_content,
+                "structured_validation_status": validation_status,
+                "structured_validation_error": validation_error,
                 "response": generated,
             }
             write_json_atomic(cache_path, cached)
@@ -366,6 +399,8 @@ def run_identity_answer_recomposition(
                 "response_changed": response != raw_record["response"],
                 "original_response": raw_record["response"],
                 "cache_hit": cache_hit,
+                "structured_validation_status": validation_status,
+                "structured_validation_error": validation_error,
             },
         }
         print(
@@ -396,6 +431,9 @@ def run_identity_answer_recomposition(
             "changed_answer_cases": len(changed_ids),
             "untouched_cases": len(records) - len(changed_ids),
             "hosted_answer_requests_this_run": hosted_requests,
+            "prior_uncached_hosted_attempts": prior_uncached_hosted_attempts,
+            "total_known_hosted_attempts": hosted_requests
+            + prior_uncached_hosted_attempts,
             "answer_cache_hits_this_run": cache_hits,
         },
         "changed_answer_case_ids": changed_ids,
@@ -405,6 +443,11 @@ def run_identity_answer_recomposition(
             "ar": _aggregate([record for record in records if record["language"] == "ar"]),
         },
         "new_answer_usage": usage_total,
+        "usage_completeness": (
+            "incomplete_one_or_more_prior_attempts_failed_before_cache"
+            if prior_uncached_hosted_attempts
+            else "complete_for_known_hosted_attempts"
+        ),
         "new_answer_latency_seconds": {
             "total": sum(latencies),
             "mean": statistics.mean(latencies) if latencies else 0.0,
@@ -434,6 +477,7 @@ def main() -> None:
     parser.add_argument("--dotenv", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--confirm-public-documents", action="store_true")
+    parser.add_argument("--prior-uncached-hosted-attempts", type=int, default=0)
     args = parser.parse_args()
     run_identity_answer_recomposition(
         suite_path=args.suite,
@@ -447,6 +491,7 @@ def main() -> None:
         dotenv_path=args.dotenv,
         output_dir=args.output_dir,
         confirm_public_documents=args.confirm_public_documents,
+        prior_uncached_hosted_attempts=args.prior_uncached_hosted_attempts,
     )
 
 
