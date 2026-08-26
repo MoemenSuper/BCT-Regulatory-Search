@@ -271,6 +271,28 @@ def _missing_material_requirements(question: str, response: dict[str, Any]) -> l
     return sorted(requirement for requirement in requirements if requirement not in response_text)
 
 
+def _answer_separately_labels_claim_identity(
+    *,
+    answer: str,
+    claim_text: str,
+    year: int,
+    number: int,
+    require_number: bool,
+) -> bool:
+    claim_numbers = _numeric_literals(claim_text)
+    clauses = re.split(
+        r"(?<!\d),(?!\d)|[;\n]|\b(?:et|and)\b", _fold(answer)
+    )
+    for clause in clauses:
+        if not re.search(rf"(?<!\d){year}(?!\d)", clause):
+            continue
+        if require_number and not re.search(rf"(?<!\d){number}(?!\d)", clause):
+            continue
+        if claim_numbers.issubset(_numeric_literals(clause)):
+            return True
+    return False
+
+
 def compose_incomplete_answer_from_claims(response: dict[str, Any]) -> dict[str, Any]:
     """Complete a visibly unfinished answer using only its existing claim text."""
     if response.get("status") != "answered" or not _INCOMPLETE_ENDING.search(
@@ -364,6 +386,7 @@ def apply_answer_safety(
 
     requested_primary_found = False
     all_linked_ids: set[str] = set()
+    claim_version_rows: list[dict[str, Any]] = []
     for claim in claims:
         claim_text = str(claim.get("text", ""))
         linked = _linked_evidence(claim, evidence_by_id)
@@ -380,6 +403,7 @@ def apply_answer_safety(
             if (key := _identity_key(parse_source_identity(str(item.get("source", "")))))
             is not None
         }
+        independently_supported = False
         if len(linked_identity_keys) > 1:
             claim_literals = _numeric_literals(claim_text) | critical_identifiers(
                 claim_text
@@ -395,6 +419,13 @@ def apply_answer_safety(
             )
             if not independently_supported:
                 return _validation_failure(language, "fail_closed_mixed_instrument_claim")
+        claim_version_rows.append(
+            {
+                "claim_text": claim_text,
+                "identity_keys": linked_identity_keys,
+                "cross_version_corroboration": independently_supported,
+            }
+        )
 
         if requested is not None:
             matches = all(
@@ -417,6 +448,44 @@ def apply_answer_safety(
             return _validation_failure(language, "fail_closed_legal_role_inversion")
         if not _adequate_linked_evidence(claim_text, linked):
             return _validation_failure(language, "fail_closed_inadequate_linked_evidence")
+
+    response_identity_keys = {
+        identity_key
+        for row in claim_version_rows
+        for identity_key in row["identity_keys"]
+    }
+    if len(response_identity_keys) > 1:
+        response_years = {identity_key[1] for identity_key in response_identity_keys}
+        for row in claim_version_rows:
+            identity_keys = row["identity_keys"]
+            if len(identity_keys) > 1 and row["cross_version_corroboration"]:
+                continue
+            if len(identity_keys) != 1:
+                return _validation_failure(
+                    language, "fail_closed_unlabelled_cross_claim_version_mixing"
+                )
+            kind, year, number = next(iter(identity_keys))
+            claim_folded = _fold(row["claim_text"])
+            year_labelled = bool(re.search(rf"(?<!\d){year}(?!\d)", claim_folded))
+            number_labelled = bool(
+                re.search(rf"(?<!\d){number}(?!\d)", claim_folded)
+            )
+            directly_labelled = year_labelled and (
+                len(response_years) > 1 or number_labelled
+            )
+            answer_labelled = _answer_separately_labels_claim_identity(
+                answer=str(response.get("answer", "")),
+                claim_text=row["claim_text"],
+                year=year,
+                number=number,
+                require_number=len(response_years) == 1,
+            )
+            if not directly_labelled and not answer_labelled:
+                return _validation_failure(
+                    language,
+                    "fail_closed_unlabelled_cross_claim_version_mixing",
+                    unlabelled_identity={"kind": kind, "year": year, "number": number},
+                )
 
     if requested is not None and not requested_primary_found:
         return _validation_failure(language, "fail_closed_missing_requested_instrument_claim")

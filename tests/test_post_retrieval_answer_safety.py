@@ -326,6 +326,86 @@ def test_cross_version_numeric_corroboration_is_not_treated_as_mixing():
     assert guarded is response
 
 
+def test_unlabelled_incompatible_versions_across_claims_fail_closed():
+    response = {
+        "status": "answered",
+        "answer": "Le plafond d'hiver est 1030 et le plafond d'été est 1140.",
+        "claims": [
+            {"text": "Le plafond d'hiver est 1030.", "evidence_ids": ["E1"]},
+            {"text": "Le plafond d'été est 1140.", "evidence_ids": ["E2"]},
+        ],
+        "citations": [
+            {"evidence_id": "E1", "source": "Cir_2024_11_fr.pdf", "page": 2},
+            {"evidence_id": "E2", "source": "Cir_2021_06_fr.pdf", "page": 2},
+        ],
+    }
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2024_11_fr.pdf",
+            "page": 2,
+            "text": "Le plafond d'hiver est 1030.",
+        },
+        {
+            "evidence_id": "E2",
+            "source": "Cir_2021_06_fr.pdf",
+            "page": 2,
+            "text": "Le plafond d'été est 1140.",
+        },
+    ]
+
+    guarded, audit = apply_answer_safety(
+        question="Quels plafonds s'appliquent aux fourrages d'hiver et d'été ?",
+        language="fr",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert guarded["status"] == "insufficient_evidence"
+    assert audit["action"] == "fail_closed_unlabelled_cross_claim_version_mixing"
+
+
+def test_separately_labelled_versions_across_claims_remain_distinct_context():
+    response = {
+        "status": "answered",
+        "answer": "Le taux est 2,75% selon la note 2019 et 2,5% selon la note 2020.",
+        "claims": [
+            {"text": "Le taux est 2,75%.", "evidence_ids": ["E1"]},
+            {"text": "Le taux est 2,5%.", "evidence_ids": ["E2"]},
+        ],
+        "citations": [
+            {"evidence_id": "E1", "source": "Note_2019_17_fr.pdf", "page": 1},
+            {"evidence_id": "E2", "source": "Note_2020_01_fr.pdf", "page": 1},
+        ],
+    }
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Note_2019_17_fr.pdf",
+            "page": 1,
+            "text": "Note 2019-17 : le taux est 2,75%.",
+        },
+        {
+            "evidence_id": "E2",
+            "source": "Note_2020_01_fr.pdf",
+            "page": 1,
+            "text": "Note 2020-01 : le taux est 2,5%.",
+        },
+    ]
+
+    guarded, audit = apply_answer_safety(
+        question="Quels taux les deux notes indiquent-elles ?",
+        language="fr",
+        response=response,
+        evidence=evidence,
+        query_state=_state(),
+    )
+
+    assert audit["action"] == "keep", audit
+    assert guarded is response
+
+
 def test_arabic_numeric_claim_with_inflection_and_exact_literals_is_adequate():
     response = {
         "status": "answered",
