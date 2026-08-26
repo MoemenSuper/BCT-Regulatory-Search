@@ -38,6 +38,31 @@
       "note": "The page lists committee opinion 2020-15 only in a recital and then the Governor's circular decides to repeal articles 2 and 4. The prior answer inverted those legal roles by saying the opinion performed the repeal; the guard removes that unsafe affirmative attribution."
     },
     {
+      "id": "cir_2021_06_fr_amount_or_rate_03",
+      "action": "fail_closed_unlabelled_cross_claim_version_mixing",
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_after": false,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "unsafe_cross_version_assertion_removed": true,
+      "rendered_sources": [
+        {
+          "source": "Cir_2021_06_fr.pdf",
+          "page": 2,
+          "rendered_image_sha256": "40D062C548E0B7BC3E24A21BEB9863A84ABB9FE928E554A0F422A5EFA351B3C0"
+        },
+        {
+          "source": "Cir_2024_11_fr.pdf",
+          "page": 2,
+          "rendered_image_sha256": "DB28EE5332B79EC03E3D2AFDADF8A3F0DAED0D13813C26A12552797B0CB457E4"
+        }
+      ],
+      "note": "The prior answer silently combined the 2024 winter ceiling of 1030 with the 2021 summer ceiling of 1140. The rendered 2021 page shows the compatible pair 870 and 1140, while the 2024 page shows 1030 and 1205. Because the two claim versions were not separately labelled context, the response-level guard removes the incompatible affirmative combination."
+    },
+    {
       "id": "cir_2026_05_fr_eligibility_or_scope_01",
       "action": "fail_closed_mixed_instrument_claim",
       "response_status_before": "answered",
@@ -153,8 +178,8 @@
     }
   ],
   "aggregate": {
-    "changed_case_count": 7,
-    "changed_relevant_count": 5,
+    "changed_case_count": 8,
+    "changed_relevant_count": 6,
     "changed_negative_count": 2,
     "strict_repairs": 1,
     "strict_regressions": 1,
@@ -162,6 +187,7 @@
     "unsupported_current_status_claims_after": 0,
     "incomplete_affirmatives_after": 0,
     "requested_document_attribution_regressions": 0,
+    "cross_claim_incompatible_version_assertions_after": 0,
     "new_wrong_numeric_or_date_assertions": 0
   }
 }
