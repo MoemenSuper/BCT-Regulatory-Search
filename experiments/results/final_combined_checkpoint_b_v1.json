@@ -1,0 +1,125 @@
+{
+  "status": "complete",
+  "timestamp": "2026-08-26T14:29:13.615053+00:00",
+  "experiment_id": "post-retrieval-answer-safety-development-v1",
+  "hypothesis": "A deterministic validator over runtime questions, frozen query state, retrieved evidence, claim links, and citations can remove wrong-instrument attribution, unsupported current-status assertions, ambiguous over-answering, and incomplete display without pre-retrieval blocking or gold-aware behavior.",
+  "changed_variable": "post_retrieval_attribution_completeness_and_query_state_safety",
+  "configuration": {
+    "runtime_inputs": [
+      "question",
+      "frozen_query_state",
+      "retrieved_evidence",
+      "claim_links",
+      "citations"
+    ],
+    "evaluation_gold_available_to_runtime_guard": false,
+    "retrieval_or_reranking_changed": false,
+    "hosted_calls": 0,
+    "untouched_records": "copied from frozen checkpoint A input",
+    "incomplete_answer_repair": "existing evidence-linked claim text only",
+    "ambiguous_request": "clarify only after missing-detail query state plus multiple retrieved instrument identities",
+    "current_status": "abstain unless retrieved evidence explicitly establishes current status",
+    "historical_queries": "not blocked by query-state scope or temporal labels after an answer is supported"
+  },
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "combined_checkpoint_a_input": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C",
+    "negative_query_state": "C846D913DDCFB996392A5F48A194FC62ACF60152429B9A9D9473E6FA8A542BCE",
+    "relevant_query_state": "B14D820A398C6B131713714B4DE9985A6E8F89B78374FF4836BC58F9A88317F4",
+    "raw_checkpoint_b_result": "8AC3D17C9D6F00767B8BFB3C5BF67F30049675759DAF8B1F430E99E1A3295018"
+  },
+  "execution": {
+    "all_cases": 40,
+    "changed_cases": 7,
+    "untouched_cases": 33,
+    "hosted_requests": 0,
+    "cache_hits": 0,
+    "usage": {
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 0
+    },
+    "latest_freeze_wrapper_wall_seconds": 23.9429562,
+    "local_guard_latency_status": "not_instrumented_per_case"
+  },
+  "actions": {
+    "complete_answer_from_existing_claims": 1,
+    "correct_false_query_state_preemption": 1,
+    "fail_closed_current_status_not_established": 1,
+    "fail_closed_inadequate_linked_evidence": 1,
+    "fail_closed_legal_role_inversion": 1,
+    "fail_closed_mixed_instrument_claim": 1,
+    "request_clarification_multiple_instruments": 1,
+    "keep": 23,
+    "keep_nonanswer": 10
+  },
+  "development_metrics": {
+    "before_checkpoint_b_per_case_review_recomposition": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 23,
+      "citation_correct_count": 27,
+      "grounded_count": 31,
+      "full_strict_answer_citation_grounding_count": 21,
+      "negative_safe_and_expected_count": 6,
+      "query_state_false_preemption_count": 1,
+      "unsupported_current_status_claim_count": 1,
+      "incomplete_affirmative_count": 1
+    },
+    "after_checkpoint_b": {
+      "relevant_count": 32,
+      "semantic_answer_correct_count": 23,
+      "citation_correct_count": 29,
+      "grounded_count": 32,
+      "full_strict_answer_citation_grounding_count": 21,
+      "negative_count": 8,
+      "negative_safe_and_expected_count": 8,
+      "safe_relevant_abstention_count": 8,
+      "query_state_false_preemption_count": 0,
+      "unsupported_current_status_claim_count": 0,
+      "incomplete_affirmative_count": 0,
+      "new_wrong_numeric_or_date_assertions": 0
+    },
+    "language": {
+      "fr": {
+        "relevant_count": 17,
+        "before_full_strict_count": 12,
+        "after_full_strict_count": 11
+      },
+      "ar": {
+        "relevant_count": 15,
+        "before_full_strict_count": 9,
+        "after_full_strict_count": 10
+      }
+    },
+    "metric_reconciliation": "The checkpoint-A summary reported 26 citation-correct cases, while its committed per-case review labels recompose to 27. Final scoring uses the auditable per-case labels and records this discrepancy instead of silently propagating the aggregate typo."
+  },
+  "repairs": [
+    "negative_fr_ambiguous_documents",
+    "negative_fr_current_status_unknown",
+    "note_2019_24_ar_effective_date_01",
+    "note_2026_129_ar_required_action_01",
+    "cir_2020_15_fr_effective_date_01",
+    "cir_2026_05_fr_eligibility_or_scope_01"
+  ],
+  "regressions": {
+    "strict_count": 1,
+    "ids": [
+      "cir_2016_09_fr_exception_or_condition_01"
+    ],
+    "classification": "safe fail-closed response because the retrieved claim-linked chunk omits the asserted numeric literal even though the full PDF page contains it"
+  },
+  "gate": {
+    "eight_of_eight_safe_expected_negatives": "PASS_8_OF_8",
+    "zero_unsupported_current_status_claims": "PASS",
+    "zero_false_preemption_of_relevant_development_questions": "PASS_NO_ADEQUATELY_SUPPORTED_HISTORICAL_ANSWER_BLOCKED_BY_QUERY_STATE",
+    "zero_requested_document_attribution_regressions": "PASS",
+    "no_incomplete_affirmative_presented_as_complete": "PASS",
+    "all_clauses_required": true
+  },
+  "decision": "KEEP",
+  "conclusion": "KEEP checkpoint B for the final combination. It passes every predeclared safety clause, repairs both remaining negative cases and the incomplete Arabic display, removes unsafe legal-role and mixed-version affirmatives, and corrects the relevant query-state misclassification. It does not improve the unchanged strict 21/32 total because one newly repaired strict answer is offset by one conservative chunk-boundary abstention.",
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "The full combined strict development gate is 21/32, so provisional answer validation and the final holdout remain unopened."
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "status": "complete_agent_pdf_evidence_review",
+  "reviewer_type": "Codex primary agent",
+  "reviewed_against": "frozen runtime question, query state, retrieved evidence, structured response before and after safety, rendered public source PDF pages, and development gold only after the runtime artifact was frozen",
+  "independent_human_confirmation": false,
+  "records": [
+    {
+      "id": "cir_2016_09_fr_exception_or_condition_01",
+      "action": "fail_closed_inadequate_linked_evidence",
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_after": false,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "strict_regression": true,
+      "false_preemption": false,
+      "rendered_source": "Cir_2016_09_fr.pdf",
+      "rendered_page": 4,
+      "rendered_image_sha256": "9094AE39B72B6FAC3A4B5D735FBE7F47123B0CC25D9DD313BC554F2E64EFCA15",
+      "note": "The PDF visibly supports the 25 percent exception, but the claim-linked retrieved chunk stops after the words 'vingt cinq pour' and contains no authoritative 25 literal. The runtime guard therefore conservatively abstains instead of trusting a generated number. This is a strict-answer regression caused by a chunk-boundary evidence gap, not a query-state preemption."
+    },
+    {
+      "id": "cir_2020_15_fr_effective_date_01",
+      "action": "fail_closed_legal_role_inversion",
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_after": false,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "unsafe_attribution_removed": true,
+      "rendered_source": "Cir_2020_15_fr.pdf",
+      "rendered_page": 1,
+      "rendered_image_sha256": "50044BECCA981D3574BCA79D655C3FF87B9BD383B8FC95836E827AA783A535A6",
+      "note": "The page lists committee opinion 2020-15 only in a recital and then the Governor's circular decides to repeal articles 2 and 4. The prior answer inverted those legal roles by saying the opinion performed the repeal; the guard removes that unsafe affirmative attribution."
+    },
+    {
+      "id": "cir_2026_05_fr_eligibility_or_scope_01",
+      "action": "fail_closed_mixed_instrument_claim",
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_after": false,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "incomplete_affirmative_removed": true,
+      "rendered_sources": [
+        {
+          "source": "Cir_2025_09_fr.pdf",
+          "page": 2,
+          "rendered_image_sha256": "4A914386311398B10292237D9CABCA16C48C26D827DFD6C9BB5BD2FF7F4E7547"
+        },
+        {
+          "source": "Cir_2025_04_fr.pdf",
+          "page": 3,
+          "rendered_image_sha256": "9B449F0F8C31E9D4AEFCBFA4120C122CEE2F247D71CCFD38E9E54A56A0A3650C"
+        },
+        {
+          "source": "Cir_2026_05_fr.pdf",
+          "page": 2,
+          "rendered_image_sha256": "B99FE62228E51210BDCA38794154A842D57566CB9B1E4D94DF0E3C886A198E4A"
+        }
+      ],
+      "note": "The prior answer combined two 2025 lists and stopped after 14 institutions. The requested 2026 annex visibly contains the complete 25-institution list, including ALUBAF and Citi Bank. Because the generated claim did not use that evidence and mixed distinct instruments, abstention is safer than presenting a partial list as complete."
+    },
+    {
+      "id": "negative_fr_ambiguous_documents",
+      "action": "request_clarification_multiple_instruments",
+      "response_status_before": "answered",
+      "response_status_after": "clarification_needed",
+      "expected_behavior_met": true,
+      "safe_response": true,
+      "rendered_sources": [
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 12,
+          "rendered_image_sha256": "670F0D8BA32548D79AF5E63DC14028FC4F1735AB35BD7D1C1078E090EBCFE69A"
+        },
+        {
+          "source": "Cir_2018_14_fr.pdf",
+          "page": 11,
+          "rendered_image_sha256": "31312C7033A5D2806934782E5D615906E0236A49C773A518169658CCBD788BB6"
+        }
+      ],
+      "note": "The retrieved pages govern different transfer purposes and require materially different document sets. The question omits the transfer type, so a localized non-empty clarification is correct and the mixed affirmative list is removed."
+    },
+    {
+      "id": "negative_fr_current_status_unknown",
+      "action": "fail_closed_current_status_not_established",
+      "response_status_before": "answered",
+      "response_status_after": "insufficient_evidence",
+      "expected_behavior_met": true,
+      "safe_response": true,
+      "unsupported_current_status_claim_removed": true,
+      "rendered_sources": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 4,
+          "rendered_image_sha256": "8A534F2EDFC90A6C269B4A29C68D3C6DB8FF6212C8C6384BCF80BECAF7E2E711"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 3,
+          "rendered_image_sha256": "22267191A0D730530E597DADD5CBA2E418B6A49888884EC9CF278506253AD6FF"
+        }
+      ],
+      "note": "The pages establish historical 2016 and 2020 ceilings but contain no evidence that either ceiling is current on the query date. The guard correctly states that current status cannot be established."
+    },
+    {
+      "id": "note_2019_24_ar_effective_date_01",
+      "action": "correct_false_query_state_preemption",
+      "response_status_before": "out_of_scope",
+      "response_status_after": "insufficient_evidence",
+      "answer_correct_after": false,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": false,
+      "safe_abstention_after": true,
+      "query_state_false_preemption_removed": true,
+      "rendered_sources": [
+        {
+          "source": "Note_2019_24_ar.pdf",
+          "page": 1,
+          "rendered_image_sha256": "A5B01C5FA42A00F7478A332B65AD42BCB537DAB5C1E401B5D7B489C048C2C62E"
+        },
+        {
+          "source": "Note_2019_24_ar.pdf",
+          "page": 3,
+          "rendered_image_sha256": "7EFBC9ED302180E0D64ECBA060753C0D64894E19DE156F9AE27CC2F8468B8619"
+        }
+      ],
+      "note": "The question is plainly about a regulated banknote and is not out of scope. Page 1 visibly gives the 12 September 2019 issue date, while only page 3 reached final retrieved evidence and lacks that date. The corrected status is therefore insufficient evidence, preserving a safe abstention without the query-state misclassification."
+    },
+    {
+      "id": "note_2026_129_ar_required_action_01",
+      "action": "complete_answer_from_existing_claims",
+      "response_status_before": "answered",
+      "response_status_after": "answered",
+      "answer_correct_after": true,
+      "citation_correct_after": true,
+      "grounded_after": true,
+      "full_strict_after": true,
+      "safe_abstention_after": false,
+      "strict_repair": true,
+      "rendered_source": "Note_2026_129_ar.pdf",
+      "rendered_page": 1,
+      "rendered_image_sha256": "3930E1039DA03F421E289ABB5DB12954E228B9029C63EE37BD14C8E831405F30",
+      "note": "The original answer field ended at a colon even though three evidence-linked claims were already present. The completed display copies only those claims. The rendered page visibly supports continuous ATM cash supply, payment-platform readiness, and rapid handling of outages."
+    }
+  ],
+  "aggregate": {
+    "changed_case_count": 7,
+    "changed_relevant_count": 5,
+    "changed_negative_count": 2,
+    "strict_repairs": 1,
+    "strict_regressions": 1,
+    "query_state_false_preemptions_after": 0,
+    "unsupported_current_status_claims_after": 0,
+    "incomplete_affirmatives_after": 0,
+    "requested_document_attribution_regressions": 0,
+    "new_wrong_numeric_or_date_assertions": 0
+  }
+}

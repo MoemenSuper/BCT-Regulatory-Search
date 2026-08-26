@@ -1,0 +1,89 @@
+{
+  "experiment_id": "post-retrieval-answer-safety-development-v1",
+  "timestamp": "2026-08-26T14:29:13.615053+00:00",
+  "hypothesis": "A deterministic post-retrieval validator can remove attribution, completeness, ambiguity, and current-status defects without gold-aware routing or pre-retrieval blocking.",
+  "changed_variable": "post_retrieval_attribution_completeness_and_query_state_safety",
+  "configuration": {
+    "retrieval_input": "kept checkpoint-A composition",
+    "runtime_gold_access": false,
+    "changed_cases": 7,
+    "untouched_cases": 33,
+    "hosted_calls": 0
+  },
+  "model_identifiers": {
+    "answer_model_upstream": "openai/gpt-oss-120b",
+    "visual_model_upstream": "gemini-3.7-flash",
+    "reranker_upstream": "BAAI/bge-reranker-v2-m3",
+    "safety_validator": "deterministic local"
+  },
+  "providers": {
+    "post_retrieval_safety_and_review": "local",
+    "hosted_calls_this_checkpoint": "none"
+  },
+  "code_commit": "a532b49",
+  "dataset_hashes": {
+    "answer_suite": "5E3D840B6DF8FDF3046AA2A5A67B84DF8CC0E0E61D4EC810E5D51446C89917A1",
+    "combined_checkpoint_a_input": "5CBAAC050DADBB49174BE0C9F829219F51BEE9E5EB9E25668A561CBA0562067C",
+    "negative_query_state": "C846D913DDCFB996392A5F48A194FC62ACF60152429B9A9D9473E6FA8A542BCE",
+    "relevant_query_state": "B14D820A398C6B131713714B4DE9985A6E8F89B78374FF4836BC58F9A88317F4",
+    "raw_checkpoint_b_result": "8AC3D17C9D6F00767B8BFB3C5BF67F30049675759DAF8B1F430E99E1A3295018"
+  },
+  "development_metrics": {
+    "before_full_strict_answer_count": 21,
+    "after_full_strict_answer_count": 21,
+    "before_safe_expected_negative_count": 6,
+    "after_safe_expected_negative_count": 8,
+    "after_semantic_answer_correct_count": 23,
+    "after_citation_correct_count": 29,
+    "after_grounded_count": 32,
+    "new_wrong_numeric_or_date_assertions": 0,
+    "unsupported_current_status_claims": 0,
+    "incomplete_affirmatives": 0
+  },
+  "language_metrics": {
+    "fr": {
+      "relevant_count": 17,
+      "before_full_strict_count": 12,
+      "after_full_strict_count": 11
+    },
+    "ar": {
+      "relevant_count": 15,
+      "before_full_strict_count": 9,
+      "after_full_strict_count": 10
+    }
+  },
+  "repairs": {
+    "strict_count": 1,
+    "negative_safety_count": 2,
+    "query_state_false_preemption_count": 1,
+    "unsafe_affirmative_removals": 2
+  },
+  "regressions": {
+    "strict_count": 1,
+    "ids": [
+      "cir_2016_09_fr_exception_or_condition_01"
+    ],
+    "unsafe_regressions": 0
+  },
+  "failure_distribution": {
+    "claim_linked_chunk_missing_asserted_numeric_literal": 1,
+    "legal_role_inversion_removed": 1,
+    "mixed_version_incomplete_answer_removed": 1,
+    "safe_relevant_abstention_count": 8
+  },
+  "latency": {
+    "latest_freeze_wrapper_wall_seconds": 23.9429562,
+    "hosted_latency_seconds": 0
+  },
+  "approximate_cost": {
+    "currency": "USD",
+    "incremental_hosted_cost": 0,
+    "status": "no_hosted_calls"
+  },
+  "conclusion": "KEEP checkpoint B. All predeclared component safety clauses pass, but the full combined strict gate remains 21/32.",
+  "decision": "KEEP",
+  "validation_metrics": {
+    "status": "not_run",
+    "reason": "Full strict development gate remains below 32/32."
+  }
+}
