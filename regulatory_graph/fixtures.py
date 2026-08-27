@@ -46,8 +46,8 @@ def circular_2016_03_fr_bundle() -> RegulatoryGraphBundle:
     )
     annex_13_declaration = (
         "L’annexe 13 à la circulaire aux banques et établissements financiers "
-        "n°93-08 du 30 juillet 1993 est abrogée et remplacée par l’annexe de la "
-        "présente circulaire."
+        "n°93-08 du 30 juillet 1993 relative aux éléments de calcul du ratio de "
+        "solvabilité est abrogée et remplacée par l’annexe de la présente circulaire."
     )
     article_16_text = (
         "L’incidence, sur la situation financière et le résultat, des événements "
@@ -71,9 +71,10 @@ def circular_2016_03_fr_bundle() -> RegulatoryGraphBundle:
             "des engagements sont abrogées et remplacées par les dispositions suivantes :"
         ),
         "evidence:cir-2016-03:p4:effective-date": (
-            "Article 7 : Les dispositions de la présente circulaire entrent en vigueur "
-            "à compter du 8 aout 2016 à l’exception des dispositions des articles 2 "
-            "et 3 qui entrent en vigueur à partir du 30 décembre 2016."
+            "Article 7 : Sans préjudice des dates d’entrée en vigueur prévues à l’article "
+            "premier, les dispositions de la présente circulaire entrent en vigueur à "
+            "compter du 8 aout 2016 à l’exception des dispositions des articles 2 et 3 "
+            "qui entrent en vigueur à partir du 30 décembre 2016."
         ),
     }
 
