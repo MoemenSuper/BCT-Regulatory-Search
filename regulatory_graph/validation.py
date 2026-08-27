@@ -21,6 +21,8 @@ def validate_change_event_for_write(
         *(("Provision", uid) for uid in event.target_provision_uids),
         *(("TargetSpan", uid) for uid in event.target_span_uids),
         *(("EvidenceSpan", uid) for uid in event.evidence_uids),
+        *(("ProvisionVersion", uid) for uid in event.retires_version_uids),
+        *(("ProvisionVersion", uid) for uid in event.introduces_version_uids),
     ]
     missing = [
         f"{label} {uid}"

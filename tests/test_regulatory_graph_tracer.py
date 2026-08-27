@@ -38,6 +38,9 @@ def test_real_fixture_is_bound_to_the_frozen_pdf_and_three_changes():
     } == {date(2016, 8, 8), date(2016, 12, 30)}
     assert all(event.introduces_version_uids for event in bundle.change_events)
     assert all(not event.retires_version_uids for event in bundle.change_events)
+    assert bundle.provision_versions[0].uid == (
+        "version:bct:1991:24:article-4:2016-12-30"
+    )
 
 
 def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
@@ -191,6 +194,7 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
         assert first.bundle_sha256 == second.bundle_sha256
         assert first_counts == second_counts
         assert first_counts.nodes == bundle.node_count
+        assert first_counts.relationships == 29
         assert graph.resolve_provision_as_of(
             "BCT:CIRCULAR:1991:24:ARTICLE:4", date(2016, 12, 29)
         ).version is None

@@ -142,6 +142,13 @@ class SourceEdition(GraphModel):
     is_scan: bool
 
 
+class GraphPage(GraphModel):
+    uid: NonEmptyStr
+    source_edition_uid: NonEmptyStr
+    page_number: int = Field(ge=1)
+    page_label: NonEmptyStr
+
+
 class Provision(GraphModel):
     uid: NonEmptyStr
     instrument_uid: NonEmptyStr
@@ -225,6 +232,8 @@ class ChangeEvent(GraphModel):
     transition_end: date | None = None
     raw_effect_text: NonEmptyStr
     evidence_uids: tuple[NonEmptyStr, ...] = ()
+    retires_version_uids: tuple[NonEmptyStr, ...] = ()
+    introduces_version_uids: tuple[NonEmptyStr, ...] = ()
     confidence: float = Field(ge=0, le=1)
     extraction_method: NonEmptyStr = "structured"
     verification_status: VerificationStatus
@@ -286,6 +295,82 @@ class ChangeEvent(GraphModel):
             and bool(self.evidence_uids)
             and self.effective_from is not None
             and (self.effective_trigger is None or self.effective_trigger_resolved)
+        )
+
+
+class RegulatoryGraphBundle(GraphModel):
+    instruments: tuple[Instrument, ...]
+    source_editions: tuple[SourceEdition, ...]
+    pages: tuple[GraphPage, ...]
+    provisions: tuple[Provision, ...]
+    provision_versions: tuple[ProvisionVersion, ...]
+    target_spans: tuple[TargetSpan, ...] = ()
+    evidence_spans: tuple[EvidenceSpan, ...]
+    change_events: tuple[ChangeEvent, ...]
+
+    @model_validator(mode="after")
+    def validate_bundle_references(self) -> "RegulatoryGraphBundle":
+        collections = {
+            "Instrument": self.instruments,
+            "SourceEdition": self.source_editions,
+            "Page": self.pages,
+            "Provision": self.provisions,
+            "ProvisionVersion": self.provision_versions,
+            "TargetSpan": self.target_spans,
+            "EvidenceSpan": self.evidence_spans,
+            "ChangeEvent": self.change_events,
+        }
+        ids = {label: {item.uid for item in items} for label, items in collections.items()}
+        for label, items in collections.items():
+            if len(ids[label]) != len(items):
+                raise ValueError(f"duplicate {label} uid in graph bundle")
+
+        required = []
+        required.extend(
+            ("Instrument", item.instrument_uid) for item in self.source_editions
+        )
+        required.extend(
+            ("SourceEdition", item.source_edition_uid) for item in self.pages
+        )
+        required.extend(("Instrument", item.instrument_uid) for item in self.provisions)
+        required.extend(
+            ("Provision", item.provision_uid) for item in self.provision_versions
+        )
+        required.extend(
+            ("ProvisionVersion", item.provision_version_uid)
+            for item in self.target_spans
+        )
+        required.extend(
+            ("SourceEdition", item.source_edition_uid)
+            for item in self.evidence_spans
+        )
+        missing = [f"{label} {uid}" for label, uid in required if uid not in ids[label]]
+        page_keys = {
+            (page.source_edition_uid, page.page_number) for page in self.pages
+        }
+        missing.extend(
+            f"Page {evidence.source_edition_uid}:{evidence.page_number}"
+            for evidence in self.evidence_spans
+            if (evidence.source_edition_uid, evidence.page_number) not in page_keys
+        )
+        if missing:
+            raise ValueError("graph bundle references missing nodes: " + ", ".join(missing))
+        return self
+
+    @property
+    def node_count(self) -> int:
+        return sum(
+            len(items)
+            for items in (
+                self.instruments,
+                self.source_editions,
+                self.pages,
+                self.provisions,
+                self.provision_versions,
+                self.target_spans,
+                self.evidence_spans,
+                self.change_events,
+            )
         )
 
 
