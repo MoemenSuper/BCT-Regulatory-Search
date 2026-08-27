@@ -1,0 +1,105 @@
+{
+  "experiment_id": "temporal-regulatory-graph-tracer-v1",
+  "timestamp": "2026-08-27T22:39:17.8454181Z",
+  "hypothesis": "A verified real multi-change circular can be written idempotently to Neo4j and support exact evidence-backed lineage and half-open as-of resolution without inventing absent predecessor text.",
+  "changed_variable": "neo4j_persistence_and_deterministic_temporal_query_layer",
+  "code_commit": "340f130538e2ffdc9028bcade8d11ddcfba92297",
+  "configuration": {
+    "neo4j_image": "neo4j:2026.07.1",
+    "neo4j_image_digest": "sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "neo4j_python_driver": "6.2.0",
+    "database": "neo4j",
+    "fixture_change_event_count": 3,
+    "hosted_model_calls": 0,
+    "runtime_gold_access": false
+  },
+  "source": {
+    "filename": "Cir_2016_03_fr.pdf",
+    "sha256": "E463736EBB98BE5DBC6E02635E1D635734B9CDF4ACFD598F4F1BA8351DC43078",
+    "page_count": 14,
+    "evidence_pages": [
+      2,
+      3,
+      4
+    ],
+    "pdf_hash_verified": true,
+    "all_evidence_quotes_exact_after_whitespace_normalization": true,
+    "all_verified_version_text_exact_after_whitespace_normalization": true,
+    "target_predecessor_pdfs_present": false
+  },
+  "live_neo4j": {
+    "bundle_sha256": "FF3E4E1B3DF37359E651C4C8E837263AE170FBE9BD0CE65384174E30CF3DF60F",
+    "node_count": 20,
+    "relationship_count": 29,
+    "second_write_counts_unchanged": true,
+    "relationship_counts": {
+      "DECLARES_CHANGE": 3,
+      "EVIDENCED_BY": 6,
+      "HAS_EDITION": 1,
+      "HAS_PAGE": 3,
+      "HAS_PROVISION": 3,
+      "HAS_VERSION": 3,
+      "INTRODUCES_VERSION": 3,
+      "ON_PAGE": 4,
+      "TARGETS": 3
+    }
+  },
+  "as_of_checks": {
+    "BCT:CIRCULAR:1991:24:ARTICLE:4": {
+      "2016-12-29": "no_verified_version",
+      "2016-12-30": "version:bct:1991:24:article-4:2016-12-30"
+    },
+    "BCT:CIRCULAR:1991:24:ARTICLE:16": {
+      "2016-08-07": "no_verified_version",
+      "2016-08-08": "version:bct:1991:24:article-16:2016-08-08"
+    }
+  },
+  "lineage_checks": [
+    {
+      "provision_uid": "BCT:CIRCULAR:1991:24:ARTICLE:4",
+      "event_uid": "event:bct:2016:03:article-2",
+      "action": "REPLACE",
+      "effective_from": "2016-12-30",
+      "evidence_pages": [2, 4],
+      "predecessor_complete": false
+    },
+    {
+      "provision_uid": "BCT:CIRCULAR:1993:08:ANNEX:13",
+      "event_uid": "event:bct:2016:03:article-5",
+      "action": "REPLACE",
+      "effective_from": "2016-08-08",
+      "evidence_pages": [3, 4],
+      "predecessor_complete": false,
+      "introduced_version_answer_eligible": false
+    },
+    {
+      "provision_uid": "BCT:CIRCULAR:1991:24:ARTICLE:16",
+      "event_uid": "event:bct:2016:03:article-6",
+      "action": "REPLACE",
+      "effective_from": "2016-08-08",
+      "evidence_pages": [3, 4],
+      "predecessor_complete": false
+    }
+  ],
+  "verification": {
+    "focused_tests_with_live_neo4j_and_source_pdf": "25 passed",
+    "repository_tests_with_live_neo4j_and_source_pdf": "195 passed",
+    "git_diff_check": "passed"
+  },
+  "gate": {
+    "live_write": "PASS",
+    "idempotency": "PASS",
+    "half_open_date_boundaries": "PASS",
+    "exact_source_page_lineage": "PASS",
+    "missing_predecessor_disclosure": "PASS",
+    "source_fidelity": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_TRACER_ONLY",
+  "conclusion": "Keep the Neo4j writer and deterministic lineage/as-of seam for the next controlled graph-retrieval experiment. This does not qualify GraphRAG retrieval, answer generation, or production integration.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

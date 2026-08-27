@@ -1,0 +1,49 @@
+{
+  "experiment_id": "temporal-regulatory-graph-tracer-v1",
+  "timestamp": "2026-08-27T22:39:17.8454181Z",
+  "hypothesis": "A verified real multi-change circular can be written idempotently to Neo4j and support exact evidence-backed lineage and half-open as-of resolution without inventing absent predecessor text.",
+  "changed_variable": "neo4j_persistence_and_deterministic_temporal_query_layer",
+  "code_commit": "340f130538e2ffdc9028bcade8d11ddcfba92297",
+  "configuration": {
+    "neo4j_image": "neo4j:2026.07.1",
+    "neo4j_image_digest": "sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "neo4j_python_driver": "6.2.0",
+    "hosted_model_calls": 0,
+    "runtime_gold_access": false
+  },
+  "dataset_hashes": {
+    "source_pdf": "E463736EBB98BE5DBC6E02635E1D635734B9CDF4ACFD598F4F1BA8351DC43078",
+    "predeclaration": "CFE4440ACDF9C4ACB2079FBE8C8773B05B7383BE2CBE39227482FF03A39E966D",
+    "graph_bundle": "FF3E4E1B3DF37359E651C4C8E837263AE170FBE9BD0CE65384174E30CF3DF60F",
+    "result": "205143D1866D4375F75AC6ADCA63E0F8F45685EA1DE7E410AC7B16982A3D038F",
+    "fixture_code": "C7A04E03A655661E64A974C89F390FE05271624BE8BE7F7C3081A04F722D2ABB",
+    "neo4j_store_code": "C59C38635F52D8A8D95FE54CD9955F87CAC86156DD9F94AF678A9356B5754B9B",
+    "source_verification_code": "7C338FF014105EA56540DD1F9AD14624807F9BFB75E58CEF908A0FE7D2964ED5"
+  },
+  "development_metrics": {
+    "change_events": 3,
+    "live_nodes": 20,
+    "live_relationships": 29,
+    "idempotent_second_write": true,
+    "exact_evidence_quotes": 4,
+    "exact_verified_version_texts": 2,
+    "exact_lineage_paths": 3,
+    "date_boundary_checks": 4
+  },
+  "gate": {
+    "live_write": "PASS",
+    "idempotency": "PASS",
+    "half_open_date_boundaries": "PASS",
+    "exact_source_page_lineage": "PASS",
+    "missing_predecessor_disclosure": "PASS",
+    "source_fidelity": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_TRACER_ONLY",
+  "conclusion": "Keep the Neo4j writer and deterministic lineage/as-of seam for the next controlled graph-retrieval experiment. This does not qualify GraphRAG retrieval, answer generation, or production integration.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
