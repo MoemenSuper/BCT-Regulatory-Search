@@ -247,6 +247,11 @@ class ChangeEvent(GraphModel):
                 raise ValueError(
                     f"{self.target_scope.value} scope requires a TargetSpan target"
                 )
+        elif self.target_scope in _PROVISION_REQUIRED_SCOPES:
+            if not self.target_provision_uids or self.target_instrument_uids:
+                raise ValueError(
+                    f"{self.target_scope.value} scope requires a Provision target"
+                )
         elif self.target_instrument_uids:
             raise ValueError(
                 f"{self.target_scope.value} scope cannot target an Instrument"
@@ -305,5 +310,19 @@ _SPAN_REQUIRED_SCOPES = frozenset(
         TargetScope.AMOUNT,
         TargetScope.RATE,
         TargetScope.OTHER_FRAGMENT,
+    }
+)
+
+
+_PROVISION_REQUIRED_SCOPES = frozenset(
+    {
+        TargetScope.TITLE,
+        TargetScope.CHAPTER,
+        TargetScope.SECTION,
+        TargetScope.ARTICLE,
+        TargetScope.PARAGRAPH,
+        TargetScope.ITEM,
+        TargetScope.ANNEX,
+        TargetScope.TABLE,
     }
 )

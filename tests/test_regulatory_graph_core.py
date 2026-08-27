@@ -173,6 +173,13 @@ def test_target_scope_requires_a_compatible_target_kind():
 
     assert event.target_instrument_uids == ("BCT:CIRCULAR:1991:24",)
 
+    with pytest.raises(ValidationError, match="ARTICLE"):
+        _verified_event(
+            target_scope=TargetScope.ARTICLE,
+            target_provision_uids=(),
+            target_span_uids=("target:article-4:sentence-1",),
+        )
+
 
 def test_target_span_has_a_dedicated_sub_provision_selector_vocabulary():
     span = TargetSpan(
