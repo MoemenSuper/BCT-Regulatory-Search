@@ -26,6 +26,7 @@ CORE_RELATIONSHIP_PATTERNS = (
     ("Provision", "CURRENT_VERSION", "ProvisionVersion"),
     ("ProvisionVersion", "SUPERSEDES_VERSION", "ProvisionVersion"),
     ("Instrument", "DECLARES_CHANGE", "ChangeEvent"),
+    ("ChangeEvent", "TARGETS", "Instrument"),
     ("ChangeEvent", "TARGETS", "Provision"),
     ("ChangeEvent", "TARGETS", "TargetSpan"),
     ("ChangeEvent", "RETIRES_VERSION", "ProvisionVersion"),
@@ -81,6 +82,14 @@ def install_schema(
     for statement in statements:
         driver.execute_query(statement, database_=database)
     return statements
+
+
+def is_allowed_relationship(
+    source_label: str,
+    relationship_type: str,
+    target_label: str,
+) -> bool:
+    return (source_label, relationship_type, target_label) in CORE_RELATIONSHIP_PATTERNS
 
 
 def _snake_case(value: str) -> str:

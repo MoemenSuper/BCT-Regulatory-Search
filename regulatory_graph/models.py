@@ -82,6 +82,19 @@ class TargetScope(str, Enum):
     OTHER_FRAGMENT = "OTHER_FRAGMENT"
 
 
+class TargetSelectorType(str, Enum):
+    PARAGRAPH = "PARAGRAPH"
+    BULLET = "BULLET"
+    LETTERED_ITEM = "LETTERED_ITEM"
+    SENTENCE = "SENTENCE"
+    PHRASE = "PHRASE"
+    DATE = "DATE"
+    AMOUNT = "AMOUNT"
+    RATE = "RATE"
+    TABLE_ROW = "TABLE_ROW"
+    TABLE_CELL = "TABLE_CELL"
+
+
 class VerificationStatus(str, Enum):
     CANDIDATE = "CANDIDATE"
     VERIFIED = "VERIFIED"
@@ -156,16 +169,17 @@ class ProvisionVersion(GraphModel):
 
     @model_validator(mode="after")
     def validate_half_open_interval(self) -> "ProvisionVersion":
-        if self.valid_from is not None and self.valid_to is not None:
-            if self.valid_to <= self.valid_from:
-                raise ValueError("valid_to must be later than valid_from")
+        _validate_half_open_interval(self.valid_from, self.valid_to, "valid")
+        if self.status == VersionStatus.ACTIVE:
+            if self.verification_status != VerificationStatus.VERIFIED:
+                raise ValueError("ACTIVE provision version must be VERIFIED")
         return self
 
 
 class TargetSpan(GraphModel):
     uid: NonEmptyStr
     provision_version_uid: NonEmptyStr
-    selector_type: TargetScope
+    selector_type: TargetSelectorType
     raw_selector: NonEmptyStr
     old_text: str | None = None
     new_text: str | None = None
@@ -201,11 +215,13 @@ class ChangeEvent(GraphModel):
     source_instrument_uid: NonEmptyStr
     action: LegalAction
     target_scope: TargetScope
+    target_instrument_uids: tuple[NonEmptyStr, ...] = ()
     target_provision_uids: tuple[NonEmptyStr, ...] = ()
     target_span_uids: tuple[NonEmptyStr, ...] = ()
     effective_from: date | None = None
     effective_to: date | None = None
     effective_trigger: NonEmptyStr | None = None
+    effective_trigger_resolved: bool = False
     transition_end: date | None = None
     raw_effect_text: NonEmptyStr
     evidence_uids: tuple[NonEmptyStr, ...] = ()
@@ -216,11 +232,32 @@ class ChangeEvent(GraphModel):
 
     @model_validator(mode="after")
     def validate_legal_effect_contract(self) -> "ChangeEvent":
-        if not self.target_provision_uids and not self.target_span_uids:
+        targets = (
+            self.target_instrument_uids,
+            self.target_provision_uids,
+            self.target_span_uids,
+        )
+        if not any(targets):
             raise ValueError("change event requires at least one target")
-        if self.effective_from is not None and self.effective_to is not None:
-            if self.effective_to <= self.effective_from:
-                raise ValueError("effective_to must be later than effective_from")
+        if self.target_scope == TargetScope.INSTRUMENT:
+            if not self.target_instrument_uids or any(targets[1:]):
+                raise ValueError("INSTRUMENT scope requires only Instrument targets")
+        elif self.target_scope in _SPAN_REQUIRED_SCOPES:
+            if not self.target_span_uids or self.target_instrument_uids:
+                raise ValueError(
+                    f"{self.target_scope.value} scope requires a TargetSpan target"
+                )
+        elif self.target_instrument_uids:
+            raise ValueError(
+                f"{self.target_scope.value} scope cannot target an Instrument"
+            )
+
+        _validate_half_open_interval(self.effective_from, self.effective_to, "effective")
+        if self.effective_trigger_resolved:
+            if self.effective_trigger is None or self.effective_from is None:
+                raise ValueError(
+                    "resolved effective trigger requires trigger text and effective_from"
+                )
         if self.verification_status == VerificationStatus.VERIFIED:
             if not self.evidence_uids:
                 raise ValueError("verified change event requires evidence")
@@ -236,6 +273,7 @@ class ChangeEvent(GraphModel):
             self.verification_status == VerificationStatus.VERIFIED
             and bool(self.evidence_uids)
             and self.effective_from is not None
+            and (self.effective_trigger is None or self.effective_trigger_resolved)
         )
 
 
@@ -245,3 +283,27 @@ def _validate_offsets(char_start: int | None, char_end: int | None) -> None:
     if char_start is not None and char_end is not None and char_end <= char_start:
         raise ValueError("char_end must be later than char_start")
 
+
+def _validate_half_open_interval(
+    interval_start: date | None,
+    interval_end: date | None,
+    field_prefix: str,
+) -> None:
+    if interval_start is not None and interval_end is not None:
+        if interval_end <= interval_start:
+            raise ValueError(
+                f"{field_prefix}_to must be later than {field_prefix}_from"
+            )
+
+
+_SPAN_REQUIRED_SCOPES = frozenset(
+    {
+        TargetScope.TABLE_ROW,
+        TargetScope.TABLE_CELL,
+        TargetScope.PHRASE,
+        TargetScope.DATE,
+        TargetScope.AMOUNT,
+        TargetScope.RATE,
+        TargetScope.OTHER_FRAGMENT,
+    }
+)
