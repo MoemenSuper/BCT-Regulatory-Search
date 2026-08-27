@@ -192,6 +192,22 @@ def test_target_span_has_a_dedicated_sub_provision_selector_vocabulary():
     assert span.selector_type == TargetSelectorType.BULLET
 
 
+def test_paragraph_and_item_targets_can_be_provisions_or_nested_spans():
+    paragraph = _verified_event(
+        target_scope=TargetScope.PARAGRAPH,
+        target_provision_uids=(),
+        target_span_uids=("target:article-4:paragraph-2",),
+    )
+    item = _verified_event(
+        target_scope=TargetScope.ITEM,
+        target_provision_uids=(),
+        target_span_uids=("target:annex-1:item-a",),
+    )
+
+    assert paragraph.target_span_uids == ("target:article-4:paragraph-2",)
+    assert item.target_span_uids == ("target:annex-1:item-a",)
+
+
 def test_evidence_span_keeps_exact_page_and_extraction_provenance():
     evidence = EvidenceSpan(
         uid="evidence:cir-2016-03:p2:change-1",
