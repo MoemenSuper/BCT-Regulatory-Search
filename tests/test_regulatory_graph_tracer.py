@@ -229,10 +229,29 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
 )
 def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
     neo4j = pytest.importorskip("neo4j")
+    bundle = circular_2016_03_fr_bundle()
+    fixture_uids = [
+        item.uid
+        for collection in (
+            bundle.instruments,
+            bundle.source_editions,
+            bundle.pages,
+            bundle.provisions,
+            bundle.provision_versions,
+            bundle.target_spans,
+            bundle.evidence_spans,
+            bundle.change_events,
+        )
+        for item in collection
+    ]
     driver = neo4j.GraphDatabase.driver(DISPOSABLE_LIVE_URI, auth=None)
     try:
-        driver.execute_query("MATCH (node) DETACH DELETE node", database_="neo4j")
-        bundle = circular_2016_03_fr_bundle()
+        existing = driver.execute_query(
+            "MATCH (node) RETURN count(node) AS nodes",
+            database_="neo4j",
+        ).records[0]["nodes"]
+        if existing:
+            raise RuntimeError("disposable Neo4j test database must start empty")
         writer = Neo4jGraphWriter(driver)
         graph = Neo4jRegulatoryGraph(driver)
 
@@ -288,5 +307,9 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
                 for evidence in entries[0].evidence
             )
     finally:
-        driver.execute_query("MATCH (node) DETACH DELETE node", database_="neo4j")
+        driver.execute_query(
+            "MATCH (node) WHERE node.uid IN $fixture_uids DETACH DELETE node",
+            fixture_uids=fixture_uids,
+            database_="neo4j",
+        )
         driver.close()
