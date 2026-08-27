@@ -1,11 +1,29 @@
 from datetime import date
 import os
+from urllib.parse import urlsplit
 
 import pytest
 
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
 from regulatory_graph.models import VerificationStatus
 from regulatory_graph.neo4j_store import Neo4jGraphWriter, Neo4jRegulatoryGraph
+from regulatory_graph.source_verification import verify_bundle_source
+
+
+def _disposable_live_uri():
+    uri = os.environ.get("BCT_NEO4J_TEST_URI")
+    confirmed = os.environ.get("BCT_NEO4J_TEST_DISPOSABLE") == "YES"
+    if not uri or not confirmed:
+        return None
+    parsed = urlsplit(uri)
+    if parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise RuntimeError("disposable Neo4j test URI must use a loopback host")
+    if parsed.port in {None, 7687}:
+        raise RuntimeError("disposable Neo4j test URI must use an explicit non-default port")
+    return uri
+
+
+DISPOSABLE_LIVE_URI = _disposable_live_uri()
 
 
 class FakeDriver:
@@ -18,6 +36,21 @@ class FakeDriver:
         if self.responses:
             return self.responses.pop(0)
         return []
+
+
+def test_live_cleanup_guard_requires_explicit_local_disposable_target(monkeypatch):
+    monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://localhost:17687")
+    monkeypatch.delenv("BCT_NEO4J_TEST_DISPOSABLE", raising=False)
+    assert _disposable_live_uri() is None
+
+    monkeypatch.setenv("BCT_NEO4J_TEST_DISPOSABLE", "YES")
+    monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://database.example:17687")
+    with pytest.raises(RuntimeError, match="loopback"):
+        _disposable_live_uri()
+
+    monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://localhost:7687")
+    with pytest.raises(RuntimeError, match="non-default"):
+        _disposable_live_uri()
 
 
 def test_real_fixture_is_bound_to_the_frozen_pdf_and_three_changes():
@@ -41,6 +74,22 @@ def test_real_fixture_is_bound_to_the_frozen_pdf_and_three_changes():
     assert bundle.provision_versions[0].uid == (
         "version:bct:1991:24:article-4:2016-12-30"
     )
+
+
+@pytest.mark.skipif(
+    not os.environ.get("BCT_GRAPH_TRACER_SOURCE_PDF"),
+    reason="set BCT_GRAPH_TRACER_SOURCE_PDF to verify the frozen source PDF",
+)
+def test_real_fixture_quotes_and_versions_are_exact_source_text():
+    receipt = verify_bundle_source(
+        circular_2016_03_fr_bundle(),
+        os.environ["BCT_GRAPH_TRACER_SOURCE_PDF"],
+    )
+
+    assert receipt.source_sha256_verified is True
+    assert receipt.page_count_verified is True
+    assert receipt.exact_evidence_count == 4
+    assert receipt.exact_verified_version_count == 2
 
 
 def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
@@ -170,16 +219,17 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
     assert entries[0].predecessor_complete is False
     assert entries[0].evidence_pages == (2, 4)
     assert entries[0].source_filenames == ("Cir_2016_03_fr.pdf",)
+    assert entries[0].evidence[0].page_number == 2
+    assert entries[0].evidence[0].quote.startswith("Article 2")
 
 
 @pytest.mark.skipif(
-    not os.environ.get("BCT_NEO4J_TEST_URI"),
-    reason="set BCT_NEO4J_TEST_URI to run disposable Neo4j integration",
+    DISPOSABLE_LIVE_URI is None,
+    reason="set the disposable Neo4j URI and explicit disposable confirmation",
 )
 def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
     neo4j = pytest.importorskip("neo4j")
-    uri = os.environ["BCT_NEO4J_TEST_URI"]
-    driver = neo4j.GraphDatabase.driver(uri, auth=None)
+    driver = neo4j.GraphDatabase.driver(DISPOSABLE_LIVE_URI, auth=None)
     try:
         driver.execute_query("MATCH (node) DETACH DELETE node", database_="neo4j")
         bundle = circular_2016_03_fr_bundle()
@@ -218,6 +268,25 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
             assert entries[0].action.value == "REPLACE"
             assert entries[0].predecessor_complete is False
             assert entries[0].source_filenames == ("Cir_2016_03_fr.pdf",)
+            expected_event = next(
+                event
+                for event in bundle.change_events
+                if provision_uid in event.target_provision_uids
+            )
+            expected_evidence = {
+                evidence.uid: evidence
+                for evidence in bundle.evidence_spans
+                if evidence.uid in expected_event.evidence_uids
+            }
+            assert entries[0].evidence_uids == tuple(
+                evidence.uid for evidence in entries[0].evidence
+            )
+            assert set(entries[0].evidence_uids) == set(expected_event.evidence_uids)
+            assert all(
+                evidence.page_number == expected_evidence[evidence.uid].page_number
+                and evidence.quote == expected_evidence[evidence.uid].quote
+                for evidence in entries[0].evidence
+            )
     finally:
         driver.execute_query("MATCH (node) DETACH DELETE node", database_="neo4j")
         driver.close()

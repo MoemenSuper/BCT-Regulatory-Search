@@ -61,6 +61,14 @@ class TemporalResolution(BaseModel):
     reason: Literal["resolved", "no_verified_version"]
 
 
+class LineageEvidence(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    uid: str
+    filename: str
+    page_number: int
+    quote: str
+
+
 class LineageEntry(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     event_uid: str
@@ -69,11 +77,24 @@ class LineageEntry(BaseModel):
     effective_from: date | None
     introduced_version_uids: tuple[str, ...]
     retired_version_uids: tuple[str, ...]
-    evidence_uids: tuple[str, ...]
-    evidence_pages: tuple[int, ...]
-    evidence_quotes: tuple[str, ...]
-    source_filenames: tuple[str, ...]
+    evidence: tuple[LineageEvidence, ...]
     predecessor_complete: bool
+
+    @property
+    def evidence_uids(self) -> tuple[str, ...]:
+        return tuple(item.uid for item in self.evidence)
+
+    @property
+    def evidence_pages(self) -> tuple[int, ...]:
+        return tuple(sorted({item.page_number for item in self.evidence}))
+
+    @property
+    def evidence_quotes(self) -> tuple[str, ...]:
+        return tuple(item.quote for item in self.evidence)
+
+    @property
+    def source_filenames(self) -> tuple[str, ...]:
+        return tuple(sorted({item.filename for item in self.evidence}))
 
 
 class _BundleReferences:
@@ -267,10 +288,7 @@ class Neo4jRegulatoryGraph:
                         sorted(uid for uid in row["introduced_version_uids"] if uid)
                     ),
                     retired_version_uids=retired,
-                    evidence_uids=tuple(item["uid"] for item in evidence),
-                    evidence_pages=tuple(sorted({item["page_number"] for item in evidence})),
-                    evidence_quotes=tuple(item["quote"] for item in evidence),
-                    source_filenames=tuple(sorted({item["filename"] for item in evidence})),
+                    evidence=tuple(LineageEvidence(**item) for item in evidence),
                     predecessor_complete=(row["action"] != "REPLACE" or bool(retired)),
                 )
             )
