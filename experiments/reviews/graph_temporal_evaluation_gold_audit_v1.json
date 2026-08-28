@@ -1,0 +1,70 @@
+{
+  "audit_id": "graph-temporal-evaluation-gold-audit-v1",
+  "source_evaluation_sha256": "6DACE8538C9D5F47EFCA5E038DC4853B66A283803C1B0CF06A8B11DBD8DC99EB",
+  "selection": {
+    "requires_graph": true,
+    "evaluation_slice": "graph_temporal",
+    "case_count": 50,
+    "language_counts": {
+      "fr": 44,
+      "ar": 6
+    },
+    "evidence_snippet_count": 88,
+    "unique_source_page_count": 35,
+    "unique_pdf_count": 18
+  },
+  "automated_checks": {
+    "all_expected_source_filenames_resolve_uniquely": true,
+    "all_cases_relevant": true,
+    "primary_source_page_is_in_expected_sources": true,
+    "native_contiguous_token_coverage": {
+      "at_least_0_95": 74,
+      "at_least_0_80_below_0_95": 1,
+      "below_0_50": 13
+    }
+  },
+  "targeted_visual_checks": [
+    {
+      "source": "Cir_2022_06_ar.pdf",
+      "pages": [2, 3],
+      "finding": "Rendered Arabic text supports the 31 December 2022 financing-period endpoint and the 30 June 2023 application deadline; native extraction is corrupted."
+    },
+    {
+      "source": "Cir_2023_08_ar.pdf",
+      "pages": [2],
+      "finding": "Rendered Arabic text supports replacement of 31 December 2022 by 31 December 2024 and 30 June 2023 by 30 June 2025."
+    },
+    {
+      "source": "Cir_2018_07_fr.pdf",
+      "pages": [2, 3],
+      "finding": "Page 2 contains the preamble and Article 1. The old three-month activation rule and Article 3 one-person/one-office rule are on page 3."
+    },
+    {
+      "source": "Cir_2025_17_fr.pdf",
+      "pages": [4],
+      "finding": "Rendered page 4 supports the Article 58 replacement requiring immediate suspicious-transaction reporting via goAML."
+    }
+  ],
+  "corrections": [
+    {
+      "id": "graph_fr_2019_07_multi_office_02",
+      "source": "Cir_2018_07_fr.pdf",
+      "before_page": 2,
+      "after_page": 3,
+      "reason": "The old Article 3 rule is visibly on PDF page 3."
+    },
+    {
+      "id": "graph_fr_2019_07_start_deadline_03",
+      "source": "Cir_2018_07_fr.pdf",
+      "before_page": 2,
+      "after_page": 3,
+      "reason": "The old three-month activation rule is visibly on PDF page 3."
+    }
+  ],
+  "original_file_modified": false,
+  "adjudication": {
+    "primary_agent_pdf_review": true,
+    "independent_human_review": false
+  },
+  "conclusion": "Use the derived corrected 50-case slice for this benchmark. Preserve the supplied 807-record file unchanged."
+}

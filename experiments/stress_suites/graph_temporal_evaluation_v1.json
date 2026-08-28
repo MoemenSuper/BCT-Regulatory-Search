@@ -1,0 +1,2011 @@
+{
+  "status": "frozen_before_scoring",
+  "experiment_id": "graph-temporal-enriched-benchmark-v1",
+  "source_evaluation_sha256": "6DACE8538C9D5F47EFCA5E038DC4853B66A283803C1B0CF06A8B11DBD8DC99EB",
+  "selection": {
+    "requires_graph": true,
+    "evaluation_slice": "graph_temporal",
+    "runtime_fields_used": []
+  },
+  "corrections": [
+    {
+      "id": "graph_fr_2019_07_multi_office_02",
+      "source": "Cir_2018_07_fr.pdf",
+      "before_pages": [
+        2
+      ],
+      "after_pages": [
+        3
+      ],
+      "reason": "rule is visibly present on PDF page 3, not page 2",
+      "replacement_quote": "Article 3 : L’autorisation d’exercice de l’activité de change manuel par l’ouverture d’un bureau de change est personnelle et incessible. Une même personne physique ne peut bénéficier de plus d’une autorisation. Celle-ci habilite son titulaire à exercer l’activité de change manuel exclusivement dans le bureau de change qui y est indiqué. Elle ne permet, en aucun cas, l’exercice de ladite activité par plus d’un bureau de change."
+    },
+    {
+      "id": "graph_fr_2019_07_start_deadline_03",
+      "source": "Cir_2018_07_fr.pdf",
+      "before_pages": [
+        2
+      ],
+      "after_pages": [
+        3
+      ],
+      "reason": "rule is visibly present on PDF page 3, not page 2",
+      "replacement_quote": "La personne physique ayant obtenu l’autorisation doit, dans un délai ne dépassant pas trois mois à partir de la date de l’autorisation, procéder à l’exercice effectif de son activité et transmettre à la Banque Centrale de Tunisie, par tout moyen laissant trace écrite, dans un délai maximum de 3 jours ouvrables à compter de la date d’entrée en activité, une déclaration, établie selon le modèle objet de l’annexe n°3 à la présente circulaire."
+    }
+  ],
+  "case_count": 50,
+  "cases": [
+    {
+      "id": "graph_fr_2019_07_partial_replacement_01",
+      "query": "La circulaire de 2019 sur les bureaux de change a-t-elle remplacé toute la circulaire de 2018, ou seulement certaines parties ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            6
+          ]
+        }
+      ],
+      "expected_answer": "Elle n’a pas remplacé toute la circulaire 2018-07. Elle a abrogé et remplacé des dispositions précisément énumérées (dont certaines parties des articles 1, 2, 3, 6, 7, 8, 9, 10 et 11) et a remplacé l’annexe n°1.",
+      "evidence_quote": "i n°2016-35 du 25 avril 2016 portant\nfixation du statut de la Banque Centrale de Tunisie,\n\nDécide :\n\nArticle premier  : Les dispositions du sixième  tiret de  l’article premier, du\ntroisième alinéa de l’article 2, de l’article 3, des deuxième et quatrième alinéas de\nl’article 6, des articles 7 et 8, du deuxième alinéa de l’article 9, du premier alinéa\nde l’article 10 et de l’article 11 de la circulaire n°2018-07 du 30 juillet 2018\nsusvisée sont abrogées et remplacées comme suit :\n\n- « Article premier - sixième tiret (nouveau) :\n\n- un contrat de location ou un titre de propriété du local, un contrat de location\ngérance d’un fonds de commerce ou un contrat d’occupation d’un local sous le\nrégime temporaire du domaine public, destiné à l’exercice de l’activité de change\nmanuel ; le local réservé à l’exercice de l’activité du bureau de change doit être\napparent, identifiable par le public et implanté dans un site facilement accessible et\n\n\n                                         2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 2,
+          "quote": "i n°2016-35 du 25 avril 2016 portant\nfixation du statut de la Banque Centrale de Tunisie,\n\nDécide :\n\nArticle premier  : Les dispositions du sixième  tiret de  l’article premier, du\ntroisième alinéa de l’article 2, de l’article 3, des deuxième et quatrième alinéas de\nl’article 6, des articles 7 et 8, du deuxième alinéa de l’article 9, du premier alinéa\nde l’article 10 et de l’article 11 de la circulaire n°2018-07 du 30 juillet 2018\nsusvisée sont abrogées et remplacées comme suit :\n\n- « Article premier - sixième tiret (nouveau) :\n\n- un contrat de location ou un titre de propriété du local, un contrat de location\ngérance d’un fonds de commerce ou un contrat d’occupation d’un local sous le\nrégime temporaire du domaine public, destiné à l’exercice de l’activité de change\nmanuel ; le local réservé à l’exercice de l’activité du bureau de change doit être\napparent, identifiable par le public et implanté dans un site facilement accessible et\n\n\n                                         2"
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6,
+          "quote": "a Banque Centrale de Tunisie conformément au guide technique\ntéléchargeable gratuitement à travers le SED»\n\nArticle 2 : L’annexe n°1 à la circulaire n°2018-07 visée ci-dessus est remplacée\npar l’annexe jointe à la présente circulaire.\n\n\n                                  LE GOUVERNEUR\n\n\n                                       Marouane EL ABASSI\n\n\n                                         6"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_multi_office_02",
+      "query": "Une personne qui avait une autorisation de bureau de change sous le régime de 2018 peut-elle, après la modification de 2019, exploiter plusieurs bureaux avec la même activité ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Oui, mais chaque bureau doit faire l’objet d’une autorisation spécifique. La règle de 2018 limitait une même personne à une seule autorisation et un seul bureau; l’article 3 nouveau de 2019 permet plusieurs bureaux sous réserve d’une autorisation pour chacun.",
+      "evidence_quote": "Article 3 : L’autorisation d’exercice de l’activité de change manuel par l’ouverture d’un bureau de change est personnelle et incessible. Une même personne physique ne peut bénéficier de plus d’une autorisation. Celle-ci habilite son titulaire à exercer l’activité de change manuel exclusivement dans le bureau de change qui y est indiqué. Elle ne permet, en aucun cas, l’exercice de ladite activité par plus d’un bureau de change.",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 3,
+          "quote": "Article 3 : L’autorisation d’exercice de l’activité de change manuel par l’ouverture d’un bureau de change est personnelle et incessible. Une même personne physique ne peut bénéficier de plus d’une autorisation. Celle-ci habilite son titulaire à exercer l’activité de change manuel exclusivement dans le bureau de change qui y est indiqué. Elle ne permet, en aucun cas, l’exercice de ladite activité par plus d’un bureau de change."
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 3,
+          "quote": "isation d’exercice de l’activité de change manuel\npar l’ouverture d’un bureau de change est personnelle et incessible.\n\nL’activité de change manuel peut être exercée par une même personne physique\ndans un ou plusieurs bureaux de change, à condition d’obtenir une autorisation\nspécifique pour l’exercice de cette activité dans chaque bureau de change. Toute\nnouvelle demande d’autorisation présentée par une personne physique exerçant déjà\nl’activité de change manuel dans  le cadre d’un bureau de change,  doit  être\naccompagnée des pièces exigées par les quatrième et sixième tirets de l’article\npremier de la présente circulaire.\n\nLe transfert de l’activité d’un local à un autre est possible sous réserve d’obtenir, au\npréalable, l’autorisation de la Banque Centrale de Tunisie à ce titre ».\n\n - « Article 6 - deuxième alinéa (nouveau) : Toute opération d’achat de devises\ndoit donner lieu à l’établissement d’un bordereau de change, établi conformément au\nmodèle prévu par l’annexe n°4 à la présente circulaire et ce, dans tous les cas où un\ntel bordereau est exigé en application de la circulaire n°94-13 visée ci-dessus ».\n\n- « Article 6 - quatrième alinéa (nouveau) : Lorsqu’il est exigé, en application de\nl’arrêté du ministre des finances du 1er mars 2016 portant fixation des montants\nprévus par la loi n°2015-"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_start_deadline_03",
+      "query": "Après la modification de 2019, quel délai a le titulaire d’une autorisation de bureau de change pour commencer effectivement son activité, et ce délai peut-il être prolongé ?",
+      "language": "fr",
+      "category": "temporal_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Il dispose de trois mois à compter de la notification de l’autorisation. Ce délai peut être prorogé une seule fois pour la même durée, sur demande du titulaire; l’entrée en activité doit ensuite être déclarée à la BCT dans les trois jours ouvrables.",
+      "evidence_quote": "La personne physique ayant obtenu l’autorisation doit, dans un délai ne dépassant pas trois mois à partir de la date de l’autorisation, procéder à l’exercice effectif de son activité et transmettre à la Banque Centrale de Tunisie, par tout moyen laissant trace écrite, dans un délai maximum de 3 jours ouvrables à compter de la date d’entrée en activité, une déclaration, établie selon le modèle objet de l’annexe n°3 à la présente circulaire.",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 3,
+          "quote": "La personne physique ayant obtenu l’autorisation doit, dans un délai ne dépassant pas trois mois à partir de la date de l’autorisation, procéder à l’exercice effectif de son activité et transmettre à la Banque Centrale de Tunisie, par tout moyen laissant trace écrite, dans un délai maximum de 3 jours ouvrables à compter de la date d’entrée en activité, une déclaration, établie selon le modèle objet de l’annexe n°3 à la présente circulaire."
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 3,
+          "quote": "ons et des équipements susceptibles de présenter une source de\nrisques ».\n\n- « Article 2 - troisième alinéa (nouveau) : La personne physique ayant obtenu\nl’autorisation doit, dans un délai ne dépassant pas trois mois à partir de la date de la\nnotification de  l’autorisation, procéder à l’exercice  effectif de son  activité  et\ntransmettre à la Banque Centrale de Tunisie, par tout moyen laissant trace écrite,\ndans un délai maximum de 3 jours ouvrables à compter de la date d’entrée en\nactivité, une déclaration, établie selon le modèle objet de l’annexe n°3 à la présente\ncirculaire. Le délai de trois mois susvisé peut être prorogé une seule fois  pour la\nmême période, et ce, sur demande du titulaire de l’autorisation».\n\n- « Article 3 (nouveau) : L’autorisation d’exercice de l’activité de change manuel\npar l’ouverture d’un bureau de change est personnelle et incessible.\n\nL’activité de change manuel peut être exercée par une même personne physique\ndans un ou plusieurs bureaux de change, à condition d’obtenir une autorisation\nspécifique pour l’exercice de cette activité dans chaque bureau de change. Toute\nnouvelle demande d’autorisation présentée par une personne physique exerçant déjà\nl’activité de change manuel dans  le cadre d’un bureau de change,  doit  être\naccompagnée des pièces exigées par les quat"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_local_requirement_04",
+      "query": "Qu’est-ce que la modification de 2019 a changé dans les justificatifs et conditions liés au local d’un bureau de change ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Le texte nouveau accepte notamment un contrat de location, un titre de propriété, un contrat de location-gérance d’un fonds de commerce ou un contrat d’occupation sous le régime temporaire du domaine public; il exige aussi que le local soit apparent, identifiable, facilement accessible et éloigné de sources de risques.",
+      "evidence_quote": "n ;\n- une attestation de non faillite datant de moins de trois mois à la date du dépôt de la\ndemande d’autorisation ;\n- un contrat de location ou un titre de propriété du local destiné à l’exercice de l’activité\nde change manuel.\n\nArticle 2 : La Banque Centrale de Tunisie  notifie au requérant sa décision dans un\ndélai maximum de deux mois à compter de la date de la réception de la demande",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 2,
+          "quote": "n ;\n- une attestation de non faillite datant de moins de trois mois à la date du dépôt de la\ndemande d’autorisation ;\n- un contrat de location ou un titre de propriété du local destiné à l’exercice de l’activité\nde change manuel.\n\nArticle 2 : La Banque Centrale de Tunisie  notifie au requérant sa décision dans un\ndélai maximum de deux mois à compter de la date de la réception de la demande"
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 2,
+          "quote": "u 30 juillet 2018\nsusvisée sont abrogées et remplacées comme suit :\n\n- « Article premier - sixième tiret (nouveau) :\n\n- un contrat de location ou un titre de propriété du local, un contrat de location\ngérance d’un fonds de commerce ou un contrat d’occupation d’un local sous le\nrégime temporaire du domaine public, destiné à l’exercice de l’activité de change\nmanuel ; le local réservé à l’exercice de l’activité du bureau de change doit être\napparent, identifiable par le public et implanté dans un site facilement accessible et\n\n\n                                         2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_cash_ceiling_per_office_05",
+      "query": "Si un même titulaire exploite plusieurs bureaux de change après 2019, le plafond d’encaisse de 200 000 dinars s’applique-t-il globalement ou à chaque bureau ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Après la modification de 2019, le plafond de contre-valeur de 200 000 dinars s’applique à chaque bureau de change.",
+      "evidence_quote": "ers que dans la limite du besoin de son activité. Cette encaisse ne peut dans tous les cas dépasser la contre-valeur de deux cents mille dinars (200.000 dinars) toutes devises confondues. Tout montant venant en dépassement du plafond indiqué au paragraphe premier du présent article doit être versé, au plus tard le premier jour ouvré dans les banques qui suit la date de son enregistrement, dans le « compte bureau de change » visé à l’article suivant. Article 9 : Les Intermédiaires Agréés sont habilités à ouvrir aux noms des personnes physiques autorisées à exercer l’activité de change manuel par l’ouverture de bureaux de change, des « comptes bureau de change » en devises convertibles. La personne physique autorisée à exercer l’activité de change manuel par le biais d’un bureau de change ne peut se faire ouvrir qu’un seul « compte bureau de change » par devise et ne peut se faire ouvrir des « comptes bureau de change » qu’auprès d’un intermédiaire agréé unique. Pour l’ouverture d’un «compte bureau de change», l’intermédiaire agréé doit exiger une déclaration sur l’honneur par laquelle la personne physique concernée déclare qu’elle ne dispose d’aucun « compte bureau de change » ouvert auprès d’un autre intermédiaire agréé. Article 10 : Le «compte bureau de change» est crédité librement par le versemen",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 5,
+          "quote": "ers que dans la limite du besoin de son activité. Cette encaisse ne peut dans tous les cas dépasser la contre-valeur de deux cents mille dinars (200.000 dinars) toutes devises confondues. Tout montant venant en dépassement du plafond indiqué au paragraphe premier du présent article doit être versé, au plus tard le premier jour ouvré dans les banques qui suit la date de son enregistrement, dans le « compte bureau de change » visé à l’article suivant. Article 9 : Les Intermédiaires Agréés sont habilités à ouvrir aux noms des personnes physiques autorisées à exercer l’activité de change manuel par l’ouverture de bureaux de change, des « comptes bureau de change » en devises convertibles. La personne physique autorisée à exercer l’activité de change manuel par le biais d’un bureau de change ne peut se faire ouvrir qu’un seul « compte bureau de change » par devise et ne peut se faire ouvrir des « comptes bureau de change » qu’auprès d’un intermédiaire agréé unique. Pour l’ouverture d’un «compte bureau de change», l’intermédiaire agréé doit exiger une déclaration sur l’honneur par laquelle la personne physique concernée déclare qu’elle ne dispose d’aucun « compte bureau de change » ouvert auprès d’un autre intermédiaire agréé. Article 10 : Le «compte bureau de change» est crédité librement par le versemen"
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5,
+          "quote": "ts de banque étrangers que\ndans la limite du besoin de son activité. Cette encaisse ne peut dans tous les cas\ndépasser, par bureau, la contre-valeur de deux cents mille dinars (200.000 dinars)\ntoutes devises confondues.\n\nTout montant venant en dépassement du plafond indiqué au paragraphe premier du\nprésent article doit être cédé contre dinar ou versé dans le «compte bureau de\nchange» visé à l’article 9 de la présente circulaire, et ce, au plus tard le premier jour\nouvré dans les banques qui suit la date de son enregistrement.\n\nLa détermination du montant en dinar de l’encaisse en billets de banque étrangers\nvisé à l’alinéa premier du présent article a lieu sur la base du cours de la dernière\ntransaction appliqué par le bureau de change à l’achat ou à la vente ».\n\n- « Article 9 - deuxième alinéa (nouveau) : La personne physique autorisée à\nexercer l’activité de change manuel par le biais d’un ou plusieurs bureaux de change\nne peut se faire ouvrir qu’un seul «compte bureau de change» par devise et ne peut\nse faire ouvrir des «comptes bureau de change» qu’auprès d’un intermédiaire agréé\nunique ».\n\n- « Article 10 – premier alinéa (nouveau) : Le «compte bureau de change» est\ncrédité librement par le versement des billets de banques étrangers achetés par le ou\nles bureaux de change de la même personne phy"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_reporting_multiple_offices_06",
+      "query": "Un même changeur exploite plusieurs bureaux. Comment la déclaration mensuelle au SED doit-elle être faite après la réforme de 2019 ?",
+      "language": "fr",
+      "category": "reporting_lineage",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 6,
+      "expected_sources": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            6
+          ]
+        }
+      ],
+      "expected_answer": "Les enregistrements des opérations et des encaisses doivent être transmis mensuellement au plus tard le 10 du mois suivant, séparément pour chaque bureau.",
+      "evidence_quote": "ts par les sommes logées dans ces comptes, calculés dans les\nconditions prévues par la réglementation en vigueur».\n\n- « Article 11 (nouveau) : La personne physique autorisée à exercer l’activité de\nchange manuel doit transmettre à la Banque Centrale de Tunisie via le Système\nd’Echange  des Données (SED), au  plus  tard  le 10 du mois  qui  suit,  les\nenregistrements relatifs aux opérations d’achat et de vente de devises effectuées par\nson bureau durant le mois ainsi qu’aux montants des encaisses en devises arrêtées au\ndernier jour du mois.\n\n                                         5",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5,
+          "quote": "ts par les sommes logées dans ces comptes, calculés dans les\nconditions prévues par la réglementation en vigueur».\n\n- « Article 11 (nouveau) : La personne physique autorisée à exercer l’activité de\nchange manuel doit transmettre à la Banque Centrale de Tunisie via le Système\nd’Echange  des Données (SED), au  plus  tard  le 10 du mois  qui  suit,  les\nenregistrements relatifs aux opérations d’achat et de vente de devises effectuées par\nson bureau durant le mois ainsi qu’aux montants des encaisses en devises arrêtées au\ndernier jour du mois.\n\n                                         5"
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6,
+          "quote": "nte circulaire, les enregistrements visés au paragraphe précédent doivent être transmis à la Banque Centrale de Tunisie pour chaque bureau séparément. Les Intermédiaires Agréés sont tenus d’adresser mensuellement à la Banque Centrale de Tunisie via le SED au plus tard le 10 du mois qui suit, les enregistrements relatifs aux extraits des comptes des bureaux de change ouverts sur leurs livres durant le mois. Les déclarations des enregistrements visés aux paragraphes précédents doivent être effectuées à la Banque Centrale de Tunisie conformément au guide technique téléchargeable gratuitement à travers le SED» Article 2 : L’annexe n°1 à la circulaire n°2018-07 visée ci-dessus est remplacée par l’annexe jointe à la présente circulaire. LE GOUVERNEUR Marouane EL ABASSI 6"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2019_07_annex_scope_07",
+      "query": "La modification de 2019 a-t-elle remplacé toutes les annexes de la circulaire 2018-07 ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2019_07_fr.pdf",
+      "expected_page": 6,
+      "expected_sources": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "pages": [
+            6
+          ]
+        }
+      ],
+      "expected_answer": "Non. Le texte de 2019 remplace expressément l’annexe n°1; il ne déclare pas le remplacement de toutes les annexes.",
+      "evidence_quote": "a Banque Centrale de Tunisie conformément au guide technique\ntéléchargeable gratuitement à travers le SED»\n\nArticle 2 : L’annexe n°1 à la circulaire n°2018-07 visée ci-dessus est remplacée\npar l’annexe jointe à la présente circulaire.\n\n\n                                  LE GOUVERNEUR\n\n\n                                       Marouane EL ABASSI\n\n\n                                         6",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6,
+          "quote": "a Banque Centrale de Tunisie conformément au guide technique\ntéléchargeable gratuitement à travers le SED»\n\nArticle 2 : L’annexe n°1 à la circulaire n°2018-07 visée ci-dessus est remplacée\npar l’annexe jointe à la présente circulaire.\n\n\n                                  LE GOUVERNEUR\n\n\n                                       Marouane EL ABASSI\n\n\n                                         6"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_selective_amendment_08",
+      "query": "La circulaire de 2020 sur les voyages d’affaires a-t-elle annulé toute la circulaire 2016-08 ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 1,
+      "expected_sources": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            1
+          ]
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            7
+          ]
+        }
+      ],
+      "expected_answer": "Non. Elle remplace une liste précise d’articles et d’alinéas, ajoute une section 2 bis, remplace les annexes 2 à 5 et abroge séparément les articles 23 et 25 ainsi que les annexes 6 et 7.",
+      "evidence_quote": "ues ;\n\nVu l’avis n° 03 du comité de contrôle et de la conformité en date du 27 janvier\n2020,\n\nDécide :\n\nArticle premier-Les dispositions des articles 2, 3 et 4, du premier alinéa de\nl’article 5, du premier tiret de l’article 5, des articles 8, 9 et 10, du deuxième\nalinéa de l’article 11, des articles 13,15 et 17, du deuxième alinéa de l’article 19\n\n                                     1",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 1,
+          "quote": "ues ;\n\nVu l’avis n° 03 du comité de contrôle et de la conformité en date du 27 janvier\n2020,\n\nDécide :\n\nArticle premier-Les dispositions des articles 2, 3 et 4, du premier alinéa de\nl’article 5, du premier tiret de l’article 5, des articles 8, 9 et 10, du deuxième\nalinéa de l’article 11, des articles 13,15 et 17, du deuxième alinéa de l’article 19\n\n                                     1"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 5,
+          "quote": "a disposition des intermédiaires agréés\net téléchargeable à travers le Système d’Echange des Données (SED)».\n\nArticle 2-Il est ajouté à la circulaire n°2016-08 du 30 décembre 2016 relative\naux allocations pour voyages d’affaires, une  section 2 bis intitulée allocations\npour voyages d’affaires « Marches Réalisables à l’Etranger», comportant les\narticles 12 bis, 12 ter, 12 quater et 12 quinto comme suit:\n\n\n                                     5"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7,
+          "quote": "Article 3 : Les annexes numéros 2, 3, 4 et 5 à la circulaire aux intermédiaires\nagréés n°2016-08 du 30 décembre 2016 du 30 décembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_new_category_09",
+      "query": "En 2016, les allocations de voyages d’affaires étaient divisées entre « exportateurs » et « autres activités ». Quelle nouvelle catégorie la modification de 2020 a-t-elle ajoutée ?",
+      "language": "fr",
+      "category": "added_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Elle a ajouté l’allocation pour voyages d’affaires « Marchés Réalisables à l’Etranger », en plus des catégories « Exportateurs » et « Autres Activités ».",
+      "evidence_quote": "s pour voyages d’affaires consistent en des droits à transfert en dinars fixés conformément à la présente circulaire et comprennent l’allocation pour voyages d’affaires « exportateurs» et l’allocation pour voyages d’affaires « autres activités ». Ces allocations sont destinées à couvrir exclusivement les frais de séjour (frais d’hôtel, de restauration et de déplacement à l’intérieur du pays de destination) engagés par les dites personnes à l’étranger au titre des voyages d’affaires liés à leurs activités professionnelles et elles ne peuvent en aucun cas être affectées à la couverture de dépenses autres que les frais de séjour. SECTION 1 : ALLOCATION POUR VOYAGES D’AFFAIRES « EXPORTATEURS » Article 3 : les personnes physiques et morales résidentes au sens de la réglementation des changes en vigueur réalisant des exportations de biens ou de services, peuvent ouvrir librement auprès des intermédiaires agréés des dossiers d’allocations pour voyages d’affaires« exportateurs». Article 4 : Le montant de l’Allocation pour Voyages d’Affaires «exportateurs» est fixé à vingt-cinq pour cent (25%) des recettes d’exportation de biens ou de services rapatriées, provenant de l’activité au titre de laquelle le dossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars (500.000 D) par année civi",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 2,
+          "quote": "s pour voyages d’affaires consistent en des droits à transfert en dinars fixés conformément à la présente circulaire et comprennent l’allocation pour voyages d’affaires « exportateurs» et l’allocation pour voyages d’affaires « autres activités ». Ces allocations sont destinées à couvrir exclusivement les frais de séjour (frais d’hôtel, de restauration et de déplacement à l’intérieur du pays de destination) engagés par les dites personnes à l’étranger au titre des voyages d’affaires liés à leurs activités professionnelles et elles ne peuvent en aucun cas être affectées à la couverture de dépenses autres que les frais de séjour. SECTION 1 : ALLOCATION POUR VOYAGES D’AFFAIRES « EXPORTATEURS » Article 3 : les personnes physiques et morales résidentes au sens de la réglementation des changes en vigueur réalisant des exportations de biens ou de services, peuvent ouvrir librement auprès des intermédiaires agréés des dossiers d’allocations pour voyages d’affaires« exportateurs». Article 4 : Le montant de l’Allocation pour Voyages d’Affaires «exportateurs» est fixé à vingt-cinq pour cent (25%) des recettes d’exportation de biens ou de services rapatriées, provenant de l’activité au titre de laquelle le dossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars (500.000 D) par année civi"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2,
+          "quote": "r voyages d’affaires consistent en des\ndroits à  transfert en dinars  fixés conformément à  la présente  circulaire  et\ncomprennent l’allocation pour voyages d’affaires «Exportateurs », l’allocation\npour voyages d’affaires « Marchés Réalisables à l’Etranger » et l’allocation pour\nvoyages d’affaires « Autres Activités ».\n\nCes allocations sont destinées à couvrir les frais de séjour engagés au titre des\nvoyages d’affaires liés à leurs activités professionnelles et elles ne peuvent en\naucun cas être affectées à la couverture de dépenses autres que les frais de\nséjour ».\n\n« Article 3 (nouveau) - Les personnes physiques et morales résidentes réalisant\ndes  exportations  de  biens  ou  de  services,  peuvent  ouvrir  auprès  des\nintermédiaires  agréés  des  dossiers  d’allocations  pour  voyages  d’affaires\n« Exportateurs ».\n\n« Article 4 (nouveau)-Le montant de l’allocation pour voyages  d’affaires\n«Exportateurs » est fixé à vingt-cinq pour cent (25%) des recettes d’exportation\nde biens ou de services rapatriées, provenant de l’activité au titre de laquelle le\ndossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars\n(500.000 D) par année civile.\n\nL’inscription du droit à transfert au titre de l’allocation pour voyage d’affaires\n«Exportateurs » intervient lors de l’encaissement du p"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_exporter_cap_unchanged_10",
+      "query": "Le remplacement de l’article 4 en 2020 a-t-il changé le taux et le plafond annuel de l’allocation de voyages d’affaires des exportateurs ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Non. Le texte de 2016 et l’article 4 nouveau de 2020 fixent tous deux l’allocation à 25 % des recettes d’exportation rapatriées, avec un plafond de 500 000 dinars par année civile.",
+      "evidence_quote": "ffaires« exportateurs».\n\n      Article 4 : Le montant de l’Allocation pour Voyages d’Affaires «exportateurs»\nest fixé à vingt-cinq pour cent (25%) des recettes d’exportation de biens ou de\nservices  rapatriées, provenant de  l’activité au  titre de  laquelle  le  dossier de\nl’allocation est ouvert avec un plafond égal à cinq cent mille dinars (500.000 D) par\nannée civile.\n\n     Lorsque l’exportation consiste en la réalisation à l’étranger d’un marché de\ntravaux, d’études, de suivi, de contrôle et autres services, conclu par le titulaire du\nmarché avec un maître d’ouvrages établi hors de Tunisie, l’allocation peut être\nalimentée d’avance sur la base de la partie du prix du marché payable en devises\nconvertibles telle qu’elle ressorte du contrat du marché dûment conclu et enregistré et\ndans la limite du pourcentage et du plafond visés à l’alinéa premier du présent article.\n\n      L’inscription du droit à transfert au  titre de l’allocation intervient lors de\nl’encaissement du produit de l’exportation ou de la présentation à l’intermédiaire\nagréé d’une copie du contrat du marché réalisé à l’étranger et ce, au plus tard dans un\ndélai de trois mois à partir de la date d’encaissement ou de la date de conclusion du\ncontrat du marché.\n\n      Article 5 : Sous réserve des disposition de l’alinéa 2 de l’articl",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 2,
+          "quote": "ffaires« exportateurs».\n\n      Article 4 : Le montant de l’Allocation pour Voyages d’Affaires «exportateurs»\nest fixé à vingt-cinq pour cent (25%) des recettes d’exportation de biens ou de\nservices  rapatriées, provenant de  l’activité au  titre de  laquelle  le  dossier de\nl’allocation est ouvert avec un plafond égal à cinq cent mille dinars (500.000 D) par\nannée civile.\n\n     Lorsque l’exportation consiste en la réalisation à l’étranger d’un marché de\ntravaux, d’études, de suivi, de contrôle et autres services, conclu par le titulaire du\nmarché avec un maître d’ouvrages établi hors de Tunisie, l’allocation peut être\nalimentée d’avance sur la base de la partie du prix du marché payable en devises\nconvertibles telle qu’elle ressorte du contrat du marché dûment conclu et enregistré et\ndans la limite du pourcentage et du plafond visés à l’alinéa premier du présent article.\n\n      L’inscription du droit à transfert au  titre de l’allocation intervient lors de\nl’encaissement du produit de l’exportation ou de la présentation à l’intermédiaire\nagréé d’une copie du contrat du marché réalisé à l’étranger et ce, au plus tard dans un\ndélai de trois mois à partir de la date d’encaissement ou de la date de conclusion du\ncontrat du marché.\n\n      Article 5 : Sous réserve des disposition de l’alinéa 2 de l’articl"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2,
+          "quote": "« Exportateurs ».\n\n« Article 4 (nouveau)-Le montant de l’allocation pour voyages  d’affaires\n«Exportateurs » est fixé à vingt-cinq pour cent (25%) des recettes d’exportation\nde biens ou de services rapatriées, provenant de l’activité au titre de laquelle le\ndossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars\n(500.000 D) par année civile.\n\nL’inscription du droit à transfert au titre de l’allocation pour voyage d’affaires\n«Exportateurs » intervient lors de l’encaissement du produit de l’exportation et ce,\nau plus tard dans un délai de trois mois à partir de la date d’encaissement ».\n\n« Article 5 premier alinéa (nouveau)-Les recettes d’exportation servant comme\nbase de calcul de l’allocation pour voyages d’affaires «Exportateurs» doivent être\nappuyées des factures définitives établies conformément à la réglementation en\nvigueur ainsi que des justificatifs du règlement correspondant et sont constituées\ndes : ».\n\n« Article 5 premier tiret (nouveau)- recettes d’exportation en devises ou en\ndinar convertibles provenant de non-résidents. Ces recettes englobent les revenus\ndes hôteliers provenant de leurs clients non-résidents, y compris ceux encaissés\npar cartes de paiement internationales ».\n\n                                     2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_annex_replacement_11",
+      "query": "Quelles annexes de la circulaire 2016-08 ont été remplacées par la circulaire de 2020 ?",
+      "language": "fr",
+      "category": "annex_lineage",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 7,
+      "expected_sources": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            7
+          ]
+        }
+      ],
+      "expected_answer": "Les annexes n°2, n°3, n°4 et n°5 ont été remplacées par les annexes jointes à la circulaire de 2020.",
+      "evidence_quote": "Article 3 : Les annexes numéros 2, 3, 4 et 5 à la circulaire aux intermédiaires\nagréés n°2016-08 du 30 décembre 2016 du 30 décembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7,
+          "quote": "Article 3 : Les annexes numéros 2, 3, 4 et 5 à la circulaire aux intermédiaires\nagréés n°2016-08 du 30 décembre 2016 du 30 décembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_abrogations_12",
+      "query": "Quelles parties de la circulaire 2016-08 ont été purement abrogées en 2020, sans être annoncées comme remplacées ?",
+      "language": "fr",
+      "category": "abrogation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 7,
+      "expected_sources": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            7
+          ]
+        }
+      ],
+      "expected_answer": "Les articles 23 et 25 ainsi que les annexes n°6 et n°7 ont été abrogés.",
+      "evidence_quote": "écembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7,
+          "quote": "écembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_transitional_article_25_13",
+      "query": "Les dispositions transitoires de l’article 25 de la circulaire 2016-08 doivent-elles encore être traitées comme actives après l’entrée en vigueur de la circulaire de 2020 ?",
+      "language": "fr",
+      "category": "temporal_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 7,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "pages": [
+            7
+          ]
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            7
+          ]
+        }
+      ],
+      "expected_answer": "Non. L’article 25 de 2016-08 est expressément abrogé par la circulaire 2020-03, qui entre en vigueur à compter de sa publication.",
+      "evidence_quote": "t celui\nauquel se rapportent les extraits des décomptes.\n\n      SECTION 5 : DISPOSITIONS FINALES ET TRANSITOIRES\n\n      Article 25 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire et notamment la circulaire n° 2001-08 du 2 mars\n2001 relative aux allocations pour voyages d’affaires.\n\n      Toutefois,  les  allocations pour voyages  d’affaires « autres  activités »  et\n« importateurs » ouvertes avant la date d’entrée en vigueur de la présente circulaire\ncontinuent à fonctionner conformément aux dispositions de la circulaire n° 2001-08\njusqu’au 20 janvier 2017 et doivent être clôturées au plus tard à cette date.\n\n     Les montants transférés jusqu’au 20 janvier 2017 au titre de  l’allocation pour\nvoyages d’affaires « autres activités » ou « importateurs » doivent être déduits des\ndroits à transfert relatifs à une allocation pour voyages d’affaires ouverte au profit du\nmême bénéficiaire en vertu de la présente circulaire. A cet effet, l’intermédiaire agréé\ndoit, à l’ouverture d’une  allocation pour voyages  d’affaires « autres  activités »\nconformément aux dispositions de la présente circulaire, exiger que son client lui\nprésente :\n\n     -  une attestation émanant de l’intermédiaire agréé auprès duquel l’allocation\n      pour voyages d’affaires « autres",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 7,
+          "quote": "t celui\nauquel se rapportent les extraits des décomptes.\n\n      SECTION 5 : DISPOSITIONS FINALES ET TRANSITOIRES\n\n      Article 25 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire et notamment la circulaire n° 2001-08 du 2 mars\n2001 relative aux allocations pour voyages d’affaires.\n\n      Toutefois,  les  allocations pour voyages  d’affaires « autres  activités »  et\n« importateurs » ouvertes avant la date d’entrée en vigueur de la présente circulaire\ncontinuent à fonctionner conformément aux dispositions de la circulaire n° 2001-08\njusqu’au 20 janvier 2017 et doivent être clôturées au plus tard à cette date.\n\n     Les montants transférés jusqu’au 20 janvier 2017 au titre de  l’allocation pour\nvoyages d’affaires « autres activités » ou « importateurs » doivent être déduits des\ndroits à transfert relatifs à une allocation pour voyages d’affaires ouverte au profit du\nmême bénéficiaire en vertu de la présente circulaire. A cet effet, l’intermédiaire agréé\ndoit, à l’ouverture d’une  allocation pour voyages  d’affaires « autres  activités »\nconformément aux dispositions de la présente circulaire, exiger que son client lui\nprésente :\n\n     -  une attestation émanant de l’intermédiaire agréé auprès duquel l’allocation\n      pour voyages d’affaires « autres"
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7,
+          "quote": "écembre 2016 relative aux\nallocations pour voyages d’affaires, sont remplacées par les annexes ci-jointes.\n\nArticle 4 : Sont abrogés les dispositions des articles 23 et 25 de la circulaire aux\nintermédiaires agréés n°2016-08 du 30 décembre 2016 relative aux allocations\npour voyages d’affaires ainsi que ses annexes numéros 6 et 7.\n\nArticle 5 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                                         Le Gouverneur\n\n\n                                       Marouane EL ABASSI\n\n\n                                     7"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_categories_after_amendment_14",
+      "query": "Après l’entrée en vigueur de la modification de 2020, quelles sont les trois catégories d’allocations pour voyages d’affaires prévues par l’article 2 ?",
+      "language": "fr",
+      "category": "current_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Les trois catégories sont « Exportateurs », « Marchés Réalisables à l’Etranger » et « Autres Activités ».",
+      "evidence_quote": "r voyages d’affaires consistent en des\ndroits à  transfert en dinars  fixés conformément à  la présente  circulaire  et\ncomprennent l’allocation pour voyages d’affaires «Exportateurs », l’allocation\npour voyages d’affaires « Marchés Réalisables à l’Etranger » et l’allocation pour\nvoyages d’affaires « Autres Activités ».\n\nCes allocations sont destinées à couvrir les frais de séjour engagés au titre des\nvoyages d’affaires liés à leurs activités professionnelles et elles ne peuvent en\naucun cas être affectées à la couverture de dépenses autres que les frais de\nséjour ».\n\n« Article 3 (nouveau) - Les personnes physiques et morales résidentes réalisant\ndes  exportations  de  biens  ou  de  services,  peuvent  ouvrir  auprès  des\nintermédiaires  agréés  des  dossiers  d’allocations  pour  voyages  d’affaires\n« Exportateurs ».\n\n« Article 4 (nouveau)-Le montant de l’allocation pour voyages  d’affaires\n«Exportateurs » est fixé à vingt-cinq pour cent (25%) des recettes d’exportation\nde biens ou de services rapatriées, provenant de l’activité au titre de laquelle le\ndossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars\n(500.000 D) par année civile.\n\nL’inscription du droit à transfert au titre de l’allocation pour voyage d’affaires\n«Exportateurs » intervient lors de l’encaissement du p",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2,
+          "quote": "r voyages d’affaires consistent en des\ndroits à  transfert en dinars  fixés conformément à  la présente  circulaire  et\ncomprennent l’allocation pour voyages d’affaires «Exportateurs », l’allocation\npour voyages d’affaires « Marchés Réalisables à l’Etranger » et l’allocation pour\nvoyages d’affaires « Autres Activités ».\n\nCes allocations sont destinées à couvrir les frais de séjour engagés au titre des\nvoyages d’affaires liés à leurs activités professionnelles et elles ne peuvent en\naucun cas être affectées à la couverture de dépenses autres que les frais de\nséjour ».\n\n« Article 3 (nouveau) - Les personnes physiques et morales résidentes réalisant\ndes  exportations  de  biens  ou  de  services,  peuvent  ouvrir  auprès  des\nintermédiaires  agréés  des  dossiers  d’allocations  pour  voyages  d’affaires\n« Exportateurs ».\n\n« Article 4 (nouveau)-Le montant de l’allocation pour voyages  d’affaires\n«Exportateurs » est fixé à vingt-cinq pour cent (25%) des recettes d’exportation\nde biens ou de services rapatriées, provenant de l’activité au titre de laquelle le\ndossier de l’allocation est ouvert avec un plafond égal à cinq cent mille dinars\n(500.000 D) par année civile.\n\nL’inscription du droit à transfert au titre de l’allocation pour voyage d’affaires\n«Exportateurs » intervient lors de l’encaissement du p"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2020_03_section_2bis_15",
+      "query": "Comment la circulaire 2020-03 a-t-elle intégré les marchés réalisables à l’étranger dans la structure de la circulaire 2016-08 ?",
+      "language": "fr",
+      "category": "added_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2020_03_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Elle a ajouté une section 2 bis intitulée « allocations pour voyages d’affaires Marchés Réalisables à l’Etranger », comprenant les articles 12 bis, 12 ter, 12 quater et 12 quinto.",
+      "evidence_quote": "Article 2-Il est ajouté à la circulaire n°2016-08 du 30 décembre 2016 relative aux allocations pour voyages d’affaires, une section 2 bis intitulée allocations pour voyages d’affaires « Marches Réalisables à l’Etranger», comportant les articles 12 bis, 12 ter, 12 quater et 12 quinto comme suit: 5",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 5,
+          "quote": "Article 2-Il est ajouté à la circulaire n°2016-08 du 30 décembre 2016 relative aux allocations pour voyages d’affaires, une section 2 bis intitulée allocations pour voyages d’affaires « Marches Réalisables à l’Etranger», comportant les articles 12 bis, 12 ter, 12 quater et 12 quinto comme suit: 5"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_ar_2023_08_financing_period_extension_16",
+      "query": "ما التغيير الذي أدخله منشور 2023-08 على آخر تاريخ للتمويلات التي يمكن أن يشملها امتياز تكفل الدولة لفائدة المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "temporal_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "تم تعويض تاريخ 31 ديسمبر 2022 الوارد في الفصل 2 من منشور 2022-06 بتاريخ 31 ديسمبر 2024.",
+      "evidence_quote": "ق في الفائدة نسبة ومعدل االستثمار\n\nمؤسسات ال لفائدة المسندة والتمويالت قروضال بعنوان وذلك المالية والمؤسسات\n\nديسمبر 31و 2019 جانفي غرة بين المتراوحة الفترة خالل والمتوسطة الصغرى\n\n                                         . % 3,5 الموظف الهامش تعدىي أال على 2022\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2,
+          "quote": "ق في الفائدة نسبة ومعدل االستثمار\n\nمؤسسات ال لفائدة المسندة والتمويالت قروضال بعنوان وذلك المالية والمؤسسات\n\nديسمبر 31و 2019 جانفي غرة بين المتراوحة الفترة خالل والمتوسطة الصغرى\n\n                                         . % 3,5 الموظف الهامش تعدىي أال على 2022\n\n\n                                        2"
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2,
+          "quote": "ثانية فقرته\n\n                                                                :يلي ما قرر\n\nالمنشور من 2 بالفصل الواردة \" 2022 ديسمبر 31 \" عبارة تعوض - األول الفصل\n\n31 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك إلى\n\n                                                                               . \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_ar_2023_08_application_deadline_extension_17",
+      "query": "كيف تغير آخر أجل لإيداع مطلب الانتفاع بالامتياز بعد منشور 2023-08؟",
+      "language": "ar",
+      "category": "temporal_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "تم تعويض أجل 30 جوان 2023 الوارد في الفصل 5 من منشور 2022-06 بأجل 30 جوان 2025.",
+      "evidence_quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3,
+          "quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3"
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2,
+          "quote": ". \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_ar_2022_06_asof_2023_06_18",
+      "query": "بتاريخ 1 جوان 2023، وقبل صدور التمديد اللاحق، ما آخر أجل المنصوص عليه لإيداع مطلب الانتفاع بامتياز المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "historical_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2022_06_ar.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "في ذلك التاريخ كان الأجل المنصوص عليه هو 30 جوان 2023.",
+      "evidence_quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3,
+          "quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer",
+      "as_of_date": "2023-06-01"
+    },
+    {
+      "id": "graph_ar_2023_08_asof_2024_06_19",
+      "query": "بتاريخ 1 جوان 2024، ما آخر أجل المعمول به لإيداع مطلب الانتفاع بامتياز تكفل الدولة لفائدة المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "historical_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "بعد تعديل 2023-08 أصبح آخر أجل هو 30 جوان 2025.",
+      "evidence_quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3,
+          "quote": "ات النفعية والعربات والمعدات التجهيزات لتمويل\n\n       .المنشور هذا من 3 بالفصل عليها المنصوص والمتوسطة الصغرى المؤسسات\n\nجوان 30 تاريخ غاية وإلى ، الممولة المالية المؤسسة أو البنك يتولى : 5 الفصل\n\nمن )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب يداع إ ، 2023\n\nلدى ، أعاله أليه المشار 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد القانون\n\nبالصناعة المكلفة بالوزارة لمتوسطة او الصغرى بالمؤسسات للنهوض العامة اإلدارة\n\n                                . االستثمار تمويل أو قرض إسناد على الموافقة بعد وذلك\n\nالقانون من )جديد ( 21 بالفصل عليه المنصوص باالمتياز االنتفاع مطلب ويرفق\n\n            :التالية بالوثائق وجوبا 2019 ماي 29 في المؤرخ 2019 لسنة 47 عدد\n\n  ،يداعالمعنية الهياكل لدى باالستثمار التصريح        إ شهادة  -\n\nونسب  المال رأس  تركيبة على التنصيص مع  االستثمار  تقديم  بطاقة  -\n\n                 ،المساهماتالتمويل وهيكلة\n\n\n                                        3"
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2,
+          "quote": ". \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer",
+      "as_of_date": "2024-06-01"
+    },
+    {
+      "id": "graph_ar_2023_08_partial_change_20",
+      "query": "هل استبدل منشور 2023-08 كامل نظام الامتياز الوارد بمنشور 2022-06؟",
+      "language": "ar",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "لا. التعديل استهدف عبارتين زمنيتين محددتين: تاريخ 31 ديسمبر 2022 في الفصل 2 وتاريخ 30 جوان 2023 في الفصل 5، واستبدلهما على التوالي بـ31 ديسمبر 2024 و30 جوان 2025.",
+      "evidence_quote": "ثانية فقرته\n\n                                                                :يلي ما قرر\n\nالمنشور من 2 بالفصل الواردة \" 2022 ديسمبر 31 \" عبارة تعوض - األول الفصل\n\n31 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك إلى\n\n                                                                               . \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2,
+          "quote": "ثانية فقرته\n\n                                                                :يلي ما قرر\n\nالمنشور من 2 بالفصل الواردة \" 2022 ديسمبر 31 \" عبارة تعوض - األول الفصل\n\n31 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك إلى\n\n                                                                               . \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_ar_2023_08_loan_in_2024_21",
+      "query": "إذا أُسند قرض استثمار لمؤسسة صغيرة خلال سنة 2024، فهل أصبح تاريخ الإسناد داخل الفترة الزمنية التي يشملها الامتياز بعد تعديل 2023؟",
+      "language": "ar",
+      "category": "scenario_temporal",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2023_08_ar.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "نعم من حيث شرط الفترة الزمنية فقط، لأن نهاية الفترة الواردة في الفصل 2 مُددت من 31 ديسمبر 2022 إلى 31 ديسمبر 2024؛ وتبقى بقية شروط الانتفاع واجبة التحقق.",
+      "evidence_quote": "ق في الفائدة نسبة ومعدل االستثمار\n\nمؤسسات ال لفائدة المسندة والتمويالت قروضال بعنوان وذلك المالية والمؤسسات\n\nديسمبر 31و 2019 جانفي غرة بين المتراوحة الفترة خالل والمتوسطة الصغرى\n\n                                         . % 3,5 الموظف الهامش تعدىي أال على 2022\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2,
+          "quote": "ق في الفائدة نسبة ومعدل االستثمار\n\nمؤسسات ال لفائدة المسندة والتمويالت قروضال بعنوان وذلك المالية والمؤسسات\n\nديسمبر 31و 2019 جانفي غرة بين المتراوحة الفترة خالل والمتوسطة الصغرى\n\n                                         . % 3,5 الموظف الهامش تعدىي أال على 2022\n\n\n                                        2"
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2,
+          "quote": "ثانية فقرته\n\n                                                                :يلي ما قرر\n\nالمنشور من 2 بالفصل الواردة \" 2022 ديسمبر 31 \" عبارة تعوض - األول الفصل\n\n31 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك إلى\n\n                                                                               . \" 2024 ديسمبر\n\nإلى المنشور من 5 بالفصل الواردة \" 2023 جوان 30 \" عبارة تعوض - 2 الفصل\n\n30 \" بـعبارة أعاله، إليه المشار 2022 لسنة 6 عدد المالية والمؤسسات البنوك\n\n                                                              .\"2025 جوان\n\n                       . نشره تاريخ من ابتداء التنفيذ حيز المنشور هذا يدخل : 3 الفصل\n\n            ،المحــــافظ\n\n\n      اسي العب مروان"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_13_partial_replacement_22",
+      "query": "La circulaire 2024-13 a-t-elle abrogé toute la circulaire 2024-07 sur les transferts reçus par les associations ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_13_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Non. Elle abroge et remplace uniquement l’article 2 de la circulaire 2024-07.",
+      "evidence_quote": "il 2016 et\nnotamment son alinéa deuxième relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\nArticle premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2,
+          "quote": "il 2016 et\nnotamment son alinéa deuxième relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\nArticle premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_13_scope_unchanged_23",
+      "query": "Après la modification d’octobre 2024, quels transferts restent concernés par l’obligation de déclaration des intermédiaires agréés ?",
+      "language": "fr",
+      "category": "current_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_13_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Le champ défini par l’article premier de 2024-07 reste les transferts financiers provenant de l’étranger au profit de personnes morales ayant la forme d’association ou d’organisation à but non lucratif. La circulaire 2024-13 remplace l’article 2, pas l’article premier.",
+      "evidence_quote": "actère\nurgent.\n\nDécide :\n\nArticle premier  : Les Intermédiaires Agréés doivent déclarer à la Banque\nCentrale de Tunisie tous les transferts financiers provenant de l’étranger au profit\nde personnes morales ayant la forme d’association ou d’organisation à but non\nlucratif.\n\nArticle 2 : Les Intermédiaires Agréés doivent communiquer mensuellement à la\nBanque Centrale de Tunisie via le système d’échange de données (SED), la liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2,
+          "quote": "actère\nurgent.\n\nDécide :\n\nArticle premier  : Les Intermédiaires Agréés doivent déclarer à la Banque\nCentrale de Tunisie tous les transferts financiers provenant de l’étranger au profit\nde personnes morales ayant la forme d’association ou d’organisation à but non\nlucratif.\n\nArticle 2 : Les Intermédiaires Agréés doivent communiquer mensuellement à la\nBanque Centrale de Tunisie via le système d’échange de données (SED), la liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2,
+          "quote": "il 2016 et\nnotamment son alinéa deuxième relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\nArticle premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_07_asof_2024_09_24",
+      "query": "Au 1er septembre 2024, avant la circulaire d’octobre, quelle modalité de déclaration s’appliquait aux transferts reçus par les associations ?",
+      "language": "fr",
+      "category": "historical_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_07_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Les intermédiaires agréés devaient communiquer mensuellement à la BCT via le SED la liste des transferts visés à l’article premier, selon le tableau annexé à la circulaire 2024-07.",
+      "evidence_quote": "venant de l’étranger au profit\nde personnes morales ayant la forme d’association ou d’organisation à but non\nlucratif.\n\nArticle 2 : Les Intermédiaires Agréés doivent communiquer mensuellement à la\nBanque Centrale de Tunisie via le système d’échange de données (SED), la liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2,
+          "quote": "venant de l’étranger au profit\nde personnes morales ayant la forme d’association ou d’organisation à but non\nlucratif.\n\nArticle 2 : Les Intermédiaires Agréés doivent communiquer mensuellement à la\nBanque Centrale de Tunisie via le système d’échange de données (SED), la liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer",
+      "as_of_date": "2024-09-01"
+    },
+    {
+      "id": "graph_fr_2024_13_asof_2025_01_25",
+      "query": "Au 1er janvier 2025, quelle version de l’article 2 régit la déclaration des transferts reçus par les associations, et depuis quel mois cette modalité doit-elle être appliquée ?",
+      "language": "fr",
+      "category": "historical_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_13_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "C’est l’article 2 nouveau introduit par la circulaire 2024-13. La modalité doit être appliquée à partir de la déclaration au titre du mois de décembre 2024.",
+      "evidence_quote": "2016-35 du 25 avril 2016 et\nnotamment son alinéa deuxième relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\nArticle premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2,
+          "quote": "2016-35 du 25 avril 2016 et\nnotamment son alinéa deuxième relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\nArticle premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2,
+          "quote": "aires Agréés doivent se conformer à la modalité de déclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la déclaration au titre du mois de décembre 2024. LE GOUVERNEUR, Fethi Zouhair Nouri 2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer",
+      "as_of_date": "2025-01-01"
+    },
+    {
+      "id": "graph_fr_2024_13_reporting_change_26",
+      "query": "Qu’a réellement changé la circulaire 2024-13 dans la déclaration mensuelle des transferts aux associations ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_13_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Elle a remplacé l’article 2 pour prévoir une déclaration mensuelle via le SED conforme au dessin d’enregistrement annexé et au guide téléchargeable dans le système, avec application à partir de la déclaration de décembre 2024.",
+      "evidence_quote": "Article premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2,
+          "quote": "Article premier- l’article 2 de la circulaire n°2024-07 du 11 mars 2024 susvisée\nest abrogé et remplacé comme suit :\n\n« Article  2  (nouveau)-  Les   Intermédiaires  Agréés  doivent   déclarer\nmensuellement à la Banque Centrale de Tunisie, via le Système d’Echange de\nDonnées (SED), la liste des transferts visés à l’article premier conformément au\ndessin d’enregistrement en annexe à  la présente circulaire  et au guide de\ndéclaration téléchargeable à partir de ce système.»\n\n\nArticle 2- Les Intermédiaires Agréés doivent se conformer à la modalité de\ndéclaration prévue à l’article 2 (nouveau) de la présente circulaire à partir de la\ndéclaration au titre du mois de décembre 2024.\n\n\n                              LE GOUVERNEUR,\n\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2016_10_general_validity_27",
+      "query": "En dehors d’une dérogation spéciale, quelle est la durée maximale générale de validité d’une autorisation d’exportation de devises prévue par l’article 5 de la circulaire 2016-10 ?",
+      "language": "fr",
+      "category": "base_rule",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2016_10_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Elle est valable pour un seul voyage et au maximum deux mois à compter de sa délivrance.",
+      "evidence_quote": "livrés par l’intermédiaire agréé et elle est remise aux\nservices des Douanes à la sortie du territoire tunisien.\n\n      Article 5 : L’autorisation d’exportation de devises sous forme de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3,
+          "quote": "livrés par l’intermédiaire agréé et elle est remise aux\nservices des Douanes à la sortie du territoire tunisien.\n\n      Article 5 : L’autorisation d’exportation de devises sous forme de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_06_pilgrim_derogation_28",
+      "query": "Pour un pèlerin de la campagne 2024, la règle générale de deux mois de 2016-10 s’applique-t-elle telle quelle ?",
+      "language": "fr",
+      "category": "derogation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_06_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Non. La circulaire 2024-06 prévoit une dérogation: l’autorisation reste valable quatre mois à compter de son octroi pour les pèlerins inscrits sur les listes officielles et les membres de la délégation officielle.",
+      "evidence_quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3,
+          "quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3"
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2,
+          "quote": "ises\n\n  au titre de l’allocation touristique et de les afficher, de manière lisible, au\n\n  public.\n\n       Article 2  : Par dérogation aux dispositions de l’article 5 de la\n\n  circulaire aux Intermédiaires Agréés n° 2016-10 du 30 décembre 2016\n\n  susvisée, l’autorisation d'exportation de devises en billets de banque au\n\n  titre de l’allocation touristique demeure valable quatre mois à compter de\n\n  la date de son octroi et ce, uniquement pour les pèlerins inscrits sur les\n\n  listes officielles ainsi qu’aux membres de la délégation tunisienne officielle\n\n  désignée pour les accompagner.\n\n       Article 3 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                      2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2025_05_pilgrim_derogation_29",
+      "query": "Pour la campagne de pèlerinage 2025, combien de temps l’autorisation d’exportation de devises reste-t-elle valable par rapport à la règle générale de 2016 ?",
+      "language": "fr",
+      "category": "derogation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_05_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Elle reste valable quatre mois au maximum pour les pèlerins concernés, au lieu de la règle générale de deux mois de l’article 5 de 2016-10.",
+      "evidence_quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3,
+          "quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3"
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2,
+          "quote": "ont\n\nceux fixés par chaque Intermédiaire Agréé et doivent être affichés au public\n\nde manière lisible.\n\n\n    ARTICLE 2- Par dérogation aux dispositions de l’article 5 de la\n\ncirculaire n° 2016-10 du 30 décembre 2016  susvisée,  l’autorisation\n\nd'exportation de devises en  billets de banque au  titre de l’allocation\n\ntouristique demeure valable quatre mois au maximum à compter de la date\n\nde sa délivrance aux pèlerins inscrits sur les  listes officielles et aux\n\nmembres de la mission tunisienne officielle désignée pour les accompagner\n\nuniquement.\n\n                                                                    2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2025_16_pilgrim_derogation_30",
+      "query": "Pour la campagne de pèlerinage 2026, quelle durée spéciale remplace temporairement la limite générale de deux mois ?",
+      "language": "fr",
+      "category": "derogation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_16_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "La circulaire 2025-16 prévoit une validité de six mois à compter de la délivrance pour les pèlerins inscrits et les membres de la délégation officielle.",
+      "evidence_quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3,
+          "quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3"
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3,
+          "quote": "Article 3 : Par dérogation aux dispositions de l’article 5 de la circulaire aux\n\nIntermédiaires Agréés n° 2016-10 du 30 décembre 2016 susvisée, l’autorisation\n\nd'exportation de devises en billets de banque au titre de l’allocation touristique\n\ndemeure valable six mois à compter de la date de sa délivrance et ce, uniquement\n\npour les pèlerins inscrits sur les listes officielles ainsi qu’aux membres de la\n\ndélégation tunisienne officielle désignée pour les accompagner.\n\n     Article 4 : Sans préjudice des dispositions de l’article 27 de la circulaire n °\n\n2007-4 du 9 février 2007 relative à l’allocation touristique, les  Intermédiaires\n\nAgréés doivent adresser à  la Banque Centrale de Tunisie, quotidiennement\n\net en double exemplaire, un rapport établi selon le modèle objet de l’annexe à la\n\nprésente circulaire, sur la délivrance des allocations touristiques au titre de la\n\ncampagne de pèlerinage de l’année 2026.\n\n\n     Article 5: La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                       3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_pilgrimage_duration_evolution_31",
+      "query": "Comment la durée spéciale de validité de l’autorisation d’exportation de devises pour le pèlerinage a-t-elle évolué entre les campagnes 2024, 2025 et 2026 ?",
+      "language": "fr",
+      "category": "multi_document_synthesis",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_16_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Elle était de quatre mois pour les campagnes 2024 et 2025, puis de six mois pour la campagne 2026.",
+      "evidence_quote": "2016\n\n  susvisée, l’autorisation d'exportation de devises en billets de banque au\n\n  titre de l’allocation touristique demeure valable quatre mois à compter de\n\n  la date de son octroi et ce, uniquement pour les pèlerins inscrits sur les\n\n  listes officielles ainsi qu’aux membres de la délégation tunisienne officielle\n\n  désignée pour les accompagner.\n\n       Article 3 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                      2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2,
+          "quote": "2016\n\n  susvisée, l’autorisation d'exportation de devises en billets de banque au\n\n  titre de l’allocation touristique demeure valable quatre mois à compter de\n\n  la date de son octroi et ce, uniquement pour les pèlerins inscrits sur les\n\n  listes officielles ainsi qu’aux membres de la délégation tunisienne officielle\n\n  désignée pour les accompagner.\n\n       Article 3 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                      2"
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2,
+          "quote": "2016  susvisée,  l’autorisation\n\nd'exportation de devises en  billets de banque au  titre de l’allocation\n\ntouristique demeure valable quatre mois au maximum à compter de la date\n\nde sa délivrance aux pèlerins inscrits sur les  listes officielles et aux\n\nmembres de la mission tunisienne officielle désignée pour les accompagner\n\nuniquement.\n\n                                                                    2"
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3,
+          "quote": "mbre 2016 susvisée, l’autorisation\n\nd'exportation de devises en billets de banque au titre de l’allocation touristique\n\ndemeure valable six mois à compter de la date de sa délivrance et ce, uniquement\n\npour les pèlerins inscrits sur les listes officielles ainsi qu’aux membres de la\n\ndélégation tunisienne officielle désignée pour les accompagner.\n\n     Article 4 : Sans préjudice des dispositions de l’article 27 de la circulaire n °\n\n2007-4 du 9 février 2007 relative à l’allocation touristique, les  Intermédiaires\n\nAgréés doivent adresser à  la Banque Centrale de Tunisie, quotidiennement\n\net en double exemplaire, un rapport établi selon le modèle objet de l’annexe à la\n\nprésente circulaire, sur la délivrance des allocations touristiques au titre de la\n\ncampagne de pèlerinage de l’année 2026.\n\n\n     Article 5: La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                       3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2026_pilgrim_vs_ordinary_32",
+      "query": "Deux voyageurs reçoivent leur autorisation le même jour: un voyageur ordinaire et un pèlerin de la campagne 2026. Quelle différence de durée de validité faut-il appliquer ?",
+      "language": "fr",
+      "category": "scenario_temporal",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_16_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Le voyageur ordinaire relève de la règle générale de deux mois; le pèlerin de la campagne 2026 bénéficie de la dérogation de six mois.",
+      "evidence_quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3,
+          "quote": "me de billets\nde banque étrangers ou par chèques est personnelle et incessible. Elle est valable\npour un seul voyage et au maximum pour une durée de deux mois à compter de\nla date de sa délivrance par l’intermédiaire agréé.\n\n      Article 6 :L’autorisation de sortie de devises est destinée exclusivement à\njustifier l’origine des devises exportées par le voyageur résident ou non résident.\nElle ne peut en aucun cas servir pour d’autres opérations quel qu’en soit la\nnature.\n\n      Article 7 : Les intermédiaires agréés sont tenus de conserver dans des\ndossiers accessibles pour les besoins du contrôle l’exemplaires de l’autorisation\nd’exportation de devises qu’ils établissent conformément aux dispositions de la\nprésente circulaire et qui leur est destiné, accompagné des justificatifs exigés\nconformément aux dispositions de la présente circulaire.\n\n      Article 8 : Sont abrogées toutes dispositions contraires ou faisant double\nemploi avec la présente circulaire.\n\n\n                          LE GOUVERNEUR\n\n                         CHEDLY AYARI\n\n\n                                            3"
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3,
+          "quote": "mbre 2016 susvisée, l’autorisation\n\nd'exportation de devises en billets de banque au titre de l’allocation touristique\n\ndemeure valable six mois à compter de la date de sa délivrance et ce, uniquement\n\npour les pèlerins inscrits sur les listes officielles ainsi qu’aux membres de la\n\ndélégation tunisienne officielle désignée pour les accompagner.\n\n     Article 4 : Sans préjudice des dispositions de l’article 27 de la circulaire n °\n\n2007-4 du 9 février 2007 relative à l’allocation touristique, les  Intermédiaires\n\nAgréés doivent adresser à  la Banque Centrale de Tunisie, quotidiennement\n\net en double exemplaire, un rapport établi selon le modèle objet de l’annexe à la\n\nprésente circulaire, sur la délivrance des allocations touristiques au titre de la\n\ncampagne de pèlerinage de l’année 2026.\n\n\n     Article 5: La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                       3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_pilgrimage_derogation_scope_33",
+      "query": "Les circulaires de pèlerinage qui portent la validité à quatre ou six mois ont-elles définitivement remplacé l’article 5 de 2016-10 pour tous les voyageurs ?",
+      "language": "fr",
+      "category": "derogation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_16_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Non. Elles se présentent expressément comme des dérogations et limitent la durée spéciale aux pèlerins inscrits sur les listes officielles et aux membres de la délégation tunisienne officielle qui les accompagne.",
+      "evidence_quote": "ises\n\n  au titre de l’allocation touristique et de les afficher, de manière lisible, au\n\n  public.\n\n       Article 2  : Par dérogation aux dispositions de l’article 5 de la\n\n  circulaire aux Intermédiaires Agréés n° 2016-10 du 30 décembre 2016\n\n  susvisée, l’autorisation d'exportation de devises en billets de banque au\n\n  titre de l’allocation touristique demeure valable quatre mois à compter de\n\n  la date de son octroi et ce, uniquement pour les pèlerins inscrits sur les\n\n  listes officielles ainsi qu’aux membres de la délégation tunisienne officielle\n\n  désignée pour les accompagner.\n\n       Article 3 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                      2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2,
+          "quote": "ises\n\n  au titre de l’allocation touristique et de les afficher, de manière lisible, au\n\n  public.\n\n       Article 2  : Par dérogation aux dispositions de l’article 5 de la\n\n  circulaire aux Intermédiaires Agréés n° 2016-10 du 30 décembre 2016\n\n  susvisée, l’autorisation d'exportation de devises en billets de banque au\n\n  titre de l’allocation touristique demeure valable quatre mois à compter de\n\n  la date de son octroi et ce, uniquement pour les pèlerins inscrits sur les\n\n  listes officielles ainsi qu’aux membres de la délégation tunisienne officielle\n\n  désignée pour les accompagner.\n\n       Article 3 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                      2"
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2,
+          "quote": "ont\n\nceux fixés par chaque Intermédiaire Agréé et doivent être affichés au public\n\nde manière lisible.\n\n\n    ARTICLE 2- Par dérogation aux dispositions de l’article 5 de la\n\ncirculaire n° 2016-10 du 30 décembre 2016  susvisée,  l’autorisation\n\nd'exportation de devises en  billets de banque au  titre de l’allocation\n\ntouristique demeure valable quatre mois au maximum à compter de la date\n\nde sa délivrance aux pèlerins inscrits sur les  listes officielles et aux\n\nmembres de la mission tunisienne officielle désignée pour les accompagner\n\nuniquement.\n\n                                                                    2"
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3,
+          "quote": "Article 3 : Par dérogation aux dispositions de l’article 5 de la circulaire aux\n\nIntermédiaires Agréés n° 2016-10 du 30 décembre 2016 susvisée, l’autorisation\n\nd'exportation de devises en billets de banque au titre de l’allocation touristique\n\ndemeure valable six mois à compter de la date de sa délivrance et ce, uniquement\n\npour les pèlerins inscrits sur les listes officielles ainsi qu’aux membres de la\n\ndélégation tunisienne officielle désignée pour les accompagner.\n\n     Article 4 : Sans préjudice des dispositions de l’article 27 de la circulaire n °\n\n2007-4 du 9 février 2007 relative à l’allocation touristique, les  Intermédiaires\n\nAgréés doivent adresser à  la Banque Centrale de Tunisie, quotidiennement\n\net en double exemplaire, un rapport établi selon le modèle objet de l’annexe à la\n\nprésente circulaire, sur la délivrance des allocations touristiques au titre de la\n\ncampagne de pèlerinage de l’année 2026.\n\n\n     Article 5: La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                        LE GOUVERNEUR,\n\n\n                                    Fethi Zouhaier NOURI\n\n\n                                                                       3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_article4_evolution_34",
+      "query": "Comment l’obligation d’évaluation des risques de l’article 4 du cadre LBA/FT a-t-elle évolué entre 2017 et la modification de 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "En 2017, l’article 4 portait sur l’identification, l’évaluation et la compréhension des risques de blanchiment et de financement du terrorisme. En 2025, l’article 4 a été abrogé et remplacé pour intégrer aussi le financement de la prolifération, imposer une politique d’atténuation, détailler les facteurs à considérer et formaliser la mise à jour du rapport.",
+      "evidence_quote": "assujettis doivent accomplir les diligences et observer les mesures de vigilance prévues par la\n\nprésente circulaire.\n\nArticle 4 :\n\nLes établissements assujettis doivent prendre des mesures appropriées pour identifier, évaluer\n\net comprendre les risques de blanchiment d’argent et de financement du terrorisme auxquels\n\nils sont exposés, en tenant compte des facteurs de risques tels que le profil des clients, les\n\npays ou les zones géographiques, les produits, les services, les transactions ou les canaux de\n\ndistribution.\n\nLes établissements assujettis doivent:\n\n    -  documenter leurs évaluations des risques ;\n\n     -   envisager tous les facteurs de risques pertinents avant de déterminer le niveau de\n\n       risque global et le niveau et le type de mesures appropriées à appliquer pour atténuer\n\n\n                                        5",
+      "evidence_quotes": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 5,
+          "quote": "assujettis doivent accomplir les diligences et observer les mesures de vigilance prévues par la\n\nprésente circulaire.\n\nArticle 4 :\n\nLes établissements assujettis doivent prendre des mesures appropriées pour identifier, évaluer\n\net comprendre les risques de blanchiment d’argent et de financement du terrorisme auxquels\n\nils sont exposés, en tenant compte des facteurs de risques tels que le profil des clients, les\n\npays ou les zones géographiques, les produits, les services, les transactions ou les canaux de\n\ndistribution.\n\nLes établissements assujettis doivent:\n\n    -  documenter leurs évaluations des risques ;\n\n     -   envisager tous les facteurs de risques pertinents avant de déterminer le niveau de\n\n       risque global et le niveau et le type de mesures appropriées à appliquer pour atténuer\n\n\n                                        5"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3,
+          "quote": "rculaire aux banques et aux établissements\nfinanciers n°2017-08 susvisée sont abrogées et remplacées comme suit :\n\n     Article 4 (nouveau) : Les établissements assujettis doivent définir et mettre en\n    œuvre un dispositif d’identification et d’évaluation des risques de blanchiment\n      d’argent, de financement du terrorisme et de financement de la prolifération des\n     armes de destruction massive auxquels ils sont exposés, ainsi qu’une politique\n     d’atténuation de ces risques.\n\n    Dans  le  cadre de  l’identification  et de  l’évaluation de  ces  risques,  les\n     établissements assujettis tiennent compte, notamment :\n\n          a) des facteurs de risques liés aux caractéristiques de leur clientèle, aux\n         produits et services fournis ou envisagés, aux technologies utilisées pour leur\n          distribution,  ainsi  qu’aux  risques  associés aux  juridictions ou  zones\n         géographiques dans lesquelles les opérations sont réalisées ;\n\n         b) des conclusions des évaluations nationales des risques en matière de lutte\n         contre  le  blanchiment  d’argent,  le  financement du  terrorisme  et  le\n         financement de la prolifération des armes de destruction massive, y compris\n          les menaces émergentes identifiées ; et\n\n          c) des informations issues de to"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_risk_update_frequency_35",
+      "query": "Après la modification de 2025, à quelle fréquence minimale le rapport d’évaluation des risques LBA/FT/prolifération doit-il être mis à jour, et quand faut-il le mettre à jour plus tôt ?",
+      "language": "fr",
+      "category": "current_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 3,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "expected_answer": "Au moins tous les trois ans, et plus fréquemment lorsqu’un événement significatif affecte les facteurs de risque ou lorsque des informations des autorités compétentes, un changement légal ou réglementaire ou une mise à jour de l’évaluation nationale des risques modifient l’évaluation.",
+      "evidence_quote": "aluations des risques auxquels sont exposés les établissements assujettis\n     doivent être consignées dans un rapport, mis à jour au moins tous les trois ans, ou\n     plus fréquemment en cas de survenance d’un événement significatif affectant les\n      facteurs de risque, ou lorsque des informations émanant des autorités compétentes\n     sont susceptibles de modifier l’évaluation des risques inhérents, notamment en\n     cas de changement légal ou réglementaire ou de mise à jour de l’évaluation\n     nationale des risques.\n\n     Les établissements assujettis doivent être en mesure de démontrer à la Banque\n     Centrale de Tunisie, sur demande, la pertinence de leurs évaluations des risques\n      ainsi que l’adéquation des mesures de vigilance proportionnées mises en place\n     pour prévenir, atténuer et gérer les risques de blanchiment d’argent et de\n     financement du terrorisme.\n\n     Les documents ayant servi à l’élaboration des évaluations des risques sont\n     conservés et tenus à la disposition de la Banque Centrale de Tunisie sur demande.\n\n                                       3",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3,
+          "quote": "aluations des risques auxquels sont exposés les établissements assujettis\n     doivent être consignées dans un rapport, mis à jour au moins tous les trois ans, ou\n     plus fréquemment en cas de survenance d’un événement significatif affectant les\n      facteurs de risque, ou lorsque des informations émanant des autorités compétentes\n     sont susceptibles de modifier l’évaluation des risques inhérents, notamment en\n     cas de changement légal ou réglementaire ou de mise à jour de l’évaluation\n     nationale des risques.\n\n     Les établissements assujettis doivent être en mesure de démontrer à la Banque\n     Centrale de Tunisie, sur demande, la pertinence de leurs évaluations des risques\n      ainsi que l’adéquation des mesures de vigilance proportionnées mises en place\n     pour prévenir, atténuer et gérer les risques de blanchiment d’argent et de\n     financement du terrorisme.\n\n     Les documents ayant servi à l’élaboration des évaluations des risques sont\n     conservés et tenus à la disposition de la Banque Centrale de Tunisie sur demande.\n\n                                       3"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_suspicious_declaration_lineage_36",
+      "query": "Comment la règle de déclaration des opérations suspectes de l’article 58 a-t-elle évolué de 2017 à 2018 puis à 2025 ?",
+      "language": "fr",
+      "category": "multi_hop_lineage",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 4,
+      "expected_sources": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "pages": [
+            27
+          ]
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "expected_answer": "En 2017, la déclaration devait suivre le modèle de la décision CTAF 2017-01. En 2018, le premier alinéa a été remplacé pour exiger une déclaration immédiate selon ce modèle. En 2025, il a de nouveau été remplacé: la déclaration reste immédiate mais doit désormais être faite via la plateforme goAML selon les procédures de la CTAF.",
+      "evidence_quote": "Article 58:\n\nLes établissements assujettis doivent veiller à déclarer les opérations et les transactions\n\nsuspectes conformément au modèle prévu par la décision de la CTAF n°2017-01 du 2 mars\n\n2017.\n\nIls sont tenus, également, de déclarer toute tentative d’effectuer  lesdites opérations ou\n\ntransactions.\n\nL’obligation de déclaration s’applique, également, même après la réalisation de l’opération ou\n\nde la transaction, lorsque de nouvelles informations sont susceptibles de relier, directement ou\n\nindirectement, ladite opération ou transaction à des fonds provenant d’actes illicites qualifiés\n\npar la loi de délit ou de crime, ou au financement de personnes ou d’organisations ou\n\nd’activités en rapport avec des infractions terroristes.\n\n        Chapitre III : De l’information de la Banque Centrale de Tunisie\n\n\nArticle 59:\n\nLes établissements assujettis doivent adresser à la Banque Centrale de Tunisie (Direction\n\nGénérale de la Supervision Bancaire) au plus tard, un mois après la clôture de chaque\n\nexercice, un document conforme à l’annexe 5 de la présente circulaire qui indique :\n              le nombre total des déclarations effectuées à la CTAF au cours de l’exercice",
+      "evidence_quotes": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 27,
+          "quote": "Article 58:\n\nLes établissements assujettis doivent veiller à déclarer les opérations et les transactions\n\nsuspectes conformément au modèle prévu par la décision de la CTAF n°2017-01 du 2 mars\n\n2017.\n\nIls sont tenus, également, de déclarer toute tentative d’effectuer  lesdites opérations ou\n\ntransactions.\n\nL’obligation de déclaration s’applique, également, même après la réalisation de l’opération ou\n\nde la transaction, lorsque de nouvelles informations sont susceptibles de relier, directement ou\n\nindirectement, ladite opération ou transaction à des fonds provenant d’actes illicites qualifiés\n\npar la loi de délit ou de crime, ou au financement de personnes ou d’organisations ou\n\nd’activités en rapport avec des infractions terroristes.\n\n        Chapitre III : De l’information de la Banque Centrale de Tunisie\n\n\nArticle 59:\n\nLes établissements assujettis doivent adresser à la Banque Centrale de Tunisie (Direction\n\nGénérale de la Supervision Bancaire) au plus tard, un mois après la clôture de chaque\n\nexercice, un document conforme à l’annexe 5 de la présente circulaire qui indique :\n              le nombre total des déclarations effectuées à la CTAF au cours de l’exercice"
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 3,
+          "quote": "responsable d’un parti politique,\n\n    -  membre des organes de direction d’une organisation syndicale ou patronale.\n\n\nAlinéa premier de l’article 58 (nouveau) : Les établissements assujettis doivent déclarer\n\nimmédiatement les opérations et les transactions suspectes conformément au modèle prévu\n\npar la décision de la CTAF n°2017-01 du 2 mars 2017.\n\n                                        3"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4,
+          "quote": "de l’alinéa premier de l’article 58 de la circulaire n°2017-08 susvisée\nsont abrogées et remplacées comme suit :\n\n      Les établissements assujettis doivent déclarer immédiatement les opérations et\n       les  transactions  suspectes  via  la  plateforme goAML, conformément aux\n      procédures et aux mesures techniques définies par la CTAF.\n\n\n                                         4"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_not_full_replacement_37",
+      "query": "La circulaire 2025-17 remplace-t-elle entièrement le cadre 2017-08 de lutte contre le blanchiment ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            4
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Non. Elle modifie ou remplace des dispositions déterminées, en ajoute d’autres, remplace une annexe et supprime un élément précis; les autres dispositions de 2017-08 continuent de faire partie du cadre sauf autre modification.",
+      "evidence_quote": "rticle 42 de la loi n°2016-35 du 25 avril 2016, portant\nfixation du statut de la Banque Centrale de Tunisie.\n\nDécide :\n\nArticle premier : L’objet de la circulaire n°2017-08 du 19 septembre 2017 telle que\nmodifiée par la circulaire n° 2018-09 du 18 octobre 2018 susvisée est modifié et\nremplacé comme suit :\n\n      Dispositif et règles de contrôle interne en matière de lutte contre le blanchiment\n      d’argent, le financement du terrorisme et le financement de la prolifération des\n     armes de destruction massive.\n\n                                       2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2,
+          "quote": "rticle 42 de la loi n°2016-35 du 25 avril 2016, portant\nfixation du statut de la Banque Centrale de Tunisie.\n\nDécide :\n\nArticle premier : L’objet de la circulaire n°2017-08 du 19 septembre 2017 telle que\nmodifiée par la circulaire n° 2018-09 du 18 octobre 2018 susvisée est modifié et\nremplacé comme suit :\n\n      Dispositif et règles de contrôle interne en matière de lutte contre le blanchiment\n      d’argent, le financement du terrorisme et le financement de la prolifération des\n     armes de destruction massive.\n\n                                       2"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3,
+          "quote": "Article 2 :\n\nLes dispositions de l’article 4 de la circulaire aux banques et aux établissements\nfinanciers n°2017-08 susvisée sont abrogées et remplacées comme suit :\n\n     Article 4 (nouveau) : Les établissements assujettis doivent définir et mettre en\n    œuvre un dispositif d’identification et d’évaluation des risques de blanchiment\n      d’argent, de financement du terrorisme et de financement de la prolifération des\n     armes de destruction massive auxquels ils sont exposés, ainsi qu’une politique\n     d’atténuation de ces risques.\n\n    Dans  le  cadre de  l’identification  et de  l’évaluation de  ces  risques,  les\n     établissements assujettis tiennent compte, notamment :\n\n          a) des facteurs de risques liés aux caractéristiques de leur clientèle, aux\n         produits et services fournis ou envisagés, aux technologies utilisées pour leur\n          distribution,  ainsi  qu’aux  risques  associés aux  juridictions ou  zones\n         géographiques dans lesquelles les opérations sont réalisées ;\n\n         b) des conclusions des évaluations nationales des risques en matière de lutte\n         contre  le  blanchiment  d’argent,  le  financement du  terrorisme  et  le"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4,
+          "quote": "au\n       bénéfice de toute personne ou entité désignée au titre du Chapitre VII de la Charte\n      des Nations Unies.\n\nArticle 3 :\n\nLe troisième tiret du premier alinéa de l’article 14 de la circulaire n°2017-08 susvisée\nest remplacé comme suit :\n\n          - évaluer le dispositif de lutte contre le blanchiment d'argent et le financement\n     du terrorisme mis en place par l'établissement, y compris au moyen d'un\n       questionnaire dont le modèle est joint en annexe 3 à la présente circulaire, ou au\n     moyen du questionnaire du « Wolfsberg Group » lorsque celui-ci est requis par\n        le correspondant bancaire transfrontalier.\n\nArticle 4 :\n\nLes dispositions de l’alinéa 2 de l’article 53 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n      Ces règles font partie intégrante du code de déontologie prévu à l’article 13 de la\n       circulaire n°2021-05 relative au cadre de gouvernance des banques et des\n       établissements financiers.\n\nArticle 5 :\n\nEst ajouté après le premier alinéa de l’article 57 de la circulaire n°2017-08 susvisée un\nalinéa comme suit :\n\n     Une copie de la décision portant désignation du correspondant de la CTAF et de\n      son suppléant est adressée à la Banque Centrale de Tunisie dans un délai ne\n      dépassant pas cinq (5) jours à compter"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "Article 7 :\n\nL’annexe 5 à la circulaire aux banques et aux établissements financiers n°2017-08 du 19\nseptembre 2017 susvisée est abrogée et remplacée par l’annexe 5 à la présente circulaire.\n\nArticle 8 :\n\nEst ajouté un article 59 bis à la circulaire n°2017-08 susvisée comme suit :\n\n     Article 59 bis :  Les établissements assujettis sont tenus de transmettre à la\n    Banque Centrale de Tunisie un état trimestriel des avoirs gelés sur leurs livres\n     conformément aux dispositions de l’article 46 de la présente circulaire portant\n     sur :\n\n           -  Les gels au titre des sanctions onusiennes ; et\n\n           -  Les gels décidés par la Commission Nationale de Lutte contre le Terrorisme.\n\n     Cette obligation couvre également les gels opérés dans le cadre de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_correspondent_questionnaire_38",
+      "query": "Après la modification de 2025, quel questionnaire peut être utilisé pour évaluer le dispositif LBA/FT d’un correspondant bancaire transfrontalier ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 4,
+      "expected_sources": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "pages": [
+            11
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "expected_answer": "Le questionnaire de l’annexe 3 peut être utilisé; le questionnaire du Wolfsberg Group peut aussi être utilisé lorsqu’il est requis par le correspondant bancaire transfrontalier.",
+      "evidence_quote": "au public et exploitables, sa réputation et la qualité de la surveillance dont\n\n           il fait l’objet ;\n\n     -   évaluer le dispositif de lutte contre le blanchiment d’argent et le financement du\n\n       terrorisme mis en place par l’établissement y compris au moyen d’un questionnaire\n\n       dont modèle est joint en annexe 3 à la présente circulaire ;\n\n     -    s’assurer que  la décision de nouer une  relation  d’affaires avec l’établissement\n\n       cocontractant  est prise par  le conseil d’administration ou  le  directoire ou toute\n\n       personne habilitée à cet effet ;\n\n     -   avoir l’assurance, en ce qui concerne les comptes «de passage» que le correspondant\n\n       applique des mesures de vigilance aux clients ayant un accès direct aux comptes de la\n\n      banque  correspondante  et que  le  correspondant  est en mesure de  fournir  les\n\n       informations pertinentes s’y rapportant à la demande ; et\n\n     -   fixer, par écrit, les obligations respectives des deux parties.\n\n\n                                       11",
+      "evidence_quotes": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 11,
+          "quote": "au public et exploitables, sa réputation et la qualité de la surveillance dont\n\n           il fait l’objet ;\n\n     -   évaluer le dispositif de lutte contre le blanchiment d’argent et le financement du\n\n       terrorisme mis en place par l’établissement y compris au moyen d’un questionnaire\n\n       dont modèle est joint en annexe 3 à la présente circulaire ;\n\n     -    s’assurer que  la décision de nouer une  relation  d’affaires avec l’établissement\n\n       cocontractant  est prise par  le conseil d’administration ou  le  directoire ou toute\n\n       personne habilitée à cet effet ;\n\n     -   avoir l’assurance, en ce qui concerne les comptes «de passage» que le correspondant\n\n       applique des mesures de vigilance aux clients ayant un accès direct aux comptes de la\n\n      banque  correspondante  et que  le  correspondant  est en mesure de  fournir  les\n\n       informations pertinentes s’y rapportant à la demande ; et\n\n     -   fixer, par écrit, les obligations respectives des deux parties.\n\n\n                                       11"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4,
+          "quote": "s au moyen d'un\n       questionnaire dont le modèle est joint en annexe 3 à la présente circulaire, ou au\n     moyen du questionnaire du « Wolfsberg Group » lorsque celui-ci est requis par\n        le correspondant bancaire transfrontalier.\n\nArticle 4 :\n\nLes dispositions de l’alinéa 2 de l’article 53 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n      Ces règles font partie intégrante du code de déontologie prévu à l’article 13 de la\n       circulaire n°2021-05 relative au cadre de gouvernance des banques et des\n       établissements financiers.\n\nArticle 5 :\n\nEst ajouté après le premier alinéa de l’article 57 de la circulaire n°2017-08 susvisée un\nalinéa comme suit :\n\n     Une copie de la décision portant désignation du correspondant de la CTAF et de\n      son suppléant est adressée à la Banque Centrale de Tunisie dans un délai ne\n      dépassant pas cinq (5) jours à compter de la date de désignation.\n\nArticle 6 :\n\nLes dispositions de l’alinéa premier de l’article 58 de la circulaire n°2017-08 susvisée\nsont abrogées et remplacées comme suit :\n\n      Les établissements assujettis doivent déclarer immédiatement les opérations et\n       les  transactions  suspectes  via  la  plateforme goAML, conformément aux\n      procédures et aux mesures techniques définies par la CTAF"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_code_ethics_reference_39",
+      "query": "À quel cadre de gouvernance les règles déontologiques de l’article 53 sont-elles désormais rattachées après la modification de 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 4,
+      "expected_sources": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "pages": [
+            25
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "expected_answer": "Elles font désormais partie intégrante du code de déontologie prévu à l’article 13 de la circulaire 2021-05, en remplacement de l’ancienne référence à l’article 6 de la circulaire 2011-06.",
+      "evidence_quote": "nalisme\n\nen  matière  de  déclaration  de  soupçon notamment  celles  relatives  à  l’obligation  de\n\nconfidentialité.\n\nCes règles font partie intégrante du Code déontologique prévu par l’article 6 de la circulaire\n\nn°2011-06 relative au renforcement des règles de bonne gouvernance dans les établissements\n\nde crédit.\n\nArticle 54:\n\nLes commissaires aux comptes des établissements sont tenus d’évaluer  le dispositif de\n\ncontrôle interne pour la gestion du risque blanchiment d’argent prévu par la législation et la\n\nréglementation en vigueur.\n\nLeurs conclusions doivent être consignées dans leurs rapports adressés à la Banque Centrale\n\nde Tunisie et doivent comporter, notamment:\n\n     -  une appréciation de la politique de gestion du risque de blanchiment d’argent mise en\n       place ; et\n\n     -  une  évaluation du  dispositif de  contrôle  interne pour  la  gestion du  risque de\n       blanchiment d’argent notamment en matière de son efficacité et de son adéquation\n\n                                       25",
+      "evidence_quotes": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 25,
+          "quote": "nalisme\n\nen  matière  de  déclaration  de  soupçon notamment  celles  relatives  à  l’obligation  de\n\nconfidentialité.\n\nCes règles font partie intégrante du Code déontologique prévu par l’article 6 de la circulaire\n\nn°2011-06 relative au renforcement des règles de bonne gouvernance dans les établissements\n\nde crédit.\n\nArticle 54:\n\nLes commissaires aux comptes des établissements sont tenus d’évaluer  le dispositif de\n\ncontrôle interne pour la gestion du risque blanchiment d’argent prévu par la législation et la\n\nréglementation en vigueur.\n\nLeurs conclusions doivent être consignées dans leurs rapports adressés à la Banque Centrale\n\nde Tunisie et doivent comporter, notamment:\n\n     -  une appréciation de la politique de gestion du risque de blanchiment d’argent mise en\n       place ; et\n\n     -  une  évaluation du  dispositif de  contrôle  interne pour  la  gestion du  risque de\n       blanchiment d’argent notamment en matière de son efficacité et de son adéquation\n\n                                       25"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4,
+          "quote": "tions de l’alinéa 2 de l’article 53 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n      Ces règles font partie intégrante du code de déontologie prévu à l’article 13 de la\n       circulaire n°2021-05 relative au cadre de gouvernance des banques et des\n       établissements financiers.\n\nArticle 5 :\n\nEst ajouté après le premier alinéa de l’article 57 de la circulaire n°2017-08 susvisée un\nalinéa comme suit :\n\n     Une copie de la décision portant désignation du correspondant de la CTAF et de\n      son suppléant est adressée à la Banque Centrale de Tunisie dans un délai ne\n      dépassant pas cinq (5) jours à compter de la date de désignation.\n\nArticle 6 :\n\nLes dispositions de l’alinéa premier de l’article 58 de la circulaire n°2017-08 susvisée\nsont abrogées et remplacées comme suit :\n\n      Les établissements assujettis doivent déclarer immédiatement les opérations et\n       les  transactions  suspectes  via  la  plateforme goAML, conformément aux\n      procédures et aux mesures techniques définies par la CTAF.\n\n\n                                         4"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_ctaf_designation_added_40",
+      "query": "Quelle nouvelle obligation a été ajoutée en 2025 après le premier alinéa de l’article 57 concernant le correspondant CTAF ?",
+      "language": "fr",
+      "category": "added_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 4,
+      "expected_sources": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "pages": [
+            26
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "expected_answer": "Une copie de la décision désignant le correspondant CTAF et son suppléant doit être adressée à la BCT dans les cinq jours suivant la désignation.",
+      "evidence_quote": "éclaration des opérations et des transactions suspectes.\n\n\n                  Chapitre II: De la déclaration de soupçon\n\nArticle 57:\n\nLe responsable désigné en qualité de correspondant de la CTAF selon les dispositions de\n\nl’article 13 de la décision de la CTAF n°2017-2 ainsi que son suppléant doivent faire partie de\n\nl’organe permanent de contrôle de la conformité.\n\nLes agents chargés de l’examen des opérations ou transactions inhabituelles ou suspectes\n\nrelevant du contrôle de  la conformité doivent avoir des  qualifications professionnelles\n\nappropriées. Au moins un de ces agents doit avoir obtenu une attestation diplômante en\n\nmatière de lutte anti blanchiment d’argent et financement de terrorisme.\n\n\n                                       26",
+      "evidence_quotes": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 26,
+          "quote": "éclaration des opérations et des transactions suspectes.\n\n\n                  Chapitre II: De la déclaration de soupçon\n\nArticle 57:\n\nLe responsable désigné en qualité de correspondant de la CTAF selon les dispositions de\n\nl’article 13 de la décision de la CTAF n°2017-2 ainsi que son suppléant doivent faire partie de\n\nl’organe permanent de contrôle de la conformité.\n\nLes agents chargés de l’examen des opérations ou transactions inhabituelles ou suspectes\n\nrelevant du contrôle de  la conformité doivent avoir des  qualifications professionnelles\n\nappropriées. Au moins un de ces agents doit avoir obtenu une attestation diplômante en\n\nmatière de lutte anti blanchiment d’argent et financement de terrorisme.\n\n\n                                       26"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4,
+          "quote": "irculaire n°2021-05 relative au cadre de gouvernance des banques et des\n       établissements financiers.\n\nArticle 5 :\n\nEst ajouté après le premier alinéa de l’article 57 de la circulaire n°2017-08 susvisée un\nalinéa comme suit :\n\n     Une copie de la décision portant désignation du correspondant de la CTAF et de\n      son suppléant est adressée à la Banque Centrale de Tunisie dans un délai ne\n      dépassant pas cinq (5) jours à compter de la date de désignation.\n\nArticle 6 :\n\nLes dispositions de l’alinéa premier de l’article 58 de la circulaire n°2017-08 susvisée\nsont abrogées et remplacées comme suit :\n\n      Les établissements assujettis doivent déclarer immédiatement les opérations et\n       les  transactions  suspectes  via  la  plateforme goAML, conformément aux\n      procédures et aux mesures techniques définies par la CTAF.\n\n\n                                         4"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_frozen_assets_new_article_41",
+      "query": "Quelle obligation de reporting a été créée par l’article 59 bis ajouté en 2025 ?",
+      "language": "fr",
+      "category": "added_provision",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Les établissements assujettis doivent transmettre à la BCT un état trimestriel des avoirs gelés couvrant les sanctions onusiennes, les gels décidés par la CNLCT et ceux liés au financement de la prolifération, dans les vingt jours ouvrables suivant la fin de chaque trimestre.",
+      "evidence_quote": "n°2017-08 du 19\nseptembre 2017 susvisée est abrogée et remplacée par l’annexe 5 à la présente circulaire.\n\nArticle 8 :\n\nEst ajouté un article 59 bis à la circulaire n°2017-08 susvisée comme suit :\n\n     Article 59 bis :  Les établissements assujettis sont tenus de transmettre à la\n    Banque Centrale de Tunisie un état trimestriel des avoirs gelés sur leurs livres\n     conformément aux dispositions de l’article 46 de la présente circulaire portant\n     sur :\n\n           -  Les gels au titre des sanctions onusiennes ; et\n\n           -  Les gels décidés par la Commission Nationale de Lutte contre le Terrorisme.\n\n     Cette obligation couvre également les gels opérés dans le cadre de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport d’évaluation prévu à l’article 4 du titre premier de la présente circulaire\n       doit être communiqué à la Banque Centrale de Tunisie à l’occasion de chaque\n      mise à jour.\n\nArticle 10 :\n\nEst supprimé",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "n°2017-08 du 19\nseptembre 2017 susvisée est abrogée et remplacée par l’annexe 5 à la présente circulaire.\n\nArticle 8 :\n\nEst ajouté un article 59 bis à la circulaire n°2017-08 susvisée comme suit :\n\n     Article 59 bis :  Les établissements assujettis sont tenus de transmettre à la\n    Banque Centrale de Tunisie un état trimestriel des avoirs gelés sur leurs livres\n     conformément aux dispositions de l’article 46 de la présente circulaire portant\n     sur :\n\n           -  Les gels au titre des sanctions onusiennes ; et\n\n           -  Les gels décidés par la Commission Nationale de Lutte contre le Terrorisme.\n\n     Cette obligation couvre également les gels opérés dans le cadre de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport d’évaluation prévu à l’article 4 du titre premier de la présente circulaire\n       doit être communiqué à la Banque Centrale de Tunisie à l’occasion de chaque\n      mise à jour.\n\nArticle 10 :\n\nEst supprimé"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_annex_reporting_42",
+      "query": "Quels changements la circulaire 2025-17 apporte-t-elle aux annexes de reporting LBA/FT ?",
+      "language": "fr",
+      "category": "multi_document_synthesis",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Elle abroge et remplace l’annexe 5 de 2017-08, utilise une nouvelle annexe 6 pour l’état trimestriel des avoirs gelés et modifie l’annexe I de 2017-06 afin d’ajouter deux déclarations au sous-domaine LBA/FT.",
+      "evidence_quote": "Article 7 :\n\nL’annexe 5 à la circulaire aux banques et aux établissements financiers n°2017-08 du 19\nseptembre 2017 susvisée est abrogée et remplacée par l’annexe 5 à la présente circulaire.\n\nArticle 8 :\n\nEst ajouté un article 59 bis à la circulaire n°2017-08 susvisée comme suit :\n\n     Article 59 bis :  Les établissements assujettis sont tenus de transmettre à la\n    Banque Centrale de Tunisie un état trimestriel des avoirs gelés sur leurs livres\n     conformément aux dispositions de l’article 46 de la présente circulaire portant\n     sur :\n\n           -  Les gels au titre des sanctions onusiennes ; et\n\n           -  Les gels décidés par la Commission Nationale de Lutte contre le Terrorisme.\n\n     Cette obligation couvre également les gels opérés dans le cadre de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport d’évaluation",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "Article 7 :\n\nL’annexe 5 à la circulaire aux banques et aux établissements financiers n°2017-08 du 19\nseptembre 2017 susvisée est abrogée et remplacée par l’annexe 5 à la présente circulaire.\n\nArticle 8 :\n\nEst ajouté un article 59 bis à la circulaire n°2017-08 susvisée comme suit :\n\n     Article 59 bis :  Les établissements assujettis sont tenus de transmettre à la\n    Banque Centrale de Tunisie un état trimestriel des avoirs gelés sur leurs livres\n     conformément aux dispositions de l’article 46 de la présente circulaire portant\n     sur :\n\n           -  Les gels au titre des sanctions onusiennes ; et\n\n           -  Les gels décidés par la Commission Nationale de Lutte contre le Terrorisme.\n\n     Cette obligation couvre également les gels opérés dans le cadre de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport d’évaluation"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "de la lutte contre le\n     financement de la prolifération des armes de destruction massive.\n\n     Ledit état doit être conforme à l’annexe 6 à la présente circulaire et transmis dans un\n      délai maximum de vingt (20) jours ouvrables suivant la fin de chaque trimestre.\n\nArticle 9 :\n\nLes dispositions de l’alinéa 2 de l’article 60 de la circulaire n°2017-08 susvisée sont\nabrogées et remplacées comme suit :\n\n     Le rapport d’évaluation prévu à l’article 4 du titre premier de la présente circulaire\n       doit être communiqué à la Banque Centrale de Tunisie à l’occasion de chaque\n      mise à jour.\n\nArticle 10 :\n\nEst supprimée la mention « Nombre d’enfants » des éléments d’identification de la\nclientèle personnes physiques figurant parmi les informations minimales prévues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "vues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_children_field_removed_43",
+      "query": "Le champ « Nombre d’enfants » doit-il encore figurer parmi les informations minimales d’identification des clients personnes physiques après la circulaire 2025-17 ?",
+      "language": "fr",
+      "category": "fragment_removal",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Non. La mention « Nombre d’enfants » a été supprimée des éléments d’identification minimaux de l’annexe 1.",
+      "evidence_quote": "re\n       doit être communiqué à la Banque Centrale de Tunisie à l’occasion de chaque\n      mise à jour.\n\nArticle 10 :\n\nEst supprimée la mention « Nombre d’enfants » des éléments d’identification de la\nclientèle personnes physiques figurant parmi les informations minimales prévues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "re\n       doit être communiqué à la Banque Centrale de Tunisie à l’occasion de chaque\n      mise à jour.\n\nArticle 10 :\n\nEst supprimée la mention « Nombre d’enfants » des éléments d’identification de la\nclientèle personnes physiques figurant parmi les informations minimales prévues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_reporting_2017_06_amended_44",
+      "query": "En plus de modifier le cadre LBA/FT de 2017-08, la circulaire 2025-17 modifie-t-elle aussi le dispositif de reporting 2017-06 ?",
+      "language": "fr",
+      "category": "cross_document_change",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 5,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            5
+          ]
+        }
+      ],
+      "expected_answer": "Oui. Elle modifie l’annexe I de la circulaire 2017-06 en ajoutant deux déclarations au sous-domaine 5 « LBA/FT » du domaine de reporting sur la gouvernance, le contrôle interne et la gestion des risques.",
+      "evidence_quote": "vues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5,
+          "quote": "vues à\nl’annexe 1, telle que définie au paragraphe 3 de l’article 5 de la circulaire n°2017-08\nsusvisée.\n\nArticle 11 :\n\nL’annexe I à la circulaire n°2017-06 relative au reporting comptable, prudentiel et\nstatistique à la Banque Centrale de Tunisie est modifiée par l’ajout de deux déclarations\nau sous domaine 5 « LBA/FT » du domaine 5 « Reporting sur les dispositifs de\ngouvernance, de contrôle interne et de gestion des risques » et ce, conformément aux\nannexes 5 et 6 à la présente circulaire.\n\n\n                                         5"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_object_proliferation_45",
+      "query": "Le champ du cadre 2017-08 reste-t-il limité au blanchiment et au financement du terrorisme après 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "Non. Son objet a été modifié et remplacé pour couvrir également le financement de la prolifération des armes de destruction massive.",
+      "evidence_quote": "i n°2016-35 du 25 avril 2016, portant\nfixation du statut de la Banque Centrale de Tunisie.\n\nDécide :\n\nArticle premier : L’objet de la circulaire n°2017-08 du 19 septembre 2017 telle que\nmodifiée par la circulaire n° 2018-09 du 18 octobre 2018 susvisée est modifié et\nremplacé comme suit :\n\n      Dispositif et règles de contrôle interne en matière de lutte contre le blanchiment\n      d’argent, le financement du terrorisme et le financement de la prolifération des\n     armes de destruction massive.\n\n                                       2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2,
+          "quote": "i n°2016-35 du 25 avril 2016, portant\nfixation du statut de la Banque Centrale de Tunisie.\n\nDécide :\n\nArticle premier : L’objet de la circulaire n°2017-08 du 19 septembre 2017 telle que\nmodifiée par la circulaire n° 2018-09 du 18 octobre 2018 susvisée est modifié et\nremplacé comme suit :\n\n      Dispositif et règles de contrôle interne en matière de lutte contre le blanchiment\n      d’argent, le financement du terrorisme et le financement de la prolifération des\n     armes de destruction massive.\n\n                                       2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_aml_lineage_2018_2025_46",
+      "query": "Quelles circulaires du corpus montrent explicitement l’évolution du cadre 2017-08 avant et en 2025 ?",
+      "language": "fr",
+      "category": "multi_hop_lineage",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_17_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "La circulaire 2018-09 modifie plusieurs dispositions de 2017-08, puis la circulaire 2025-17 intervient sur ce même cadre en le citant comme déjà modifié par 2018-09 et en remplaçant, ajoutant ou supprimant de nouvelles dispositions.",
+      "evidence_quote": "42 de la loi n°2016-35 du 25 avril 2016 portant statuts de la Banque\n\ncentrale de Tunisie.\n\nDécide : Article premier :\n\nLes dispositions de l’alinéa  2 et 3 de l’article 2 et l’alinéa premier de l’article 58 de la\n\ncirculaire n°2017-08 sont abrogées et remplacées comme suit :\n\n   Alinéa 2 de  l’article 2 (nouveau) : « bénéficiaire  effectif » :  la ou  les personnes\n\n    physiques qui détient (nent), directement ou indirectement, plus de 20 % du capital ou\n\n    des droits de vote de la personne morale ou de la construction juridique et d’une manière\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 2,
+          "quote": "42 de la loi n°2016-35 du 25 avril 2016 portant statuts de la Banque\n\ncentrale de Tunisie.\n\nDécide : Article premier :\n\nLes dispositions de l’alinéa  2 et 3 de l’article 2 et l’alinéa premier de l’article 58 de la\n\ncirculaire n°2017-08 sont abrogées et remplacées comme suit :\n\n   Alinéa 2 de  l’article 2 (nouveau) : « bénéficiaire  effectif » :  la ou  les personnes\n\n    physiques qui détient (nent), directement ou indirectement, plus de 20 % du capital ou\n\n    des droits de vote de la personne morale ou de la construction juridique et d’une manière\n\n                                        2"
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2,
+          "quote": "ut de la Banque Centrale de Tunisie. Décide : Article premier : L’objet de la circulaire n°2017-08 du 19 septembre 2017 telle que modifiée par la circulaire n° 2018-09 du 18 octobre 2018 susvisée est modifié et remplacé comme suit : Dispositif et règles de contrôle interne en matière de lutte contre le blanchiment d’argent, le financement du terrorisme et le financement de la prolifération des armes de destruction massive. 2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_02_external_abrogations_47",
+      "query": "Quels textes antérieurs la circulaire 2024-02 abroge-t-elle expressément en fin de dispositif ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_02_fr.pdf",
+      "expected_page": 10,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "pages": [
+            10
+          ]
+        },
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "pages": [
+            10
+          ]
+        }
+      ],
+      "expected_answer": "Elle abroge les articles 34 et 37 de la circulaire 91-22 et abroge entièrement la circulaire 2006-12 relative aux attributs de la qualité des services bancaires.",
+      "evidence_quote": "résente circulaire.\n\nLe contenu de ces déclarations doit être conforme aux annexes III et IV à la\nprésente circulaire.\n\nArticle 26 : Sont abrogées les dispositions des articles 34 et 37 de la circulaire de\nla Banque Centrale de Tunisie aux banques n°91-22 du 17 décembre 1991,\nrelative à la réglementation des conditions de banque.\n\nArticle 27 : La circulaire de la Banque Centrale de Tunisie aux établissements de\ncrédit n°2006-12 du 19 octobre 2006, relative aux attributs de la qualité des\nservices bancaires est abrogée.\n\nArticle 28 : Les banques et les établissements financiers doivent :\n- se conformer aux dispositions de  la présente  circulaire au plus  tard  le\n31 décembre 2024,\n\n\n                                       10",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "page": 10,
+          "quote": "résente circulaire.\n\nLe contenu de ces déclarations doit être conforme aux annexes III et IV à la\nprésente circulaire.\n\nArticle 26 : Sont abrogées les dispositions des articles 34 et 37 de la circulaire de\nla Banque Centrale de Tunisie aux banques n°91-22 du 17 décembre 1991,\nrelative à la réglementation des conditions de banque.\n\nArticle 27 : La circulaire de la Banque Centrale de Tunisie aux établissements de\ncrédit n°2006-12 du 19 octobre 2006, relative aux attributs de la qualité des\nservices bancaires est abrogée.\n\nArticle 28 : Les banques et les établissements financiers doivent :\n- se conformer aux dispositions de  la présente  circulaire au plus  tard  le\n31 décembre 2024,\n\n\n                                       10"
+        },
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "page": 10,
+          "quote": "ue Centrale de Tunisie aux banques n°91-22 du 17 décembre 1991,\nrelative à la réglementation des conditions de banque.\n\nArticle 27 : La circulaire de la Banque Centrale de Tunisie aux établissements de\ncrédit n°2006-12 du 19 octobre 2006, relative aux attributs de la qualité des\nservices bancaires est abrogée.\n\nArticle 28 : Les banques et les établissements financiers doivent :\n- se conformer aux dispositions de  la présente  circulaire au plus  tard  le\n31 décembre 2024,\n\n\n                                       10"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2024_07_external_abrogation_48",
+      "query": "Quelle ancienne circulaire sur les dons, aides et secours est expressément abrogée par la circulaire 2024-07 ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2024_07_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "La circulaire 2003-02 du 26 février 2003 est abrogée.",
+      "evidence_quote": "a liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2,
+          "quote": "a liste\ndes transferts visés à l’article premier conformément au tableau figurant en annexe\nde la présente circulaire.\n\nArticle 3 : La circulaire aux Intermédiaires Agréés n°2003-02 du 26 février 2003,\nrelative aux transferts en provenance de l’étranger à titre de dons, aides et secours\nest abrogée.\n\n Article 4 : La présente circulaire entre en vigueur à partir de la date de sa\npublication.\n\n\n                              LE GOUVERNEUR,\n\n                                             Fethi Zouhair Nouri\n\n\n                                        2"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2025_10_external_abrogation_49",
+      "query": "Quelle ancienne circulaire sur les transferts de frais de scolarité à l’étranger est abrogée par la circulaire 2025-10 ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_10_fr.pdf",
+      "expected_page": 11,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "pages": [
+            11
+          ]
+        }
+      ],
+      "expected_answer": "La circulaire 93-10 du 8 septembre 1993 est abrogée.",
+      "evidence_quote": "ire, peuvent être transférées dans la limite des montants et selon\nles conditions établies par la présente circulaire.\n\nArticle 34- Est abrogée la circulaire n°93-10 du 8 septembre 1993, relative aux\ntransferts effectués à titre de frais de scolarité en faveur des étudiants à l'étranger.\n\nArticle 35- La présente circulaire entre en vigueur à compter de la date de sa\npublication.\n\n                                          Le Gouverneur,\n\n                                                  Fethi Zouhaier NOURI\n\n                                    11",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 11,
+          "quote": "ire, peuvent être transférées dans la limite des montants et selon\nles conditions établies par la présente circulaire.\n\nArticle 34- Est abrogée la circulaire n°93-10 du 8 septembre 1993, relative aux\ntransferts effectués à titre de frais de scolarité en faveur des étudiants à l'étranger.\n\nArticle 35- La présente circulaire entre en vigueur à compter de la date de sa\npublication.\n\n                                          Le Gouverneur,\n\n                                                  Fethi Zouhaier NOURI\n\n                                    11"
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    },
+    {
+      "id": "graph_fr_2025_13_external_provisions_50",
+      "query": "Quelles dispositions de l’ancienne circulaire 94-14 sont remplacées par la circulaire 2025-13 sur les délais de règlement des exportations ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "evaluation_slice": "graph_temporal",
+      "difficulty": "hard",
+      "relevant": true,
+      "expected_source": "Cir_2025_13_fr.pdf",
+      "expected_page": 2,
+      "expected_sources": [
+        {
+          "source": "Cir_2025_13_fr.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "expected_answer": "L’article 10, le premier paragraphe de l’article 11 et l’article 12 de la circulaire 94-14 sont abrogés et remplacés.",
+      "evidence_quote": "-35 susvisée et notamment son\nalinéa 2 relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\n\nArticle premier - Les dispositions de l’article 10, du paragraphe premier de\nl’article 11 et de l’article 12 de la circulaire n° 94-14 du 14 septembre 1994,\nrelative  au  règlement  financier  des  importations  et  des  exportations  de\nmarchandises sont abrogées et remplacées comme suit :\n\n« Article 10 (nouveau) : Les prix des ventes peuvent être réglés par n'importe\nquel moyen de règlement, lorsque les contrats y afférents prévoient des délais de\nrèglement  allant jusqu’à 120 jours à compter de  la date d’expédition des\nmarchandises. »\n\n« Article 11 : Paragraphe premier(nouveau) : Les ventes dont les contrats y\nafférents prévoient des délais de règlement allant de 121 jours jusqu’à 360 jours,\nà compter de la date d’expédition des marchandises sont effectuées librement\nlorsqu’elles répondent à l’une des conditions suivantes :\n\n- Elles sont assorties d’une garantie de paiement émise par une banque non-\nrésidente.\n\n- Elles prévoient l’ouverture au profit de l’exportateur résident d’un crédit\ndocumentaire irrévocable ou d’une lettre de crédit stand-by.\n\n- Elles prévoient le paiement par une traite émise au nom de l’intermédiaire agréé\nou endossée à son profit et avalisée par une banque non-résidente.",
+      "evidence_quotes": [
+        {
+          "source": "Cir_2025_13_fr.pdf",
+          "page": 2,
+          "quote": "-35 susvisée et notamment son\nalinéa 2 relatif aux circulaires ayant un caractère urgent.\n\nDécide :\n\n\nArticle premier - Les dispositions de l’article 10, du paragraphe premier de\nl’article 11 et de l’article 12 de la circulaire n° 94-14 du 14 septembre 1994,\nrelative  au  règlement  financier  des  importations  et  des  exportations  de\nmarchandises sont abrogées et remplacées comme suit :\n\n« Article 10 (nouveau) : Les prix des ventes peuvent être réglés par n'importe\nquel moyen de règlement, lorsque les contrats y afférents prévoient des délais de\nrèglement  allant jusqu’à 120 jours à compter de  la date d’expédition des\nmarchandises. »\n\n« Article 11 : Paragraphe premier(nouveau) : Les ventes dont les contrats y\nafférents prévoient des délais de règlement allant de 121 jours jusqu’à 360 jours,\nà compter de la date d’expédition des marchandises sont effectuées librement\nlorsqu’elles répondent à l’une des conditions suivantes :\n\n- Elles sont assorties d’une garantie de paiement émise par une banque non-\nrésidente.\n\n- Elles prévoient l’ouverture au profit de l’exportateur résident d’un crédit\ndocumentaire irrévocable ou d’une lettre de crédit stand-by.\n\n- Elles prévoient le paiement par une traite émise au nom de l’intermédiaire agréé\nou endossée à son profit et avalisée par une banque non-résidente."
+        }
+      ],
+      "evidence_method": "text_extraction",
+      "requires_graph": true,
+      "expected_behavior": "answer"
+    }
+  ]
+}

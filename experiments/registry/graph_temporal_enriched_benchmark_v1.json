@@ -1,0 +1,56 @@
+{
+  "experiment_id": "graph-temporal-enriched-benchmark-v1",
+  "timestamp": "2026-08-28T16:21:38.246349+00:00",
+  "hypothesis": "The current retrieval pipeline and temporal graph are ready to retrieve and assemble evidence for the supplied graph-temporal evaluation slice.",
+  "changed_variable": "new_graph_temporal_evaluation_slice_only",
+  "code_commit": "88e2943",
+  "configuration": {
+    "case_count": 50,
+    "native_dense_k": 20,
+    "native_bm25_k": 15,
+    "arabic_ocr_dense_k": 5,
+    "arabic_ocr_bm25_k": 5,
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "document_identity_prefix": "retained runtime-observable policy",
+    "hosted_calls": 0,
+    "answer_calls": 0,
+    "runtime_gold_access": false
+  },
+  "dataset_hashes": {
+    "source_enriched_evaluation": "6DACE8538C9D5F47EFCA5E038DC4853B66A283803C1B0CF06A8B11DBD8DC99EB",
+    "predeclaration": "AB21C649E9521A982626785E6F6331E83FA27A90CEACA331BA949DE511D1EFD4",
+    "derived_corrected_slice": "F77A6B0F5727CB2FD8820A787AA4BBC2906A8E3FE012A872553729065A6E167E",
+    "gold_audit": "35516397B6FB0AD47AE3DD47109FD9C5DF76E55E5C55E1B0D62A12E093B6DBBA",
+    "result": "57E605B3582A4D09164D538291F5F314E3EDA8E9F99C492B48578F6CF409EA86",
+    "native_manifest": "920159F84E87353256899370A2E8B7854BAB87FBBBDC05184FED7C3657B439C1",
+    "arabic_ocr_manifest": "8CBD9A468B2D017DB46218252B555231460A64381245786CCA020C84F3CD05AB"
+  },
+  "development_metrics": {
+    "primary_page_at_1": 0.64,
+    "primary_page_at_5": 0.92,
+    "complete_required_sources_at_5": 0.86,
+    "complete_required_page_pairs_at_5": 0.78,
+    "complete_required_sources_at_20": 0.94,
+    "complete_required_page_pairs_at_20": 0.82,
+    "mean_required_page_pair_recall_at_5": 0.865,
+    "mean_required_page_pair_recall_at_20": 0.895,
+    "arabic_complete_required_page_pairs_at_5": 1.0,
+    "candidate_missing_required_page_pairs": 9,
+    "current_graph_cases_with_any_required_source": 0,
+    "current_graph_cases_with_all_required_sources": 0
+  },
+  "gate": {
+    "all_cases_have_all_required_graph_sources": "FAIL_0_OF_50",
+    "runtime_graph_retriever_exists": "FAIL",
+    "answer_context_assembler_exists": "FAIL",
+    "auditable_input_and_corrections": "PASS",
+    "overall": "FAIL"
+  },
+  "decision": "GRAPH_ARM_NOT_READY",
+  "conclusion": "The enriched slice is usable after two audited page corrections, and the ordinary retrieval control often finds the needed evidence. The current graph is still a one-circular tracer: it covers none of the required sources and has no runtime graph retrieval or answer-context assembly path, so no GraphRAG accuracy claim can be made.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
