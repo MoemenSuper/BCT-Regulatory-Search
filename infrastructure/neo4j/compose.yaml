@@ -1,0 +1,26 @@
+name: bct-temporal-regulatory-v1
+
+services:
+  neo4j:
+    image: neo4j:2026.07.1@sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76
+    container_name: bct-temporal-regulatory-v1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:17474:7474"
+      - "127.0.0.1:17687:7687"
+    environment:
+      NEO4J_AUTH: none
+    volumes:
+      - "${BCT_NEO4J_PERSISTENT_ROOT}/data:/data"
+      - "${BCT_NEO4J_PERSISTENT_ROOT}/logs:/logs"
+      - "${BCT_NEO4J_PERSISTENT_ROOT}/import:/import"
+      - "${BCT_NEO4J_PERSISTENT_ROOT}/backups:/backups"
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -a bolt://localhost:7687 'RETURN 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    labels:
+      bct.storage: persistent
+      bct.graph.schema: temporal-regulatory-v1

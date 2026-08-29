@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from regulatory_graph.models import (
     ChangeEvent,
     EvidenceSpan,
+    GraphChunk,
     GraphPage,
     Instrument,
     LegalAction,
@@ -27,6 +28,7 @@ _NODE_COLLECTIONS = (
     ("Instrument", "instruments"),
     ("SourceEdition", "source_editions"),
     ("Page", "pages"),
+    ("Chunk", "chunks"),
     ("Provision", "provisions"),
     ("ProvisionVersion", "provision_versions"),
     ("TargetSpan", "target_spans"),
@@ -51,6 +53,13 @@ class WriteReceipt:
 class GraphCounts:
     nodes: int
     relationships: int
+
+
+@dataclass(frozen=True)
+class GraphSnapshot:
+    nodes: int
+    relationships: int
+    content_sha256: str
 
 
 class TemporalResolution(BaseModel):
@@ -114,6 +123,7 @@ class Neo4jGraphWriter:
         self._database = database
 
     def write_bundle(self, bundle: RegulatoryGraphBundle) -> WriteReceipt:
+        bundle = RegulatoryGraphBundle.model_validate(bundle.model_dump(mode="python"))
         references = _BundleReferences(bundle)
         for event in bundle.change_events:
             validate_change_event_for_write(event, references)
@@ -147,12 +157,57 @@ class Neo4jGraphWriter:
             ((item.source_edition_uid, item.uid) for item in bundle.pages),
         )
         self._relationship(
+            "Page", "HAS_CHUNK", "Chunk",
+            ((item.page_uid, item.uid) for item in bundle.chunks),
+        )
+        chunks_by_page: dict[str, list[GraphChunk]] = {}
+        for chunk in bundle.chunks:
+            chunks_by_page.setdefault(chunk.page_uid, []).append(chunk)
+        self._relationship(
+            "Chunk", "NEXT_CHUNK", "Chunk",
+            (
+                (left.uid, right.uid)
+                for chunks in chunks_by_page.values()
+                for left, right in zip(
+                    sorted(chunks, key=lambda item: item.chunk_index),
+                    sorted(chunks, key=lambda item: item.chunk_index)[1:],
+                )
+            ),
+        )
+        self._relationship(
             "Instrument", "HAS_PROVISION", "Provision",
             ((item.instrument_uid, item.uid) for item in bundle.provisions),
         )
         self._relationship(
+            "Provision", "CONTAINS_PROVISION", "Provision",
+            (
+                (item.parent_provision_uid, item.uid)
+                for item in bundle.provisions
+                if item.parent_provision_uid is not None
+            ),
+        )
+        self._relationship(
             "Provision", "HAS_VERSION", "ProvisionVersion",
             ((item.provision_uid, item.uid) for item in bundle.provision_versions),
+        )
+        self._relationship(
+            "Provision", "CURRENT_VERSION", "ProvisionVersion",
+            (
+                (item.provision_uid, item.uid)
+                for item in bundle.provision_versions
+                if item.status.value == "ACTIVE"
+                and item.verification_status is not None
+                and item.verification_status.value == "VERIFIED"
+                and item.valid_to is None
+            ),
+        )
+        self._relationship(
+            "ProvisionVersion", "SUPERSEDES_VERSION", "ProvisionVersion",
+            (
+                (item.uid, item.supersedes_version_uid)
+                for item in bundle.provision_versions
+                if item.supersedes_version_uid is not None
+            ),
         )
         self._relationship(
             "TargetSpan", "WITHIN", "ProvisionVersion",
@@ -163,6 +218,14 @@ class Neo4jGraphWriter:
             (
                 (item.uid, page_uids[(item.source_edition_uid, item.page_number)])
                 for item in bundle.evidence_spans
+            ),
+        )
+        self._relationship(
+            "EvidenceSpan", "IN_CHUNK", "Chunk",
+            (
+                (item.uid, item.chunk_uid)
+                for item in bundle.evidence_spans
+                if item.chunk_uid is not None
             ),
         )
         self._relationship(
@@ -307,6 +370,38 @@ class Neo4jRegulatoryGraph:
             relationships=rows[0]["relationships"] if rows else 0,
         )
 
+    def snapshot(self) -> GraphSnapshot:
+        nodes = _rows(
+            self._execute(
+                "MATCH (node) RETURN labels(node) AS labels, "
+                "properties(node) AS properties"
+            )
+        )
+        relationships = _rows(
+            self._execute(
+                "MATCH (source)-[relationship]->(target) "
+                "RETURN source.uid AS source_uid, type(relationship) AS relationship_type, "
+                "target.uid AS target_uid, properties(relationship) AS properties"
+            )
+        )
+        payload = {
+            "nodes": _canonical_rows(nodes),
+            "relationships": _canonical_rows(relationships),
+        }
+        digest = sha256(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                default=_json_default,
+            ).encode("utf-8")
+        ).hexdigest()
+        return GraphSnapshot(
+            nodes=len(nodes),
+            relationships=len(relationships),
+            content_sha256=digest,
+        )
+
     def _execute(self, statement: str, **parameters: Any) -> Any:
         return self._driver.execute_query(
             statement,
@@ -345,3 +440,21 @@ def _native_value(value: Any) -> Any:
     if hasattr(value, "to_native"):
         return value.to_native()
     return value
+
+
+def _canonical_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        rows,
+        key=lambda row: json.dumps(
+            row,
+            ensure_ascii=False,
+            sort_keys=True,
+            default=_json_default,
+        ),
+    )
+
+
+def _json_default(value: Any) -> Any:
+    if isinstance(value, (date, Enum)):
+        return value.isoformat() if isinstance(value, date) else value.value
+    raise TypeError(f"unsupported graph snapshot value: {type(value).__name__}")

@@ -149,6 +149,24 @@ class GraphPage(GraphModel):
     page_label: NonEmptyStr
 
 
+class GraphChunk(GraphModel):
+    uid: NonEmptyStr
+    page_uid: NonEmptyStr
+    chunk_index: int = Field(ge=0)
+    text: NonEmptyStr
+    content_hash: Sha256
+    source_sha256: Sha256
+    extraction_artifact_hash: Sha256
+    extraction_method: NonEmptyStr
+    char_start: int | None = Field(default=None, ge=0)
+    char_end: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_offsets(self) -> "GraphChunk":
+        _validate_offsets(self.char_start, self.char_end)
+        return self
+
+
 class Provision(GraphModel):
     uid: NonEmptyStr
     instrument_uid: NonEmptyStr
@@ -157,6 +175,7 @@ class Provision(GraphModel):
     ordinal: int | None = Field(default=None, ge=0)
     canonical_path: NonEmptyStr
     heading: NonEmptyStr | None = None
+    parent_provision_uid: NonEmptyStr | None = None
 
 
 class ProvisionVersion(GraphModel):
@@ -173,6 +192,7 @@ class ProvisionVersion(GraphModel):
     content_hash: Sha256
     confidence: float | None = Field(default=None, ge=0, le=1)
     verification_status: VerificationStatus | None = None
+    supersedes_version_uid: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def validate_half_open_interval(self) -> "ProvisionVersion":
@@ -207,6 +227,7 @@ class EvidenceSpan(GraphModel):
     extraction_method: NonEmptyStr
     source_sha256: Sha256
     extraction_artifact_hash: Sha256
+    chunk_uid: NonEmptyStr | None = None
     char_start: int | None = Field(default=None, ge=0)
     char_end: int | None = Field(default=None, ge=0)
     bounding_box: tuple[float, float, float, float] | None = None
@@ -302,6 +323,7 @@ class RegulatoryGraphBundle(GraphModel):
     instruments: tuple[Instrument, ...]
     source_editions: tuple[SourceEdition, ...]
     pages: tuple[GraphPage, ...]
+    chunks: tuple[GraphChunk, ...] = ()
     provisions: tuple[Provision, ...]
     provision_versions: tuple[ProvisionVersion, ...]
     target_spans: tuple[TargetSpan, ...] = ()
@@ -314,6 +336,7 @@ class RegulatoryGraphBundle(GraphModel):
             "Instrument": self.instruments,
             "SourceEdition": self.source_editions,
             "Page": self.pages,
+            "Chunk": self.chunks,
             "Provision": self.provisions,
             "ProvisionVersion": self.provision_versions,
             "TargetSpan": self.target_spans,
@@ -332,9 +355,20 @@ class RegulatoryGraphBundle(GraphModel):
         required.extend(
             ("SourceEdition", item.source_edition_uid) for item in self.pages
         )
+        required.extend(("Page", item.page_uid) for item in self.chunks)
         required.extend(("Instrument", item.instrument_uid) for item in self.provisions)
         required.extend(
+            ("Provision", item.parent_provision_uid)
+            for item in self.provisions
+            if item.parent_provision_uid is not None
+        )
+        required.extend(
             ("Provision", item.provision_uid) for item in self.provision_versions
+        )
+        required.extend(
+            ("ProvisionVersion", item.supersedes_version_uid)
+            for item in self.provision_versions
+            if item.supersedes_version_uid is not None
         )
         required.extend(
             ("ProvisionVersion", item.provision_version_uid)
@@ -343,6 +377,11 @@ class RegulatoryGraphBundle(GraphModel):
         required.extend(
             ("SourceEdition", item.source_edition_uid)
             for item in self.evidence_spans
+        )
+        required.extend(
+            ("Chunk", item.chunk_uid)
+            for item in self.evidence_spans
+            if item.chunk_uid is not None
         )
         missing = [f"{label} {uid}" for label, uid in required if uid not in ids[label]]
         page_keys = {
@@ -355,6 +394,22 @@ class RegulatoryGraphBundle(GraphModel):
         )
         if missing:
             raise ValueError("graph bundle references missing nodes: " + ", ".join(missing))
+
+        verified_by_provision: dict[str, list[ProvisionVersion]] = {}
+        for version in self.provision_versions:
+            if (
+                version.verification_status == VerificationStatus.VERIFIED
+                and version.valid_from is not None
+            ):
+                verified_by_provision.setdefault(version.provision_uid, []).append(version)
+        for provision_uid, versions in verified_by_provision.items():
+            ordered = sorted(versions, key=lambda item: item.valid_from)
+            for earlier, later in zip(ordered, ordered[1:]):
+                if earlier.valid_to is None or later.valid_from < earlier.valid_to:
+                    raise ValueError(
+                        f"overlapping verified versions for {provision_uid}: "
+                        f"{earlier.uid}, {later.uid}"
+                    )
         return self
 
     @property
@@ -365,6 +420,7 @@ class RegulatoryGraphBundle(GraphModel):
                 self.instruments,
                 self.source_editions,
                 self.pages,
+                self.chunks,
                 self.provisions,
                 self.provision_versions,
                 self.target_spans,

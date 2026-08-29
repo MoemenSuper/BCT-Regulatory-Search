@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
-from regulatory_graph.models import VerificationStatus
+from regulatory_graph.models import GraphChunk, VerificationStatus, VersionStatus
 from regulatory_graph.neo4j_store import Neo4jGraphWriter, Neo4jRegulatoryGraph
 from regulatory_graph.source_verification import verify_bundle_source
 
@@ -111,6 +111,110 @@ def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
     )
 
 
+def test_writer_persists_page_chunks_and_deterministic_chunk_order():
+    bundle = circular_2016_03_fr_bundle()
+    page = bundle.pages[0]
+    chunks = (
+        GraphChunk(
+            uid="chunk:cir-2016-03:fr:2:0",
+            page_uid=page.uid,
+            chunk_index=0,
+            text="Article 2",
+            content_hash="a" * 64,
+            source_sha256=bundle.source_editions[0].sha256,
+            extraction_artifact_hash="b" * 64,
+            extraction_method="native",
+        ),
+        GraphChunk(
+            uid="chunk:cir-2016-03:fr:2:1",
+            page_uid=page.uid,
+            chunk_index=1,
+            text="Texte de remplacement",
+            content_hash="c" * 64,
+            source_sha256=bundle.source_editions[0].sha256,
+            extraction_artifact_hash="d" * 64,
+            extraction_method="native",
+        ),
+    )
+    driver = FakeDriver()
+
+    Neo4jGraphWriter(driver).write_bundle(
+        bundle.model_copy(update={"chunks": chunks})
+    )
+
+    statements = tuple(call[0] for call in driver.calls)
+    assert any("MERGE (node:Chunk {uid: row.uid})" in query for query in statements)
+    assert any("MERGE (source)-[:HAS_CHUNK]->(target)" in query for query in statements)
+    assert any("MERGE (source)-[:NEXT_CHUNK]->(target)" in query for query in statements)
+
+
+def test_writer_persists_declared_provision_version_and_evidence_relationships():
+    bundle = circular_2016_03_fr_bundle()
+    parent = bundle.provisions[0]
+    child = parent.model_copy(
+        update={
+            "uid": f"{parent.uid}:PARAGRAPH:1",
+            "label": "Paragraph 1",
+            "canonical_path": "article/4/paragraph/1",
+            "parent_provision_uid": parent.uid,
+        }
+    )
+    current = bundle.provision_versions[0].model_copy(
+        update={
+            "version_number": 2,
+            "status": VersionStatus.ACTIVE,
+            "verification_status": VerificationStatus.VERIFIED,
+            "supersedes_version_uid": "version:bct:1991:24:article-4:prior",
+        }
+    )
+    prior = current.model_copy(
+        update={
+            "uid": "version:bct:1991:24:article-4:prior",
+            "version_number": 1,
+            "valid_from": date(2010, 1, 1),
+            "valid_to": current.valid_from,
+            "status": VersionStatus.SUPERSEDED,
+            "supersedes_version_uid": None,
+        }
+    )
+    page = bundle.pages[0]
+    chunk = GraphChunk(
+        uid="chunk:cir-2016-03:fr:2:0",
+        page_uid=page.uid,
+        chunk_index=0,
+        text="Article 2",
+        content_hash="a" * 64,
+        source_sha256=bundle.source_editions[0].sha256,
+        extraction_artifact_hash="b" * 64,
+        extraction_method="native",
+    )
+    evidence = bundle.evidence_spans[0].model_copy(
+        update={"chunk_uid": chunk.uid}
+    )
+    driver = FakeDriver()
+
+    Neo4jGraphWriter(driver).write_bundle(
+        bundle.model_copy(
+            update={
+                "chunks": (chunk,),
+                "provisions": (*bundle.provisions, child),
+                "provision_versions": (
+                    prior,
+                    current,
+                    *bundle.provision_versions[1:],
+                ),
+                "evidence_spans": (evidence, *bundle.evidence_spans[1:]),
+            }
+        )
+    )
+
+    statements = tuple(call[0] for call in driver.calls)
+    assert any("MERGE (source)-[:CONTAINS_PROVISION]->(target)" in query for query in statements)
+    assert any("MERGE (source)-[:CURRENT_VERSION]->(target)" in query for query in statements)
+    assert any("MERGE (source)-[:SUPERSEDES_VERSION]->(target)" in query for query in statements)
+    assert any("MERGE (source)-[:IN_CHUNK]->(target)" in query for query in statements)
+
+
 def test_writer_validates_all_change_references_before_writing(monkeypatch):
     bundle = circular_2016_03_fr_bundle()
     bad_event = bundle.change_events[0].model_copy(
@@ -122,6 +226,47 @@ def test_writer_validates_all_change_references_before_writing(monkeypatch):
     driver = FakeDriver()
 
     with pytest.raises(ValueError, match="missing-version"):
+        Neo4jGraphWriter(driver).write_bundle(invalid)
+
+    assert driver.calls == []
+
+
+def test_writer_revalidates_structural_references_before_writing():
+    bundle = circular_2016_03_fr_bundle()
+    invalid_provision = bundle.provisions[0].model_copy(
+        update={"parent_provision_uid": "missing-parent"}
+    )
+    invalid = bundle.model_copy(
+        update={
+            "provisions": (invalid_provision, *bundle.provisions[1:]),
+        }
+    )
+    driver = FakeDriver()
+
+    with pytest.raises(ValueError, match="missing-parent"):
+        Neo4jGraphWriter(driver).write_bundle(invalid)
+
+    assert driver.calls == []
+
+
+def test_writer_rejects_overlapping_verified_version_intervals():
+    bundle = circular_2016_03_fr_bundle()
+    version = bundle.provision_versions[0]
+    overlapping = version.model_copy(
+        update={
+            "uid": f"{version.uid}:overlap",
+            "version_number": 2,
+            "valid_from": date(2017, 1, 1),
+        }
+    )
+    invalid = bundle.model_copy(
+        update={
+            "provision_versions": (version, overlapping, *bundle.provision_versions[1:]),
+        }
+    )
+    driver = FakeDriver()
+
+    with pytest.raises(ValueError, match="overlapping verified versions"):
         Neo4jGraphWriter(driver).write_bundle(invalid)
 
     assert driver.calls == []
@@ -221,6 +366,32 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
     assert entries[0].source_filenames == ("Cir_2016_03_fr.pdf",)
     assert entries[0].evidence[0].page_number == 2
     assert entries[0].evidence[0].quote.startswith("Article 2")
+
+
+def test_graph_snapshot_hash_is_stable_across_database_row_order():
+    nodes = [
+        {"labels": ["Instrument"], "properties": {"uid": "instrument:2"}},
+        {"labels": ["Instrument"], "properties": {"uid": "instrument:1"}},
+    ]
+    relationships = [
+        {
+            "source_uid": "instrument:1",
+            "relationship_type": "TARGETS",
+            "target_uid": "instrument:2",
+            "properties": {},
+        }
+    ]
+    first = Neo4jRegulatoryGraph(
+        FakeDriver(responses=[nodes, relationships])
+    ).snapshot()
+    second = Neo4jRegulatoryGraph(
+        FakeDriver(responses=[list(reversed(nodes)), relationships])
+    ).snapshot()
+
+    assert first == second
+    assert first.nodes == 2
+    assert first.relationships == 1
+    assert len(first.content_sha256) == 64
 
 
 @pytest.mark.skipif(
