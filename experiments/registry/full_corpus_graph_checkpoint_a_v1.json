@@ -1,0 +1,47 @@
+{
+  "experiment_id": "full-corpus-graph-checkpoint-a-v1",
+  "timestamp": "2026-08-29T22:55:36.7555907Z",
+  "hypothesis": "A pinned Neo4j deployment with explicit local bind mounts can persist the verified graph across full restarts, isolate destructive tests, and support every relationship family already declared by the temporal graph schema.",
+  "changed_variable": "persistent_neo4j_infrastructure_and_complete_declared_relationship_writer",
+  "code_commit": "ea9195c0cd4aecf6ce5282e734b21318c628e449",
+  "code_commits": ["20bbb18", "ea9195c"],
+  "configuration": {
+    "neo4j_image": "neo4j:2026.07.1",
+    "neo4j_image_digest": "sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "database": "neo4j",
+    "persistent_root": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search-local-data\\neo4j\\temporal-regulatory-v1",
+    "hosted_calls": 0,
+    "runtime_gold_access": false
+  },
+  "dataset_hashes": {
+    "source_pdf": "E463736EBB98BE5DBC6E02635E1D635734B9CDF4ACFD598F4F1BA8351DC43078",
+    "graph_content": "FC40CAF1E7D96612785F9CAA72F899F91D6019AB6A0C35038C57825BEAFF3E95",
+    "neo4j_dump": "5F2A4813BE91AC4B22863854515BB28AEA6835DF0E0688215D748B2401CC3CF4",
+    "result": "989BD11D918D3231578D623923ADED431AEF5B7743CABEA84A15A69F12AE6597",
+    "research": "5CB9EC60CDAB5B53F972082E1FDE7B9ADCFCC29549832CEC4163DD83D04B5624"
+  },
+  "development_metrics": {
+    "persistent_nodes": 20,
+    "persistent_relationships": 29,
+    "idempotent_second_write": true,
+    "restart_hash_unchanged": true,
+    "portable_dump_created": true,
+    "disposable_live_tests_passed": 14,
+    "repository_tests_passed": 207
+  },
+  "gate": {
+    "persistent_infrastructure": "PASS",
+    "restart_persistence": "PASS",
+    "portable_backup": "PASS",
+    "disposable_cleanup_isolation": "PASS",
+    "declared_writer_relationship_support": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_CHECKPOINT_A",
+  "recommendation": "Proceed to Checkpoint B structural ingestion; do not claim a complete corpus graph or GraphRAG readiness yet.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

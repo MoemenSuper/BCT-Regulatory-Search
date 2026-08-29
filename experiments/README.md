@@ -398,3 +398,15 @@ python -u -m experiments.structured_ingestion_benchmark all `
 ```
 
 Extraction checkpoints after every PDF, so `ingest` or `all` can resume. Index creation refuses to overwrite an existing experimental index. The final `benchmark_results.json` stores every question's baseline and experimental ranks, retrieved top five with text and structure metadata, failure classifications, and OCR-rescue status. `benchmark_report.md` contains aggregate metrics and the changed/failed question summaries.
+
+## Persistent temporal graph checkpoint A
+
+The persistent Neo4j deployment contract is in
+`infrastructure/neo4j/compose.yaml`. Follow its adjacent README to set the
+explicit external storage root, start or stop the server, and create an offline
+portable dump. The verified Checkpoint A receipt is
+`experiments/results/full_corpus_graph_checkpoint_a_v1.json`.
+
+Checkpoint A contains only the verified temporal tracer. It authorizes the
+full-corpus structural ingestion work in Checkpoint B; it does not establish
+corpus graph completeness, GraphRAG retrieval, or answer correctness.
