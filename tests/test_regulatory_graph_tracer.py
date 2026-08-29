@@ -20,6 +20,8 @@ def _disposable_live_uri():
         raise RuntimeError("disposable Neo4j test URI must use a loopback host")
     if parsed.port in {None, 7687}:
         raise RuntimeError("disposable Neo4j test URI must use an explicit non-default port")
+    if parsed.port == 17687:
+        raise RuntimeError("disposable Neo4j test URI cannot use the persistent graph port")
     return uri
 
 
@@ -38,6 +40,19 @@ class FakeDriver:
         return []
 
 
+def _chunk(bundle, *, uid="chunk:cir-2016-03:fr:2:0", chunk_index=0):
+    return GraphChunk(
+        uid=uid,
+        page_uid=bundle.pages[0].uid,
+        chunk_index=chunk_index,
+        text=f"Chunk {chunk_index}",
+        content_hash="a" * 64,
+        source_sha256=bundle.source_editions[0].sha256,
+        extraction_artifact_hash="b" * 64,
+        extraction_method="native",
+    )
+
+
 def test_live_cleanup_guard_requires_explicit_local_disposable_target(monkeypatch):
     monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://localhost:17687")
     monkeypatch.delenv("BCT_NEO4J_TEST_DISPOSABLE", raising=False)
@@ -50,6 +65,10 @@ def test_live_cleanup_guard_requires_explicit_local_disposable_target(monkeypatc
 
     monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://localhost:7687")
     with pytest.raises(RuntimeError, match="non-default"):
+        _disposable_live_uri()
+
+    monkeypatch.setenv("BCT_NEO4J_TEST_URI", "bolt://localhost:17687")
+    with pytest.raises(RuntimeError, match="persistent"):
         _disposable_live_uri()
 
 
@@ -113,28 +132,9 @@ def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
 
 def test_writer_persists_page_chunks_and_deterministic_chunk_order():
     bundle = circular_2016_03_fr_bundle()
-    page = bundle.pages[0]
     chunks = (
-        GraphChunk(
-            uid="chunk:cir-2016-03:fr:2:0",
-            page_uid=page.uid,
-            chunk_index=0,
-            text="Article 2",
-            content_hash="a" * 64,
-            source_sha256=bundle.source_editions[0].sha256,
-            extraction_artifact_hash="b" * 64,
-            extraction_method="native",
-        ),
-        GraphChunk(
-            uid="chunk:cir-2016-03:fr:2:1",
-            page_uid=page.uid,
-            chunk_index=1,
-            text="Texte de remplacement",
-            content_hash="c" * 64,
-            source_sha256=bundle.source_editions[0].sha256,
-            extraction_artifact_hash="d" * 64,
-            extraction_method="native",
-        ),
+        _chunk(bundle),
+        _chunk(bundle, uid="chunk:cir-2016-03:fr:2:1", chunk_index=1),
     )
     driver = FakeDriver()
 
@@ -177,17 +177,7 @@ def test_writer_persists_declared_provision_version_and_evidence_relationships()
             "supersedes_version_uid": None,
         }
     )
-    page = bundle.pages[0]
-    chunk = GraphChunk(
-        uid="chunk:cir-2016-03:fr:2:0",
-        page_uid=page.uid,
-        chunk_index=0,
-        text="Article 2",
-        content_hash="a" * 64,
-        source_sha256=bundle.source_editions[0].sha256,
-        extraction_artifact_hash="b" * 64,
-        extraction_method="native",
-    )
+    chunk = _chunk(bundle)
     evidence = bundle.evidence_spans[0].model_copy(
         update={"chunk_uid": chunk.uid}
     )
@@ -211,6 +201,7 @@ def test_writer_persists_declared_provision_version_and_evidence_relationships()
     statements = tuple(call[0] for call in driver.calls)
     assert any("MERGE (source)-[:CONTAINS_PROVISION]->(target)" in query for query in statements)
     assert any("MERGE (source)-[:CURRENT_VERSION]->(target)" in query for query in statements)
+    assert any("DELETE relationship" in query for query in statements)
     assert any("MERGE (source)-[:SUPERSEDES_VERSION]->(target)" in query for query in statements)
     assert any("MERGE (source)-[:IN_CHUNK]->(target)" in query for query in statements)
 
@@ -268,6 +259,41 @@ def test_writer_rejects_overlapping_verified_version_intervals():
 
     with pytest.raises(ValueError, match="overlapping verified versions"):
         Neo4jGraphWriter(driver).write_bundle(invalid)
+
+    assert driver.calls == []
+
+
+def test_writer_rejects_duplicate_chunk_positions():
+    bundle = circular_2016_03_fr_bundle()
+    duplicate_position = (
+        _chunk(bundle),
+        _chunk(bundle, uid="chunk:cir-2016-03:fr:2:duplicate"),
+    )
+    driver = FakeDriver()
+
+    with pytest.raises(ValueError, match="duplicate chunk position"):
+        Neo4jGraphWriter(driver).write_bundle(
+            bundle.model_copy(update={"chunks": duplicate_position})
+        )
+
+    assert driver.calls == []
+
+
+def test_writer_rejects_cross_provision_supersession():
+    bundle = circular_2016_03_fr_bundle()
+    version = bundle.provision_versions[0].model_copy(
+        update={"supersedes_version_uid": bundle.provision_versions[1].uid}
+    )
+    driver = FakeDriver()
+
+    with pytest.raises(ValueError, match="same provision"):
+        Neo4jGraphWriter(driver).write_bundle(
+            bundle.model_copy(
+                update={
+                    "provision_versions": (version, *bundle.provision_versions[1:]),
+                }
+            )
+        )
 
     assert driver.calls == []
 

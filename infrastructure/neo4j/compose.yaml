@@ -11,10 +11,10 @@ services:
     environment:
       NEO4J_AUTH: none
     volumes:
-      - "${BCT_NEO4J_PERSISTENT_ROOT}/data:/data"
-      - "${BCT_NEO4J_PERSISTENT_ROOT}/logs:/logs"
-      - "${BCT_NEO4J_PERSISTENT_ROOT}/import:/import"
-      - "${BCT_NEO4J_PERSISTENT_ROOT}/backups:/backups"
+      - "${BCT_NEO4J_PERSISTENT_ROOT:?Set BCT_NEO4J_PERSISTENT_ROOT}/data:/data"
+      - "${BCT_NEO4J_PERSISTENT_ROOT:?Set BCT_NEO4J_PERSISTENT_ROOT}/logs:/logs"
+      - "${BCT_NEO4J_PERSISTENT_ROOT:?Set BCT_NEO4J_PERSISTENT_ROOT}/import:/import"
+      - "${BCT_NEO4J_PERSISTENT_ROOT:?Set BCT_NEO4J_PERSISTENT_ROOT}/backups:/backups"
     healthcheck:
       test: ["CMD-SHELL", "cypher-shell -a bolt://localhost:7687 'RETURN 1' >/dev/null 2>&1"]
       interval: 5s

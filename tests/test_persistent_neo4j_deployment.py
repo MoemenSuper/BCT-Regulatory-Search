@@ -15,7 +15,7 @@ def test_persistent_neo4j_compose_contract_is_local_pinned_and_bind_mounted():
     assert '"127.0.0.1:17474:7474"' in compose
     assert '"127.0.0.1:17687:7687"' in compose
     assert "NEO4J_AUTH: none" in compose
-    assert compose.count("${BCT_NEO4J_PERSISTENT_ROOT}") == 4
+    assert compose.count("${BCT_NEO4J_PERSISTENT_ROOT:?") == 4
     for directory in ("data", "logs", "import", "backups"):
         assert f"}}/{directory}:/{directory}" in compose
     assert "DISPOSABLE" not in compose

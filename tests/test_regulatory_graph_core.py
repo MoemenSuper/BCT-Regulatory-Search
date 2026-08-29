@@ -115,6 +115,20 @@ def test_active_provision_version_must_be_verified():
         )
 
 
+def test_active_provision_version_requires_a_resolved_start_date():
+    with pytest.raises(ValidationError, match="valid_from"):
+        ProvisionVersion(
+            uid="version:article-4:v2",
+            provision_uid="BCT:CIRCULAR:1991:24:ARTICLE:4",
+            version_number=2,
+            text="Version consolidee de l'article 4.",
+            language="fr",
+            status=VersionStatus.ACTIVE,
+            content_hash="a" * 64,
+            verification_status=VerificationStatus.VERIFIED,
+        )
+
+
 def test_official_language_editions_share_one_canonical_instrument():
     instrument = Instrument(
         uid="BCT:CIRCULAR:2016:03",

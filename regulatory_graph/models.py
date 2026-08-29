@@ -200,6 +200,8 @@ class ProvisionVersion(GraphModel):
         if self.status == VersionStatus.ACTIVE:
             if self.verification_status != VerificationStatus.VERIFIED:
                 raise ValueError("ACTIVE provision version must be VERIFIED")
+            if self.valid_from is None:
+                raise ValueError("ACTIVE provision version requires valid_from")
         return self
 
 
@@ -394,6 +396,18 @@ class RegulatoryGraphBundle(GraphModel):
         )
         if missing:
             raise ValueError("graph bundle references missing nodes: " + ", ".join(missing))
+
+        chunk_positions = [(chunk.page_uid, chunk.chunk_index) for chunk in self.chunks]
+        if len(chunk_positions) != len(set(chunk_positions)):
+            raise ValueError("duplicate chunk position within a graph page")
+
+        versions_by_uid = {version.uid: version for version in self.provision_versions}
+        for version in self.provision_versions:
+            if version.supersedes_version_uid is None:
+                continue
+            superseded = versions_by_uid[version.supersedes_version_uid]
+            if superseded.provision_uid != version.provision_uid:
+                raise ValueError("superseding versions must belong to the same provision")
 
         verified_by_provision: dict[str, list[ProvisionVersion]] = {}
         for version in self.provision_versions:

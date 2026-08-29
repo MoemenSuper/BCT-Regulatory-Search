@@ -19,6 +19,8 @@ from regulatory_graph.models import (
     RegulatoryGraphBundle,
     SourceEdition,
     TargetSpan,
+    VerificationStatus,
+    VersionStatus,
 )
 from regulatory_graph.schema import install_schema
 from regulatory_graph.validation import validate_change_event_for_write
@@ -163,16 +165,15 @@ class Neo4jGraphWriter:
         chunks_by_page: dict[str, list[GraphChunk]] = {}
         for chunk in bundle.chunks:
             chunks_by_page.setdefault(chunk.page_uid, []).append(chunk)
+        next_chunk_pairs = []
+        for chunks in chunks_by_page.values():
+            ordered = sorted(chunks, key=lambda item: item.chunk_index)
+            next_chunk_pairs.extend(
+                (left.uid, right.uid) for left, right in zip(ordered, ordered[1:])
+            )
         self._relationship(
             "Chunk", "NEXT_CHUNK", "Chunk",
-            (
-                (left.uid, right.uid)
-                for chunks in chunks_by_page.values()
-                for left, right in zip(
-                    sorted(chunks, key=lambda item: item.chunk_index),
-                    sorted(chunks, key=lambda item: item.chunk_index)[1:],
-                )
-            ),
+            next_chunk_pairs,
         )
         self._relationship(
             "Instrument", "HAS_PROVISION", "Provision",
@@ -190,14 +191,23 @@ class Neo4jGraphWriter:
             "Provision", "HAS_VERSION", "ProvisionVersion",
             ((item.provision_uid, item.uid) for item in bundle.provision_versions),
         )
+        current_rows = [
+            {"source_uid": uid}
+            for uid in sorted({item.provision_uid for item in bundle.provision_versions})
+        ]
+        if current_rows:
+            self._execute(
+                "UNWIND $rows AS row MATCH (source:Provision {uid: row.source_uid})"
+                "-[relationship:CURRENT_VERSION]->() DELETE relationship",
+                rows=current_rows,
+            )
         self._relationship(
             "Provision", "CURRENT_VERSION", "ProvisionVersion",
             (
                 (item.provision_uid, item.uid)
                 for item in bundle.provision_versions
-                if item.status.value == "ACTIVE"
-                and item.verification_status is not None
-                and item.verification_status.value == "VERIFIED"
+                if item.status == VersionStatus.ACTIVE
+                and item.verification_status == VerificationStatus.VERIFIED
                 and item.valid_to is None
             ),
         )
