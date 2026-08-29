@@ -140,6 +140,8 @@ class SourceEdition(GraphModel):
     extraction_status: NonEmptyStr
     page_count: int = Field(ge=1)
     is_scan: bool
+    relative_path: NonEmptyStr | None = None
+    extraction_artifact_hash: Sha256 | None = None
 
 
 class GraphPage(GraphModel):
@@ -147,6 +149,12 @@ class GraphPage(GraphModel):
     source_edition_uid: NonEmptyStr
     page_number: int = Field(ge=1)
     page_label: NonEmptyStr
+    source_sha256: Sha256 | None = None
+    extraction_artifact_hash: Sha256 | None = None
+    text_hash: Sha256 | None = None
+    extraction_method: NonEmptyStr | None = None
+    quality_score: float | None = Field(default=None, ge=0, le=1)
+    quality_flags: tuple[str, ...] = ()
 
 
 class GraphChunk(GraphModel):
@@ -158,6 +166,7 @@ class GraphChunk(GraphModel):
     source_sha256: Sha256
     extraction_artifact_hash: Sha256
     extraction_method: NonEmptyStr
+    page_numbers: tuple[int, ...] = ()
     char_start: int | None = Field(default=None, ge=0)
     char_end: int | None = Field(default=None, ge=0)
 

@@ -27,7 +27,7 @@ def circular_2016_03_fr_bundle() -> RegulatoryGraphBundle:
     source_uid = "BCT:CIRCULAR:2016:03"
     circular_91_24_uid = "BCT:CIRCULAR:1991:24"
     circular_93_08_uid = "BCT:CIRCULAR:1993:08"
-    edition_uid = "edition:cir-2016-03:fr"
+    edition_uid = "edition:cir-2016-03-fr"
 
     article_4_text = (
         "Les banques et les établissements financiers doivent respecter en permanence "
@@ -128,7 +128,7 @@ def circular_2016_03_fr_bundle() -> RegulatoryGraphBundle:
     )
     pages = tuple(
         GraphPage(
-            uid=f"page:cir-2016-03:fr:{page_number}",
+            uid=f"page:cir-2016-03-fr:{page_number}",
             source_edition_uid=edition_uid,
             page_number=page_number,
             page_label=str(page_number),
