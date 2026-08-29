@@ -59,6 +59,25 @@ class CacheInventory:
     artifact_hash_aggregate: str
 
 
+@dataclass(frozen=True)
+class ObservedEdition:
+    uid: str
+    logical_edition_uid: str
+    relative_path: str | None
+    sha256: str
+    extraction_artifact_hash: str | None
+    page_uids: frozenset[str]
+    chunk_uids: frozenset[str]
+
+
+@dataclass(frozen=True)
+class StructuralSyncPlan:
+    bundle_to_write: RegulatoryGraphBundle
+    skipped_edition_uids: tuple[str, ...]
+    repaired_edition_uids: tuple[str, ...]
+    candidate_edition_uids: tuple[str, ...]
+
+
 _NORMAL_FILENAME = re.compile(
     r"^(?P<kind>Cir|Note)_(?P<year>\d{4})_(?P<number>\d+)_(?P<language>fr|ar)\.pdf$",
     re.IGNORECASE,
@@ -229,6 +248,8 @@ def build_structural_bundle(inventory: CacheInventory) -> RegulatoryGraphBundle:
                 and all(page.get("extraction_method") != "native" for page in document_pages),
                 relative_path=cached.relative_path,
                 extraction_artifact_hash=cached.artifact_sha256,
+                logical_edition_uid=edition_uid,
+                lifecycle_status="VALIDATED",
             )
         )
         for page in document_pages:
@@ -291,6 +312,156 @@ def build_structural_bundle(inventory: CacheInventory) -> RegulatoryGraphBundle:
         evidence_spans=(),
         change_events=(),
     )
+
+
+def plan_structural_sync(
+    bundle: RegulatoryGraphBundle,
+    observed_editions: tuple[ObservedEdition, ...],
+) -> StructuralSyncPlan:
+    """Plan immutable, resumable writes for a structure-only corpus bundle."""
+    if any(
+        (
+            bundle.provisions,
+            bundle.provision_versions,
+            bundle.target_spans,
+            bundle.evidence_spans,
+            bundle.change_events,
+        )
+    ):
+        raise ValueError("structural sync accepts only Instrument/Edition/Page/Chunk data")
+
+    observed_by_logical: dict[str, list[ObservedEdition]] = {}
+    for item in observed_editions:
+        observed_by_logical.setdefault(item.logical_edition_uid, []).append(item)
+
+    instruments_by_uid = {item.uid: item for item in bundle.instruments}
+    pages_by_edition: dict[str, list[GraphPage]] = {}
+    for page in bundle.pages:
+        pages_by_edition.setdefault(page.source_edition_uid, []).append(page)
+    chunks_by_page: dict[str, list[GraphChunk]] = {}
+    for chunk in bundle.chunks:
+        chunks_by_page.setdefault(chunk.page_uid, []).append(chunk)
+
+    write_instruments: dict[str, Instrument] = {}
+    write_editions: list[SourceEdition] = []
+    write_pages: list[GraphPage] = []
+    write_chunks: list[GraphChunk] = []
+    skipped: list[str] = []
+    repaired: list[str] = []
+    candidates: list[str] = []
+
+    for incoming in bundle.source_editions:
+        logical_uid = incoming.logical_edition_uid or incoming.uid
+        observations = observed_by_logical.get(logical_uid, [])
+        exact = next(
+            (
+                item
+                for item in observations
+                if item.sha256.casefold() == incoming.sha256.casefold()
+                and (item.extraction_artifact_hash or "").casefold()
+                == (incoming.extraction_artifact_hash or "").casefold()
+            ),
+            None,
+        )
+        if exact is not None:
+            edition, pages, chunks = _versioned_structure(
+                incoming,
+                pages_by_edition.get(incoming.uid, []),
+                chunks_by_page,
+                target_uid=exact.uid,
+                lifecycle_status=(
+                    "VALIDATED" if exact.uid == logical_uid else "CANDIDATE"
+                ),
+            )
+            expected_pages = frozenset(page.uid for page in pages)
+            expected_chunks = frozenset(chunk.uid for chunk in chunks)
+            if exact.page_uids == expected_pages and exact.chunk_uids == expected_chunks:
+                skipped.append(exact.uid)
+                continue
+            repaired.append(exact.uid)
+        elif observations:
+            target_uid = f"{logical_uid}:{incoming.sha256[:16].lower()}"
+            edition, pages, chunks = _versioned_structure(
+                incoming,
+                pages_by_edition.get(incoming.uid, []),
+                chunks_by_page,
+                target_uid=target_uid,
+                lifecycle_status="CANDIDATE",
+            )
+            candidates.append(target_uid)
+        else:
+            edition, pages, chunks = _versioned_structure(
+                incoming,
+                pages_by_edition.get(incoming.uid, []),
+                chunks_by_page,
+                target_uid=logical_uid,
+                lifecycle_status="VALIDATED",
+            )
+
+        write_instruments[edition.instrument_uid] = instruments_by_uid[edition.instrument_uid]
+        write_editions.append(edition)
+        write_pages.extend(pages)
+        write_chunks.extend(chunks)
+
+    planned_bundle = RegulatoryGraphBundle(
+        instruments=tuple(sorted(write_instruments.values(), key=lambda item: item.uid)),
+        source_editions=tuple(write_editions),
+        pages=tuple(write_pages),
+        chunks=tuple(write_chunks),
+        provisions=(),
+        provision_versions=(),
+        evidence_spans=(),
+        change_events=(),
+    )
+    return StructuralSyncPlan(
+        bundle_to_write=planned_bundle,
+        skipped_edition_uids=tuple(sorted(skipped)),
+        repaired_edition_uids=tuple(sorted(repaired)),
+        candidate_edition_uids=tuple(sorted(candidates)),
+    )
+
+
+def _versioned_structure(
+    edition: SourceEdition,
+    pages: list[GraphPage],
+    chunks_by_page: dict[str, list[GraphChunk]],
+    *,
+    target_uid: str,
+    lifecycle_status: str,
+) -> tuple[SourceEdition, list[GraphPage], list[GraphChunk]]:
+    logical_uid = edition.logical_edition_uid or edition.uid
+    versioned_edition = edition.model_copy(
+        update={
+            "uid": target_uid,
+            "logical_edition_uid": logical_uid,
+            "lifecycle_status": lifecycle_status,
+        }
+    )
+    page_uid_by_old: dict[str, str] = {}
+    versioned_pages = []
+    for page in pages:
+        page_uid = f"page:{target_uid.removeprefix('edition:')}:{page.page_number}"
+        page_uid_by_old[page.uid] = page_uid
+        versioned_pages.append(
+            page.model_copy(
+                update={"uid": page_uid, "source_edition_uid": target_uid}
+            )
+        )
+    versioned_chunks = []
+    for page in pages:
+        for chunk in chunks_by_page.get(page.uid, []):
+            versioned_chunks.append(
+                chunk.model_copy(
+                    update={
+                        "uid": (
+                            f"chunk:{target_uid}:{page.page_number}:{chunk.chunk_index}:"
+                            f"{chunk.content_hash[:16]}"
+                        ),
+                        "page_uid": page_uid_by_old[page.uid],
+                    }
+                )
+            )
+    return versioned_edition, versioned_pages, versioned_chunks
 
 
 def resolve_instrument_identity(

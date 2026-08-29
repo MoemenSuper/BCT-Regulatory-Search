@@ -7,6 +7,7 @@ from typing import Any, Iterable, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from regulatory_graph.corpus_structure import ObservedEdition, plan_structural_sync
 from regulatory_graph.models import (
     ChangeEvent,
     EvidenceSpan,
@@ -62,6 +63,16 @@ class GraphSnapshot:
     nodes: int
     relationships: int
     content_sha256: str
+
+
+@dataclass(frozen=True)
+class StructuralSyncReceipt:
+    observed_edition_count: int
+    skipped_edition_count: int
+    written_edition_count: int
+    repaired_edition_count: int
+    candidate_edition_count: int
+    bundle_sha256: str | None
 
 
 class TemporalResolution(BaseModel):
@@ -295,6 +306,56 @@ class Neo4jGraphWriter:
         )
 
 
+class Neo4jStructuralWriter:
+    """Resume corpus structure writes per immutable source edition."""
+
+    def __init__(self, driver: Any, *, database: str = "neo4j"):
+        self._driver = driver
+        self._database = database
+
+    def sync_bundle(self, bundle: RegulatoryGraphBundle) -> StructuralSyncReceipt:
+        rows = _rows(
+            self._driver.execute_query(
+                "MATCH (edition:SourceEdition) "
+                "OPTIONAL MATCH (edition)-[:HAS_PAGE]->(page:Page) "
+                "OPTIONAL MATCH (page)-[:HAS_CHUNK]->(chunk:Chunk) "
+                "RETURN edition.uid AS uid, "
+                "coalesce(edition.logical_edition_uid, edition.uid) AS logical_edition_uid, "
+                "edition.relative_path AS relative_path, edition.sha256 AS sha256, "
+                "edition.extraction_artifact_hash AS extraction_artifact_hash, "
+                "collect(DISTINCT page.uid) AS page_uids, "
+                "collect(DISTINCT chunk.uid) AS chunk_uids",
+                database_=self._database,
+            )
+        )
+        observed = tuple(
+            ObservedEdition(
+                uid=row["uid"],
+                logical_edition_uid=row["logical_edition_uid"],
+                relative_path=row.get("relative_path"),
+                sha256=row["sha256"],
+                extraction_artifact_hash=row.get("extraction_artifact_hash"),
+                page_uids=frozenset(uid for uid in row.get("page_uids", []) if uid),
+                chunk_uids=frozenset(uid for uid in row.get("chunk_uids", []) if uid),
+            )
+            for row in rows
+        )
+        plan = plan_structural_sync(bundle, observed)
+        write_receipt = None
+        if plan.bundle_to_write.source_editions:
+            write_receipt = Neo4jGraphWriter(
+                self._driver, database=self._database
+            ).write_bundle(plan.bundle_to_write)
+        return StructuralSyncReceipt(
+            observed_edition_count=len(observed),
+            skipped_edition_count=len(plan.skipped_edition_uids),
+            written_edition_count=len(plan.bundle_to_write.source_editions),
+            repaired_edition_count=len(plan.repaired_edition_uids),
+            candidate_edition_count=len(plan.candidate_edition_uids),
+            bundle_sha256=(write_receipt.bundle_sha256 if write_receipt else None),
+        )
+
+
 class Neo4jRegulatoryGraph:
     def __init__(self, driver: Any, *, database: str = "neo4j"):
         self._driver = driver
@@ -421,7 +482,11 @@ class Neo4jRegulatoryGraph:
 
 
 def _properties(model: BaseModel) -> dict[str, Any]:
-    return {key: _neo4j_value(value) for key, value in model.model_dump(mode="python").items()}
+    return {
+        key: _neo4j_value(value)
+        for key, value in model.model_dump(mode="python").items()
+        if value is not None
+    }
 
 
 def _neo4j_value(value: Any) -> Any:

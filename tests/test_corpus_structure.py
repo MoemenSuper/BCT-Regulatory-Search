@@ -5,10 +5,14 @@ import pytest
 
 from regulatory_graph.corpus_structure import (
     CorpusCacheError,
+    ObservedEdition,
     build_structural_bundle,
     inventory_corpus_cache,
+    plan_structural_sync,
     resolve_instrument_identity,
 )
+from regulatory_graph.fixtures import circular_2016_03_fr_bundle
+from regulatory_graph.models import GraphChunk
 from regulatory_graph.models import InstrumentKind, VerificationStatus
 
 
@@ -136,3 +140,85 @@ def test_cache_inventory_requires_exact_pdf_artifact_and_chunk_page_provenance(t
     pdf.write_bytes(b"changed-pdf")
     with pytest.raises(CorpusCacheError, match="PDF hash mismatch"):
         inventory_corpus_cache(documents, manifest, chunks)
+
+
+def _structural_fixture():
+    fixture = circular_2016_03_fr_bundle()
+    edition = fixture.source_editions[0].model_copy(
+        update={
+            "relative_path": fixture.source_editions[0].filename,
+            "extraction_artifact_hash": "b" * 64,
+        }
+    )
+    chunk = GraphChunk(
+        uid=f"chunk:{edition.uid}:2:0:{'c' * 16}",
+        page_uid=fixture.pages[0].uid,
+        chunk_index=0,
+        text="Structural test chunk",
+        content_hash="c" * 64,
+        source_sha256=edition.sha256,
+        extraction_artifact_hash="b" * 64,
+        extraction_method="native",
+        page_numbers=(2,),
+    )
+    return fixture.model_copy(
+        update={
+            "source_editions": (edition,),
+            "chunks": (chunk,),
+            "provisions": (),
+            "provision_versions": (),
+            "evidence_spans": (),
+            "change_events": (),
+        }
+    )
+
+
+def test_structural_sync_skips_an_exact_complete_edition():
+    bundle = _structural_fixture()
+    edition = bundle.source_editions[0]
+    observed = ObservedEdition(
+        uid=edition.uid,
+        logical_edition_uid=edition.uid,
+        relative_path=edition.relative_path,
+        sha256=edition.sha256,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
+        page_uids=frozenset(page.uid for page in bundle.pages),
+        chunk_uids=frozenset(chunk.uid for chunk in bundle.chunks),
+    )
+
+    plan = plan_structural_sync(bundle, (observed,))
+
+    assert plan.bundle_to_write.source_editions == ()
+    assert plan.skipped_edition_uids == (edition.uid,)
+    assert plan.repaired_edition_uids == ()
+    assert plan.candidate_edition_uids == ()
+
+
+def test_structural_sync_retains_prior_version_and_scopes_changed_pdf_candidate():
+    bundle = _structural_fixture()
+    incoming = bundle.source_editions[0]
+    prior = ObservedEdition(
+        uid=incoming.uid,
+        logical_edition_uid=incoming.uid,
+        relative_path=incoming.relative_path,
+        sha256="d" * 64,
+        extraction_artifact_hash="e" * 64,
+        page_uids=frozenset({page.uid for page in bundle.pages}),
+        chunk_uids=frozenset({chunk.uid for chunk in bundle.chunks}),
+    )
+
+    plan = plan_structural_sync(bundle, (prior,))
+
+    expected_suffix = incoming.sha256[:16].lower()
+    candidate = plan.bundle_to_write.source_editions[0]
+    assert candidate.uid == f"{incoming.uid}:{expected_suffix}"
+    assert candidate.logical_edition_uid == incoming.uid
+    assert candidate.lifecycle_status == "CANDIDATE"
+    assert prior.uid not in {
+        item.uid for item in plan.bundle_to_write.source_editions
+    }
+    assert plan.candidate_edition_uids == (candidate.uid,)
+    assert plan.skipped_edition_uids == ()
+    assert all(page.source_edition_uid == candidate.uid for page in plan.bundle_to_write.pages)
+    assert all(candidate.uid.removeprefix("edition:") in page.uid for page in plan.bundle_to_write.pages)
+    assert all(chunk.page_uid in {page.uid for page in plan.bundle_to_write.pages} for chunk in plan.bundle_to_write.chunks)

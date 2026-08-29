@@ -6,7 +6,11 @@ import pytest
 
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
 from regulatory_graph.models import GraphChunk, VerificationStatus, VersionStatus
-from regulatory_graph.neo4j_store import Neo4jGraphWriter, Neo4jRegulatoryGraph
+from regulatory_graph.neo4j_store import (
+    Neo4jGraphWriter,
+    Neo4jRegulatoryGraph,
+    Neo4jStructuralWriter,
+)
 from regulatory_graph.source_verification import verify_bundle_source
 
 
@@ -128,6 +132,52 @@ def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
         call[1].get("database_") == "neo4j"
         for call in driver.calls
     )
+
+
+def test_writer_does_not_erase_unspecified_optional_properties():
+    driver = FakeDriver()
+
+    Neo4jGraphWriter(driver).write_bundle(circular_2016_03_fr_bundle())
+
+    edition_call = next(
+        call for call in driver.calls if "MERGE (node:SourceEdition" in call[0]
+    )
+    assert all(value is not None for value in edition_call[1]["rows"][0].values())
+
+
+def test_structural_writer_skips_complete_hash_identical_edition():
+    bundle = circular_2016_03_fr_bundle().model_copy(
+        update={
+            "provisions": (),
+            "provision_versions": (),
+            "evidence_spans": (),
+            "change_events": (),
+        }
+    )
+    edition = bundle.source_editions[0]
+    driver = FakeDriver(
+        responses=[
+            [
+                {
+                    "uid": edition.uid,
+                    "logical_edition_uid": edition.uid,
+                    "relative_path": edition.filename,
+                    "sha256": edition.sha256,
+                    "extraction_artifact_hash": None,
+                    "page_uids": [page.uid for page in bundle.pages],
+                    "chunk_uids": [],
+                }
+            ]
+        ]
+    )
+
+    receipt = Neo4jStructuralWriter(driver).sync_bundle(bundle)
+
+    assert receipt.skipped_edition_count == 1
+    assert receipt.written_edition_count == 0
+    assert receipt.candidate_edition_count == 0
+    assert len(driver.calls) == 1
+    assert "logical_edition_uid" in driver.calls[0][0]
 
 
 def test_writer_persists_page_chunks_and_deterministic_chunk_order():
