@@ -410,3 +410,20 @@ portable dump. The verified Checkpoint A receipt is
 Checkpoint A contains only the verified temporal tracer. It authorizes the
 full-corpus structural ingestion work in Checkpoint B; it does not establish
 corpus graph completeness, GraphRAG retrieval, or answer correctness.
+
+## Full-corpus structural graph checkpoint B
+
+The hash-verified structural ingestion and immutable per-edition resume policy
+are implemented in `regulatory_graph/corpus_structure.py` and
+`regulatory_graph/neo4j_store.py`. The committed machine-readable receipt is
+`experiments/results/full_corpus_graph_checkpoint_b_v1.json`.
+
+Checkpoint B represents all 439 source editions, 1,729 pages, and 4,611 retained
+chunks in the persistent graph. It reconciles graph-side hashes with the frozen
+cache, records the two pages without retained chunks, proves no-op reingestion,
+isolates a changed-PDF candidate in a disposable database, survives restart,
+and produces a hashed offline dump.
+
+This is structural completeness only. Corpus-wide provisions, temporal legal
+relationships, graph retrieval/context assembly, and the frozen 50-case
+evaluation remain unopened for Checkpoints C-E.

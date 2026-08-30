@@ -1,0 +1,57 @@
+{
+  "experiment_id": "full-corpus-graph-checkpoint-b-v1",
+  "timestamp": "2026-08-30T13:05:36.4001987Z",
+  "hypothesis": "The frozen 439-PDF corpus can be represented completely and idempotently as a hash-verified structural graph.",
+  "changed_variable": "full_corpus_hash_verified_structural_graph",
+  "code_commit": "7966e1e2d08b8b206df8ee9a5f71698a0604df2c",
+  "code_commits": ["f1a729e", "cf80c5a", "393bbb5", "668ff3a", "ee1d3d3", "7966e1e"],
+  "configuration": {
+    "neo4j_image": "neo4j:2026.07.1",
+    "neo4j_image_digest": "sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "database": "neo4j",
+    "persistent_root": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search-local-data\\neo4j\\temporal-regulatory-v1",
+    "hosted_calls": 0,
+    "runtime_gold_access": false,
+    "graph_schema_version": "regulatory-graph-structural-v1",
+    "chunk_representation": "page_local_sequential_1000_chars_200_overlap"
+  },
+  "dataset_hashes": {
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "retained_chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "structural_bundle": "C23E29C27B2C81066A204CA0DE08764C5371124E840A04389EEA4B885F0DE029",
+    "graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "neo4j_dump": "C7704FC705666136539307E22E9CEE166E50E2DD05EFADF081B3F78B3EC66933",
+    "result": "F9990DF8523CCE959269AD204124023BB70F5EFBFA02EC7F8E85FC38019F4882",
+    "research": "FBE8385645A3D2B100DEB6A27EE021B3E35FDC7B00AF2A15387EB7CD3420A92C"
+  },
+  "development_metrics": {
+    "pdfs": 439,
+    "pages": 1729,
+    "chunks": 4611,
+    "persistent_nodes": 7233,
+    "persistent_relationships": 9688,
+    "graph_hash_mismatches": 0,
+    "orphans": 0,
+    "idempotent_second_write": true,
+    "changed_pdf_isolated": true,
+    "restart_hash_unchanged": true,
+    "portable_dump_created": true,
+    "repository_tests_passed": 216
+  },
+  "gate": {
+    "structural_coverage": "PASS",
+    "hash_reconciliation": "PASS",
+    "idempotent_reingestion": "PASS",
+    "changed_pdf_isolation": "PASS",
+    "restart_persistence": "PASS",
+    "portable_backup": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_CHECKPOINT_B",
+  "recommendation": "Proceed to Checkpoint C verified semantic extraction; do not claim GraphRAG readiness or answer accuracy.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

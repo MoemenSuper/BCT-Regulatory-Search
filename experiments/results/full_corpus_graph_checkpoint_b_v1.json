@@ -1,0 +1,223 @@
+{
+  "experiment_id": "full-corpus-graph-checkpoint-b-v1",
+  "timestamp": "2026-08-30T13:05:36.4001987Z",
+  "hypothesis": "The frozen 439-PDF corpus can be represented completely and idempotently as hash-verified instruments, immutable source editions, pages, and retained retrieval chunks in the persistent Checkpoint A Neo4j store.",
+  "changed_variable": "full_corpus_hash_verified_structural_graph",
+  "code_commit": "7966e1e2d08b8b206df8ee9a5f71698a0604df2c",
+  "code_commits": [
+    "f1a729e",
+    "cf80c5a",
+    "393bbb5",
+    "668ff3a",
+    "ee1d3d3",
+    "7966e1e"
+  ],
+  "configuration": {
+    "branch": "experiment/temporal-provision-graphrag-20260827",
+    "checkpoint_a_commit": "33b8b92b84bb8278eff6ee1acd3dbf4327efe9c1",
+    "source_documents": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search\\documents",
+    "structured_manifest": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-experiment-20260823-v3\\ingestion_manifest.json",
+    "retained_chunks": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-ablations-20260824-v1\\representations\\structured_baseline_chunking\\chunks.jsonl",
+    "persistent_root": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search-local-data\\neo4j\\temporal-regulatory-v1",
+    "deployment": "infrastructure/neo4j/compose.yaml",
+    "container_name": "bct-temporal-regulatory-v1",
+    "container_id": "c8ce2c6189ccddb1ffa5ba3083a583c1e6bd3ce0b31233721105e3fac9968025",
+    "neo4j_image": "neo4j:2026.07.1",
+    "neo4j_image_digest": "sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "neo4j_python_driver": "6.2.0",
+    "database": "neo4j",
+    "bolt_endpoint": "bolt://127.0.0.1:17687",
+    "authentication": "disabled_loopback_only_experiment",
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "graph_schema_version": "regulatory-graph-structural-v1",
+    "extraction_configuration": {
+      "source_representation": "cached StructuredDocument page artifacts",
+      "chunk_representation": "structured_baseline_chunking",
+      "chunk_scope": "page_local_sequential",
+      "maximum_chunk_characters": 1000,
+      "chunk_overlap_characters": 200,
+      "hierarchy_in_retrieval_text": false,
+      "embedding_model_used_by_frozen_representation": "intfloat/multilingual-e5-small"
+    }
+  },
+  "dataset_hashes": {
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "retained_chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "structured_artifact_aggregate": "343F697BEE208FB72165B937A4529E3B0A52FF0F4BC600B9068D9DE9019BF9DC",
+    "structured_representation_manifest": "920159F84E87353256899370A2E8B7854BAB87FBBBDC05184FED7C3657B439C1",
+    "structural_bundle": "C23E29C27B2C81066A204CA0DE08764C5371124E840A04389EEA4B885F0DE029",
+    "graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "neo4j_dump": "C7704FC705666136539307E22E9CEE166E50E2DD05EFADF081B3F78B3EC66933",
+    "checkpoint_a_preserved_dump": "5F2A4813BE91AC4B22863854515BB28AEA6835DF0E0688215D748B2401CC3CF4",
+    "compose": "6146A7B13141FAD67DB3C8D82585584324D9A24276A9DB24F604F5B7E3BCCBF3",
+    "models_code": "BF77F06A3CE56899184B1C2CBC6CB9FD03367043BE5BF4265DB72FE96536A27E",
+    "corpus_structure_code": "842DCAF7AC442D44A502DA8920E390E49E166C3E914FF0F8560CAD5F7B323F52",
+    "neo4j_store_code": "F35A1D8CE498CAE4756C523A65C61F74E54890A15CE5764384C2CB5BBFA46517",
+    "schema_code": "DAB42B2C8DBAAAECCBD2588E3D1A5D22305E75B03C754A0EDC69901A58ECED4D",
+    "chunking_configuration_code": "B237DF8EB01BB235C5CAF213B9B511138582409A84468E9D818452E3548FA913"
+  },
+  "corpus_inventory": {
+    "pdf_count": 439,
+    "instrument_count": 439,
+    "source_edition_count": 439,
+    "page_count": 1729,
+    "retained_chunk_count": 4611,
+    "pages_with_retained_chunks": 1727,
+    "language_counts": {
+      "fr": 166,
+      "ar": 273
+    },
+    "pdf_hash_matches": 439,
+    "structured_artifacts_present": 439,
+    "identity_verified": 439,
+    "identity_needs_review": 0
+  },
+  "identity_variant_receipt": [
+    {"filename": "CB_2017_08_FR.pdf", "instrument_uid": "BCT:CIRCULAR:2017:08", "status": "VERIFIED", "rule": "legacy_cb_ci_filename_v1", "corroborating_text_sha256": "FCED1E378808A123ED046D3FD9166DB49D1E0E998CA5275A495295D830EC899F", "corroborating_text_excerpt": "Tunis, le 19 septembre 2017 CIRCULAIRE AUX BANQUES ET AUX ETABLISSEMENTS FINANCIERS N°2017-08"},
+    {"filename": "NB-2018_28_1110_fr.pdf", "instrument_uid": "BCT:NOTE:2018:28", "status": "VERIFIED", "rule": "legacy_note_filename_v1", "corroborating_text_sha256": "94193FB73AB3E8A9FD4093182E4C64342465ACE2E73A1C7A1B98B844C63EC00E", "corroborating_text_excerpt": "Tunis, le 8 octobre 2018 Note aux intermédiaires agréés N ° 2018-28"},
+    {"filename": "CI_2022_03_ar.pdf", "instrument_uid": "BCT:CIRCULAR:2022:03", "status": "VERIFIED", "rule": "legacy_cb_ci_filename_v1", "corroborating_text_sha256": "FD40DDF25B4FD0BC4020D6238C062E3BA0BEE8EA1EFC5BA74CB7563003BDDB69", "corroborating_text_excerpt": "تونس، في 28 أفريل 2022 منشور إلى البنوك والمؤسسات المالية عدد 03 لسنة 2022"},
+    {"filename": "Cir202204_fr.pdf", "instrument_uid": "BCT:CIRCULAR:2022:04", "status": "VERIFIED", "rule": "legacy_compact_circular_filename_v1", "corroborating_text_sha256": "E610E0AB2FC8A1A7AB5BDA05D712BB6EDFAF4EF3B6D16AAEC37ACBB0F77EBE38", "corroborating_text_excerpt": "CIRCULAIRE AUX BANQUES N° 2022-04"},
+    {"filename": "Cir202205_ar.pdf", "instrument_uid": "BCT:CIRCULAR:2022:05", "status": "VERIFIED", "rule": "legacy_compact_circular_filename_v1", "corroborating_text_sha256": "04B4FD941468B897D83059C8DE2E870FD4B506CBC89C6E4FC1EF29C0D4DFF04B", "corroborating_text_excerpt": "تونس، في 30 جوان 2022 منشور إلى البنوك والديوان الوطني للبريد عدد 5 لسنة 2022"},
+    {"filename": "NB_2022_13_ar.pdf", "instrument_uid": "BCT:NOTE:2022:13", "status": "VERIFIED", "rule": "legacy_note_filename_v1", "corroborating_text_sha256": "1A038B609C3D7CD12430B4238D81E495F9F54A9C99C653387BCCC110103A294A", "corroborating_text_excerpt": "تونس، في 27 أفريل 2022 مذ كرة إلى البنوك والدّيوان الوطني للبريد عدد 13 لسنة 2022"},
+    {"filename": "NB_2022_14_fr.pdf", "instrument_uid": "BCT:NOTE:2022:14", "status": "VERIFIED", "rule": "legacy_note_filename_v1", "corroborating_text_sha256": "53DDD44FBE127BC5FEDF4FD62E6F7719C58E210B7ADD39C9700760D036021B3A", "corroborating_text_excerpt": "Note aux Banques N° 2022 - 14"},
+    {"filename": "NB_2022_15_fr.pdf", "instrument_uid": "BCT:NOTE:2022:15", "status": "VERIFIED", "rule": "legacy_note_filename_v1", "corroborating_text_sha256": "05B07F2919BFB41FEC673F0B16DD33AF8085628989B9CE0DB556AFD778FD3A1B", "corroborating_text_excerpt": "Note aux Banques N° 2022 - 15"},
+    {"filename": "NB_2022_27_ar.pdf", "instrument_uid": "BCT:NOTE:2022:27", "status": "VERIFIED", "rule": "legacy_note_filename_v1", "corroborating_text_sha256": "1BD6A5CB5080D729C528D028BA8C57FE44179F6963DDD2A3E0D30D4BB1EA9B7E", "corroborating_text_excerpt": "تونس، في 26 سبتمبر 2022 مذكرة إلى الوسطاء المقبولين والمؤسسات المالية عدد 27 لسنة 2022"}
+  ],
+  "pages_without_retained_chunks": [
+    {"source_edition_uid": "edition:note-2017-19-ar", "page_number": 11, "page_uid": "page:note-2017-19-ar:11"},
+    {"source_edition_uid": "edition:cir-2026-02-fr", "page_number": 14, "page_uid": "page:cir-2026-02-fr:14"}
+  ],
+  "live_graph": {
+    "node_count": 7233,
+    "relationship_count": 9688,
+    "label_counts": {
+      "ChangeEvent": 3,
+      "Chunk": 4611,
+      "EvidenceSpan": 4,
+      "Instrument": 441,
+      "Page": 1729,
+      "Provision": 3,
+      "ProvisionVersion": 3,
+      "SourceEdition": 439
+    },
+    "relationship_counts": {
+      "DECLARES_CHANGE": 3,
+      "EVIDENCED_BY": 6,
+      "HAS_CHUNK": 4611,
+      "HAS_EDITION": 439,
+      "HAS_PAGE": 1729,
+      "HAS_PROVISION": 3,
+      "HAS_VERSION": 3,
+      "INTRODUCES_VERSION": 3,
+      "NEXT_CHUNK": 2884,
+      "ON_PAGE": 4,
+      "TARGETS": 3
+    },
+    "source_edition_lifecycle": {"VALIDATED": 439, "CANDIDATE": 0},
+    "source_edition_identity": {"VERIFIED": 439, "NEEDS_REVIEW": 0},
+    "source_editions_with_identity_rule": 439,
+    "legacy_source_editions_with_corroborating_text": 9,
+    "semantic_change_events_from_checkpoint_a": {"VERIFIED": 3, "CANDIDATE": 0, "NEEDS_REVIEW": 0}
+  },
+  "graph_derived_reconciliation": {
+    "source_editions": {"expected": 439, "actual": 439, "missing": 0, "unexpected": 0, "hash_mismatches": 0},
+    "pages": {"expected": 1729, "actual": 1729, "missing": 0, "unexpected": 0, "hash_mismatches": 0},
+    "chunks": {"expected": 4611, "actual": 4611, "missing": 0, "unexpected": 0, "hash_mismatches": 0},
+    "orphan_count": 0,
+    "invalid_typed_relationship_count": 0,
+    "verified_event_missing_evidence_count": 0,
+    "verified_version_overlap_count": 0,
+    "invalid_current_version_count": 0
+  },
+  "idempotent_reingestion": {
+    "metadata_migration_sync_repaired_editions": 439,
+    "final_sync_observed_editions": 439,
+    "final_sync_skipped_editions": 439,
+    "final_sync_written_editions": 0,
+    "pre_second_sync_graph_sha256": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "post_second_sync_graph_sha256": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "content_unchanged": true
+  },
+  "changed_pdf_disposable_proof": {
+    "container": "bct-checkpoint-b-changed-fixture",
+    "persistent_mount_used": false,
+    "changed_filename": "Cir_2016_01_fr.pdf",
+    "changed_candidate_uid": "edition:cir-2016-01-fr:aaaaaaaaaaaaaaaa",
+    "prior_validated_edition_retained": true,
+    "candidate_edition_added": 1,
+    "candidate_pages_added": 23,
+    "candidate_chunks_added": 75,
+    "before_nodes": 107,
+    "after_nodes": 206,
+    "before_relationships": 158,
+    "after_relationships": 309,
+    "unaffected_filename": "Cir_2016_02_fr.pdf",
+    "unaffected_subgraph_sha256_before": "0766C243656134460B178FD6FDDBBA35327847D0B31BB108622AD978C26D8D44",
+    "unaffected_subgraph_sha256_after": "0766C243656134460B178FD6FDDBBA35327847D0B31BB108622AD978C26D8D44",
+    "repeat_changed_sync_written_editions": 0,
+    "disposable_container_removed": true,
+    "anonymous_volumes_removed": true
+  },
+  "restart_persistence": {
+    "container_fully_stopped": true,
+    "container_restarted_from_same_mounts": true,
+    "pre_restart_graph_sha256": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "post_restart_graph_sha256": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "counts_unchanged": true
+  },
+  "backup": {
+    "path": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search-local-data\\neo4j\\temporal-regulatory-v1\\backups\\neo4j.dump",
+    "size_bytes": 18306401,
+    "sha256": "C7704FC705666136539307E22E9CEE166E50E2DD05EFADF081B3F78B3EC66933",
+    "method": "offline pinned-image neo4j-admin database dump",
+    "post_backup_graph_hash_unchanged": true,
+    "checkpoint_a_preserved_path": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search-local-data\\neo4j\\temporal-regulatory-v1\\backups\\neo4j-checkpoint-a.dump"
+  },
+  "verification": {
+    "focused_tests": "23 passed, 2 skipped",
+    "repository_tests": "216 passed, 2 skipped",
+    "json_validation": "passed",
+    "git_diff_check": "passed",
+    "persistent_health": "healthy"
+  },
+  "review": {
+    "standards_hard_findings": 0,
+    "standards_judgement_smells": 2,
+    "spec_findings_before_correction": 4,
+    "graph_hash_reconciliation_corrected": true,
+    "identity_state_persistence_corrected": true,
+    "identity_rule_and_source_text_persistence_corrected": true,
+    "schema_and_extraction_configuration_recorded": true,
+    "live_evidence_and_receipt_gaps_corrected": true,
+    "remaining_non_blocking_smells": [
+      "corpus_structure.py has broad structural-ingestion responsibilities",
+      "graph UIDs remain string-based domain identifiers"
+    ]
+  },
+  "gate": {
+    "all_pdfs_and_editions_represented": "PASS",
+    "all_pages_and_retained_chunks_linked": "PASS",
+    "graph_side_property_hashes_reconciled": "PASS",
+    "typed_relationship_endpoints": "PASS",
+    "identity_ambiguities_enumerated": "PASS",
+    "unchanged_reingestion_idempotent": "PASS",
+    "changed_pdf_isolation": "PASS",
+    "restart_persistence": "PASS",
+    "portable_backup": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_CHECKPOINT_B",
+  "limitations": [
+    "Checkpoint B establishes structural corpus completeness only; it does not establish corpus-wide provision, version, cross-reference, or legal-effect coverage.",
+    "The only semantic nodes and relationships remain the verified Checkpoint A tracer for Cir_2016_03_fr.pdf.",
+    "Runtime graph retrieval and source/page-linked context assembly do not yet exist, so this is not GraphRAG readiness.",
+    "The frozen 50-case graph-temporal evaluation remains unopened and the graph still lacks the required semantic coverage for it.",
+    "Candidate document versions are retained immutably and require a separate validated promotion operation before replacing a validated edition."
+  ],
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
