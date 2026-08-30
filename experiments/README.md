@@ -446,3 +446,23 @@ The decision is `REJECT_CHECKPOINT_C_INCOMPLETE_VERIFICATION`. Candidate
 discovery made no Neo4j writes; the kept Checkpoint B graph remains at 7,233
 nodes, 9,688 relationships, and the same content hash. Checkpoints D and E are
 unopened and must not use the review queue as graph facts.
+
+## Incremental verified instrument-reference ingestion v1
+
+The first reusable per-document graph-enrichment seam is implemented in
+`regulatory_graph/reference_ingestion.py`; its predeclaration and receipt are
+`experiments/research/incremental_graph_reference_ingestion_v1.md` and
+`experiments/results/incremental_graph_reference_ingestion_v1.json`.
+
+For one validated source edition, it deterministically extracts explicit French
+and Arabic BCT circular/note citations, resolves stable target identities,
+creates explicit external stubs when needed, and preserves source-page evidence.
+Promotion fails closed unless the immutable PDF bytes, source page, occurrence,
+rendered image, catalog target, and manual target review agree. Only verified
+facts can reach the allowlisted, idempotent Neo4j writer.
+
+The decision is `KEEP_INCREMENTAL_REFERENCE_INGESTION_V1`. This is one ingestion
+building block: the production upload/job ledger, Chroma activation boundary,
+runtime graph retriever, context assembler, and relationship-aware query routing
+remain unimplemented. The persistent Checkpoint B graph was deliberately left
+unchanged.

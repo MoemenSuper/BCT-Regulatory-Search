@@ -1,0 +1,48 @@
+{
+  "experiment_id": "incremental-graph-reference-ingestion-v1",
+  "timestamp": "2026-08-30T19:05:59.6618491Z",
+  "hypothesis": "One validated PDF can produce deterministic explicit BCT instrument-reference candidates and persist only source-bound, manually verified citation facts through an idempotent Neo4j writer.",
+  "changed_variable": "per_document_verified_instrument_reference_ingestion",
+  "code_commit": "a9feb3e",
+  "code_commits": ["ffb022b", "212b7ac", "e36015f", "c022c0f", "a9feb3e"],
+  "configuration": {
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "automatic_legal_effect_promotion": false,
+    "verification_method": "manual_rendered_pdf_v1"
+  },
+  "dataset_hashes": {
+    "predeclaration": "A6F25114DBF88689716DBBA5CDF9BCD80A491C91A8D89625F265DB5767291983",
+    "source_pdf": "DDD0E2F74904B8E83B36DD852625486A0CD234B7E22EA064E7502E5191B9ED78",
+    "structured_artifact": "012B155700B2E076D7A13E2A3E18A7AAEC82379205F6CF53FBA74140CBFC26BD",
+    "rendered_source_page": "438B675DDF0F71F98557497BA6BC2B193754D1F46C5FDA0FFCEE510519E2D27F",
+    "persistent_graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "result": "D97F054203F665519BE2CC8D312E8C697467749A6E6B4C00B637FAAA47EFD5E4"
+  },
+  "development_metrics": {
+    "real_pdf_candidates": 10,
+    "real_pdf_verified_samples": 1,
+    "repository_tests_passed": 232,
+    "disposable_live_tests_passed": 1,
+    "disposable_fixture_relationships": 32,
+    "persistent_nodes": 7233,
+    "persistent_relationships": 9688,
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "deterministic_candidate_identity": "PASS",
+    "immutable_pdf_hash_extract_render_binding": "PASS",
+    "fail_closed_promotion": "PASS",
+    "allowlisted_idempotent_neo4j_persistence": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_INCREMENTAL_REFERENCE_INGESTION_V1",
+  "conclusion": "Keep the reusable per-document reference extraction, review-gated promotion, and Neo4j persistence seam. It is not a complete upload workflow or runtime GraphRAG system.",
+  "recommendation": "Implement durable upload/job orchestration next, then separately build and benchmark gold-blind runtime graph retrieval.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

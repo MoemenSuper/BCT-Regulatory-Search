@@ -1,0 +1,118 @@
+{
+  "experiment_id": "incremental-graph-reference-ingestion-v1",
+  "timestamp": "2026-08-30T19:05:59.6618491Z",
+  "status": "complete",
+  "hypothesis": "One validated PDF can produce deterministic explicit BCT instrument-reference candidates and persist only source-bound, manually verified citation facts through an idempotent Neo4j writer.",
+  "changed_variable": "per_document_verified_instrument_reference_ingestion",
+  "code_commit": "a9feb3e",
+  "code_commits": [
+    "ffb022b",
+    "212b7ac",
+    "e36015f",
+    "c022c0f",
+    "a9feb3e"
+  ],
+  "configuration": {
+    "branch": "experiment/temporal-provision-graphrag-20260827",
+    "resolver_rules": [
+      "french_bct_instrument_reference_v1",
+      "arabic_bct_instrument_reference_v1"
+    ],
+    "verification_method": "manual_rendered_pdf_v1",
+    "automatic_legal_effect_promotion": false,
+    "runtime_gold_access": false,
+    "hosted_calls": 0
+  },
+  "dataset_hashes": {
+    "predeclaration": "A6F25114DBF88689716DBBA5CDF9BCD80A491C91A8D89625F265DB5767291983",
+    "source_pdf": "DDD0E2F74904B8E83B36DD852625486A0CD234B7E22EA064E7502E5191B9ED78",
+    "structured_artifact": "012B155700B2E076D7A13E2A3E18A7AAEC82379205F6CF53FBA74140CBFC26BD",
+    "rendered_source_page": "438B675DDF0F71F98557497BA6BC2B193754D1F46C5FDA0FFCEE510519E2D27F",
+    "reference_ingestion_code": "A189808D1AE96FC890A16B1132D389D02468B8E74E53130861C2D743C7A21009",
+    "models_code": "0A8F48FD4546D7E78A0CD9611B34AE079849CC50AB085438845B03150F32E0E4",
+    "schema_code": "9B2AA688B8E87BF857DBA1961BF98D2FE7363A5947B39D5D0F67EDDAAD6CB4A3",
+    "validation_code": "3458B532314887D2C82624FA57442CB6B3F9CDF0ECB95DF9C7C80F88D88F4FB5",
+    "neo4j_store_code": "6177A74641EE5D1C9302C2B40A23A5DD042A75554956943C7B37E5F3BEDDA32E",
+    "persistent_graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1"
+  },
+  "real_source_check": {
+    "filename": "CB_2017_08_FR.pdf",
+    "source_edition_uid": "edition:cb-2017-08-fr",
+    "page_count": 39,
+    "candidate_count": 10,
+    "local_target_count": 0,
+    "external_stub_target_count": 10,
+    "verified_sample": {
+      "page_number": 28,
+      "candidate_uid": "reference-candidate:c5608f91d6e618b2e5132f01917397b930c951312070d62735bd282b6ae5a3d9",
+      "reference_uid": "reference:c5608f91d6e618b2e5132f01917397b930c951312070d62735bd282b6ae5a3d9",
+      "evidence_uid": "evidence:reference:c5608f91d6e618b2e5132f01917397b930c951312070d62735bd282b6ae5a3d9",
+      "target_instrument_uid": "BCT:CIRCULAR:2013:15",
+      "target_source_status": "EXTERNAL_STUB",
+      "target_occurrence_index": 0,
+      "target_occurrence_count": 1,
+      "promotion_status": "VERIFIED",
+      "promotion_reasons": []
+    }
+  },
+  "graph_model": {
+    "node": "InstrumentReference",
+    "relationships": [
+      "Instrument-[:DECLARES_REFERENCE]->InstrumentReference",
+      "InstrumentReference-[:TARGETS]->Instrument",
+      "InstrumentReference-[:EVIDENCED_BY]->EvidenceSpan"
+    ],
+    "unresolved_target_policy": "create deterministic EXTERNAL_STUB instrument",
+    "legal_effect_policy": "citation facts do not imply AMENDS, REPLACES, or ABROGATES"
+  },
+  "development_metrics": {
+    "real_pdf_candidates": 10,
+    "real_pdf_verified_samples": 1,
+    "focused_tests_passed": 44,
+    "focused_tests_skipped": 2,
+    "repository_tests_passed": 232,
+    "repository_tests_skipped": 2,
+    "disposable_live_tests_passed": 1,
+    "disposable_fixture_relationships": 32,
+    "disposable_nodes_after_cleanup": 0,
+    "persistent_nodes_before_and_after": 7233,
+    "persistent_relationships_before_and_after": 9688,
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "deterministic_candidate_identity": "PASS",
+    "french_and_arabic_explicit_reference_resolution": "PASS",
+    "repeated_target_occurrence_identity": "PASS",
+    "immutable_pdf_hash_extract_render_binding": "PASS",
+    "catalog_backed_target_resolution": "PASS",
+    "explicit_external_stubs": "PASS",
+    "fail_closed_promotion": "PASS",
+    "allowlisted_typed_relationships": "PASS",
+    "idempotent_disposable_neo4j_write": "PASS",
+    "persistent_checkpoint_b_graph_unchanged": "PASS",
+    "standards_review": "PASS_NO_SUBSTANTIVE_FINDINGS",
+    "spec_review": "PASS_NO_MATERIAL_FINDINGS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_INCREMENTAL_REFERENCE_INGESTION_V1",
+  "conclusion": "Keep the reusable per-document reference extraction, review-gated promotion, and Neo4j persistence seam. It establishes one safe ingestion building block, not a complete upload workflow or runtime GraphRAG system.",
+  "limitations": [
+    "Only explicit French and Arabic BCT circular and note citations are in scope.",
+    "Only one real-source reference was manually rendered and promoted in this bounded check; the other nine candidates remain unpromoted.",
+    "No legal-effect relationship is automatically inferred from nearby action words.",
+    "No production upload endpoint, durable job ledger, SQL transaction, Chroma activation, or retry worker is implemented.",
+    "No query router, graph retriever, context assembler, or answer-path GraphRAG integration is implemented.",
+    "The verified sample was not written into the persistent Checkpoint B graph."
+  ],
+  "recommendation": "Next implement the durable upload/job orchestration that calls this seam per validated PDF, then separately build and benchmark gold-blind runtime graph retrieval before production integration.",
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "hosted_calls": 0
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
