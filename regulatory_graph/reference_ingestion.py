@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from pathlib import Path
 import re
 from typing import Collection, Literal
 
@@ -58,14 +59,7 @@ class InstrumentReferenceCandidate(GraphModel):
 
 
 class ReferencePromotionEvidence(GraphModel):
-    reviewed_source_sha256: Sha256
-    reviewed_page_number: int = Field(ge=1)
-    reviewed_signal: NonEmptyStr
-    reviewed_quote: NonEmptyStr
-    reviewed_match_start: int = Field(ge=0)
-    reviewed_match_end: int = Field(gt=0)
     reviewed_target_instrument_uid: NonEmptyStr
-    rendered_image_sha256: Sha256
     verification_method: Literal[
         ReferenceVerificationMethod.MANUAL_RENDERED_PDF_V1
     ] = ReferenceVerificationMethod.MANUAL_RENDERED_PDF_V1
@@ -286,6 +280,7 @@ def promote_reference_candidate(
     candidate: InstrumentReferenceCandidate,
     evidence: ReferencePromotionEvidence,
     *,
+    source_pdf_path: str | Path,
     instrument_catalog: VerifiedInstrumentCatalog,
 ) -> ReferencePromotionDecision:
     target = candidate.target_instrument
@@ -307,16 +302,7 @@ def promote_reference_candidate(
     catalog_edition = instrument_catalog.get_source_edition(
         candidate.source_edition_uid
     )
-    checks = (
-        (
-            evidence.reviewed_source_sha256.casefold()
-            == candidate.source_sha256.casefold(),
-            "source_hash_mismatch",
-        ),
-        (
-            evidence.reviewed_page_number == candidate.page_number,
-            "source_page_mismatch",
-        ),
+    checks = [
         (
             catalog_edition is not None
             and catalog_edition.instrument_uid == candidate.source_instrument_uid
@@ -328,48 +314,48 @@ def promote_reference_candidate(
             == candidate.extraction_artifact_hash.casefold(),
             "source_catalog_changed",
         ),
-        (evidence.reviewed_signal == candidate.signal, "reviewed_signal_mismatch"),
-        (evidence.reviewed_quote == candidate.quote, "reviewed_quote_mismatch"),
-        (
-            evidence.reviewed_match_start == candidate.match_start
-            and evidence.reviewed_match_end == candidate.match_end,
-            "reviewed_offsets_mismatch",
-        ),
         (
             evidence.reviewed_target_instrument_uid
             == candidate.target_instrument_uid,
             "target_identity_ambiguous",
         ),
         (catalog_target == candidate.target_instrument, "target_catalog_changed"),
-    )
+    ]
+    rendered = _render_and_verify_source_reference(candidate, source_pdf_path)
+    checks.extend(rendered[0])
     reasons = tuple(reason for passed, reason in checks if not passed)
     if reasons:
         return NeedsReviewReferencePromotion(
             reasons=reasons,
         )
 
+    assert rendered[1] is not None
+    verified_signal, verified_quote, quote_start, quote_end, render_hash = rendered[1]
+
     evidence_uid = candidate.uid.replace("reference-candidate:", "evidence:reference:")
     reference_uid = candidate.uid.replace("reference-candidate:", "reference:")
     evidence_span = EvidenceSpan(
         uid=evidence_uid,
         source_edition_uid=candidate.source_edition_uid,
-        quote=candidate.quote,
+        quote=verified_quote,
         page_number=candidate.page_number,
         extraction_method=candidate.extraction_method,
         source_sha256=candidate.source_sha256,
         extraction_artifact_hash=candidate.extraction_artifact_hash,
+        char_start=quote_start,
+        char_end=quote_end,
     )
     reference = InstrumentReference(
         uid=reference_uid,
         source_instrument_uid=candidate.source_instrument_uid,
         target_instrument_uid=candidate.target_instrument_uid,
         evidence_uid=evidence_span.uid,
-        raw_citation=candidate.signal,
+        raw_citation=verified_signal,
         extraction_method=candidate.extraction_method,
         resolver_rule=candidate.resolver_rule,
         verification_status=VerificationStatus.VERIFIED,
         verification_method=evidence.verification_method,
-        rendered_image_sha256=evidence.rendered_image_sha256,
+        rendered_image_sha256=render_hash,
         verified_by=evidence.reviewer,
     )
     return VerifiedReferencePromotion(
@@ -383,15 +369,16 @@ def enrich_bundle_with_verified_references(
     bundle: RegulatoryGraphBundle,
     decisions: tuple[ReferencePromotionDecision, ...],
 ) -> RegulatoryGraphBundle:
-    if not all(isinstance(item, VerifiedReferencePromotion) for item in decisions):
+    verified_decisions = tuple(
+        item for item in decisions if isinstance(item, VerifiedReferencePromotion)
+    )
+    if len(verified_decisions) != len(decisions):
         raise ValueError("only complete VERIFIED reference decisions can enrich a bundle")
 
     instruments_by_uid = {item.uid: item for item in bundle.instruments}
     evidence_by_uid = {item.uid: item for item in bundle.evidence_spans}
     references_by_uid = {item.uid: item for item in bundle.instrument_references}
-    for decision in decisions:
-        if not isinstance(decision, VerifiedReferencePromotion):
-            raise ValueError("only complete VERIFIED reference decisions can enrich a bundle")
+    for decision in verified_decisions:
         target = decision.target_instrument
         evidence_span = decision.evidence_span
         reference = decision.reference
@@ -433,6 +420,83 @@ def _line_quote(text: str, start: int, end: int) -> str:
     if line_end == -1:
         line_end = len(text)
     return text[line_start:line_end].strip()
+
+
+def _render_and_verify_source_reference(
+    candidate: InstrumentReferenceCandidate,
+    source_pdf_path: str | Path,
+) -> tuple[
+    list[tuple[bool, str]],
+    tuple[str, str, int, int, str] | None,
+]:
+    import fitz
+
+    path = Path(source_pdf_path)
+    try:
+        source_bytes = path.read_bytes()
+    except OSError:
+        return [(False, "source_pdf_unavailable")], None
+    if sha256(source_bytes).hexdigest().casefold() != candidate.source_sha256.casefold():
+        return [(False, "source_hash_mismatch")], None
+
+    try:
+        with fitz.open(path) as document:
+            if candidate.page_number > len(document):
+                return [(False, "source_page_mismatch")], None
+            page = document[candidate.page_number - 1]
+            page_text = page.get_text()
+            verified = _find_target_reference(
+                page_text,
+                candidate.target_instrument_uid,
+            )
+            if verified is None:
+                return [(False, "rendered_page_reference_not_found")], None
+            signal, quote, quote_start, quote_end = verified
+            rendered_png = page.get_pixmap(
+                matrix=fitz.Matrix(2, 2),
+                alpha=False,
+            ).tobytes("png")
+    except (OSError, RuntimeError, ValueError):
+        return [(False, "rendered_page_unavailable")], None
+
+    render_hash = sha256(rendered_png).hexdigest().upper()
+    return [(True, "rendered_page_reference_not_found")], (
+        signal,
+        quote,
+        quote_start,
+        quote_end,
+        render_hash,
+    )
+
+
+def _find_target_reference(
+    page_text: str,
+    target_instrument_uid: str,
+) -> tuple[str, str, int, int] | None:
+    for pattern in (_FRENCH_REFERENCE, _ARABIC_REFERENCE):
+        for match in pattern.finditer(page_text):
+            kind = _instrument_kind(match.group("kind"))
+            year = _four_digit_year(match.group("year"))
+            number = _normalize_number(match.group("number"))
+            if f"BCT:{kind.value}:{year}:{number}" != target_instrument_uid:
+                continue
+            line_start = page_text.rfind("\n", 0, match.start()) + 1
+            line_end = page_text.find("\n", match.end())
+            if line_end == -1:
+                line_end = len(page_text)
+            quote_start = line_start
+            quote_end = line_end
+            while quote_start < quote_end and page_text[quote_start].isspace():
+                quote_start += 1
+            while quote_end > quote_start and page_text[quote_end - 1].isspace():
+                quote_end -= 1
+            return (
+                match.group(0),
+                page_text[quote_start:quote_end],
+                quote_start,
+                quote_end,
+            )
+    return None
 
 
 def _candidate_sort_key(

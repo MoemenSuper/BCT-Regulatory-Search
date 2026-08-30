@@ -1,3 +1,6 @@
+from hashlib import sha256
+
+import fitz
 import pytest
 
 from regulatory_graph.models import (
@@ -33,7 +36,10 @@ def _edition(*, language="fr") -> SourceEdition:
     )
 
 
-def _catalog(*targets: Instrument) -> VerifiedInstrumentCatalog:
+def _catalog(
+    *targets: Instrument,
+    source_edition: SourceEdition | None = None,
+) -> VerifiedInstrumentCatalog:
     source = Instrument(
         uid="BCT:CIRCULAR:2017:08",
         authority="BCT",
@@ -61,22 +67,25 @@ def _catalog(*targets: Instrument) -> VerifiedInstrumentCatalog:
     )
     return VerifiedInstrumentCatalog(
         (source, *targets),
-        (_edition(), _edition(language="ar"), *target_editions),
+        (source_edition or _edition(), *target_editions),
     )
 
 
-def _review(candidate, *, reviewed_quote=None) -> ReferencePromotionEvidence:
+def _review(candidate) -> ReferencePromotionEvidence:
     return ReferencePromotionEvidence(
-        reviewed_source_sha256=candidate.source_sha256,
-        reviewed_page_number=candidate.page_number,
-        reviewed_signal=candidate.signal,
-        reviewed_quote=(candidate.quote if reviewed_quote is None else reviewed_quote),
-        reviewed_match_start=candidate.match_start,
-        reviewed_match_end=candidate.match_end,
         reviewed_target_instrument_uid=candidate.target_instrument_uid,
-        rendered_image_sha256="c" * 64,
         reviewer="manual:test-reviewer",
     )
+
+
+def _write_pdf(path, page_texts) -> str:
+    document = fitz.open()
+    for text in page_texts:
+        page = document.new_page()
+        page.insert_text((72, 72), text)
+    document.save(path)
+    document.close()
+    return sha256(path.read_bytes()).hexdigest().upper()
 
 
 def test_one_document_extracts_stable_exact_source_reference_candidates():
@@ -181,7 +190,10 @@ def test_arabic_indic_digits_resolve_without_reversal_or_normalizing_the_quote()
     candidates = extract_document_reference_candidates(
         _edition(language="ar"),
         (page,),
-        instrument_catalog=_catalog(target),
+        instrument_catalog=_catalog(
+            target,
+            source_edition=_edition(language="ar"),
+        ),
     )
 
     assert len(candidates) == 1
@@ -191,41 +203,65 @@ def test_arabic_indic_digits_resolve_without_reversal_or_normalizing_the_quote()
     assert candidate.signal == "المنشور عدد ٦ لسنة ٢٠٢٢"
 
 
-def test_reference_promotion_fails_closed_until_every_source_check_passes():
+def test_reference_promotion_fails_closed_until_every_source_check_passes(tmp_path):
+    pdf_path = tmp_path / "CB_2017_08_FR.pdf"
+    source_text = "La presente circulaire cite la circulaire n 2013-15."
+    source_sha256 = _write_pdf(pdf_path, (source_text,))
+    edition = _edition().model_copy(
+        update={"sha256": source_sha256, "page_count": 1}
+    )
     page = ReferencePage(
-        page_number=28,
-        text="La présente circulaire abroge et remplace la circulaire n°2013-15.",
+        page_number=1,
+        text=source_text,
         extraction_method="native",
     )
+    catalog = _catalog(source_edition=edition)
     candidate = extract_document_reference_candidates(
-        _edition(),
+        edition,
         (page,),
-        instrument_catalog=_catalog(),
+        instrument_catalog=catalog,
     )[0]
 
+    wrong_target_review = ReferencePromotionEvidence(
+        reviewed_target_instrument_uid="BCT:CIRCULAR:2013:14",
+        reviewer="manual:test-reviewer",
+    )
     incomplete = promote_reference_candidate(
         candidate,
-        _review(candidate, reviewed_quote="not the rendered source quote"),
-        instrument_catalog=_catalog(),
+        wrong_target_review,
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
     )
 
     assert incomplete.status == VerificationStatus.NEEDS_REVIEW
     assert incomplete.reference is None
     assert incomplete.evidence_span is None
     assert incomplete.target_instrument is None
-    assert incomplete.reasons == ("reviewed_quote_mismatch",)
+    assert incomplete.reasons == ("target_identity_ambiguous",)
+
+    unrelated_pdf = tmp_path / "unrelated.pdf"
+    _write_pdf(unrelated_pdf, ("Unrelated page",))
+    unrelated = promote_reference_candidate(
+        candidate,
+        _review(candidate),
+        source_pdf_path=unrelated_pdf,
+        instrument_catalog=catalog,
+    )
+    assert unrelated.status == VerificationStatus.NEEDS_REVIEW
+    assert unrelated.reasons == ("source_hash_mismatch",)
 
     complete = promote_reference_candidate(
         candidate,
         _review(candidate),
-        instrument_catalog=_catalog(),
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
     )
 
     assert complete.status == VerificationStatus.VERIFIED
     assert complete.reasons == ()
     assert complete.reference.verification_status == VerificationStatus.VERIFIED
     assert complete.reference.verified_by == "manual:test-reviewer"
-    assert complete.reference.rendered_image_sha256 == "c" * 64
+    assert len(complete.reference.rendered_image_sha256) == 64
     assert complete.reference.evidence_uid == complete.evidence_span.uid
     assert complete.target_instrument.uid == "BCT:CIRCULAR:2013:15"
     assert complete.target_instrument.source_status == SourceStatus.EXTERNAL_STUB
@@ -242,16 +278,28 @@ def test_reference_promotion_fails_closed_until_every_source_check_passes():
     stale = promote_reference_candidate(
         candidate,
         _review(candidate),
-        instrument_catalog=_catalog(newly_local_target),
+        source_pdf_path=pdf_path,
+        instrument_catalog=_catalog(
+            newly_local_target,
+            source_edition=edition,
+        ),
     )
     assert stale.status == VerificationStatus.NEEDS_REVIEW
     assert stale.reasons == ("target_catalog_changed",)
 
 
-def test_verified_reference_enrichment_is_idempotent_for_one_document_bundle():
+def test_verified_reference_enrichment_is_idempotent_for_one_document_bundle(
+    tmp_path,
+):
     bundle = circular_2016_03_fr_bundle()
+    pdf_path = tmp_path / "Cir_2016_03_fr.pdf"
+    source_sha256 = _write_pdf(
+        pdf_path,
+        ("Page 1", "Vu la circulaire n 91-24.", "Page 3", "Page 4"),
+    )
     edition = bundle.source_editions[0].model_copy(
         update={
+            "sha256": source_sha256,
             "extraction_artifact_hash": "b" * 64,
             "identity_verification_status": VerificationStatus.VERIFIED,
         }
@@ -271,6 +319,7 @@ def test_verified_reference_enrichment_is_idempotent_for_one_document_bundle():
     decision = promote_reference_candidate(
         candidate,
         _review(candidate),
+        source_pdf_path=pdf_path,
         instrument_catalog=catalog,
     )
 
