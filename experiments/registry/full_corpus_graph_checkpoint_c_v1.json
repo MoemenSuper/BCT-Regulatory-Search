@@ -1,0 +1,49 @@
+{
+  "experiment_id": "full-corpus-graph-checkpoint-c-v1",
+  "timestamp": "2026-08-30T18:15:28.124321+00:00",
+  "hypothesis": "A deterministic corpus-wide pass can create an exact-source semantic review queue without promoting unresolved legal relationships.",
+  "changed_variable": "deterministic_semantic_candidate_discovery_only",
+  "code_commit": "694df4d",
+  "code_commits": ["403b7bf", "8e22451", "694df4d"],
+  "configuration": {
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "automatic_promotion": false
+  },
+  "dataset_hashes": {
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "retained_chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "candidate_review_queue": "4FC4AB5F01E8D7075BDAEB312F8BF12DCA6F44EE1DDFA1116032FBEB434D9C8A",
+    "semantic_coverage_gaps": "E448BC4E6AC5DADFFF6B44B6985996D7CB677DBE6A1E5D43462F2394532B93E8",
+    "graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "result": "1F7DA7507E2D0BAC0B95518CF7AAB4B663FB2A2117FE358A32D4A946DE2D89D5",
+    "research": "7E24E4BEA13BD15E10DDBCCB7EB598290940BC393672E8C28BD54ED3FAD0253B"
+  },
+  "development_metrics": {
+    "candidates": 6255,
+    "verified": 0,
+    "needs_review": 6255,
+    "documents_with_signals": 259,
+    "documents_without_signals": 180,
+    "pages_with_signals": 1103,
+    "pages_without_signals": 626,
+    "persistent_nodes": 7233,
+    "persistent_relationships": 9688,
+    "repository_tests_passed": 221
+  },
+  "gate": {
+    "deterministic_exact_source_queue": "PASS",
+    "graph_unchanged_during_discovery": "PASS",
+    "promotion_contract_implemented": "PASS",
+    "corpus_wide_visual_and_legal_verification": "FAIL",
+    "verified_semantic_coverage": "FAIL",
+    "overall": "FAIL"
+  },
+  "decision": "REJECT_CHECKPOINT_C_INCOMPLETE_VERIFICATION",
+  "recommendation": "Preserve the review queue and unchanged structural graph. Do not open Checkpoints D or E until source-linked semantic facts are verified under the promotion contract.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

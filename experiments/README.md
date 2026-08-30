@@ -427,3 +427,22 @@ and produces a hashed offline dump.
 This is structural completeness only. Corpus-wide provisions, temporal legal
 relationships, graph retrieval/context assembly, and the frozen 50-case
 evaluation remain unopened for Checkpoints C-E.
+
+## Full-corpus semantic graph checkpoint C
+
+The deterministic candidate extractor and fail-closed promotion contract are
+implemented in `regulatory_graph/semantic_candidates.py`. The committed review
+queue and coverage-gap inventory are under `experiments/reviews/`; the receipt
+is `experiments/results/full_corpus_graph_checkpoint_c_v1.json`.
+
+Checkpoint C discovered 6,255 exact-source signals across 259 documents and
+1,103 pages. All 6,255 remain `NEEDS_REVIEW`: none received the required visual,
+target-identity, effective-state, and predecessor checks. A rendered-PDF spot
+check also showed why lexical action hits cannot be promoted automatically: a
+detected modification term described an already-modified external law in a
+recital rather than a new legal change enacted by the source document.
+
+The decision is `REJECT_CHECKPOINT_C_INCOMPLETE_VERIFICATION`. Candidate
+discovery made no Neo4j writes; the kept Checkpoint B graph remains at 7,233
+nodes, 9,688 relationships, and the same content hash. Checkpoints D and E are
+unopened and must not use the review queue as graph facts.

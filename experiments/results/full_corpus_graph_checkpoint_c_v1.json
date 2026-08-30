@@ -1,0 +1,119 @@
+{
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "hosted_calls": 0
+  },
+  "candidate_metrics": {
+    "by_action": {
+      "ABROGATE": 89,
+      "ADD": 57,
+      "DEROGATE": 16,
+      "MODIFY": 354,
+      "REPLACE": 78,
+      "SUPPLEMENT": 116
+    },
+    "by_language": {
+      "ar": 482,
+      "fr": 5773
+    },
+    "by_type": {
+      "CROSS_REFERENCE": 4000,
+      "LEGAL_ACTION": 710,
+      "PROVISION_HEADING": 1545
+    },
+    "candidate": 0,
+    "documents_with_signals": 259,
+    "documents_without_signals": 180,
+    "needs_review": 6255,
+    "pages_with_signals": 1103,
+    "pages_without_signals": 626,
+    "total": 6255,
+    "verified": 0
+  },
+  "changed_variable": "deterministic_semantic_candidate_discovery_only",
+  "code_commit": "694df4d",
+  "code_commits": [
+    "403b7bf",
+    "8e22451",
+    "694df4d"
+  ],
+  "conclusion": "Preserve the exact-source review queue, but do not persist or use unresolved candidates as temporal graph facts.",
+  "configuration": {
+    "automatic_promotion": false,
+    "chunks_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-ablations-20260824-v1\\representations\\structured_baseline_chunking\\chunks.jsonl",
+    "documents_dir": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search\\documents",
+    "hosted_calls": 0,
+    "manifest_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-experiment-20260823-v3\\ingestion_manifest.json",
+    "neo4j_uri": "bolt://127.0.0.1:17687",
+    "runtime_gold_access": false
+  },
+  "dataset_hashes": {
+    "candidate_review_queue": "4FC4AB5F01E8D7075BDAEB312F8BF12DCA6F44EE1DDFA1116032FBEB434D9C8A",
+    "candidate_extractor_code": "BE2F41C90AF40CE6B2621206DDCFA697E7A9422E7DCF530F41F168DB6D21F3C9",
+    "candidate_runner_code": "0EA8D035D562715B1C846A42239B468BC24DD82F7178E5174DF2B8848CD788ED",
+    "retained_chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "semantic_coverage_gaps": "E448BC4E6AC5DADFFF6B44B6985996D7CB677DBE6A1E5D43462F2394532B93E8",
+    "structured_artifact_aggregate": "343F697BEE208FB72165B937A4529E3B0A52FF0F4BC600B9068D9DE9019BF9DC",
+    "structured_manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA"
+  },
+  "decision": "REJECT_CHECKPOINT_C_INCOMPLETE_VERIFICATION",
+  "experiment_id": "full-corpus-graph-checkpoint-c-v1",
+  "failure_distribution": {
+    "broad_or_partial_replacements": "not_attempted",
+    "conflicting_dates": "not_attempted",
+    "effective_date_resolution_not_attempted": 710,
+    "legal_action_target_resolution_not_attempted": 710,
+    "legal_action_visual_verification_not_attempted": 710,
+    "malformed_arabic": "not_evaluated",
+    "replacement_predecessor_verification_not_attempted": 78,
+    "source_offset_or_quote_failures": 0
+  },
+  "graph_safety": {
+    "after": {
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1",
+      "nodes": 7233,
+      "relationships": 9688
+    },
+    "before": {
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1",
+      "nodes": 7233,
+      "relationships": 9688
+    },
+    "content_unchanged": true,
+    "new_semantic_nodes_written": 0,
+    "new_semantic_relationships_written": 0
+  },
+  "hypothesis": "A deterministic corpus-wide pass can create an exact-source semantic review queue without promoting unresolved legal relationships.",
+  "manual_visual_spot_check": {
+    "candidate_uid": "semantic-candidate:9ed09aa9371f2c822cf8e34c2149d65bf368dbb0911de4726f139eb4b117e319",
+    "filename": "CB_2017_08_FR.pdf",
+    "page_number": 1,
+    "outcome": "NEEDS_REVIEW_FALSE_POSITIVE_IF_PROMOTED",
+    "reason": "The detected modification word occurs in a recital describing an already-modified external law, not a change enacted by this source instrument.",
+    "source_sha256": "DDD0E2F74904B8E83B36DD852625486A0CD234B7E22EA064E7502E5191B9ED78"
+  },
+  "latency": {
+    "wall_seconds": 12.548330499999793
+  },
+  "status": "complete",
+  "timestamp": "2026-08-30T18:15:28.124321+00:00",
+  "validation_metrics": {
+    "final_holdout": "unopened",
+    "provisional_answer_validation": "unopened",
+    "status": "not_run"
+  },
+  "verification": {
+    "all_new_candidates_need_review": true,
+    "coverage_document_records": 439,
+    "coverage_page_records": 1729,
+    "focused_tests": "5 passed",
+    "git_diff_check": "passed",
+    "jsonl_rows": 6255,
+    "jsonl_unique_candidate_uids": 6255,
+    "jsonl_validation": "passed",
+    "queue_deterministic_repeat": true,
+    "repository_tests": "221 passed, 2 skipped",
+    "source_offsets_exact": true
+  }
+}
