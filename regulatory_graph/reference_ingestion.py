@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 import re
 from typing import Collection, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from regulatory_graph.models import (
     EvidenceSpan,
@@ -44,6 +46,8 @@ class InstrumentReferenceCandidate(GraphModel):
     quote: NonEmptyStr
     match_start: int = Field(ge=0)
     match_end: int = Field(gt=0)
+    target_occurrence_index: int = Field(ge=0)
+    target_occurrence_count: int = Field(ge=1)
     resolver_rule: ReferenceResolverRule
     verification_status: Literal[VerificationStatus.NEEDS_REVIEW] = (
         VerificationStatus.NEEDS_REVIEW
@@ -56,6 +60,14 @@ class InstrumentReferenceCandidate(GraphModel):
     @property
     def target_corpus_present(self) -> bool:
         return self.target_instrument.corpus_present
+
+    @model_validator(mode="after")
+    def validate_target_occurrence(self) -> "InstrumentReferenceCandidate":
+        if self.target_occurrence_index >= self.target_occurrence_count:
+            raise ValueError(
+                "target occurrence index must be lower than occurrence count"
+            )
+        return self
 
 
 class ReferencePromotionEvidence(GraphModel):
@@ -85,6 +97,38 @@ class VerifiedReferencePromotion(GraphModel):
 ReferencePromotionDecision = (
     NeedsReviewReferencePromotion | VerifiedReferencePromotion
 )
+
+
+class _SourceReferenceVerificationFailure(GraphModel):
+    status: Literal[VerificationStatus.NEEDS_REVIEW] = VerificationStatus.NEEDS_REVIEW
+    reasons: tuple[NonEmptyStr, ...] = Field(min_length=1)
+
+
+class _VerifiedSourceReference(GraphModel):
+    status: Literal[VerificationStatus.VERIFIED] = VerificationStatus.VERIFIED
+    signal: NonEmptyStr
+    quote: NonEmptyStr
+    quote_start: int = Field(ge=0)
+    quote_end: int = Field(gt=0)
+    rendered_image_sha256: Sha256
+
+
+SourceReferenceVerification = (
+    _SourceReferenceVerificationFailure | _VerifiedSourceReference
+)
+
+
+@dataclass(frozen=True)
+class _ResolvedReferenceMatch:
+    rule: ReferenceResolverRule
+    match: re.Match[str]
+    kind: InstrumentKind
+    year: int
+    number: str
+
+    @property
+    def target_uid(self) -> str:
+        return f"BCT:{self.kind.value}:{self.year}:{self.number}"
 
 
 class VerifiedInstrumentCatalog:
@@ -222,57 +266,60 @@ def extract_document_reference_candidates(
         )
     candidates = []
     for page in pages:
-        for rule, pattern in (
-            (ReferenceResolverRule.FRENCH_BCT_INSTRUMENT_V1, _FRENCH_REFERENCE),
-            (ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1, _ARABIC_REFERENCE),
-        ):
-            for match in pattern.finditer(page.text):
-                kind = _instrument_kind(match.group("kind"))
-                year = _four_digit_year(match.group("year"))
-                number = _normalize_number(match.group("number"))
-                target_uid = f"BCT:{kind.value}:{year}:{number}"
-                signal = match.group(0)
-                target = instrument_catalog.resolve_bct_reference(
-                    kind=kind,
-                    year=year,
-                    number=number,
-                    raw_citation=signal,
+        matches = _resolved_reference_matches(page.text)
+        occurrence_counts = Counter(item.target_uid for item in matches)
+        occurrence_indexes: defaultdict[str, int] = defaultdict(int)
+        for resolved in matches:
+            match = resolved.match
+            target_uid = resolved.target_uid
+            occurrence_index = occurrence_indexes[target_uid]
+            occurrence_indexes[target_uid] += 1
+            signal = match.group(0)
+            target = instrument_catalog.resolve_bct_reference(
+                kind=resolved.kind,
+                year=resolved.year,
+                number=resolved.number,
+                raw_citation=signal,
+            )
+            identity = "|".join(
+                (
+                    source_edition.sha256.upper(),
+                    source_edition.uid,
+                    source_edition.extraction_artifact_hash.upper(),
+                    str(page.page_number),
+                    str(match.start()),
+                    str(match.end()),
+                    target_uid,
+                    str(occurrence_index),
+                    str(occurrence_counts[target_uid]),
+                    signal,
                 )
-                identity = "|".join(
-                    (
-                        source_edition.sha256.upper(),
-                        source_edition.uid,
-                        source_edition.extraction_artifact_hash.upper(),
-                        str(page.page_number),
-                        str(match.start()),
-                        str(match.end()),
-                        target_uid,
-                        signal,
-                    )
+            )
+            candidates.append(
+                InstrumentReferenceCandidate(
+                    uid=(
+                        "reference-candidate:"
+                        + sha256(identity.encode("utf-8")).hexdigest()
+                    ),
+                    source_instrument_uid=source_edition.instrument_uid,
+                    source_edition_uid=source_edition.uid,
+                    source_filename=source_edition.filename,
+                    source_sha256=source_edition.sha256,
+                    extraction_artifact_hash=(
+                        source_edition.extraction_artifact_hash
+                    ),
+                    page_number=page.page_number,
+                    extraction_method=page.extraction_method,
+                    target_instrument=target,
+                    signal=signal,
+                    quote=_line_quote(page.text, match.start(), match.end()),
+                    match_start=match.start(),
+                    match_end=match.end(),
+                    target_occurrence_index=occurrence_index,
+                    target_occurrence_count=occurrence_counts[target_uid],
+                    resolver_rule=resolved.rule,
                 )
-                candidates.append(
-                    InstrumentReferenceCandidate(
-                        uid=(
-                            "reference-candidate:"
-                            + sha256(identity.encode("utf-8")).hexdigest()
-                        ),
-                        source_instrument_uid=source_edition.instrument_uid,
-                        source_edition_uid=source_edition.uid,
-                        source_filename=source_edition.filename,
-                        source_sha256=source_edition.sha256,
-                        extraction_artifact_hash=(
-                            source_edition.extraction_artifact_hash
-                        ),
-                        page_number=page.page_number,
-                        extraction_method=page.extraction_method,
-                        target_instrument=target,
-                        signal=signal,
-                        quote=_line_quote(page.text, match.start(), match.end()),
-                        match_start=match.start(),
-                        match_end=match.end(),
-                        resolver_rule=rule,
-                    )
-                )
+            )
     return tuple(sorted(candidates, key=_candidate_sort_key))
 
 
@@ -322,40 +369,38 @@ def promote_reference_candidate(
         (catalog_target == candidate.target_instrument, "target_catalog_changed"),
     ]
     rendered = _render_and_verify_source_reference(candidate, source_pdf_path)
-    checks.extend(rendered[0])
-    reasons = tuple(reason for passed, reason in checks if not passed)
-    if reasons:
+    catalog_reasons = tuple(reason for passed, reason in checks if not passed)
+    if isinstance(rendered, _SourceReferenceVerificationFailure):
         return NeedsReviewReferencePromotion(
-            reasons=reasons,
+            reasons=(*catalog_reasons, *rendered.reasons),
         )
-
-    assert rendered[1] is not None
-    verified_signal, verified_quote, quote_start, quote_end, render_hash = rendered[1]
+    if catalog_reasons:
+        return NeedsReviewReferencePromotion(reasons=catalog_reasons)
 
     evidence_uid = candidate.uid.replace("reference-candidate:", "evidence:reference:")
     reference_uid = candidate.uid.replace("reference-candidate:", "reference:")
     evidence_span = EvidenceSpan(
         uid=evidence_uid,
         source_edition_uid=candidate.source_edition_uid,
-        quote=verified_quote,
+        quote=rendered.quote,
         page_number=candidate.page_number,
         extraction_method=candidate.extraction_method,
         source_sha256=candidate.source_sha256,
         extraction_artifact_hash=candidate.extraction_artifact_hash,
-        char_start=quote_start,
-        char_end=quote_end,
+        char_start=rendered.quote_start,
+        char_end=rendered.quote_end,
     )
     reference = InstrumentReference(
         uid=reference_uid,
         source_instrument_uid=candidate.source_instrument_uid,
         target_instrument_uid=candidate.target_instrument_uid,
         evidence_uid=evidence_span.uid,
-        raw_citation=verified_signal,
+        raw_citation=rendered.signal,
         extraction_method=candidate.extraction_method,
         resolver_rule=candidate.resolver_rule,
         verification_status=VerificationStatus.VERIFIED,
         verification_method=evidence.verification_method,
-        rendered_image_sha256=render_hash,
+        rendered_image_sha256=rendered.rendered_image_sha256,
         verified_by=evidence.reviewer,
     )
     return VerifiedReferencePromotion(
@@ -425,78 +470,110 @@ def _line_quote(text: str, start: int, end: int) -> str:
 def _render_and_verify_source_reference(
     candidate: InstrumentReferenceCandidate,
     source_pdf_path: str | Path,
-) -> tuple[
-    list[tuple[bool, str]],
-    tuple[str, str, int, int, str] | None,
-]:
+) -> SourceReferenceVerification:
     import fitz
 
     path = Path(source_pdf_path)
     try:
         source_bytes = path.read_bytes()
     except OSError:
-        return [(False, "source_pdf_unavailable")], None
+        return _SourceReferenceVerificationFailure(
+            reasons=("source_pdf_unavailable",)
+        )
     if sha256(source_bytes).hexdigest().casefold() != candidate.source_sha256.casefold():
-        return [(False, "source_hash_mismatch")], None
+        return _SourceReferenceVerificationFailure(reasons=("source_hash_mismatch",))
 
     try:
-        with fitz.open(path) as document:
+        with fitz.open(stream=source_bytes, filetype="pdf") as document:
             if candidate.page_number > len(document):
-                return [(False, "source_page_mismatch")], None
+                return _SourceReferenceVerificationFailure(
+                    reasons=("source_page_mismatch",)
+                )
             page = document[candidate.page_number - 1]
             page_text = page.get_text()
             verified = _find_target_reference(
                 page_text,
                 candidate.target_instrument_uid,
+                occurrence_index=candidate.target_occurrence_index,
+                expected_occurrence_count=candidate.target_occurrence_count,
             )
             if verified is None:
-                return [(False, "rendered_page_reference_not_found")], None
+                return _SourceReferenceVerificationFailure(
+                    reasons=("rendered_page_reference_not_found",)
+                )
             signal, quote, quote_start, quote_end = verified
             rendered_png = page.get_pixmap(
                 matrix=fitz.Matrix(2, 2),
                 alpha=False,
             ).tobytes("png")
     except (OSError, RuntimeError, ValueError):
-        return [(False, "rendered_page_unavailable")], None
+        return _SourceReferenceVerificationFailure(
+            reasons=("rendered_page_unavailable",)
+        )
 
     render_hash = sha256(rendered_png).hexdigest().upper()
-    return [(True, "rendered_page_reference_not_found")], (
-        signal,
-        quote,
-        quote_start,
-        quote_end,
-        render_hash,
+    return _VerifiedSourceReference(
+        signal=signal,
+        quote=quote,
+        quote_start=quote_start,
+        quote_end=quote_end,
+        rendered_image_sha256=render_hash,
     )
 
 
 def _find_target_reference(
     page_text: str,
     target_instrument_uid: str,
+    *,
+    occurrence_index: int,
+    expected_occurrence_count: int,
 ) -> tuple[str, str, int, int] | None:
-    for pattern in (_FRENCH_REFERENCE, _ARABIC_REFERENCE):
+    target_matches = [
+        item.match
+        for item in _resolved_reference_matches(page_text)
+        if item.target_uid == target_instrument_uid
+    ]
+    if (
+        len(target_matches) != expected_occurrence_count
+        or occurrence_index >= len(target_matches)
+    ):
+        return None
+    match = target_matches[occurrence_index]
+    line_start = page_text.rfind("\n", 0, match.start()) + 1
+    line_end = page_text.find("\n", match.end())
+    if line_end == -1:
+        line_end = len(page_text)
+    quote_start = line_start
+    quote_end = line_end
+    while quote_start < quote_end and page_text[quote_start].isspace():
+        quote_start += 1
+    while quote_end > quote_start and page_text[quote_end - 1].isspace():
+        quote_end -= 1
+    return (
+        match.group(0),
+        page_text[quote_start:quote_end],
+        quote_start,
+        quote_end,
+    )
+
+
+def _resolved_reference_matches(page_text: str) -> tuple[_ResolvedReferenceMatch, ...]:
+    resolved = []
+    for rule, pattern in (
+        (ReferenceResolverRule.FRENCH_BCT_INSTRUMENT_V1, _FRENCH_REFERENCE),
+        (ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1, _ARABIC_REFERENCE),
+    ):
         for match in pattern.finditer(page_text):
-            kind = _instrument_kind(match.group("kind"))
-            year = _four_digit_year(match.group("year"))
-            number = _normalize_number(match.group("number"))
-            if f"BCT:{kind.value}:{year}:{number}" != target_instrument_uid:
-                continue
-            line_start = page_text.rfind("\n", 0, match.start()) + 1
-            line_end = page_text.find("\n", match.end())
-            if line_end == -1:
-                line_end = len(page_text)
-            quote_start = line_start
-            quote_end = line_end
-            while quote_start < quote_end and page_text[quote_start].isspace():
-                quote_start += 1
-            while quote_end > quote_start and page_text[quote_end - 1].isspace():
-                quote_end -= 1
-            return (
-                match.group(0),
-                page_text[quote_start:quote_end],
-                quote_start,
-                quote_end,
+            resolved.append(
+                _ResolvedReferenceMatch(
+                    rule=rule,
+                    match=match,
+                    kind=_instrument_kind(match.group("kind")),
+                    year=_four_digit_year(match.group("year")),
+                    number=_normalize_number(match.group("number")),
+                )
             )
-    return None
+    return tuple(sorted(resolved, key=lambda item: item.match.start()))
 
 
 def _candidate_sort_key(

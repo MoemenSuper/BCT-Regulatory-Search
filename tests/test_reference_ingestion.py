@@ -288,6 +288,58 @@ def test_reference_promotion_fails_closed_until_every_source_check_passes(tmp_pa
     assert stale.reasons == ("target_catalog_changed",)
 
 
+def test_promotion_preserves_repeated_target_occurrence_on_the_same_page(tmp_path):
+    pdf_path = tmp_path / "CB_2017_08_FR.pdf"
+    source_text = (
+        "Premiere mention de la circulaire n 2013-15.\n"
+        "Deuxieme mention de la circulaire n 2013-15."
+    )
+    source_sha256 = _write_pdf(pdf_path, (source_text,))
+    edition = _edition().model_copy(
+        update={"sha256": source_sha256, "page_count": 1}
+    )
+    catalog = _catalog(source_edition=edition)
+    candidates = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text=source_text,
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )
+
+    assert [candidate.target_occurrence_index for candidate in candidates] == [0, 1]
+    invalid_occurrence = candidates[0].model_dump(mode="python")
+    invalid_occurrence.update(
+        target_occurrence_index=2,
+        target_occurrence_count=1,
+    )
+    with pytest.raises(ValueError, match="lower than occurrence count"):
+        type(candidates[0]).model_validate(invalid_occurrence)
+
+    first = promote_reference_candidate(
+        candidates[0],
+        _review(candidates[0]),
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
+    )
+    second = promote_reference_candidate(
+        candidates[1],
+        _review(candidates[1]),
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
+    )
+
+    assert first.status == VerificationStatus.VERIFIED
+    assert second.status == VerificationStatus.VERIFIED
+    assert first.evidence_span.quote.startswith("Premiere mention")
+    assert second.evidence_span.quote.startswith("Deuxieme mention")
+    assert first.evidence_span.char_start < second.evidence_span.char_start
+
+
 def test_verified_reference_enrichment_is_idempotent_for_one_document_bundle(
     tmp_path,
 ):
