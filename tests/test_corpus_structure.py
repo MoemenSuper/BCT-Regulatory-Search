@@ -42,6 +42,7 @@ def test_legacy_filename_requires_matching_first_page_identity_evidence():
     assert resolved.evidence == "first_page_identity"
     assert resolved.rule == "legacy_cb_ci_filename_v1"
     assert "2017-08" in resolved.corroborating_text
+    assert resolved.corroborating_text == resolved.corroborating_text.rstrip()
     assert unresolved.status == VerificationStatus.NEEDS_REVIEW
     assert unresolved.instrument_uid.startswith("BCT:UNRESOLVED:")
 

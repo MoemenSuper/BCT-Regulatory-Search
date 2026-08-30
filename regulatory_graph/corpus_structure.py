@@ -640,7 +640,7 @@ def _first_page_confirmation(
     if not kind_confirmed or not (french_identity or arabic_identity):
         return None
     excerpt = re.sub(r"\s+", " ", text).strip()
-    return excerpt[:500] if excerpt else None
+    return excerpt[:500].rstrip() if excerpt else None
 
 
 def _path_sha256(path: Path) -> str:
