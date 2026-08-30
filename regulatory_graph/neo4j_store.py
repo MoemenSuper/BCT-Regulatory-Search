@@ -319,12 +319,20 @@ class Neo4jStructuralWriter:
                 "MATCH (edition:SourceEdition) "
                 "OPTIONAL MATCH (edition)-[:HAS_PAGE]->(page:Page) "
                 "OPTIONAL MATCH (page)-[:HAS_CHUNK]->(chunk:Chunk) "
-                "RETURN edition.uid AS uid, "
-                "coalesce(edition.logical_edition_uid, edition.uid) AS logical_edition_uid, "
-                "edition.relative_path AS relative_path, edition.sha256 AS sha256, "
-                "edition.extraction_artifact_hash AS extraction_artifact_hash, "
-                "collect(DISTINCT page.uid) AS page_uids, "
-                "collect(DISTINCT chunk.uid) AS chunk_uids",
+                "WITH properties(edition) AS edition_properties, page, chunk "
+                "RETURN edition_properties.uid AS uid, "
+                "coalesce(edition_properties.logical_edition_uid, "
+                "edition_properties.uid) AS logical_edition_uid, "
+                "edition_properties.relative_path AS relative_path, "
+                "edition_properties.sha256 AS sha256, "
+                "edition_properties.extraction_artifact_hash "
+                "AS extraction_artifact_hash, "
+                "edition_properties.lifecycle_status AS lifecycle_status, "
+                "edition_properties.identity_verification_status "
+                "AS identity_verification_status, "
+                "edition_properties.identity_evidence AS identity_evidence, "
+                "collect(DISTINCT properties(page)) AS pages, "
+                "collect(DISTINCT properties(chunk)) AS chunks",
                 database_=self._database,
             )
         )
@@ -335,8 +343,35 @@ class Neo4jStructuralWriter:
                 relative_path=row.get("relative_path"),
                 sha256=row["sha256"],
                 extraction_artifact_hash=row.get("extraction_artifact_hash"),
-                page_uids=frozenset(uid for uid in row.get("page_uids", []) if uid),
-                chunk_uids=frozenset(uid for uid in row.get("chunk_uids", []) if uid),
+                page_uids=frozenset(
+                    page["uid"] for page in row.get("pages", []) if page.get("uid")
+                ),
+                chunk_uids=frozenset(
+                    chunk["uid"] for chunk in row.get("chunks", []) if chunk.get("uid")
+                ),
+                page_fingerprints=frozenset(
+                    (
+                        page["uid"],
+                        page.get("source_sha256"),
+                        page.get("extraction_artifact_hash"),
+                        page.get("text_hash"),
+                    )
+                    for page in row.get("pages", [])
+                    if page.get("uid")
+                ),
+                chunk_fingerprints=frozenset(
+                    (
+                        chunk["uid"],
+                        chunk.get("source_sha256"),
+                        chunk.get("extraction_artifact_hash"),
+                        chunk.get("content_hash"),
+                    )
+                    for chunk in row.get("chunks", [])
+                    if chunk.get("uid")
+                ),
+                lifecycle_status=row.get("lifecycle_status"),
+                identity_verification_status=row.get("identity_verification_status"),
+                identity_evidence=row.get("identity_evidence"),
             )
             for row in rows
         )

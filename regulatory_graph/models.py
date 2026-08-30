@@ -144,6 +144,8 @@ class SourceEdition(GraphModel):
     extraction_artifact_hash: Sha256 | None = None
     logical_edition_uid: NonEmptyStr | None = None
     lifecycle_status: Literal["VALIDATED", "CANDIDATE"] = "VALIDATED"
+    identity_verification_status: VerificationStatus | None = None
+    identity_evidence: NonEmptyStr | None = None
 
 
 class GraphPage(GraphModel):

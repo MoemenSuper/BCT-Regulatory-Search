@@ -68,6 +68,11 @@ class ObservedEdition:
     extraction_artifact_hash: str | None
     page_uids: frozenset[str]
     chunk_uids: frozenset[str]
+    page_fingerprints: frozenset[tuple[str, str | None, str | None, str | None]]
+    chunk_fingerprints: frozenset[tuple[str, str | None, str | None, str | None]]
+    lifecycle_status: str | None
+    identity_verification_status: str | None
+    identity_evidence: str | None
 
 
 @dataclass(frozen=True)
@@ -250,6 +255,8 @@ def build_structural_bundle(inventory: CacheInventory) -> RegulatoryGraphBundle:
                 extraction_artifact_hash=cached.artifact_sha256,
                 logical_edition_uid=edition_uid,
                 lifecycle_status="VALIDATED",
+                identity_verification_status=identity.status,
+                identity_evidence=identity.evidence,
             )
         )
         for page in document_pages:
@@ -331,8 +338,11 @@ def plan_structural_sync(
         raise ValueError("structural sync accepts only Instrument/Edition/Page/Chunk data")
 
     observed_by_logical: dict[str, list[ObservedEdition]] = {}
+    observed_by_path: dict[str, list[ObservedEdition]] = {}
     for item in observed_editions:
         observed_by_logical.setdefault(item.logical_edition_uid, []).append(item)
+        if item.relative_path is not None:
+            observed_by_path.setdefault(item.relative_path, []).append(item)
 
     instruments_by_uid = {item.uid: item for item in bundle.instruments}
     pages_by_edition: dict[str, list[GraphPage]] = {}
@@ -353,6 +363,8 @@ def plan_structural_sync(
     for incoming in bundle.source_editions:
         logical_uid = incoming.logical_edition_uid or incoming.uid
         observations = observed_by_logical.get(logical_uid, [])
+        if not observations and incoming.relative_path is not None:
+            observations = observed_by_path.get(incoming.relative_path, [])
         exact = next(
             (
                 item
@@ -375,7 +387,49 @@ def plan_structural_sync(
             )
             expected_pages = frozenset(page.uid for page in pages)
             expected_chunks = frozenset(chunk.uid for chunk in chunks)
-            if exact.page_uids == expected_pages and exact.chunk_uids == expected_chunks:
+            if not exact.page_uids.issubset(expected_pages):
+                raise CorpusCacheError(
+                    f"unexpected graph pages for immutable edition {exact.uid}"
+                )
+            if not exact.chunk_uids.issubset(expected_chunks):
+                raise CorpusCacheError(
+                    f"unexpected graph chunks for immutable edition {exact.uid}"
+                )
+            expected_page_fingerprints = frozenset(
+                (
+                    page.uid,
+                    page.source_sha256,
+                    page.extraction_artifact_hash,
+                    page.text_hash,
+                )
+                for page in pages
+            )
+            expected_chunk_fingerprints = frozenset(
+                (
+                    chunk.uid,
+                    chunk.source_sha256,
+                    chunk.extraction_artifact_hash,
+                    chunk.content_hash,
+                )
+                for chunk in chunks
+            )
+            metadata_matches = (
+                exact.lifecycle_status == edition.lifecycle_status
+                and exact.identity_verification_status
+                == (
+                    edition.identity_verification_status.value
+                    if edition.identity_verification_status is not None
+                    else None
+                )
+                and exact.identity_evidence == edition.identity_evidence
+            )
+            if (
+                exact.page_uids == expected_pages
+                and exact.chunk_uids == expected_chunks
+                and exact.page_fingerprints == expected_page_fingerprints
+                and exact.chunk_fingerprints == expected_chunk_fingerprints
+                and metadata_matches
+            ):
                 skipped.append(exact.uid)
                 continue
             repaired.append(exact.uid)

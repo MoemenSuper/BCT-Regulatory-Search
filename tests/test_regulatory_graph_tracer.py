@@ -166,6 +166,19 @@ def test_structural_writer_skips_complete_hash_identical_edition():
                     "extraction_artifact_hash": None,
                     "page_uids": [page.uid for page in bundle.pages],
                     "chunk_uids": [],
+                    "pages": [
+                        {
+                            "uid": page.uid,
+                            "source_sha256": page.source_sha256,
+                            "extraction_artifact_hash": page.extraction_artifact_hash,
+                            "text_hash": page.text_hash,
+                        }
+                        for page in bundle.pages
+                    ],
+                    "chunks": [],
+                    "lifecycle_status": edition.lifecycle_status,
+                    "identity_verification_status": None,
+                    "identity_evidence": None,
                 }
             ]
         ]

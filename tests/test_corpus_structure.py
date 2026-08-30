@@ -133,6 +133,8 @@ def test_cache_inventory_requires_exact_pdf_artifact_and_chunk_page_provenance(t
     assert bundle.source_editions[0].relative_path == pdf.name
     assert bundle.source_editions[0].uid == "edition:cir-2022-03-fr"
     assert bundle.source_editions[0].extraction_artifact_hash
+    assert bundle.source_editions[0].identity_verification_status == "VERIFIED"
+    assert bundle.source_editions[0].identity_evidence == "filename_identity"
     assert bundle.pages[0].source_sha256 == sha256(pdf.read_bytes()).hexdigest().upper()
     assert bundle.chunks[0].page_numbers == (1,)
     assert bundle.provisions == bundle.provision_versions == ()
@@ -184,6 +186,27 @@ def test_structural_sync_skips_an_exact_complete_edition():
         extraction_artifact_hash=edition.extraction_artifact_hash,
         page_uids=frozenset(page.uid for page in bundle.pages),
         chunk_uids=frozenset(chunk.uid for chunk in bundle.chunks),
+        page_fingerprints=frozenset(
+            (
+                page.uid,
+                page.source_sha256,
+                page.extraction_artifact_hash,
+                page.text_hash,
+            )
+            for page in bundle.pages
+        ),
+        chunk_fingerprints=frozenset(
+            (
+                chunk.uid,
+                chunk.source_sha256,
+                chunk.extraction_artifact_hash,
+                chunk.content_hash,
+            )
+            for chunk in bundle.chunks
+        ),
+        lifecycle_status=edition.lifecycle_status,
+        identity_verification_status=edition.identity_verification_status,
+        identity_evidence=edition.identity_evidence,
     )
 
     plan = plan_structural_sync(bundle, (observed,))
@@ -205,6 +228,11 @@ def test_structural_sync_retains_prior_version_and_scopes_changed_pdf_candidate(
         extraction_artifact_hash="e" * 64,
         page_uids=frozenset({page.uid for page in bundle.pages}),
         chunk_uids=frozenset({chunk.uid for chunk in bundle.chunks}),
+        page_fingerprints=frozenset(),
+        chunk_fingerprints=frozenset(),
+        lifecycle_status="VALIDATED",
+        identity_verification_status="VERIFIED",
+        identity_evidence="source_fixture",
     )
 
     plan = plan_structural_sync(bundle, (prior,))
@@ -222,3 +250,34 @@ def test_structural_sync_retains_prior_version_and_scopes_changed_pdf_candidate(
     assert all(page.source_edition_uid == candidate.uid for page in plan.bundle_to_write.pages)
     assert all(candidate.uid.removeprefix("edition:") in page.uid for page in plan.bundle_to_write.pages)
     assert all(chunk.page_uid in {page.uid for page in plan.bundle_to_write.pages} for chunk in plan.bundle_to_write.chunks)
+
+
+def test_structural_sync_repairs_matching_uids_with_corrupt_graph_hashes():
+    bundle = _structural_fixture()
+    edition = bundle.source_editions[0]
+    observed = ObservedEdition(
+        uid=edition.uid,
+        logical_edition_uid=edition.uid,
+        relative_path=edition.relative_path,
+        sha256=edition.sha256,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
+        page_uids=frozenset(page.uid for page in bundle.pages),
+        chunk_uids=frozenset(chunk.uid for chunk in bundle.chunks),
+        page_fingerprints=frozenset(
+            (page.uid, page.source_sha256, page.extraction_artifact_hash, "0" * 64)
+            for page in bundle.pages
+        ),
+        chunk_fingerprints=frozenset(
+            (chunk.uid, chunk.source_sha256, chunk.extraction_artifact_hash, "0" * 64)
+            for chunk in bundle.chunks
+        ),
+        lifecycle_status="VALIDATED",
+        identity_verification_status=edition.identity_verification_status,
+        identity_evidence=edition.identity_evidence,
+    )
+
+    plan = plan_structural_sync(bundle, (observed,))
+
+    assert plan.repaired_edition_uids == (edition.uid,)
+    assert plan.bundle_to_write.pages == bundle.pages
+    assert plan.bundle_to_write.chunks == bundle.chunks
