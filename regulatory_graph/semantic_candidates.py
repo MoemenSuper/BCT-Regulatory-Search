@@ -47,6 +47,22 @@ class SemanticCandidate(GraphModel):
     review_reason: NonEmptyStr = "deterministic_signal_requires_legal_review"
 
 
+class PromotionEvidence(GraphModel):
+    source_hash_matches: bool = False
+    page_matches: bool = False
+    visual_confirmation: bool = False
+    target_identity_unambiguous: bool = False
+    provision_scope_unambiguous: bool = False
+    affected_span_explicit: bool = False
+    effective_state_recorded: bool = False
+    predecessor_text_verified: bool | None = None
+
+
+class PromotionDecision(GraphModel):
+    status: VerificationStatus
+    reasons: tuple[NonEmptyStr, ...]
+
+
 @dataclass(frozen=True)
 class CandidateQueueReceipt:
     candidate_count: int
@@ -273,6 +289,37 @@ def write_candidate_review_queue(
     return CandidateQueueReceipt(
         candidate_count=len(ordered),
         content_sha256=sha256(encoded).hexdigest().upper(),
+    )
+
+
+def validate_candidate_promotion(
+    candidate: SemanticCandidate,
+    evidence: PromotionEvidence,
+) -> PromotionDecision:
+    checks = (
+        (candidate.candidate_type == CandidateType.LEGAL_ACTION, "candidate_is_not_legal_action"),
+        (candidate.proposed_action is not None, "legal_action_missing"),
+        (evidence.source_hash_matches, "source_hash_mismatch"),
+        (evidence.page_matches, "source_page_mismatch"),
+        (evidence.visual_confirmation, "visual_confirmation_missing"),
+        (evidence.target_identity_unambiguous, "target_identity_ambiguous"),
+        (evidence.provision_scope_unambiguous, "provision_scope_ambiguous"),
+        (evidence.affected_span_explicit, "affected_span_ambiguous"),
+        (evidence.effective_state_recorded, "effective_state_missing"),
+    )
+    reasons = [reason for passed, reason in checks if not passed]
+    if (
+        candidate.proposed_action == LegalAction.REPLACE
+        and evidence.predecessor_text_verified is not True
+    ):
+        reasons.append("predecessor_text_unverified")
+    return PromotionDecision(
+        status=(
+            VerificationStatus.VERIFIED
+            if not reasons
+            else VerificationStatus.NEEDS_REVIEW
+        ),
+        reasons=tuple(reasons),
     )
 
 

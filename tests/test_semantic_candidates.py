@@ -3,7 +3,9 @@ import json
 from regulatory_graph.models import Language, VerificationStatus
 from regulatory_graph.semantic_candidates import (
     CandidateType,
+    PromotionEvidence,
     extract_page_candidates,
+    validate_candidate_promotion,
     write_candidate_review_queue,
 )
 
@@ -79,3 +81,58 @@ def test_candidate_uids_and_jsonl_queue_are_deterministic(tmp_path):
     assert first_receipt == second_receipt
     rows = [json.loads(line) for line in first_path.read_text(encoding="utf-8").splitlines()]
     assert all(row["verification_status"] == "NEEDS_REVIEW" for row in rows)
+
+
+def test_promotion_validator_fails_closed_and_names_missing_checks():
+    candidate = next(
+        item
+        for item in _extract("Article 2 : La circulaire nÂ° 2019-07 est remplacÃ©e.")
+        if item.candidate_type == CandidateType.LEGAL_ACTION
+    )
+
+    decision = validate_candidate_promotion(
+        candidate,
+        PromotionEvidence(
+            source_hash_matches=True,
+            page_matches=True,
+            visual_confirmation=False,
+            target_identity_unambiguous=False,
+            provision_scope_unambiguous=True,
+            affected_span_explicit=True,
+            effective_state_recorded=False,
+            predecessor_text_verified=False,
+        ),
+    )
+
+    assert decision.status == VerificationStatus.NEEDS_REVIEW
+    assert decision.reasons == (
+        "visual_confirmation_missing",
+        "target_identity_ambiguous",
+        "effective_state_missing",
+        "predecessor_text_unverified",
+    )
+
+
+def test_promotion_validator_only_verifies_complete_source_evidence():
+    candidate = next(
+        item
+        for item in _extract("Article 2 : La circulaire nÂ° 2019-07 est remplacÃ©e.")
+        if item.candidate_type == CandidateType.LEGAL_ACTION
+    )
+
+    decision = validate_candidate_promotion(
+        candidate,
+        PromotionEvidence(
+            source_hash_matches=True,
+            page_matches=True,
+            visual_confirmation=True,
+            target_identity_unambiguous=True,
+            provision_scope_unambiguous=True,
+            affected_span_explicit=True,
+            effective_state_recorded=True,
+            predecessor_text_verified=True,
+        ),
+    )
+
+    assert decision.status == VerificationStatus.VERIFIED
+    assert decision.reasons == ()
