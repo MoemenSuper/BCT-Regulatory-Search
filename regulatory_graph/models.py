@@ -146,6 +146,8 @@ class SourceEdition(GraphModel):
     lifecycle_status: Literal["VALIDATED", "CANDIDATE"] = "VALIDATED"
     identity_verification_status: VerificationStatus | None = None
     identity_evidence: NonEmptyStr | None = None
+    identity_rule: NonEmptyStr | None = None
+    identity_evidence_text: NonEmptyStr | None = None
 
 
 class GraphPage(GraphModel):

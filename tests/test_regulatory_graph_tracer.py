@@ -179,6 +179,8 @@ def test_structural_writer_skips_complete_hash_identical_edition():
                     "lifecycle_status": edition.lifecycle_status,
                     "identity_verification_status": None,
                     "identity_evidence": None,
+                    "identity_rule": None,
+                    "identity_evidence_text": None,
                 }
             ]
         ]

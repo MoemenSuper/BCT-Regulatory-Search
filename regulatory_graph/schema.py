@@ -2,6 +2,9 @@ import re
 from typing import Any, Protocol
 
 
+GRAPH_SCHEMA_VERSION = "regulatory-graph-structural-v1"
+
+
 CORE_NODE_LABELS = (
     "Instrument",
     "SourceEdition",

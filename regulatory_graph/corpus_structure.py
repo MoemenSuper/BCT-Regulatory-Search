@@ -28,6 +28,8 @@ class InstrumentIdentityResolution:
     language: Language
     status: VerificationStatus
     evidence: str
+    rule: str
+    corroborating_text: str | None
 
 
 class CorpusCacheError(ValueError):
@@ -73,6 +75,8 @@ class ObservedEdition:
     lifecycle_status: str | None
     identity_verification_status: str | None
     identity_evidence: str | None
+    identity_rule: str | None
+    identity_evidence_text: str | None
 
 
 @dataclass(frozen=True)
@@ -89,6 +93,7 @@ _NORMAL_FILENAME = re.compile(
 )
 _LEGACY_FILENAMES = (
     (
+        "legacy_cb_ci_filename_v1",
         re.compile(
             r"^(?:CB|CI)_(?P<year>\d{4})_(?P<number>\d+)_(?P<language>fr|ar)\.pdf$",
             re.IGNORECASE,
@@ -96,6 +101,7 @@ _LEGACY_FILENAMES = (
         InstrumentKind.CIRCULAR,
     ),
     (
+        "legacy_compact_circular_filename_v1",
         re.compile(
             r"^Cir(?P<year>\d{4})(?P<number>\d{2})_(?P<language>fr|ar)\.pdf$",
             re.IGNORECASE,
@@ -103,6 +109,7 @@ _LEGACY_FILENAMES = (
         InstrumentKind.CIRCULAR,
     ),
     (
+        "legacy_note_filename_v1",
         re.compile(
             r"^NB[-_](?P<year>\d{4})_(?P<number>\d+)(?:_[^.]*)?_(?P<language>fr|ar)\.pdf$",
             re.IGNORECASE,
@@ -257,6 +264,8 @@ def build_structural_bundle(inventory: CacheInventory) -> RegulatoryGraphBundle:
                 lifecycle_status="VALIDATED",
                 identity_verification_status=identity.status,
                 identity_evidence=identity.evidence,
+                identity_rule=identity.rule,
+                identity_evidence_text=identity.corroborating_text,
             )
         )
         for page in document_pages:
@@ -422,6 +431,8 @@ def plan_structural_sync(
                     else None
                 )
                 and exact.identity_evidence == edition.identity_evidence
+                and exact.identity_rule == edition.identity_rule
+                and exact.identity_evidence_text == edition.identity_evidence_text
             )
             if (
                 exact.page_uids == expected_pages
@@ -525,19 +536,32 @@ def resolve_instrument_identity(
     normal = _NORMAL_FILENAME.fullmatch(filename)
     if normal:
         kind = _kind_from_filename(normal.group("kind"))
-        return _resolved_identity(normal, kind, evidence="filename_identity")
+        return _resolved_identity(
+            normal,
+            kind,
+            evidence="filename_identity",
+            rule="normal_filename_v1",
+            corroborating_text=None,
+        )
 
-    for pattern, kind in _LEGACY_FILENAMES:
+    for rule, pattern, kind in _LEGACY_FILENAMES:
         legacy = pattern.fullmatch(filename)
         if legacy is None:
             continue
-        if _first_page_confirms(
+        corroborating_text = _first_page_confirmation(
             first_page_text,
             kind=kind,
             year=legacy.group("year"),
             number=legacy.group("number"),
-        ):
-            return _resolved_identity(legacy, kind, evidence="first_page_identity")
+        )
+        if corroborating_text is not None:
+            return _resolved_identity(
+                legacy,
+                kind,
+                evidence="first_page_identity",
+                rule=rule,
+                corroborating_text=corroborating_text,
+            )
         break
 
     language_match = re.search(r"_(fr|ar)\.pdf$", filename, re.IGNORECASE)
@@ -553,6 +577,8 @@ def resolve_instrument_identity(
         language=language,
         status=VerificationStatus.NEEDS_REVIEW,
         evidence="identity_not_verified",
+        rule="unresolved_filename_v1",
+        corroborating_text=None,
     )
 
 
@@ -561,6 +587,8 @@ def _resolved_identity(
     kind: InstrumentKind,
     *,
     evidence: str,
+    rule: str,
+    corroborating_text: str | None,
 ) -> InstrumentIdentityResolution:
     year = int(match.group("year"))
     number = _normalized_number(match.group("number"))
@@ -573,6 +601,8 @@ def _resolved_identity(
         language=language,
         status=VerificationStatus.VERIFIED,
         evidence=evidence,
+        rule=rule,
+        corroborating_text=corroborating_text,
     )
 
 
@@ -584,13 +614,13 @@ def _normalized_number(value: str) -> str:
     return value.zfill(2) if len(value) < 2 else value
 
 
-def _first_page_confirms(
+def _first_page_confirmation(
     text: str,
     *,
     kind: InstrumentKind,
     year: str,
     number: str,
-) -> bool:
+) -> str | None:
     normalized = re.sub(r"\s+", " ", text).casefold()
     kind_confirmed = (
         "circulaire" in normalized or "منشور" in normalized
@@ -607,7 +637,10 @@ def _first_page_confirms(
         rf"عدد\s*0*{int(number)}\s*لسنة\s*{re.escape(year)}\b",
         normalized,
     )
-    return bool(kind_confirmed and (french_identity or arabic_identity))
+    if not kind_confirmed or not (french_identity or arabic_identity):
+        return None
+    excerpt = re.sub(r"\s+", " ", text).strip()
+    return excerpt[:500] if excerpt else None
 
 
 def _path_sha256(path: Path) -> str:

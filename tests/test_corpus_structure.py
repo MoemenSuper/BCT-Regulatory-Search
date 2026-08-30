@@ -40,6 +40,8 @@ def test_legacy_filename_requires_matching_first_page_identity_evidence():
     assert resolved.status == VerificationStatus.VERIFIED
     assert resolved.instrument_uid == "BCT:CIRCULAR:2017:08"
     assert resolved.evidence == "first_page_identity"
+    assert resolved.rule == "legacy_cb_ci_filename_v1"
+    assert "2017-08" in resolved.corroborating_text
     assert unresolved.status == VerificationStatus.NEEDS_REVIEW
     assert unresolved.instrument_uid.startswith("BCT:UNRESOLVED:")
 
@@ -135,6 +137,8 @@ def test_cache_inventory_requires_exact_pdf_artifact_and_chunk_page_provenance(t
     assert bundle.source_editions[0].extraction_artifact_hash
     assert bundle.source_editions[0].identity_verification_status == "VERIFIED"
     assert bundle.source_editions[0].identity_evidence == "filename_identity"
+    assert bundle.source_editions[0].identity_rule == "normal_filename_v1"
+    assert bundle.source_editions[0].identity_evidence_text is None
     assert bundle.pages[0].source_sha256 == sha256(pdf.read_bytes()).hexdigest().upper()
     assert bundle.chunks[0].page_numbers == (1,)
     assert bundle.provisions == bundle.provision_versions == ()
@@ -207,6 +211,8 @@ def test_structural_sync_skips_an_exact_complete_edition():
         lifecycle_status=edition.lifecycle_status,
         identity_verification_status=edition.identity_verification_status,
         identity_evidence=edition.identity_evidence,
+        identity_rule=edition.identity_rule,
+        identity_evidence_text=edition.identity_evidence_text,
     )
 
     plan = plan_structural_sync(bundle, (observed,))
@@ -233,6 +239,8 @@ def test_structural_sync_retains_prior_version_and_scopes_changed_pdf_candidate(
         lifecycle_status="VALIDATED",
         identity_verification_status="VERIFIED",
         identity_evidence="source_fixture",
+        identity_rule="fixture_rule",
+        identity_evidence_text="fixture evidence",
     )
 
     plan = plan_structural_sync(bundle, (prior,))
@@ -274,6 +282,8 @@ def test_structural_sync_repairs_matching_uids_with_corrupt_graph_hashes():
         lifecycle_status="VALIDATED",
         identity_verification_status=edition.identity_verification_status,
         identity_evidence=edition.identity_evidence,
+        identity_rule=edition.identity_rule,
+        identity_evidence_text=edition.identity_evidence_text,
     )
 
     plan = plan_structural_sync(bundle, (observed,))

@@ -331,6 +331,9 @@ class Neo4jStructuralWriter:
                 "edition_properties.identity_verification_status "
                 "AS identity_verification_status, "
                 "edition_properties.identity_evidence AS identity_evidence, "
+                "edition_properties.identity_rule AS identity_rule, "
+                "edition_properties.identity_evidence_text "
+                "AS identity_evidence_text, "
                 "collect(DISTINCT properties(page)) AS pages, "
                 "collect(DISTINCT properties(chunk)) AS chunks",
                 database_=self._database,
@@ -372,6 +375,8 @@ class Neo4jStructuralWriter:
                 lifecycle_status=row.get("lifecycle_status"),
                 identity_verification_status=row.get("identity_verification_status"),
                 identity_evidence=row.get("identity_evidence"),
+                identity_rule=row.get("identity_rule"),
+                identity_evidence_text=row.get("identity_evidence_text"),
             )
             for row in rows
         )
