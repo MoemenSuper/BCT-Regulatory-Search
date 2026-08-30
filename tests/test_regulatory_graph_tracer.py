@@ -5,7 +5,12 @@ from urllib.parse import urlsplit
 import pytest
 
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
-from regulatory_graph.models import GraphChunk, VerificationStatus, VersionStatus
+from regulatory_graph.models import (
+    GraphChunk,
+    InstrumentReference,
+    VerificationStatus,
+    VersionStatus,
+)
 from regulatory_graph.neo4j_store import (
     Neo4jGraphWriter,
     Neo4jRegulatoryGraph,
@@ -132,6 +137,54 @@ def test_writer_uses_parameterized_merge_and_only_allowlisted_relationships():
         call[1].get("database_") == "neo4j"
         for call in driver.calls
     )
+
+
+def test_writer_persists_only_verified_reference_lineage():
+    bundle = circular_2016_03_fr_bundle()
+    reference = InstrumentReference(
+        uid="reference:cir-2016-03:p2:cir-1991-24",
+        source_instrument_uid="BCT:CIRCULAR:2016:03",
+        target_instrument_uid="BCT:CIRCULAR:1991:24",
+        evidence_uid=bundle.evidence_spans[0].uid,
+        raw_citation="circulaire n°91-24",
+        extraction_method="native",
+        resolver_rule="french_bct_instrument_reference_v1",
+        verification_status=VerificationStatus.VERIFIED,
+        verified_by="manual:test-reviewer",
+    )
+    driver = FakeDriver()
+
+    Neo4jGraphWriter(driver).write_bundle(
+        bundle.model_copy(update={"instrument_references": (reference,)})
+    )
+
+    statements = tuple(call[0] for call in driver.calls)
+    assert any(
+        "MERGE (node:InstrumentReference {uid: row.uid})" in query
+        for query in statements
+    )
+    assert any(
+        "MERGE (source)-[:DECLARES_REFERENCE]->(target)" in query
+        for query in statements
+    )
+    assert any(
+        "MERGE (source)-[:TARGETS]->(target)" in query
+        for query in statements
+    )
+    assert any(
+        "MERGE (source)-[:EVIDENCED_BY]->(target)" in query
+        for query in statements
+    )
+
+    candidate = reference.model_copy(
+        update={"verification_status": VerificationStatus.NEEDS_REVIEW}
+    )
+    rejected_driver = FakeDriver()
+    with pytest.raises(ValueError, match="VERIFIED"):
+        Neo4jGraphWriter(rejected_driver).write_bundle(
+            bundle.model_copy(update={"instrument_references": (candidate,)})
+        )
+    assert rejected_driver.calls == []
 
 
 def test_writer_does_not_erase_unspecified_optional_properties():

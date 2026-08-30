@@ -1,6 +1,10 @@
 from typing import Protocol
 
-from regulatory_graph.models import ChangeEvent
+from regulatory_graph.models import (
+    ChangeEvent,
+    InstrumentReference,
+    VerificationStatus,
+)
 
 
 class ReferenceCatalog(Protocol):
@@ -9,6 +13,10 @@ class ReferenceCatalog(Protocol):
 
 class GraphReferenceError(ValueError):
     """Raised when a graph write would reference a missing node."""
+
+
+class GraphVerificationError(ValueError):
+    """Raised when an unverified semantic fact reaches the graph writer."""
 
 
 def validate_change_event_for_write(
@@ -34,3 +42,29 @@ def validate_change_event_for_write(
             "change event references missing graph nodes: " + ", ".join(missing)
         )
     return event
+
+
+def validate_instrument_reference_for_write(
+    reference: InstrumentReference,
+    references: ReferenceCatalog,
+) -> InstrumentReference:
+    if reference.verification_status != VerificationStatus.VERIFIED:
+        raise GraphVerificationError(
+            "instrument reference must be VERIFIED before graph write"
+        )
+    required_references = (
+        ("source Instrument", "Instrument", reference.source_instrument_uid),
+        ("target Instrument", "Instrument", reference.target_instrument_uid),
+        ("EvidenceSpan", "EvidenceSpan", reference.evidence_uid),
+    )
+    missing = [
+        f"{description} {uid}"
+        for description, label, uid in required_references
+        if not references.exists(label, uid)
+    ]
+    if missing:
+        raise GraphReferenceError(
+            "instrument reference references missing graph nodes: "
+            + ", ".join(missing)
+        )
+    return reference

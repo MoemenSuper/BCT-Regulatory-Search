@@ -8,6 +8,7 @@ from regulatory_graph.models import (
     EvidenceSpan,
     Instrument,
     InstrumentKind,
+    InstrumentReference,
     LegalAction,
     ProvisionVersion,
     SourceEdition,
@@ -25,7 +26,12 @@ from regulatory_graph.schema import (
     is_allowed_relationship,
     schema_statements,
 )
-from regulatory_graph.validation import GraphReferenceError, validate_change_event_for_write
+from regulatory_graph.validation import (
+    GraphReferenceError,
+    GraphVerificationError,
+    validate_change_event_for_write,
+    validate_instrument_reference_for_write,
+)
 
 
 def _verified_event(**overrides) -> ChangeEvent:
@@ -256,6 +262,65 @@ def test_core_relationship_registry_is_precise_and_contains_change_lineage():
     assert all(pattern[1] != "RELATED_TO" for pattern in CORE_RELATIONSHIP_PATTERNS)
     assert is_allowed_relationship("ChangeEvent", "TARGETS", "Provision") is True
     assert is_allowed_relationship("Instrument", "RELATED_TO", "Instrument") is False
+
+
+def test_reference_registry_uses_a_dedicated_evidence_backed_node():
+    assert "InstrumentReference" in CORE_NODE_LABELS
+    assert (
+        "Instrument",
+        "DECLARES_REFERENCE",
+        "InstrumentReference",
+    ) in CORE_RELATIONSHIP_PATTERNS
+    assert (
+        "InstrumentReference",
+        "TARGETS",
+        "Instrument",
+    ) in CORE_RELATIONSHIP_PATTERNS
+    assert (
+        "InstrumentReference",
+        "EVIDENCED_BY",
+        "EvidenceSpan",
+    ) in CORE_RELATIONSHIP_PATTERNS
+
+
+def test_only_verified_instrument_references_can_be_written():
+    class ReferenceCatalog:
+        def __init__(self, missing=()):
+            self.missing = set(missing)
+
+        def exists(self, label, uid):
+            return (label, uid) not in self.missing
+
+    reference = InstrumentReference(
+        uid="reference:cir-2017-08:p28:cir-2013-15",
+        source_instrument_uid="BCT:CIRCULAR:2017:08",
+        target_instrument_uid="BCT:CIRCULAR:2013:15",
+        evidence_uid="evidence:cir-2017-08:p28:cir-2013-15",
+        raw_citation="circulaire n°2013-15",
+        extraction_method="native",
+        resolver_rule="french_bct_instrument_reference_v1",
+        verification_status=VerificationStatus.VERIFIED,
+        verified_by="manual:test-reviewer",
+    )
+
+    assert (
+        validate_instrument_reference_for_write(reference, ReferenceCatalog())
+        is reference
+    )
+
+    with pytest.raises(GraphVerificationError, match="VERIFIED"):
+        validate_instrument_reference_for_write(
+            reference.model_copy(
+                update={"verification_status": VerificationStatus.NEEDS_REVIEW}
+            ),
+            ReferenceCatalog(),
+        )
+
+    with pytest.raises(GraphReferenceError, match="target Instrument"):
+        validate_instrument_reference_for_write(
+            reference,
+            ReferenceCatalog({("Instrument", reference.target_instrument_uid)}),
+        )
 
 
 def test_verified_change_references_must_resolve_before_graph_write():

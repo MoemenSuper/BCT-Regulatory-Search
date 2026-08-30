@@ -14,6 +14,7 @@ from regulatory_graph.models import (
     GraphChunk,
     GraphPage,
     Instrument,
+    InstrumentReference,
     LegalAction,
     Provision,
     ProvisionVersion,
@@ -24,7 +25,10 @@ from regulatory_graph.models import (
     VersionStatus,
 )
 from regulatory_graph.schema import install_schema
-from regulatory_graph.validation import validate_change_event_for_write
+from regulatory_graph.validation import (
+    validate_change_event_for_write,
+    validate_instrument_reference_for_write,
+)
 
 
 _NODE_COLLECTIONS = (
@@ -37,6 +41,7 @@ _NODE_COLLECTIONS = (
     ("TargetSpan", "target_spans"),
     ("EvidenceSpan", "evidence_spans"),
     ("ChangeEvent", "change_events"),
+    ("InstrumentReference", "instrument_references"),
 )
 
 
@@ -140,6 +145,8 @@ class Neo4jGraphWriter:
         references = _BundleReferences(bundle)
         for event in bundle.change_events:
             validate_change_event_for_write(event, references)
+        for reference in bundle.instrument_references:
+            validate_instrument_reference_for_write(reference, references)
 
         install_schema(self._driver, database=self._database)
         for label, attribute in _NODE_COLLECTIONS:
@@ -254,6 +261,7 @@ class Neo4jGraphWriter:
             ((event.source_instrument_uid, event.uid) for event in bundle.change_events),
         )
         self._event_relationships(bundle.change_events)
+        self._reference_relationships(bundle.instrument_references)
 
     def _event_relationships(self, events: tuple[ChangeEvent, ...]) -> None:
         self._relationship(
@@ -279,6 +287,23 @@ class Neo4jGraphWriter:
         self._relationship(
             "ChangeEvent", "EVIDENCED_BY", "EvidenceSpan",
             ((event.uid, uid) for event in events for uid in event.evidence_uids),
+        )
+
+    def _reference_relationships(
+        self,
+        references: tuple[InstrumentReference, ...],
+    ) -> None:
+        self._relationship(
+            "Instrument", "DECLARES_REFERENCE", "InstrumentReference",
+            ((item.source_instrument_uid, item.uid) for item in references),
+        )
+        self._relationship(
+            "InstrumentReference", "TARGETS", "Instrument",
+            ((item.uid, item.target_instrument_uid) for item in references),
+        )
+        self._relationship(
+            "InstrumentReference", "EVIDENCED_BY", "EvidenceSpan",
+            ((item.uid, item.evidence_uid) for item in references),
         )
 
     def _relationship(

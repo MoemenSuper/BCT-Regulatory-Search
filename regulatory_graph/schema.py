@@ -15,6 +15,7 @@ CORE_NODE_LABELS = (
     "ChangeEvent",
     "TargetSpan",
     "EvidenceSpan",
+    "InstrumentReference",
 )
 
 
@@ -38,6 +39,9 @@ CORE_RELATIONSHIP_PATTERNS = (
     ("TargetSpan", "WITHIN", "ProvisionVersion"),
     ("EvidenceSpan", "ON_PAGE", "Page"),
     ("EvidenceSpan", "IN_CHUNK", "Chunk"),
+    ("Instrument", "DECLARES_REFERENCE", "InstrumentReference"),
+    ("InstrumentReference", "TARGETS", "Instrument"),
+    ("InstrumentReference", "EVIDENCED_BY", "EvidenceSpan"),
 )
 
 
@@ -53,6 +57,7 @@ RANGE_INDEXES = (
     ("ChangeEvent", "action"),
     ("ChangeEvent", "effective_from"),
     ("ChangeEvent", "verification_status"),
+    ("InstrumentReference", "verification_status"),
 )
 
 

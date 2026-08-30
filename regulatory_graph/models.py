@@ -255,6 +255,18 @@ class EvidenceSpan(GraphModel):
         return self
 
 
+class InstrumentReference(GraphModel):
+    uid: NonEmptyStr
+    source_instrument_uid: NonEmptyStr
+    target_instrument_uid: NonEmptyStr
+    evidence_uid: NonEmptyStr
+    raw_citation: NonEmptyStr
+    extraction_method: NonEmptyStr
+    resolver_rule: NonEmptyStr
+    verification_status: VerificationStatus
+    verified_by: NonEmptyStr
+
+
 class ChangeEvent(GraphModel):
     uid: NonEmptyStr
     source_instrument_uid: NonEmptyStr
@@ -346,6 +358,7 @@ class RegulatoryGraphBundle(GraphModel):
     target_spans: tuple[TargetSpan, ...] = ()
     evidence_spans: tuple[EvidenceSpan, ...]
     change_events: tuple[ChangeEvent, ...]
+    instrument_references: tuple[InstrumentReference, ...] = ()
 
     @model_validator(mode="after")
     def validate_bundle_references(self) -> "RegulatoryGraphBundle":
@@ -359,6 +372,7 @@ class RegulatoryGraphBundle(GraphModel):
             "TargetSpan": self.target_spans,
             "EvidenceSpan": self.evidence_spans,
             "ChangeEvent": self.change_events,
+            "InstrumentReference": self.instrument_references,
         }
         ids = {label: {item.uid for item in items} for label, items in collections.items()}
         for label, items in collections.items():
@@ -399,6 +413,18 @@ class RegulatoryGraphBundle(GraphModel):
             ("Chunk", item.chunk_uid)
             for item in self.evidence_spans
             if item.chunk_uid is not None
+        )
+        required.extend(
+            ("Instrument", item.source_instrument_uid)
+            for item in self.instrument_references
+        )
+        required.extend(
+            ("Instrument", item.target_instrument_uid)
+            for item in self.instrument_references
+        )
+        required.extend(
+            ("EvidenceSpan", item.evidence_uid)
+            for item in self.instrument_references
         )
         missing = [f"{label} {uid}" for label, uid in required if uid not in ids[label]]
         page_keys = {
@@ -455,6 +481,7 @@ class RegulatoryGraphBundle(GraphModel):
                 self.target_spans,
                 self.evidence_spans,
                 self.change_events,
+                self.instrument_references,
             )
         )
 
