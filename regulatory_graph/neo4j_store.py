@@ -24,7 +24,7 @@ from regulatory_graph.models import (
     VerificationStatus,
     VersionStatus,
 )
-from regulatory_graph.schema import install_schema
+from regulatory_graph.schema import install_schema, is_allowed_relationship
 from regulatory_graph.validation import (
     validate_change_event_for_write,
     validate_instrument_reference_for_write,
@@ -313,6 +313,11 @@ class Neo4jGraphWriter:
         target_label: str,
         pairs: Iterable[tuple[str, str]],
     ) -> None:
+        if not is_allowed_relationship(source_label, relationship, target_label):
+            raise ValueError(
+                "graph relationship is not allowlisted: "
+                f"{source_label}-[{relationship}]->{target_label}"
+            )
         rows = [{"source_uid": source, "target_uid": target} for source, target in pairs]
         if not rows:
             return

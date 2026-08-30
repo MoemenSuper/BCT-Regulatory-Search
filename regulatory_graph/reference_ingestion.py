@@ -13,6 +13,8 @@ from regulatory_graph.models import (
     InstrumentKind,
     InstrumentReference,
     NonEmptyStr,
+    ReferenceResolverRule,
+    ReferenceVerificationMethod,
     RegulatoryGraphBundle,
     Sha256,
     SourceEdition,
@@ -36,35 +38,145 @@ class InstrumentReferenceCandidate(GraphModel):
     extraction_artifact_hash: Sha256
     page_number: int = Field(ge=1)
     extraction_method: NonEmptyStr
-    target_instrument_uid: NonEmptyStr
-    target_kind: InstrumentKind
-    target_year: int = Field(ge=0)
-    target_number: NonEmptyStr
-    target_corpus_present: bool
+    target_instrument: Instrument
     signal: NonEmptyStr
     quote: NonEmptyStr
     match_start: int = Field(ge=0)
     match_end: int = Field(gt=0)
-    resolver_rule: NonEmptyStr
+    resolver_rule: ReferenceResolverRule
     verification_status: Literal[VerificationStatus.NEEDS_REVIEW] = (
         VerificationStatus.NEEDS_REVIEW
     )
+
+    @property
+    def target_instrument_uid(self) -> str:
+        return self.target_instrument.uid
+
+    @property
+    def target_corpus_present(self) -> bool:
+        return self.target_instrument.corpus_present
 
 
 class ReferencePromotionEvidence(GraphModel):
     reviewed_source_sha256: Sha256
     reviewed_page_number: int = Field(ge=1)
-    rendered_page_confirmed: bool = False
+    reviewed_signal: NonEmptyStr
+    reviewed_quote: NonEmptyStr
+    reviewed_match_start: int = Field(ge=0)
+    reviewed_match_end: int = Field(gt=0)
     reviewed_target_instrument_uid: NonEmptyStr
+    rendered_image_sha256: Sha256
+    verification_method: Literal[
+        ReferenceVerificationMethod.MANUAL_RENDERED_PDF_V1
+    ] = ReferenceVerificationMethod.MANUAL_RENDERED_PDF_V1
     reviewer: NonEmptyStr
 
 
-class ReferencePromotionDecision(GraphModel):
-    status: VerificationStatus
-    reasons: tuple[NonEmptyStr, ...]
-    reference: InstrumentReference | None = None
-    evidence_span: EvidenceSpan | None = None
-    target_instrument: Instrument | None = None
+class NeedsReviewReferencePromotion(GraphModel):
+    status: Literal[VerificationStatus.NEEDS_REVIEW] = VerificationStatus.NEEDS_REVIEW
+    reasons: tuple[NonEmptyStr, ...] = Field(min_length=1)
+    reference: None = None
+    evidence_span: None = None
+    target_instrument: None = None
+
+
+class VerifiedReferencePromotion(GraphModel):
+    status: Literal[VerificationStatus.VERIFIED] = VerificationStatus.VERIFIED
+    reasons: tuple[NonEmptyStr, ...] = ()
+    reference: InstrumentReference
+    evidence_span: EvidenceSpan
+    target_instrument: Instrument
+
+
+ReferencePromotionDecision = (
+    NeedsReviewReferencePromotion | VerifiedReferencePromotion
+)
+
+
+class VerifiedInstrumentCatalog:
+    def __init__(
+        self,
+        instruments: Collection[Instrument],
+        source_editions: Collection[SourceEdition],
+    ):
+        self._by_uid: dict[str, Instrument] = {}
+        for instrument in instruments:
+            existing = self._by_uid.get(instrument.uid)
+            if existing is not None and existing != instrument:
+                raise ValueError(f"conflicting catalog instruments share uid {instrument.uid}")
+            self._by_uid[instrument.uid] = instrument
+        self._editions_by_uid: dict[str, SourceEdition] = {}
+        for edition in source_editions:
+            existing_edition = self._editions_by_uid.get(edition.uid)
+            if existing_edition is not None and existing_edition != edition:
+                raise ValueError(
+                    f"conflicting catalog source editions share uid {edition.uid}"
+                )
+            self._editions_by_uid[edition.uid] = edition
+        verified_local_uids = {
+            edition.instrument_uid
+            for edition in self._editions_by_uid.values()
+            if edition.lifecycle_status == "VALIDATED"
+            and edition.identity_verification_status == VerificationStatus.VERIFIED
+        }
+        missing_provenance = sorted(
+            instrument.uid
+            for instrument in self._by_uid.values()
+            if instrument.corpus_present and instrument.uid not in verified_local_uids
+        )
+        if missing_provenance:
+            raise ValueError(
+                "local catalog instruments require a validated identity-verified "
+                f"source edition: {missing_provenance}"
+            )
+
+    @classmethod
+    def from_bundle(
+        cls,
+        bundle: RegulatoryGraphBundle,
+    ) -> "VerifiedInstrumentCatalog":
+        return cls(bundle.instruments, bundle.source_editions)
+
+    def get(self, uid: str) -> Instrument | None:
+        return self._by_uid.get(uid)
+
+    def contains_source_edition(self, edition: SourceEdition) -> bool:
+        return self._editions_by_uid.get(edition.uid) == edition
+
+    def get_source_edition(self, uid: str) -> SourceEdition | None:
+        return self._editions_by_uid.get(uid)
+
+    def resolve_bct_reference(
+        self,
+        *,
+        kind: InstrumentKind,
+        year: int,
+        number: str,
+        raw_citation: str,
+    ) -> Instrument:
+        uid = f"BCT:{kind.value}:{year}:{number}"
+        existing = self.get(uid)
+        if existing is not None:
+            expected = ("BCT", kind, year, number)
+            observed = (
+                existing.authority,
+                existing.kind,
+                existing.year,
+                existing.number,
+            )
+            if observed != expected:
+                raise ValueError(f"catalog identity fields conflict for {uid}")
+            return existing
+        return Instrument(
+            uid=uid,
+            authority="BCT",
+            kind=kind,
+            year=year,
+            number=number,
+            corpus_present=False,
+            canonical_citation=raw_citation,
+            source_status=SourceStatus.EXTERNAL_STUB,
+        )
 
 
 _FRENCH_REFERENCE = re.compile(
@@ -85,7 +197,7 @@ def extract_document_reference_candidates(
     source_edition: SourceEdition,
     pages: tuple[ReferencePage, ...],
     *,
-    known_instrument_uids: Collection[str],
+    instrument_catalog: VerifiedInstrumentCatalog,
 ) -> tuple[InstrumentReferenceCandidate, ...]:
     if source_edition.extraction_artifact_hash is None:
         raise ValueError("validated reference ingestion requires an artifact hash")
@@ -96,6 +208,15 @@ def extract_document_reference_candidates(
         raise ValueError(
             "reference ingestion requires a validated edition with verified "
             "source instrument identity"
+        )
+    source_instrument = instrument_catalog.get(source_edition.instrument_uid)
+    if (
+        source_instrument is None
+        or not source_instrument.corpus_present
+        or not instrument_catalog.contains_source_edition(source_edition)
+    ):
+        raise ValueError(
+            "reference ingestion requires the source instrument in the verified catalog"
         )
     page_numbers = [page.page_number for page in pages]
     if (
@@ -108,8 +229,8 @@ def extract_document_reference_candidates(
     candidates = []
     for page in pages:
         for rule, pattern in (
-            ("french_bct_instrument_reference_v1", _FRENCH_REFERENCE),
-            ("arabic_bct_instrument_reference_v1", _ARABIC_REFERENCE),
+            (ReferenceResolverRule.FRENCH_BCT_INSTRUMENT_V1, _FRENCH_REFERENCE),
+            (ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1, _ARABIC_REFERENCE),
         ):
             for match in pattern.finditer(page.text):
                 kind = _instrument_kind(match.group("kind"))
@@ -117,9 +238,17 @@ def extract_document_reference_candidates(
                 number = _normalize_number(match.group("number"))
                 target_uid = f"BCT:{kind.value}:{year}:{number}"
                 signal = match.group(0)
+                target = instrument_catalog.resolve_bct_reference(
+                    kind=kind,
+                    year=year,
+                    number=number,
+                    raw_citation=signal,
+                )
                 identity = "|".join(
                     (
                         source_edition.sha256.upper(),
+                        source_edition.uid,
+                        source_edition.extraction_artifact_hash.upper(),
                         str(page.page_number),
                         str(match.start()),
                         str(match.end()),
@@ -142,11 +271,7 @@ def extract_document_reference_candidates(
                         ),
                         page_number=page.page_number,
                         extraction_method=page.extraction_method,
-                        target_instrument_uid=target_uid,
-                        target_kind=kind,
-                        target_year=year,
-                        target_number=number,
-                        target_corpus_present=target_uid in known_instrument_uids,
+                        target_instrument=target,
                         signal=signal,
                         quote=_line_quote(page.text, match.start(), match.end()),
                         match_start=match.start(),
@@ -160,7 +285,28 @@ def extract_document_reference_candidates(
 def promote_reference_candidate(
     candidate: InstrumentReferenceCandidate,
     evidence: ReferencePromotionEvidence,
+    *,
+    instrument_catalog: VerifiedInstrumentCatalog,
 ) -> ReferencePromotionDecision:
+    target = candidate.target_instrument
+    if (
+        target.authority != "BCT"
+        or target.kind not in {InstrumentKind.CIRCULAR, InstrumentKind.NOTE}
+        or target.year is None
+        or target.number is None
+    ):
+        return NeedsReviewReferencePromotion(
+            reasons=("target_identity_incomplete",),
+        )
+    catalog_target = instrument_catalog.resolve_bct_reference(
+        kind=target.kind,
+        year=target.year,
+        number=target.number,
+        raw_citation=candidate.signal,
+    )
+    catalog_edition = instrument_catalog.get_source_edition(
+        candidate.source_edition_uid
+    )
     checks = (
         (
             evidence.reviewed_source_sha256.casefold()
@@ -171,17 +317,34 @@ def promote_reference_candidate(
             evidence.reviewed_page_number == candidate.page_number,
             "source_page_mismatch",
         ),
-        (evidence.rendered_page_confirmed, "rendered_page_confirmation_missing"),
+        (
+            catalog_edition is not None
+            and catalog_edition.instrument_uid == candidate.source_instrument_uid
+            and catalog_edition.filename == candidate.source_filename
+            and catalog_edition.sha256.casefold()
+            == candidate.source_sha256.casefold()
+            and catalog_edition.extraction_artifact_hash is not None
+            and catalog_edition.extraction_artifact_hash.casefold()
+            == candidate.extraction_artifact_hash.casefold(),
+            "source_catalog_changed",
+        ),
+        (evidence.reviewed_signal == candidate.signal, "reviewed_signal_mismatch"),
+        (evidence.reviewed_quote == candidate.quote, "reviewed_quote_mismatch"),
+        (
+            evidence.reviewed_match_start == candidate.match_start
+            and evidence.reviewed_match_end == candidate.match_end,
+            "reviewed_offsets_mismatch",
+        ),
         (
             evidence.reviewed_target_instrument_uid
             == candidate.target_instrument_uid,
             "target_identity_ambiguous",
         ),
+        (catalog_target == candidate.target_instrument, "target_catalog_changed"),
     )
     reasons = tuple(reason for passed, reason in checks if not passed)
     if reasons:
-        return ReferencePromotionDecision(
-            status=VerificationStatus.NEEDS_REVIEW,
+        return NeedsReviewReferencePromotion(
             reasons=reasons,
         )
 
@@ -205,28 +368,14 @@ def promote_reference_candidate(
         extraction_method=candidate.extraction_method,
         resolver_rule=candidate.resolver_rule,
         verification_status=VerificationStatus.VERIFIED,
+        verification_method=evidence.verification_method,
+        rendered_image_sha256=evidence.rendered_image_sha256,
         verified_by=evidence.reviewer,
     )
-    target = Instrument(
-        uid=candidate.target_instrument_uid,
-        authority="BCT",
-        kind=candidate.target_kind,
-        year=candidate.target_year,
-        number=candidate.target_number,
-        corpus_present=candidate.target_corpus_present,
-        canonical_citation=candidate.signal,
-        source_status=(
-            SourceStatus.LOCAL
-            if candidate.target_corpus_present
-            else SourceStatus.EXTERNAL_STUB
-        ),
-    )
-    return ReferencePromotionDecision(
-        status=VerificationStatus.VERIFIED,
-        reasons=(),
+    return VerifiedReferencePromotion(
         reference=reference,
         evidence_span=evidence_span,
-        target_instrument=target,
+        target_instrument=catalog_target,
     )
 
 
@@ -234,19 +383,15 @@ def enrich_bundle_with_verified_references(
     bundle: RegulatoryGraphBundle,
     decisions: tuple[ReferencePromotionDecision, ...],
 ) -> RegulatoryGraphBundle:
-    incomplete = [item for item in decisions if item.status != VerificationStatus.VERIFIED]
-    if incomplete or any(
-        item.reference is None
-        or item.evidence_span is None
-        or item.target_instrument is None
-        for item in decisions
-    ):
+    if not all(isinstance(item, VerifiedReferencePromotion) for item in decisions):
         raise ValueError("only complete VERIFIED reference decisions can enrich a bundle")
 
     instruments_by_uid = {item.uid: item for item in bundle.instruments}
     evidence_by_uid = {item.uid: item for item in bundle.evidence_spans}
     references_by_uid = {item.uid: item for item in bundle.instrument_references}
     for decision in decisions:
+        if not isinstance(decision, VerifiedReferencePromotion):
+            raise ValueError("only complete VERIFIED reference decisions can enrich a bundle")
         target = decision.target_instrument
         evidence_span = decision.evidence_span
         reference = decision.reference

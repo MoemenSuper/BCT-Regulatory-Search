@@ -150,6 +150,8 @@ def test_writer_persists_only_verified_reference_lineage():
         extraction_method="native",
         resolver_rule="french_bct_instrument_reference_v1",
         verification_status=VerificationStatus.VERIFIED,
+        verification_method="manual_rendered_pdf_v1",
+        rendered_image_sha256="d" * 64,
         verified_by="manual:test-reviewer",
     )
     driver = FakeDriver()
@@ -185,6 +187,21 @@ def test_writer_persists_only_verified_reference_lineage():
             bundle.model_copy(update={"instrument_references": (candidate,)})
         )
     assert rejected_driver.calls == []
+
+
+def test_writer_rejects_relationships_outside_the_allowlist_before_querying():
+    driver = FakeDriver()
+    writer = Neo4jGraphWriter(driver)
+
+    with pytest.raises(ValueError, match="not allowlisted"):
+        writer._relationship(
+            "Instrument",
+            "RELATED_TO",
+            "Instrument",
+            (("instrument:1", "instrument:2"),),
+        )
+
+    assert driver.calls == []
 
 
 def test_writer_does_not_erase_unspecified_optional_properties():
@@ -544,7 +561,23 @@ def test_graph_snapshot_hash_is_stable_across_database_row_order():
 )
 def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
     neo4j = pytest.importorskip("neo4j")
-    bundle = circular_2016_03_fr_bundle()
+    base_bundle = circular_2016_03_fr_bundle()
+    reference = InstrumentReference(
+        uid="reference:cir-2016-03:p2:cir-1991-24",
+        source_instrument_uid="BCT:CIRCULAR:2016:03",
+        target_instrument_uid="BCT:CIRCULAR:1991:24",
+        evidence_uid=base_bundle.evidence_spans[0].uid,
+        raw_citation="circulaire n°91-24",
+        extraction_method="native",
+        resolver_rule="french_bct_instrument_reference_v1",
+        verification_status=VerificationStatus.VERIFIED,
+        verification_method="manual_rendered_pdf_v1",
+        rendered_image_sha256="d" * 64,
+        verified_by="manual:test-reviewer",
+    )
+    bundle = base_bundle.model_copy(
+        update={"instrument_references": (reference,)}
+    )
     fixture_uids = [
         item.uid
         for collection in (
@@ -556,6 +589,7 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
             bundle.target_spans,
             bundle.evidence_spans,
             bundle.change_events,
+            bundle.instrument_references,
         )
         for item in collection
     ]
@@ -578,7 +612,7 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
         assert first.bundle_sha256 == second.bundle_sha256
         assert first_counts == second_counts
         assert first_counts.nodes == bundle.node_count
-        assert first_counts.relationships == 29
+        assert first_counts.relationships == 32
         assert graph.resolve_provision_as_of(
             "BCT:CIRCULAR:1991:24:ARTICLE:4", date(2016, 12, 29)
         ).version is None

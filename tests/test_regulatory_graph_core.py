@@ -300,6 +300,8 @@ def test_only_verified_instrument_references_can_be_written():
         extraction_method="native",
         resolver_rule="french_bct_instrument_reference_v1",
         verification_status=VerificationStatus.VERIFIED,
+        verification_method="manual_rendered_pdf_v1",
+        rendered_image_sha256="d" * 64,
         verified_by="manual:test-reviewer",
     )
 

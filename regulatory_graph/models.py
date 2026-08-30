@@ -102,6 +102,15 @@ class VerificationStatus(str, Enum):
     NEEDS_REVIEW = "NEEDS_REVIEW"
 
 
+class ReferenceResolverRule(str, Enum):
+    FRENCH_BCT_INSTRUMENT_V1 = "french_bct_instrument_reference_v1"
+    ARABIC_BCT_INSTRUMENT_V1 = "arabic_bct_instrument_reference_v1"
+
+
+class ReferenceVerificationMethod(str, Enum):
+    MANUAL_RENDERED_PDF_V1 = "manual_rendered_pdf_v1"
+
+
 class GraphModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -262,8 +271,10 @@ class InstrumentReference(GraphModel):
     evidence_uid: NonEmptyStr
     raw_citation: NonEmptyStr
     extraction_method: NonEmptyStr
-    resolver_rule: NonEmptyStr
+    resolver_rule: ReferenceResolverRule
     verification_status: VerificationStatus
+    verification_method: ReferenceVerificationMethod
+    rendered_image_sha256: Sha256
     verified_by: NonEmptyStr
 
 
