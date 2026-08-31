@@ -38,6 +38,12 @@ def generate_answer(llm,user_query,relevant_docs,memory_summary=""):
         Do not use the Conversation Summary as factual evidence.
         Never answer using the summary alone.
 
+        For a question about the current, applicable, or historical version of
+        a rule, use a provision as controlling only when its Metadata contains
+        temporal_resolution='VERIFIED' and the requested date falls in the
+        stated valid interval. Never assume that the newest PDF replaces every
+        provision of an older document.
+
         If the context does not contain the answer, say that the 
         information was not found. Do not invent legal or regulatory facts.
         At the end, cite the exact source filename and page number from the provided Metadata. And if no information is found. do not cite any filename or pagenumber.

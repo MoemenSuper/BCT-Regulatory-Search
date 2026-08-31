@@ -80,6 +80,20 @@ class StructuralSyncReceipt:
     bundle_sha256: str | None
 
 
+class SourcePageSeed(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    filename: str
+    page_numbers: tuple[int, ...]
+
+
+class AffectedProvision(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    uid: str
+    instrument_uid: str
+    label: str
+    canonical_path: str
+
+
 class TemporalResolution(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     provision_uid: str
@@ -489,10 +503,72 @@ class Neo4jRegulatoryGraph:
             reason="resolved" if version else "no_verified_version",
         )
 
+    def affected_provisions(
+        self,
+        seeds: tuple[SourcePageSeed, ...],
+        *,
+        limit: int = 10,
+    ) -> tuple[AffectedProvision, ...]:
+        if not 1 <= limit <= 20:
+            raise ValueError("affected provision limit must be between 1 and 20")
+        if not seeds:
+            return ()
+        result = self._execute(
+            "UNWIND $seeds AS seed "
+            "MATCH (seed_instrument:Instrument)-[:HAS_EDITION]->"
+            "(seed_edition:SourceEdition {filename: seed.filename}) "
+            "CALL (seed_instrument, seed_edition, seed) { "
+            "MATCH (seed_instrument)-[:DECLARES_CHANGE]->"
+            "(event:ChangeEvent)-[:TARGETS]->(target) "
+            "OPTIONAL MATCH (target:TargetSpan)-[within]->"
+            "(:ProvisionVersion)<-[:HAS_VERSION]-(span_provision:Provision) "
+            "WHERE type(within) = 'WITHIN' "
+            "WITH event, seed_edition, seed, target, "
+            "CASE WHEN 'Provision' IN labels(target) THEN target "
+            "ELSE span_provision END AS provision "
+            "WHERE provision IS NOT NULL "
+            "MATCH (event)-[:EVIDENCED_BY]->(:EvidenceSpan)-[:ON_PAGE]->"
+            "(page:Page)<-[:HAS_PAGE]-(seed_edition) "
+            "WHERE event.verification_status = 'VERIFIED' "
+            "AND (size(seed.page_numbers) = 0 OR "
+            "page.page_number IN seed.page_numbers) "
+            "RETURN provision "
+            "UNION "
+            "MATCH (seed_instrument)-[:HAS_PROVISION]->(provision:Provision) "
+            "MATCH (event:ChangeEvent)-[:TARGETS]->(target) "
+            "WHERE event.verification_status = 'VERIFIED' AND ("
+            "target = provision OR EXISTS { "
+            "MATCH (target:TargetSpan)-[within]->"
+            "(:ProvisionVersion)<-[:HAS_VERSION]-(provision) "
+            "WHERE type(within) = 'WITHIN' }) "
+            "RETURN provision "
+            "} "
+            "RETURN DISTINCT provision.uid AS uid, "
+            "provision.instrument_uid AS instrument_uid, "
+            "provision.label AS label, "
+            "provision.canonical_path AS canonical_path "
+            "ORDER BY uid LIMIT $limit",
+            seeds=[
+                {
+                    "filename": seed.filename,
+                    "page_numbers": list(seed.page_numbers),
+                }
+                for seed in seeds
+            ],
+            limit=limit,
+        )
+        return tuple(AffectedProvision(**row) for row in _rows(result))
+
     def lineage(self, provision_uid: str) -> tuple[LineageEntry, ...]:
         result = self._execute(
-            "MATCH (target:Provision {uid: $provision_uid})<-[:TARGETS]-"
-            "(event:ChangeEvent)<-[:DECLARES_CHANGE]-(source:Instrument) "
+            "MATCH (target:Provision {uid: $provision_uid}) "
+            "MATCH (event:ChangeEvent)<-[:DECLARES_CHANGE]-(source:Instrument) "
+            "MATCH (event)-[:TARGETS]->(event_target) "
+            "WHERE event.verification_status = 'VERIFIED' AND ("
+            "event_target = target OR EXISTS { "
+            "MATCH (event_target:TargetSpan)-[within]->"
+            "(:ProvisionVersion)<-[:HAS_VERSION]-(target) "
+            "WHERE type(within) = 'WITHIN' }) "
             "OPTIONAL MATCH (event)-[:INTRODUCES_VERSION]->(introduced:ProvisionVersion) "
             "WITH event, source, collect(DISTINCT introduced.uid) AS introduced_uids "
             "OPTIONAL MATCH (event)-[retired_relation]->(retired:ProvisionVersion) "

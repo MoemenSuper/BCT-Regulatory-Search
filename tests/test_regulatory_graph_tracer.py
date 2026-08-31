@@ -2,12 +2,14 @@ from datetime import date
 import os
 from urllib.parse import urlsplit
 
+from langchain_core.documents import Document
 import pytest
 
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
 from regulatory_graph.models import (
     GraphChunk,
     InstrumentReference,
+    ProvisionVersion,
     VerificationStatus,
     VersionStatus,
 )
@@ -15,7 +17,9 @@ from regulatory_graph.neo4j_store import (
     Neo4jGraphWriter,
     Neo4jRegulatoryGraph,
     Neo4jStructuralWriter,
+    SourcePageSeed,
 )
+from regulatory_graph.runtime import RelationshipGraphRetriever, TemporalRetrievalStatus
 from regulatory_graph.source_verification import verify_bundle_source
 
 
@@ -463,6 +467,45 @@ def test_as_of_query_returns_one_verified_half_open_version():
     assert parameters["as_of"] == date(2016, 12, 30)
 
 
+def test_affected_provisions_use_verified_source_pages_and_incoming_targets():
+    driver = FakeDriver(
+        responses=[
+            [
+                {
+                    "uid": "BCT:CIRCULAR:1991:24:ARTICLE:4",
+                    "instrument_uid": "BCT:CIRCULAR:1991:24",
+                    "label": "Article 4",
+                    "canonical_path": "article/4",
+                }
+            ]
+        ]
+    )
+
+    provisions = Neo4jRegulatoryGraph(driver).affected_provisions(
+        (
+            SourcePageSeed(
+                filename="Cir_2016_03_fr.pdf",
+                page_numbers=(2, 3),
+            ),
+        ),
+        limit=4,
+    )
+
+    assert len(provisions) == 1
+    assert provisions[0].uid == "BCT:CIRCULAR:1991:24:ARTICLE:4"
+    assert provisions[0].label == "Article 4"
+    query, parameters = driver.calls[0]
+    assert "event.verification_status = 'VERIFIED'" in query
+    assert "page.page_number IN seed.page_numbers" in query
+    assert "(seed_instrument)-[:HAS_PROVISION]->(provision:Provision)" in query
+    assert "TargetSpan" in query
+    assert "WITHIN" in query
+    assert parameters["seeds"] == [
+        {"filename": "Cir_2016_03_fr.pdf", "page_numbers": [2, 3]}
+    ]
+    assert parameters["limit"] == 4
+
+
 def test_as_of_query_rejects_overlapping_verified_versions():
     version = circular_2016_03_fr_bundle().provision_versions[0]
     driver = FakeDriver(
@@ -527,6 +570,10 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
     assert entries[0].source_filenames == ("Cir_2016_03_fr.pdf",)
     assert entries[0].evidence[0].page_number == 2
     assert entries[0].evidence[0].quote.startswith("Article 2")
+    query, _parameters = driver.calls[0]
+    assert "event.verification_status = 'VERIFIED'" in query
+    assert "TargetSpan" in query
+    assert "WITHIN" in query
 
 
 def test_relationship_evidence_is_verified_bounded_and_source_linked():
@@ -608,6 +655,36 @@ def test_graph_snapshot_hash_is_stable_across_database_row_order():
 def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
     neo4j = pytest.importorskip("neo4j")
     base_bundle = circular_2016_03_fr_bundle()
+    current_article_4 = base_bundle.provision_versions[0]
+    predecessor_article_4 = ProvisionVersion(
+        uid="version:bct:1991:24:article-4:predecessor-fixture",
+        provision_uid=current_article_4.provision_uid,
+        version_number=1,
+        text="Synthetic verified predecessor text for disposable testing.",
+        language="fr",
+        valid_from=date(1991, 12, 1),
+        valid_to=current_article_4.valid_from,
+        status=VersionStatus.SUPERSEDED,
+        content_hash="f" * 64,
+        verification_status=VerificationStatus.VERIFIED,
+    )
+    completed_current_article_4 = current_article_4.model_copy(
+        update={
+            "version_number": 2,
+            "supersedes_version_uid": predecessor_article_4.uid,
+        }
+    )
+    completed_versions = (
+        predecessor_article_4,
+        completed_current_article_4,
+        *base_bundle.provision_versions[1:],
+    )
+    completed_events = (
+        base_bundle.change_events[0].model_copy(
+            update={"retires_version_uids": (predecessor_article_4.uid,)}
+        ),
+        *base_bundle.change_events[1:],
+    )
     reference = InstrumentReference(
         uid="reference:cir-2016-03:p2:cir-1991-24",
         source_instrument_uid="BCT:CIRCULAR:2016:03",
@@ -622,7 +699,11 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
         verified_by="manual:test-reviewer",
     )
     bundle = base_bundle.model_copy(
-        update={"instrument_references": (reference,)}
+        update={
+            "provision_versions": completed_versions,
+            "change_events": completed_events,
+            "instrument_references": (reference,),
+        }
     )
     fixture_uids = [
         item.uid
@@ -658,10 +739,10 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
         assert first.bundle_sha256 == second.bundle_sha256
         assert first_counts == second_counts
         assert first_counts.nodes == bundle.node_count
-        assert first_counts.relationships == 32
+        assert first_counts.relationships == 35
         assert graph.resolve_provision_as_of(
             "BCT:CIRCULAR:1991:24:ARTICLE:4", date(2016, 12, 29)
-        ).version is None
+        ).version.uid == predecessor_article_4.uid
         assert graph.resolve_provision_as_of(
             "BCT:CIRCULAR:1991:24:ARTICLE:4", date(2016, 12, 30)
         ).version.uid == "version:bct:1991:24:article-4:2016-12-30"
@@ -680,7 +761,9 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
             entries = graph.lineage(provision_uid)
             assert len(entries) == 1
             assert entries[0].action.value == "REPLACE"
-            assert entries[0].predecessor_complete is False
+            assert entries[0].predecessor_complete is (
+                provision_uid == "BCT:CIRCULAR:1991:24:ARTICLE:4"
+            )
             assert entries[0].source_filenames == ("Cir_2016_03_fr.pdf",)
             expected_event = next(
                 event
@@ -713,6 +796,36 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
             and item.page_number == 2
             for item in relationship_evidence
         )
+        affected = graph.affected_provisions(
+            (
+                SourcePageSeed(
+                    filename=bundle.source_editions[0].filename,
+                    page_numbers=(2,),
+                ),
+            ),
+            limit=10,
+        )
+        assert tuple(item.uid for item in affected) == (
+            "BCT:CIRCULAR:1991:24:ARTICLE:4",
+        )
+        temporal = RelationshipGraphRetriever(
+            graph,
+            current_date=date(2026, 8, 31),
+        ).retrieve(
+            "What rule in Article 4 is currently in force?",
+            (
+                Document(
+                    page_content="ordinary seed",
+                    metadata={
+                        "source": bundle.source_editions[0].filename,
+                        "page": 1,
+                    },
+                ),
+            ),
+        )
+        assert temporal.trace.temporal_status == TemporalRetrievalStatus.RESOLVED
+        assert temporal.requires_temporal_abstention is False
+        assert completed_current_article_4.text in temporal.documents[0].page_content
     finally:
         driver.execute_query(
             "MATCH (node) WHERE node.uid IN $fixture_uids DETACH DELETE node",

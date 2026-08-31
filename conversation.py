@@ -5,7 +5,12 @@ from reranker import score_documents, rank_scored_documents
 from langchain_core.prompts import ChatPromptTemplate
 from pathlib import Path
 from bm25 import retrieve_bm25
-from regulatory_graph.runtime import GraphRetrievalStatus, GraphRetrievalTrace
+from regulatory_graph.runtime import (
+    GraphRetrievalStatus,
+    GraphRetrievalTrace,
+    TemporalRetrievalStatus,
+    is_temporal_rule_query,
+)
 
 
 
@@ -153,6 +158,46 @@ def _rank_candidates(reranker, query, documents):
     return rank_scored_documents(scored_documents)
 
 
+def _temporal_abstention_message(message):
+    if any("\u0600" <= character <= "\u06ff" for character in message):
+        return (
+            "لا يمكنني تحديد الحكم النافذ بأمان لأن التسلسل الزمني الموثق "
+            "في الرسم البياني غير متاح أو غير مكتمل."
+        )
+    normalized = message.casefold()
+    if any(
+        marker in normalized
+        for marker in ("règle", "circulaire", "en vigueur", "disposition")
+    ):
+        return (
+            "Je ne peux pas déterminer la disposition applicable de manière "
+            "fiable, car la chronologie vérifiée du graphe est indisponible "
+            "ou incomplète."
+        )
+    return (
+        "I cannot determine the controlling provision safely because the "
+        "verified temporal graph lineage is unavailable or incomplete."
+    )
+
+
+def _answer_results(reranked_results, *, limit=5):
+    temporal = [
+        item
+        for item in reranked_results
+        if item[0].metadata.get("temporal_resolution") == "VERIFIED"
+    ]
+    if not temporal:
+        return reranked_results[:limit]
+    mandatory = temporal[:1]
+    mandatory_ids = {id(document) for document, _ in mandatory}
+    remainder = [
+        item
+        for item in reranked_results
+        if id(item[0]) not in mandatory_ids
+    ]
+    return mandatory + remainder[: limit - len(mandatory)]
+
+
 def chat(
     message,
     memory_state,
@@ -178,6 +223,19 @@ def chat(
 
     query_for_retrieval = route["rewrite_query"] or message
 
+    if is_temporal_rule_query(message) and graph_retriever is None:
+        graph_trace = GraphRetrievalTrace(
+            status=GraphRetrievalStatus.UNAVAILABLE,
+            temporal_status=TemporalRetrievalStatus.UNAVAILABLE,
+            temporal_reason="temporal_graph_unavailable",
+        )
+        return {
+            "answer": _temporal_abstention_message(message),
+            "sources": [],
+            "memory_state": update_memory_state(memory_state, route),
+            "graph_trace": graph_trace.as_dict(),
+        }
+
     retrieved_docs = retrieve_relevant_chunks(query_for_retrieval, vector_store)
 
     bm25_docs = retrieve_bm25(query_for_retrieval, bm25, bm25_documents)
@@ -197,6 +255,13 @@ def chat(
             seed_documents,
         )
         graph_trace = graph_result.trace
+        if graph_result.requires_temporal_abstention:
+            return {
+                "answer": _temporal_abstention_message(message),
+                "sources": [],
+                "memory_state": update_memory_state(memory_state, route),
+                "graph_trace": graph_trace.as_dict(),
+            }
         if graph_result.documents:
             candidate_docs = combine_documents(
                 candidate_docs,
@@ -208,7 +273,7 @@ def chat(
                 candidate_docs,
             )
 
-    top_results = reranked_results[:5]
+    top_results = _answer_results(reranked_results)
     documents_for_llm = [document for document, _ in top_results]
 
     memory_text = render_memory_state(memory_state)
