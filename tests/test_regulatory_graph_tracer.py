@@ -529,6 +529,47 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
     assert entries[0].evidence[0].quote.startswith("Article 2")
 
 
+def test_relationship_evidence_is_verified_bounded_and_source_linked():
+    driver = FakeDriver(
+        responses=[
+            [
+                {
+                    "seed_filename": "CB_2017_08_FR.pdf",
+                    "seed_instrument_uid": "BCT:CIRCULAR:2017:08",
+                    "related_instrument_uid": "BCT:CIRCULAR:2013:15",
+                    "relation_kind": "CITES",
+                    "direction": "OUTGOING",
+                    "fact_uid": "reference:2017-08:2013-15",
+                    "evidence_uid": "evidence:2017-08:p28:2013-15",
+                    "filename": "CB_2017_08_FR.pdf",
+                    "page_number": 28,
+                    "quote": "La presente circulaire cite la circulaire n 2013-15.",
+                }
+            ]
+        ]
+    )
+
+    evidence = Neo4jRegulatoryGraph(driver).relationship_evidence(
+        ("CB_2017_08_FR.pdf", "CB_2017_08_FR.pdf"),
+        limit=4,
+    )
+
+    assert len(evidence) == 1
+    assert evidence[0].filename == "CB_2017_08_FR.pdf"
+    assert evidence[0].page_number == 28
+    assert evidence[0].relation_kind == "CITES"
+    assert evidence[0].path == (
+        "BCT:CIRCULAR:2017:08 -[CITES]-> BCT:CIRCULAR:2013:15"
+    )
+    query, parameters = driver.calls[0]
+    assert "fact.verification_status = 'VERIFIED'" in query
+    assert "DECLARES_REFERENCE|DECLARES_CHANGE" in query
+    assert "EVIDENCED_BY" in query
+    assert "ON_PAGE" in query
+    assert parameters["seed_filenames"] == ["CB_2017_08_FR.pdf"]
+    assert parameters["limit"] == 4
+
+
 def test_graph_snapshot_hash_is_stable_across_database_row_order():
     nodes = [
         {"labels": ["Instrument"], "properties": {"uid": "instrument:2"}},
@@ -655,6 +696,18 @@ def test_live_neo4j_write_is_idempotent_and_temporal_queries_are_exact():
                 and evidence.quote == expected_evidence[evidence.uid].quote
                 for evidence in entries[0].evidence
             )
+
+        relationship_evidence = graph.relationship_evidence(
+            (bundle.source_editions[0].filename,),
+            limit=10,
+        )
+        assert any(
+            item.relation_kind == "CITES"
+            and item.related_instrument_uid == "BCT:CIRCULAR:1991:24"
+            and item.filename == bundle.source_editions[0].filename
+            and item.page_number == 2
+            for item in relationship_evidence
+        )
     finally:
         driver.execute_query(
             "MATCH (node) WHERE node.uid IN $fixture_uids DETACH DELETE node",

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from conversation import chat
 import logging
 from bm25 import load_documents_from_chroma, create_bm25
+from regulatory_graph.runtime import open_relationship_graph_runtime
 
 
 logger = logging.getLogger(__name__)
@@ -43,9 +44,13 @@ async def lifespan(app: FastAPI):
 
     app.state.bm25_documents = documents
     app.state.bm25 = create_bm25(documents)
-    yield
-    # shutdown — nothing to clean up yet
-
+    graph_driver, graph_retriever = open_relationship_graph_runtime()
+    app.state.graph_retriever = graph_retriever
+    try:
+        yield
+    finally:
+        if graph_driver is not None:
+            graph_driver.close()
 app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
 
 @app.get("/health")
@@ -64,6 +69,7 @@ def post_chat(payload: ChatRequest, request: Request):
             request.app.state.reranker,
             request.app.state.bm25,
             request.app.state.bm25_documents,
+            graph_retriever=request.app.state.graph_retriever,
         )
     except Exception:
         logger.exception("Chat request failed.")

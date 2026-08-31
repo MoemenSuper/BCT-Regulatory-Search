@@ -124,6 +124,30 @@ class LineageEntry(BaseModel):
         return tuple(sorted({item.filename for item in self.evidence}))
 
 
+class RelationshipEvidence(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    seed_filename: str
+    seed_instrument_uid: str
+    related_instrument_uid: str
+    relation_kind: str
+    direction: Literal["OUTGOING", "INCOMING"]
+    fact_uid: str
+    evidence_uid: str
+    filename: str
+    page_number: int
+    quote: str
+
+    @property
+    def path(self) -> str:
+        if self.direction == "OUTGOING":
+            source = self.seed_instrument_uid
+            target = self.related_instrument_uid
+        else:
+            source = self.related_instrument_uid
+            target = self.seed_instrument_uid
+        return f"{source} -[{self.relation_kind}]-> {target}"
+
+
 class _BundleReferences:
     def __init__(self, bundle: RegulatoryGraphBundle):
         self._ids = {
@@ -497,6 +521,59 @@ class Neo4jRegulatoryGraph:
                 )
             )
         return tuple(entries)
+
+    def relationship_evidence(
+        self,
+        seed_filenames: tuple[str, ...],
+        *,
+        limit: int = 10,
+    ) -> tuple[RelationshipEvidence, ...]:
+        if not 1 <= limit <= 50:
+            raise ValueError("relationship evidence limit must be between 1 and 50")
+        unique_filenames = list(dict.fromkeys(seed_filenames))
+        if not unique_filenames:
+            return ()
+        result = self._execute(
+            "UNWIND $seed_filenames AS seed_filename "
+            "MATCH (seed:Instrument)-[:HAS_EDITION]->"
+            "(:SourceEdition {filename: seed_filename}) "
+            "CALL (seed) { "
+            "MATCH (seed)-[declares:DECLARES_REFERENCE|DECLARES_CHANGE]->"
+            "(fact)-[:TARGETS]->(target) "
+            "WHERE fact.verification_status = 'VERIFIED' "
+            "OPTIONAL MATCH (related_by_provision:Instrument)-[:HAS_PROVISION]->"
+            "(target:Provision) "
+            "WITH declares, fact, target, "
+            "CASE WHEN 'Instrument' IN labels(target) THEN target "
+            "ELSE related_by_provision END AS related "
+            "WHERE related IS NOT NULL "
+            "RETURN declares, fact, related, "
+            "'OUTGOING' AS direction "
+            "UNION ALL "
+            "MATCH (related:Instrument)-"
+            "[declares:DECLARES_REFERENCE|DECLARES_CHANGE]->"
+            "(fact)-[:TARGETS]->(target) "
+            "WHERE fact.verification_status = 'VERIFIED' "
+            "AND (target = seed OR EXISTS { "
+            "MATCH (seed)-[:HAS_PROVISION]->(target) }) "
+            "RETURN declares, fact, related, "
+            "'INCOMING' AS direction "
+            "} "
+            "MATCH (fact)-[:EVIDENCED_BY]->(evidence:EvidenceSpan)-[:ON_PAGE]->"
+            "(page:Page)<-[:HAS_PAGE]-(edition:SourceEdition) "
+            "RETURN DISTINCT seed_filename, seed.uid AS seed_instrument_uid, "
+            "related.uid AS related_instrument_uid, "
+            "CASE WHEN 'InstrumentReference' IN labels(fact) THEN 'CITES' "
+            "ELSE fact.action END AS relation_kind, direction, "
+            "fact.uid AS fact_uid, evidence.uid AS evidence_uid, "
+            "edition.filename AS filename, page.page_number AS page_number, "
+            "evidence.quote AS quote "
+            "ORDER BY seed_filename, evidence_uid, related_instrument_uid "
+            "LIMIT $limit",
+            seed_filenames=unique_filenames,
+            limit=limit,
+        )
+        return tuple(RelationshipEvidence(**row) for row in _rows(result))
 
     def counts(self) -> GraphCounts:
         rows = _rows(

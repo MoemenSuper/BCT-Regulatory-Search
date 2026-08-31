@@ -5,6 +5,7 @@ from reranker import score_documents, rank_scored_documents
 from langchain_core.prompts import ChatPromptTemplate
 from pathlib import Path
 from bm25 import retrieve_bm25
+from regulatory_graph.runtime import GraphRetrievalStatus, GraphRetrievalTrace
 
 
 
@@ -145,7 +146,15 @@ def combine_documents(chroma_docs, bm25_docs):
             combined_docs.append(document)
 
     return combined_docs
-def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
+def chat(
+    message,
+    memory_state,
+    vector_store,
+    reranker,
+    bm25,
+    bm25_documents,
+    graph_retriever=None,
+):
     llm = create_llm()
 
     route = route_message(llm, message, memory_state)
@@ -155,6 +164,9 @@ def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
             "answer": "Hi! I'm here to help with Banque Centrale documents.",
             "sources": [],
             "memory_state": memory_state,
+            "graph_trace": GraphRetrievalTrace(
+                status=GraphRetrievalStatus.NOT_REQUESTED
+            ).as_dict(),
         }
 
     query_for_retrieval = route["rewrite_query"] or message
@@ -167,6 +179,26 @@ def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
     scored_docs = score_documents(reranker, query_for_retrieval, candidate_docs)
     reranked_results = rank_scored_documents(scored_docs)
 
+    graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
+    if graph_retriever is not None:
+        seed_documents = [document for document, _ in reranked_results[:5]]
+        graph_result = graph_retriever.retrieve(
+            message,
+            seed_documents,
+        )
+        graph_trace = graph_result.trace
+        if graph_result.documents:
+            candidate_docs = combine_documents(
+                candidate_docs,
+                list(graph_result.documents),
+            )
+            scored_docs = score_documents(
+                reranker,
+                query_for_retrieval,
+                candidate_docs,
+            )
+            reranked_results = rank_scored_documents(scored_docs)
+
     top_results = reranked_results[:5]
     documents_for_llm = [document for document, _ in top_results]
 
@@ -177,4 +209,5 @@ def chat(message, memory_state, vector_store, reranker, bm25, bm25_documents):
         "answer": answer,
         "sources": build_sources(top_results),
         "memory_state": update_memory_state(memory_state, route),
+        "graph_trace": graph_trace.as_dict(),
     }
