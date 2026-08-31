@@ -16,6 +16,7 @@ from regulatory_graph.runtime import (
     GraphRetrievalStatus,
     GraphRetrievalTrace,
     RelationshipGraphRetriever,
+    TemporalFailureReason,
     TemporalRetrievalStatus,
     is_relationship_query,
     is_temporal_rule_query,
@@ -305,7 +306,22 @@ def test_current_rule_query_returns_one_complete_verified_provision_version():
     assert affected_call[1][0].page_numbers == (2,)
 
 
-def test_current_rule_query_abstains_when_replacement_predecessor_is_incomplete():
+@pytest.mark.parametrize(
+    ("action", "predecessor_complete", "expected_reason"),
+    (
+        (
+            "REPLACE",
+            False,
+            TemporalFailureReason.REPLACEMENT_PREDECESSOR_INCOMPLETE,
+        ),
+        ("MODIFY", True, TemporalFailureReason.VERSION_PREDECESSOR_INCOMPLETE),
+    ),
+)
+def test_current_rule_query_abstains_when_version_predecessor_is_incomplete(
+    action,
+    predecessor_complete,
+    expected_reason,
+):
     version = circular_2016_03_fr_bundle().provision_versions[0]
 
     class IncompleteTemporalGraph(FakeRelationshipGraph):
@@ -333,7 +349,7 @@ def test_current_rule_query_abstains_when_replacement_predecessor_is_incomplete(
                 LineageEntry(
                     event_uid="event:bct:2016:03:article-2",
                     source_instrument_uid="BCT:CIRCULAR:2016:03",
-                    action="REPLACE",
+                    action=action,
                     effective_from=date(2016, 12, 30),
                     introduced_version_uids=(version.uid,),
                     retired_version_uids=(),
@@ -345,7 +361,7 @@ def test_current_rule_query_abstains_when_replacement_predecessor_is_incomplete(
                             "quote": "Article 2 replaces Article 4.",
                         },
                     ),
-                    predecessor_complete=False,
+                    predecessor_complete=predecessor_complete,
                 ),
             )
 
@@ -359,7 +375,7 @@ def test_current_rule_query_abstains_when_replacement_predecessor_is_incomplete(
 
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.INCOMPLETE
-    assert result.trace.temporal_reason == "replacement_predecessor_incomplete"
+    assert result.trace.temporal_reason == expected_reason
     assert result.requires_temporal_abstention is True
 
 
@@ -404,7 +420,9 @@ def test_current_rule_query_does_not_guess_between_multiple_affected_parts():
 
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.AMBIGUOUS
-    assert result.trace.temporal_reason == "multiple_affected_provisions"
+    assert result.trace.temporal_reason == (
+        TemporalFailureReason.MULTIPLE_AFFECTED_PROVISIONS
+    )
     assert result.trace.provision_uids == (
         "BCT:CIRCULAR:1991:24:ARTICLE:4",
         "BCT:CIRCULAR:1993:08:ANNEX:13",
@@ -461,7 +479,14 @@ def test_temporal_rule_query_uses_the_explicit_supported_date(query, expected_da
     assert result.trace.as_of == expected_date
 
 
-def test_year_only_historical_rule_query_abstains_without_querying_the_graph():
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Which rule was in force in 2017?",
+        "How has Article 4 changed across years?",
+    ),
+)
+def test_undated_historical_rule_query_abstains_without_querying_the_graph(query):
     class MustNotBeCalledGraph(FakeRelationshipGraph):
         def affected_provisions(self, _seeds, *, limit):
             raise AssertionError(f"graph must not be queried with limit {limit}")
@@ -470,13 +495,15 @@ def test_year_only_historical_rule_query_abstains_without_querying_the_graph():
         MustNotBeCalledGraph(),
         current_date=date(2026, 8, 31),
     ).retrieve(
-        "Which rule was in force in 2017?",
+        query,
         (_document("Cir_2016_03_fr.pdf", page=1),),
     )
 
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.DATE_AMBIGUOUS
-    assert result.trace.temporal_reason == "exact_historical_date_required"
+    assert result.trace.temporal_reason == (
+        TemporalFailureReason.EXACT_HISTORICAL_DATE_REQUIRED
+    )
     assert result.requires_temporal_abstention is True
 
 
@@ -491,7 +518,7 @@ def test_invalid_explicit_temporal_date_abstains_instead_of_raising():
 
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.DATE_AMBIGUOUS
-    assert result.trace.temporal_reason == "invalid_explicit_date"
+    assert result.trace.temporal_reason == TemporalFailureReason.INVALID_EXPLICIT_DATE
 
 
 def test_future_temporal_date_abstains_without_querying_the_graph():
@@ -509,7 +536,9 @@ def test_future_temporal_date_abstains_without_querying_the_graph():
 
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.DATE_AMBIGUOUS
-    assert result.trace.temporal_reason == "future_as_of_not_supported"
+    assert result.trace.temporal_reason == (
+        TemporalFailureReason.FUTURE_AS_OF_NOT_SUPPORTED
+    )
 
 
 def test_chat_reranks_graph_evidence_with_the_existing_rag_candidates(monkeypatch):
@@ -658,7 +687,24 @@ def test_chat_keeps_baseline_candidates_when_graph_is_unavailable(monkeypatch):
     assert result["graph_trace"]["status"] == "UNAVAILABLE"
 
 
-def test_chat_abstains_from_current_rule_answer_when_graph_runtime_is_absent(monkeypatch):
+@pytest.mark.parametrize(
+    ("message", "rewrite_query"),
+    (
+        (
+            "What rule in Article 4 is currently in force?",
+            "current rule Article 4",
+        ),
+        (
+            "What about now?",
+            "What rule in Article 4 is currently in force?",
+        ),
+    ),
+)
+def test_chat_abstains_from_current_rule_answer_when_graph_runtime_is_absent(
+    monkeypatch,
+    message,
+    rewrite_query,
+):
     ordinary = _document("Cir_2016_03_fr.pdf", text="a possibly outdated rule")
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
     monkeypatch.setattr(
@@ -666,7 +712,7 @@ def test_chat_abstains_from_current_rule_answer_when_graph_runtime_is_absent(mon
         "route_message",
         lambda *_: {
             "intent": "NEW_TOPIC",
-            "rewrite_query": "current rule Article 4",
+            "rewrite_query": rewrite_query,
             "new_topic": "Article 4",
             "current_topic": "Article 4",
         },
@@ -693,7 +739,7 @@ def test_chat_abstains_from_current_rule_answer_when_graph_runtime_is_absent(mon
     )
 
     result = conversation.chat(
-        "What rule in Article 4 is currently in force?",
+        message,
         {"topics": [], "first_topic": None, "current_topic": None},
         vector_store=object(),
         reranker=object(),
@@ -721,7 +767,9 @@ def test_chat_abstains_when_the_selected_provision_lineage_is_incomplete(monkeyp
                     temporal_status=TemporalRetrievalStatus.INCOMPLETE,
                     as_of=date(2026, 8, 31),
                     provision_uids=("BCT:CIRCULAR:1991:24:ARTICLE:4",),
-                    temporal_reason="replacement_predecessor_incomplete",
+                    temporal_reason=(
+                        TemporalFailureReason.REPLACEMENT_PREDECESSOR_INCOMPLETE
+                    ),
                 ),
             )
 

@@ -467,7 +467,7 @@ def test_as_of_query_returns_one_verified_half_open_version():
     assert parameters["as_of"] == date(2016, 12, 30)
 
 
-def test_affected_provisions_use_verified_source_pages_and_incoming_targets():
+def test_affected_provisions_use_verified_source_pages_and_partial_targets():
     driver = FakeDriver(
         responses=[
             [
@@ -497,9 +497,10 @@ def test_affected_provisions_use_verified_source_pages_and_incoming_targets():
     query, parameters = driver.calls[0]
     assert "event.verification_status = 'VERIFIED'" in query
     assert "page.page_number IN seed.page_numbers" in query
-    assert "(seed_instrument)-[:HAS_PROVISION]->(provision:Provision)" in query
     assert "TargetSpan" in query
     assert "WITHIN" in query
+    assert "target_version.verification_status = 'VERIFIED'" in query
+    assert "UNION" not in query
     assert parameters["seeds"] == [
         {"filename": "Cir_2016_03_fr.pdf", "page_numbers": [2, 3]}
     ]
@@ -574,6 +575,10 @@ def test_lineage_discloses_missing_predecessor_and_exact_evidence():
     assert "event.verification_status = 'VERIFIED'" in query
     assert "TargetSpan" in query
     assert "WITHIN" in query
+    assert "introduced.verification_status = 'VERIFIED'" in query
+    assert "introduced.provision_uid = target.uid" in query
+    assert "retired.verification_status = 'VERIFIED'" in query
+    assert "retired.provision_uid = target.uid" in query
 
 
 def test_relationship_evidence_is_verified_bounded_and_source_linked():

@@ -95,6 +95,16 @@ _TEMPORAL_SUBJECT_CONTEXT = re.compile(
     r"(?:القاعدة|القواعد|الحكم|الأحكام|الفصل|المادة|المنشور|الوثيقة)",
     re.IGNORECASE,
 )
+_EXPLICIT_CURRENT_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\b(?:current|currently|applicable\s+(?:rule|provision))\b",
+        r"\bis\s+(?:currently\s+)?in\s+force\b",
+        r"\b(?:actuel(?:le)?|règle\s+applicable)\b",
+        r"\best\s+(?:actuellement\s+)?en\s+vigueur\b",
+        r"(?:الساري|النافذ|الحالي)",
+    )
+)
 
 
 class GraphRetrievalStatus(str, Enum):
@@ -115,6 +125,25 @@ class TemporalRetrievalStatus(str, Enum):
     UNAVAILABLE = "UNAVAILABLE"
 
 
+class TemporalFailureReason(str, Enum):
+    INVALID_EXPLICIT_DATE = "invalid_explicit_date"
+    FUTURE_AS_OF_NOT_SUPPORTED = "future_as_of_not_supported"
+    EXACT_HISTORICAL_DATE_REQUIRED = "exact_historical_date_required"
+    NO_RETRIEVAL_SEED = "no_retrieval_seed"
+    TEMPORAL_GRAPH_UNAVAILABLE = "temporal_graph_unavailable"
+    NO_VERIFIED_AFFECTED_PROVISION = "no_verified_affected_provision"
+    MULTIPLE_AFFECTED_PROVISIONS = "multiple_affected_provisions"
+    TEMPORAL_GRAPH_ERROR = "temporal_graph_error"
+    NO_VERIFIED_VERSION_AS_OF_DATE = "no_verified_version_as_of_date"
+    NO_APPLICABLE_VERIFIED_LINEAGE = "no_applicable_verified_lineage"
+    LINEAGE_EVIDENCE_MISSING = "lineage_evidence_missing"
+    EFFECTIVE_DATE_UNRESOLVED = "effective_date_unresolved"
+    INTRODUCED_VERSION_MISSING = "introduced_version_missing"
+    REPLACEMENT_PREDECESSOR_INCOMPLETE = "replacement_predecessor_incomplete"
+    VERSION_PREDECESSOR_INCOMPLETE = "version_predecessor_incomplete"
+    RESOLVED_VERSION_NOT_LATEST = "resolved_version_not_latest_introduced_version"
+
+
 @dataclass(frozen=True)
 class GraphRetrievalTrace:
     status: GraphRetrievalStatus
@@ -125,7 +154,7 @@ class GraphRetrievalTrace:
     temporal_status: TemporalRetrievalStatus = TemporalRetrievalStatus.NOT_REQUESTED
     as_of: date | None = None
     provision_uids: tuple[str, ...] = ()
-    temporal_reason: str | None = None
+    temporal_reason: TemporalFailureReason | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -137,7 +166,9 @@ class GraphRetrievalTrace:
             "temporal_status": self.temporal_status.value,
             "as_of": self.as_of.isoformat() if self.as_of else None,
             "provision_uids": list(self.provision_uids),
-            "temporal_reason": self.temporal_reason,
+            "temporal_reason": (
+                self.temporal_reason.value if self.temporal_reason else None
+            ),
         }
 
 
@@ -154,7 +185,7 @@ class GraphRetrievalResult:
         }
 
 
-class RelationshipEvidenceGraph(Protocol):
+class RegulatoryGraphReader(Protocol):
     def relationship_evidence(
         self,
         seed_filenames: tuple[str, ...],
@@ -216,30 +247,23 @@ def _temporal_as_of(query: str, *, current_date: date) -> date | None:
             return date(year, month, day)
         except ValueError:
             return None
-    return current_date
+    normalized = " ".join(query.casefold().split())
+    if any(pattern.search(normalized) for pattern in _EXPLICIT_CURRENT_PATTERNS):
+        return current_date
+    return None
 
 
-def _has_ambiguous_historical_date(query: str) -> bool:
-    has_exact_date = bool(
+def _has_supported_date_syntax(query: str) -> bool:
+    return bool(
         re.search(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)", query)
         or re.search(r"(?<!\d)\d{1,2}/\d{1,2}/\d{4}(?!\d)", query)
     )
-    if has_exact_date:
-        return False
-    return bool(
-        re.search(
-            r"\b(?:in|during|as\s+of|en|durant)\s+(?:the\s+year\s+)?\d{4}\b|"
-            r"(?:عام|سنة)\s*\d{4}",
-            query,
-            re.IGNORECASE,
-        )
-    )
 
 
-class RelationshipGraphRetriever:
+class RegulatoryGraphRetriever:
     def __init__(
         self,
-        graph: RelationshipEvidenceGraph,
+        graph: RegulatoryGraphReader,
         *,
         max_seeds: int = 5,
         max_evidence: int = 10,
@@ -263,25 +287,23 @@ class RelationshipGraphRetriever:
         temporal_intent = is_temporal_rule_query(query)
         temporal_as_of = _temporal_as_of(query, current_date=self._current_date)
         if temporal_intent and temporal_as_of is None:
+            reason = (
+                TemporalFailureReason.INVALID_EXPLICIT_DATE
+                if _has_supported_date_syntax(query)
+                else TemporalFailureReason.EXACT_HISTORICAL_DATE_REQUIRED
+            )
             return _temporal_failure(
                 GraphRetrievalStatus.NO_EVIDENCE,
                 TemporalRetrievalStatus.DATE_AMBIGUOUS,
                 as_of=None,
-                reason="invalid_explicit_date",
+                reason=reason,
             )
         if temporal_intent and temporal_as_of > self._current_date:
             return _temporal_failure(
                 GraphRetrievalStatus.NO_EVIDENCE,
                 TemporalRetrievalStatus.DATE_AMBIGUOUS,
                 as_of=temporal_as_of,
-                reason="future_as_of_not_supported",
-            )
-        if temporal_intent and _has_ambiguous_historical_date(query):
-            return _temporal_failure(
-                GraphRetrievalStatus.NO_EVIDENCE,
-                TemporalRetrievalStatus.DATE_AMBIGUOUS,
-                as_of=None,
-                reason="exact_historical_date_required",
+                reason=TemporalFailureReason.FUTURE_AS_OF_NOT_SUPPORTED,
             )
         seed_locations = _seed_locations(seed_documents, limit=self._max_seeds)
         seed_filenames = tuple(seed.filename for seed in seed_locations)
@@ -297,7 +319,7 @@ class RelationshipGraphRetriever:
                     GraphRetrievalStatus.NO_SEED,
                     TemporalRetrievalStatus.NO_CANDIDATE,
                     as_of=temporal_as_of,
-                    reason="no_retrieval_seed",
+                    reason=TemporalFailureReason.NO_RETRIEVAL_SEED,
                 )
             return _empty_result(GraphRetrievalStatus.NO_SEED)
 
@@ -326,7 +348,7 @@ class RelationshipGraphRetriever:
                         ),
                         as_of=temporal_as_of if temporal_intent else None,
                         temporal_reason=(
-                            "temporal_graph_unavailable"
+                            TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE
                             if temporal_intent
                             else None
                         ),
@@ -392,9 +414,9 @@ class RelationshipGraphRetriever:
                     seed_filenames=seed_filenames,
                     provision_uids=tuple(item.uid for item in candidates),
                     reason=(
-                        "no_verified_affected_provision"
+                        TemporalFailureReason.NO_VERIFIED_AFFECTED_PROVISION
                         if not candidates
-                        else "multiple_affected_provisions"
+                        else TemporalFailureReason.MULTIPLE_AFFECTED_PROVISIONS
                     ),
                 )
             resolution = self._graph.resolve_provision_as_of(
@@ -413,7 +435,7 @@ class RelationshipGraphRetriever:
                 as_of=as_of,
                 seed_filenames=seed_filenames,
                 error_type=type(error).__name__,
-                reason="temporal_graph_error",
+                reason=TemporalFailureReason.TEMPORAL_GRAPH_ERROR,
             )
 
         incomplete_reason = _incomplete_temporal_reason(
@@ -454,9 +476,13 @@ class RelationshipGraphRetriever:
         )
 
 
+# Backward-compatible public name retained for the v1 relationship-only seam.
+RelationshipGraphRetriever = RegulatoryGraphRetriever
+
+
 @dataclass(frozen=True)
 class LocalRelationshipGraphRuntime:
-    retriever: RelationshipGraphRetriever
+    retriever: RegulatoryGraphRetriever
     _driver: Any
 
     def close(self) -> None:
@@ -498,7 +524,7 @@ def open_relationship_graph_runtime(
 
     graph = Neo4jRegulatoryGraph(driver, database=resolved_database)
     return LocalRelationshipGraphRuntime(
-        retriever=RelationshipGraphRetriever(graph),
+        retriever=RegulatoryGraphRetriever(graph),
         _driver=driver,
     )
 
@@ -561,33 +587,35 @@ def _incomplete_temporal_reason(
     lineage: tuple[LineageEntry, ...],
     *,
     as_of: date,
-) -> str | None:
+) -> TemporalFailureReason | None:
     if resolution.version is None:
-        return "no_verified_version_as_of_date"
+        return TemporalFailureReason.NO_VERIFIED_VERSION_AS_OF_DATE
     applicable = tuple(
         entry
         for entry in lineage
         if entry.effective_from is None or entry.effective_from <= as_of
     )
     if not applicable:
-        return "no_applicable_verified_lineage"
+        return TemporalFailureReason.NO_APPLICABLE_VERIFIED_LINEAGE
     if any(not entry.evidence for entry in applicable):
-        return "lineage_evidence_missing"
+        return TemporalFailureReason.LINEAGE_EVIDENCE_MISSING
     if any(entry.effective_from is None for entry in applicable):
-        return "effective_date_unresolved"
+        return TemporalFailureReason.EFFECTIVE_DATE_UNRESOLVED
     for entry in applicable:
         if not entry.introduced_version_uids:
-            return "introduced_version_missing"
+            return TemporalFailureReason.INTRODUCED_VERSION_MISSING
         if entry.action == LegalAction.REPLACE and (
             not entry.predecessor_complete or not entry.retired_version_uids
         ):
-            return "replacement_predecessor_incomplete"
+            return TemporalFailureReason.REPLACEMENT_PREDECESSOR_INCOMPLETE
+        if entry.action != LegalAction.ADD and not entry.retired_version_uids:
+            return TemporalFailureReason.VERSION_PREDECESSOR_INCOMPLETE
     latest = max(
         applicable,
         key=lambda entry: (entry.effective_from, entry.event_uid),
     )
     if resolution.version.uid not in latest.introduced_version_uids:
-        return "resolved_version_not_latest_introduced_version"
+        return TemporalFailureReason.RESOLVED_VERSION_NOT_LATEST
     return None
 
 
@@ -682,7 +710,7 @@ def _temporal_failure(
     temporal_status: TemporalRetrievalStatus,
     *,
     as_of: date | None,
-    reason: str,
+    reason: TemporalFailureReason,
     seed_filenames: tuple[str, ...] = (),
     provision_uids: tuple[str, ...] = (),
     error_type: str | None = None,

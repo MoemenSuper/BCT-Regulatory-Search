@@ -8,6 +8,7 @@ from bm25 import retrieve_bm25
 from regulatory_graph.runtime import (
     GraphRetrievalStatus,
     GraphRetrievalTrace,
+    TemporalFailureReason,
     TemporalRetrievalStatus,
     is_temporal_rule_query,
 )
@@ -222,12 +223,19 @@ def chat(
         }
 
     query_for_retrieval = route["rewrite_query"] or message
+    temporal_graph_query = (
+        message
+        if is_temporal_rule_query(message)
+        else query_for_retrieval
+        if is_temporal_rule_query(query_for_retrieval)
+        else None
+    )
 
-    if is_temporal_rule_query(message) and graph_retriever is None:
+    if temporal_graph_query is not None and graph_retriever is None:
         graph_trace = GraphRetrievalTrace(
             status=GraphRetrievalStatus.UNAVAILABLE,
             temporal_status=TemporalRetrievalStatus.UNAVAILABLE,
-            temporal_reason="temporal_graph_unavailable",
+            temporal_reason=TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE,
         )
         return {
             "answer": _temporal_abstention_message(message),
@@ -251,7 +259,7 @@ def chat(
     if graph_retriever is not None:
         seed_documents = [document for document, _ in reranked_results[:5]]
         graph_result = graph_retriever.retrieve(
-            message,
+            temporal_graph_query or message,
             seed_documents,
         )
         graph_trace = graph_result.trace
