@@ -491,3 +491,31 @@ cleaned to zero nodes. No OCR, VLM, extraction, chunking, embedding, ingestion,
 or evaluation-gold behavior was changed. This is functional relationship
 retrieval, not evidence that the current relationship inventory is complete or
 that answer quality has improved.
+
+## Temporal provision resolution v1
+
+The provision-level temporal resolver is implemented in
+`regulatory_graph/runtime.py`, `regulatory_graph/neo4j_store.py`, and the
+existing chat answer path. Its predeclaration and receipt are
+`experiments/research/temporal_provision_resolution_v1.md` and
+`experiments/results/temporal_provision_resolution_v1.json`.
+
+For current or exact-date regulatory questions in French, Arabic, or English,
+ordinary retrieval supplies up to five filename-and-page seeds. Neo4j maps
+those exact pages to verified affected provisions, selects one unambiguous
+target, resolves its verified version as of the requested date, and requires a
+complete source-linked predecessor/successor lineage. The verified temporal
+context is mandatory in answer generation. Missing pages, multiple provisions,
+incomplete predecessors, unresolved dates, overlapping versions, and unordered
+same-date changes produce a deterministic abstention.
+
+The decision is `KEEP_TEMPORAL_PROVISION_RESOLUTION_V1`. A disposable complete
+replacement chain selected the predecessor before 2016-12-30 and the successor
+from that date. The real persistent Article 4 case correctly returned
+`INCOMPLETE` because its predecessor is not yet represented; it did not guess
+from the newest PDF. The persistent graph remained exactly 7,233 nodes, 9,688
+relationships, and hash
+`86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1`.
+This proves fail-closed runtime behavior, not corpus-wide temporal coverage or
+answer accuracy. Complete provision lineage still has to be verified and
+ingested as each document arrives.

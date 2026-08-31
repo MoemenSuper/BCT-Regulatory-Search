@@ -1,0 +1,125 @@
+{
+  "experiment_id": "temporal-provision-resolution-v1",
+  "timestamp": "2026-08-31T19:28:08.8528901Z",
+  "status": "complete",
+  "hypothesis": "A bounded provision-level temporal resolver can identify the verified rule applicable now or on an exact date without treating the newest PDF as a whole-document replacement, and can abstain whenever candidate identity or legal lineage is incomplete.",
+  "changed_variable": "verified_provision_level_temporal_resolution_in_existing_rag_answer_path",
+  "code_commits": [
+    "c3f743e055d21ffa6590e86c98d59e2427b4b4f9",
+    "3c7e33fcbb500ed9c747aeb5209d52f0b8e23002",
+    "622b66f48621800274506fc011bc0b19d28b3ac9",
+    "1a98a8ba5a781ae072bef53127b2b52322cc6ef5"
+  ],
+  "configuration": {
+    "branch": "experiment/temporal-provision-graphrag-20260827",
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "ordinary_retrieval_seeds": 5,
+    "maximum_affected_provisions": 10,
+    "supported_exact_dates": [
+      "YYYY-MM-DD",
+      "DD/MM/YYYY"
+    ],
+    "current_date_policy": "evaluate local process date for each request",
+    "graph_query_mode": "read_only_verified_page_bounded"
+  },
+  "scope": {
+    "changed": [
+      "page-bounded mapping from ordinary retrieval seeds to verified affected provisions",
+      "French, Arabic, and English temporal-rule routing for current, historical, and future exact-date questions",
+      "verified as-of provision-version selection and source-linked lineage assembly",
+      "mandatory temporal context in the answer path",
+      "deterministic abstention for absent, unavailable, ambiguous, incomplete, or unordered lineage"
+    ],
+    "explicitly_unchanged": [
+      "PDF loading",
+      "OCR",
+      "VLM fallback",
+      "text extraction",
+      "chunking",
+      "embedding",
+      "Chroma ingestion",
+      "source PDFs",
+      "persistent Neo4j data",
+      "evaluation gold"
+    ]
+  },
+  "persistent_read_verification": {
+    "seed_filename": "Cir_2016_03_fr.pdf",
+    "seed_page": 2,
+    "affected_provisions": [
+      "BCT:CIRCULAR:1991:24:ARTICLE:4"
+    ],
+    "query": "What rule in Article 4 is currently in force?",
+    "temporal_status": "INCOMPLETE",
+    "temporal_reason": "replacement_predecessor_incomplete",
+    "requires_abstention": true,
+    "before": {
+      "nodes": 7233,
+      "relationships": 9688,
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1"
+    },
+    "after": {
+      "nodes": 7233,
+      "relationships": 9688,
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1"
+    },
+    "content_unchanged": true
+  },
+  "disposable_live_verification": {
+    "neo4j_image_digest": "neo4j@sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76",
+    "tests_passed": 1,
+    "complete_predecessor_chain": true,
+    "predecessor_selected_before_2016_12_30": true,
+    "successor_selected_from_2016_12_30": true,
+    "runtime_temporal_status": "RESOLVED",
+    "nodes_after_cleanup": 0,
+    "container_removed": true
+  },
+  "development_metrics": {
+    "focused_temporal_and_graph_tests_passed": 83,
+    "focused_tests_skipped": 2,
+    "repository_tests_passed": 298,
+    "repository_tests_skipped": 2,
+    "compileall": "PASS",
+    "diff_check": "PASS",
+    "standards_review": "PASS_NO_SUBSTANTIVE_FINDINGS",
+    "spec_review": "PASS_NO_MATERIAL_FINDINGS",
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "complete_replacement_resolves_at_exact_boundary": "PASS",
+    "partial_or_ambiguous_target_fails_closed": "PASS",
+    "missing_page_fails_closed": "PASS",
+    "incomplete_predecessor_effective_or_version_lineage_abstains": "PASS",
+    "same_date_unordered_lineage_abstains": "PASS",
+    "multilingual_temporal_routing": "PASS",
+    "ordinary_non_temporal_behavior_preserved": "PASS",
+    "mandatory_verified_answer_context": "PASS",
+    "persistent_graph_read_only": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_TEMPORAL_PROVISION_RESOLUTION_V1",
+  "conclusion": "Keep the fail-closed temporal resolver. It can resolve a provision only when one page-bounded target, one verified as-of version, and a complete evidenced lineage agree; otherwise the answer path abstains instead of selecting the newest document.",
+  "limitations": [
+    "The persistent graph currently has only three verified DECLARES_CHANGE facts, and their predecessor chains are incomplete; the real Article 4 case therefore correctly abstains.",
+    "The 6255 semantic candidates remain unverified and are not used as legal-effect relationships.",
+    "Only page-bounded outgoing change-source seeds are mapped to provisions; target-instrument pages without safe page-to-provision evidence abstain.",
+    "Historical questions require an exact YYYY-MM-DD or DD/MM/YYYY date; year-only and undated evolution questions abstain.",
+    "Candidate disambiguation supports one candidate or one exact provision-label match.",
+    "The public API response model does not expose the internal graph trace.",
+    "No answer-quality benchmark or accuracy claim was made; provisional and final evaluation sets remained unopened."
+  ],
+  "recommendation": "For each newly ingested PDF, verify and persist exact affected provisions, effective dates, predecessor and successor provision versions, and source-page quotes. Add safe target-page-to-provision evidence mapping, then run a frozen gold-blind answer and citation evaluation before production promotion.",
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "hosted_calls": 0
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

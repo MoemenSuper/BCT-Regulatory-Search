@@ -1,0 +1,55 @@
+{
+  "experiment_id": "temporal-provision-resolution-v1",
+  "timestamp": "2026-08-31T19:28:08.8528901Z",
+  "hypothesis": "A bounded provision-level temporal resolver can identify the verified rule applicable now or on an exact date without treating the newest PDF as a whole-document replacement, and can abstain whenever candidate identity or legal lineage is incomplete.",
+  "changed_variable": "verified_provision_level_temporal_resolution_in_existing_rag_answer_path",
+  "code_commit": "1a98a8ba5a781ae072bef53127b2b52322cc6ef5",
+  "code_commits": [
+    "c3f743e055d21ffa6590e86c98d59e2427b4b4f9",
+    "3c7e33fcbb500ed9c747aeb5209d52f0b8e23002",
+    "622b66f48621800274506fc011bc0b19d28b3ac9",
+    "1a98a8ba5a781ae072bef53127b2b52322cc6ef5"
+  ],
+  "configuration": {
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "ordinary_retrieval_seeds": 5,
+    "maximum_affected_provisions": 10,
+    "supported_exact_dates": ["YYYY-MM-DD", "DD/MM/YYYY"],
+    "graph_query_mode": "read_only_verified_page_bounded"
+  },
+  "dataset_hashes": {
+    "predeclaration": "B456A51B47996CFFE2076B3BA2987F45816916215541570E82BA209748EF2324",
+    "persistent_graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "result": "7D28846151A17550F908F9AC6AD07FB4A31D5590E313F2869A80CABEC1BBA7B6"
+  },
+  "development_metrics": {
+    "focused_temporal_and_graph_tests_passed": 83,
+    "focused_tests_skipped": 2,
+    "repository_tests_passed": 298,
+    "repository_tests_skipped": 2,
+    "disposable_live_tests_passed": 1,
+    "persistent_nodes": 7233,
+    "persistent_relationships": 9688,
+    "persistent_real_case": "INCOMPLETE_ABSTAIN",
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "complete_exact_date_resolution": "PASS",
+    "ambiguous_or_incomplete_lineage_abstains": "PASS",
+    "multilingual_conservative_routing": "PASS",
+    "ordinary_non_temporal_behavior_preserved": "PASS",
+    "mandatory_verified_answer_context": "PASS",
+    "read_only_persistent_verification": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_TEMPORAL_PROVISION_RESOLUTION_V1",
+  "conclusion": "Keep the fail-closed temporal resolver. It answers only from one verified, complete provision lineage and otherwise abstains instead of treating the newest document as controlling.",
+  "recommendation": "Verify and ingest complete predecessor and successor provision versions for each new PDF, add safe target-page-to-provision evidence mapping, then run a frozen gold-blind answer and citation evaluation.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
