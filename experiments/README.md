@@ -466,3 +466,28 @@ building block: the production upload/job ledger, Chroma activation boundary,
 runtime graph retriever, context assembler, and relationship-aware query routing
 remain unimplemented. The persistent Checkpoint B graph was deliberately left
 unchanged.
+
+## Minimal runtime GraphRAG v1
+
+The bounded relationship-aware runtime is implemented in
+`regulatory_graph/runtime.py`, `regulatory_graph/neo4j_store.py`, and the
+existing chat retrieval path. Its predeclaration and receipt are
+`experiments/research/minimal_runtime_graphrag_v1.md` and
+`experiments/results/minimal_runtime_graphrag_v1.json`.
+
+For conservative French, Arabic, and English relationship questions, the
+ordinary dense-plus-BM25 top results identify up to five regulatory-document
+seeds. Neo4j may then return at most ten verified, source-linked relationship
+evidence records across one hop. Those records join the ordinary candidates
+and pass through the existing reranker again. If intent, seeds, evidence, or
+Neo4j are absent, ordinary retrieval continues unchanged. Narrow anaphoric
+follow-ups are allowed only when ordinary retrieval already supplies a seed.
+
+The decision is `KEEP_MINIMAL_RUNTIME_GRAPHRAG_V1`. A read-only persistent check
+returned six verified `REPLACE` evidence records for `Cir_2016_03_fr.pdf` while
+preserving the exact 7,233-node / 9,688-relationship graph fingerprint. The
+reference path was separately exercised in a disposable Neo4j fixture and
+cleaned to zero nodes. No OCR, VLM, extraction, chunking, embedding, ingestion,
+or evaluation-gold behavior was changed. This is functional relationship
+retrieval, not evidence that the current relationship inventory is complete or
+that answer quality has improved.

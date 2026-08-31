@@ -1,0 +1,112 @@
+{
+  "experiment_id": "minimal-runtime-graphrag-v1",
+  "timestamp": "2026-08-31T13:04:27.2707644Z",
+  "status": "complete",
+  "hypothesis": "Verified one-hop regulatory relationships can safely augment the existing dense-plus-BM25 retrieval path for relationship questions without replacing extraction, OCR, VLM, chunking, embedding, or baseline fallback behavior.",
+  "changed_variable": "verified_relationship_runtime_expansion",
+  "code_commits": [
+    "4fe66af03a7e6154f74ab12142b0628505052bec",
+    "57d231a17b7dfd029708e906ceda1e061eb5cb44",
+    "8762067cdf29b158ac5f79532d1516e71a25a868"
+  ],
+  "configuration": {
+    "branch": "experiment/temporal-provision-graphrag-20260827",
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "graph_hops": 1,
+    "ordinary_retrieval_seeds": 5,
+    "maximum_graph_evidence": 10,
+    "allowed_declaration_types": [
+      "DECLARES_REFERENCE",
+      "DECLARES_CHANGE"
+    ],
+    "rerank_after_expansion": true,
+    "fallback_on_graph_failure": "unchanged ordinary retrieval"
+  },
+  "scope": {
+    "changed": [
+      "read-only verified relationship evidence query",
+      "deterministic French, Arabic, and English relationship routing",
+      "seed-gated multilingual relationship follow-up routing",
+      "graph evidence conversion to source-linked LangChain documents",
+      "bounded union and reranking in the existing chat retrieval path",
+      "optional Neo4j runtime lifecycle and observable graph trace"
+    ],
+    "explicitly_unchanged": [
+      "PDF loading",
+      "OCR",
+      "VLM fallback",
+      "text extraction",
+      "chunking",
+      "embedding",
+      "Chroma ingestion",
+      "verified per-document relationship ingestion"
+    ]
+  },
+  "persistent_read_verification": {
+    "seed_filename": "Cir_2016_03_fr.pdf",
+    "evidence_records": 6,
+    "unique_paths": [
+      "BCT:CIRCULAR:2016:03 -[REPLACE]-> BCT:CIRCULAR:1991:24",
+      "BCT:CIRCULAR:2016:03 -[REPLACE]-> BCT:CIRCULAR:1993:08"
+    ],
+    "before": {
+      "nodes": 7233,
+      "relationships": 9688,
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1"
+    },
+    "after": {
+      "nodes": 7233,
+      "relationships": 9688,
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1"
+    },
+    "content_unchanged": true,
+    "declaration_type_counts": {
+      "DECLARES_CHANGE": 3,
+      "DECLARES_REFERENCE": 0
+    }
+  },
+  "development_metrics": {
+    "focused_relationship_tests_passed": 29,
+    "repository_tests_passed": 263,
+    "repository_tests_skipped": 2,
+    "disposable_live_tests_passed": 1,
+    "disposable_nodes_after_cleanup": 0,
+    "persistent_graph_unchanged": true,
+    "standards_review": "PASS_NO_SUBSTANTIVE_FINDINGS",
+    "spec_review": "PASS_NO_MATERIAL_FINDINGS"
+  },
+  "gate": {
+    "existing_retrieval_preserved": "PASS",
+    "verified_relationships_only": "PASS",
+    "bounded_one_hop_traversal": "PASS",
+    "source_page_quote_path_provenance": "PASS",
+    "multilingual_conservative_routing": "PASS",
+    "graph_unavailable_fallback": "PASS",
+    "read_only_persistent_verification": "PASS",
+    "disposable_write_cleanup": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_MINIMAL_RUNTIME_GRAPHRAG_V1",
+  "conclusion": "Keep the minimal relationship-aware runtime integration. It reuses the existing retrieval and verified graph-ingestion seams and follows graph relationships only when a relationship question and regulatory seed justify expansion.",
+  "limitations": [
+    "The runtime can retrieve only relationships already verified and persisted in Neo4j.",
+    "The persistent graph currently contains three DECLARES_CHANGE relationships and no DECLARES_REFERENCE relationships; reference traversal was verified only in the disposable live fixture.",
+    "Traversal is deliberately limited to one hop, five ordinary-retrieval seeds, and ten evidence records.",
+    "The routing rules are deterministic and conservative, so unusual relationship wording may remain on the ordinary retrieval path.",
+    "The graph trace is internal runtime observability and is not exposed in the public response model.",
+    "No answer-quality benchmark or accuracy claim was made; provisional and final evaluation sets remained unopened."
+  ],
+  "recommendation": "Use the existing verified per-document relationship-ingestion seam to populate additional reviewed relationships as documents arrive, then run a bounded gold-blind answer-quality evaluation before production promotion.",
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "hosted_calls": 0
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

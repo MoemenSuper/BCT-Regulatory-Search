@@ -1,0 +1,51 @@
+{
+  "experiment_id": "minimal-runtime-graphrag-v1",
+  "timestamp": "2026-08-31T13:04:27.2707644Z",
+  "hypothesis": "Verified one-hop regulatory relationships can safely augment the existing dense-plus-BM25 retrieval path for relationship questions without replacing extraction, OCR, VLM, chunking, embedding, or baseline fallback behavior.",
+  "changed_variable": "verified_relationship_runtime_expansion",
+  "code_commit": "8762067cdf29b158ac5f79532d1516e71a25a868",
+  "code_commits": [
+    "4fe66af03a7e6154f74ab12142b0628505052bec",
+    "57d231a17b7dfd029708e906ceda1e061eb5cb44",
+    "8762067cdf29b158ac5f79532d1516e71a25a868"
+  ],
+  "configuration": {
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "graph_hops": 1,
+    "ordinary_retrieval_seeds": 5,
+    "maximum_graph_evidence": 10,
+    "rerank_after_expansion": true
+  },
+  "dataset_hashes": {
+    "persistent_graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "result": "EA42028C6BC09884F081A3A29F4B3616CCD56757EB3E31E9A19554EB83144A6D"
+  },
+  "development_metrics": {
+    "persistent_evidence_records": 6,
+    "persistent_unique_paths": 2,
+    "focused_relationship_tests_passed": 29,
+    "repository_tests_passed": 263,
+    "repository_tests_skipped": 2,
+    "disposable_live_tests_passed": 1,
+    "persistent_nodes": 7233,
+    "persistent_relationships": 9688,
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "existing_retrieval_preserved": "PASS",
+    "verified_bounded_source_linked_traversal": "PASS",
+    "multilingual_conservative_routing": "PASS",
+    "graph_unavailable_fallback": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_MINIMAL_RUNTIME_GRAPHRAG_V1",
+  "conclusion": "Keep the minimal relationship-aware runtime integration. It follows only verified relationships and preserves ordinary retrieval when graph expansion is not justified or unavailable.",
+  "recommendation": "Populate additional reviewed relationships through the existing per-document ingestion seam, then run a bounded gold-blind answer-quality evaluation before production promotion.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
