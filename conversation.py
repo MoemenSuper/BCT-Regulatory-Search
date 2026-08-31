@@ -146,6 +146,13 @@ def combine_documents(chroma_docs, bm25_docs):
             combined_docs.append(document)
 
     return combined_docs
+
+
+def _rank_candidates(reranker, query, documents):
+    scored_documents = score_documents(reranker, query, documents)
+    return rank_scored_documents(scored_documents)
+
+
 def chat(
     message,
     memory_state,
@@ -176,8 +183,11 @@ def chat(
     bm25_docs = retrieve_bm25(query_for_retrieval, bm25, bm25_documents)
 
     candidate_docs = combine_documents(retrieved_docs, bm25_docs)
-    scored_docs = score_documents(reranker, query_for_retrieval, candidate_docs)
-    reranked_results = rank_scored_documents(scored_docs)
+    reranked_results = _rank_candidates(
+        reranker,
+        query_for_retrieval,
+        candidate_docs,
+    )
 
     graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
     if graph_retriever is not None:
@@ -192,12 +202,11 @@ def chat(
                 candidate_docs,
                 list(graph_result.documents),
             )
-            scored_docs = score_documents(
+            reranked_results = _rank_candidates(
                 reranker,
                 query_for_retrieval,
                 candidate_docs,
             )
-            reranked_results = rank_scored_documents(scored_docs)
 
     top_results = reranked_results[:5]
     documents_for_llm = [document for document, _ in top_results]

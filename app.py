@@ -44,13 +44,15 @@ async def lifespan(app: FastAPI):
 
     app.state.bm25_documents = documents
     app.state.bm25 = create_bm25(documents)
-    graph_driver, graph_retriever = open_relationship_graph_runtime()
-    app.state.graph_retriever = graph_retriever
+    graph_runtime = open_relationship_graph_runtime()
+    app.state.graph_retriever = (
+        graph_runtime.retriever if graph_runtime is not None else None
+    )
     try:
         yield
     finally:
-        if graph_driver is not None:
-            graph_driver.close()
+        if graph_runtime is not None:
+            graph_runtime.close()
 app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
 
 @app.get("/health")

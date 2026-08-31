@@ -1,4 +1,5 @@
 from langchain_core.documents import Document
+import pytest
 
 import conversation
 from regulatory_graph.neo4j_store import RelationshipEvidence
@@ -31,6 +32,41 @@ def _document(filename, page=0, text="ordinary evidence"):
     )
 
 
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Quels documents citent la circulaire 2013-15 ?",
+        "Quelle circulaire remplace ce document ?",
+        "Which documents cite Circular 2013-15?",
+        "Does this note amend Circular 2013-15?",
+        "Which documents are cited by Circular 2017-08?",
+        "Which circular was replaced by Circular 2016-03?",
+        "How are Circular 2017-08 and Circular 2013-15 related?",
+        "Comment la circulaire 2017-08 est-elle liée à la circulaire 2013-15 ?",
+        "ما العلاقة بين المنشورين؟",
+        "كيف يرتبط هذا المنشور بالمذكرة؟",
+        "ما هي المذكرة التي تلغي هذا المنشور؟",
+    ),
+)
+def test_relationship_intent_covers_incoming_and_outgoing_multilingual_queries(query):
+    assert is_relationship_query(query) is True
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Comment modifier mes informations de contact ?",
+        "Replace the email address in my profile.",
+        "Replace the document attached to my profile.",
+        "What is the relationship between interest rates and inflation?",
+        "Quel est le ratio minimum requis ?",
+        "كيف أعدل معلومات الاتصال الخاصة بي؟",
+    ),
+)
+def test_non_document_actions_do_not_trigger_relationship_retrieval(query):
+    assert is_relationship_query(query) is False
+
+
 def test_non_relationship_query_never_calls_neo4j():
     graph = FakeRelationshipGraph()
     retriever = RelationshipGraphRetriever(graph)
@@ -42,6 +78,43 @@ def test_non_relationship_query_never_calls_neo4j():
 
     assert is_relationship_query("Quel est le ratio minimum requis ?") is False
     assert result.documents == ()
+    assert result.trace.status == GraphRetrievalStatus.NOT_REQUESTED
+    assert graph.calls == []
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        "What did it replace?",
+        "What is its predecessor?",
+        "Que remplace-t-elle ?",
+        "Quel est son prédécesseur ?",
+        "ما الذي يلغيه؟",
+        "ما الذي يعدله؟",
+    ),
+)
+def test_anaphoric_relationship_follow_up_uses_available_regulatory_seed(query):
+    graph = FakeRelationshipGraph()
+    retriever = RelationshipGraphRetriever(graph)
+
+    result = retriever.retrieve(
+        query,
+        (_document("Cir_2016_03_fr.pdf"),),
+    )
+
+    assert is_relationship_query(query) is False
+    assert result.trace.status == GraphRetrievalStatus.NO_EVIDENCE
+    assert graph.calls == [(('Cir_2016_03_fr.pdf',), 10)]
+
+
+def test_anaphoric_relationship_follow_up_without_a_seed_makes_no_graph_call():
+    graph = FakeRelationshipGraph()
+
+    result = RelationshipGraphRetriever(graph).retrieve(
+        "What did it replace?",
+        (),
+    )
+
     assert result.trace.status == GraphRetrievalStatus.NOT_REQUESTED
     assert graph.calls == []
 

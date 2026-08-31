@@ -5,6 +5,7 @@ from enum import Enum
 import logging
 import os
 from pathlib import Path
+import re
 from typing import Any, Iterable, Protocol
 
 from langchain_core.documents import Document
@@ -15,39 +16,58 @@ from regulatory_graph.neo4j_store import Neo4jRegulatoryGraph, RelationshipEvide
 logger = logging.getLogger(__name__)
 
 
-_RELATIONSHIP_SIGNALS = (
-    "relation entre",
-    "relations entre",
-    "lien entre",
-    "liens entre",
-    "fait référence",
-    "font référence",
-    "référence à",
-    "cite la circulaire",
-    "cite le document",
-    "modifie",
-    "remplace",
-    "abroge",
-    "dérogation",
-    "prédécesseur",
-    "successeur",
-    "relationship between",
-    "relation between",
-    "refers to",
-    "references the",
-    "cites the",
-    "amends",
-    "replaces",
-    "repeals",
-    "supersedes",
-    "ما العلاقة",
-    "العلاقة بين",
-    "يشير إلى",
-    "تحيل إلى",
-    "يعدل",
-    "ينقح",
-    "يعوض",
-    "يلغي",
+_FRENCH_DOCUMENT = r"(?:documents?|circulaires?|notes?|textes?|instruments?)"
+_FRENCH_RELATION = (
+    r"(?:cit(?:e|ent|é|ée|és|ées)|référenc(?:e|ent|é|ée|és|ées)|"
+    r"(?:fait|font)\s+référence|"
+    r"modifi(?:e|ent|é|ée|és|ées)|remplac(?:e|ent|é|ée|és|ées)|"
+    r"abrog(?:e|ent|é|ée|és|ées)|dérog(?:e|ent|ation)|"
+    r"li(?:e|ent|é|ée|és|ées)|prédécesseur|successeur)"
+)
+_ENGLISH_DOCUMENT = r"(?:documents?|circulars?|notes?|texts?|instruments?)"
+_ENGLISH_RELATION = (
+    r"(?:cite|cites|cited|refer\s+to|refers\s+to|reference|references|"
+    r"referenced|amend|amends|amended|replace|replaces|replaced|"
+    r"repeal|repeals|repealed|supersede|supersedes|superseded|"
+    r"related|predecessor|successor)"
+)
+_ARABIC_DOCUMENT = r"(?:المنشور(?:ات|ين)?|منشور|المذكرة|مذكرة|الوثيقة|وثيقة)"
+_ARABIC_RELATION = (
+    r"(?:يشير|تشير|تحيل|يعدل|تعدل|ينقح|تنقح|يعوض|تعوض|يلغي|تلغي|"
+    r"يستبدل|تستبدل|يرتبط|ترتبط|مرتبطة)"
+)
+_REGULATORY_DOCUMENT_CONTEXT = re.compile(
+    r"\b(?:circulaires?|notes?|instruments?|"
+    r"documents?\s+réglementaires?|textes?\s+réglementaires?|"
+    r"circulars?|regulatory\s+(?:documents?|notes?|texts?|instruments?))\b|"
+    rf"{_ARABIC_DOCUMENT}",
+    re.IGNORECASE,
+)
+_RELATIONSHIP_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\b(?:relations?|liens?)\s+entre\b",
+        rf"\b{_FRENCH_DOCUMENT}\b.{{0,120}}\b{_FRENCH_RELATION}\b",
+        rf"\b{_FRENCH_RELATION}\b.{{0,120}}\b{_FRENCH_DOCUMENT}\b",
+        r"\b(?:relationship|relation|link)s?\s+between\b",
+        rf"\b{_ENGLISH_DOCUMENT}\b.{{0,120}}\b{_ENGLISH_RELATION}\b",
+        rf"\b{_ENGLISH_RELATION}\b.{{0,120}}\b{_ENGLISH_DOCUMENT}\b",
+        r"(?:ما\s+)?العلاقة\s+بين",
+        rf"{_ARABIC_DOCUMENT}.{{0,120}}{_ARABIC_RELATION}",
+        rf"{_ARABIC_RELATION}.{{0,120}}{_ARABIC_DOCUMENT}",
+    )
+)
+_ANAPHORIC_RELATIONSHIP_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\bwhat\s+(?:did|does)\s+(?:it|this|that)\s+"
+        r"(?:cite|amend|replace|repeal|supersede)\b",
+        r"\bwhat\s+(?:is|was)\s+(?:its|the)\s+(?:predecessor|successor)\b",
+        r"\bque\s+(?:cite|modifie|remplace|abroge)"
+        r"(?:-t-(?:elle|il)|\s+(?:elle|il))?\b",
+        r"\bquel(?:le)?\s+est\s+son\s+(?:prédécesseur|successeur)\b",
+        r"(?:ما\s+الذي|ماذا)\s+(?:يلغيه|يعدله|يستبدله|يستشهد\s+به)",
+    )
 )
 
 
@@ -94,7 +114,16 @@ class RelationshipEvidenceGraph(Protocol):
 
 def is_relationship_query(query: str) -> bool:
     normalized = " ".join(query.casefold().split())
-    return any(signal in normalized for signal in _RELATIONSHIP_SIGNALS)
+    return bool(_REGULATORY_DOCUMENT_CONTEXT.search(normalized)) and any(
+        pattern.search(normalized) for pattern in _RELATIONSHIP_PATTERNS
+    )
+
+
+def _is_anaphoric_relationship_query(query: str) -> bool:
+    normalized = " ".join(query.casefold().split())
+    return any(
+        pattern.search(normalized) for pattern in _ANAPHORIC_RELATIONSHIP_PATTERNS
+    )
 
 
 class RelationshipGraphRetriever:
@@ -116,10 +145,14 @@ class RelationshipGraphRetriever:
         query: str,
         seed_documents: Iterable[Document],
     ) -> GraphRetrievalResult:
-        if not is_relationship_query(query):
+        explicit_intent = is_relationship_query(query)
+        seed_filenames = _seed_filenames(seed_documents, limit=self._max_seeds)
+        seeded_follow_up = bool(seed_filenames) and _is_anaphoric_relationship_query(
+            query
+        )
+        if not explicit_intent and not seeded_follow_up:
             return _empty_result(GraphRetrievalStatus.NOT_REQUESTED)
 
-        seed_filenames = _seed_filenames(seed_documents, limit=self._max_seeds)
         if not seed_filenames:
             return _empty_result(GraphRetrievalStatus.NO_SEED)
 
@@ -164,18 +197,27 @@ class RelationshipGraphRetriever:
         )
 
 
+@dataclass(frozen=True)
+class LocalRelationshipGraphRuntime:
+    retriever: RelationshipGraphRetriever
+    _driver: Any
+
+    def close(self) -> None:
+        self._driver.close()
+
+
 def open_relationship_graph_runtime(
     *,
     uri: str | None = None,
     database: str | None = None,
-) -> tuple[Any | None, RelationshipGraphRetriever | None]:
+) -> LocalRelationshipGraphRuntime | None:
     resolved_uri = (
         uri
         if uri is not None
         else os.environ.get("BCT_NEO4J_URI", "bolt://127.0.0.1:17687")
     ).strip()
     if not resolved_uri:
-        return None, None
+        return None
     resolved_database = database or os.environ.get("BCT_NEO4J_DATABASE", "neo4j")
 
     driver = None
@@ -195,10 +237,13 @@ def open_relationship_graph_runtime(
             "Local Neo4j GraphRAG is unavailable; ordinary retrieval remains active: %s",
             type(error).__name__,
         )
-        return None, None
+        return None
 
     graph = Neo4jRegulatoryGraph(driver, database=resolved_database)
-    return driver, RelationshipGraphRetriever(graph)
+    return LocalRelationshipGraphRuntime(
+        retriever=RelationshipGraphRetriever(graph),
+        _driver=driver,
+    )
 
 
 def _seed_filenames(
@@ -237,7 +282,7 @@ def _evidence_document(evidence: RelationshipEvidence) -> Document:
             "graph_direction": evidence.direction,
             "graph_fact_uid": evidence.fact_uid,
             "graph_path": evidence.path,
-            "graph_relation": evidence.relation_kind,
+            "graph_relation": evidence.relation_label,
         },
     )
 

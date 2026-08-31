@@ -563,11 +563,16 @@ def test_relationship_evidence_is_verified_bounded_and_source_linked():
     )
     query, parameters = driver.calls[0]
     assert "fact.verification_status = 'VERIFIED'" in query
-    assert "DECLARES_REFERENCE|DECLARES_CHANGE" in query
+    assert "type(declares) IN ['DECLARES_REFERENCE', 'DECLARES_CHANGE']" in query
     assert "EVIDENCED_BY" in query
     assert "ON_PAGE" in query
     assert parameters["seed_filenames"] == ["CB_2017_08_FR.pdf"]
     assert parameters["limit"] == 4
+
+    invalid = evidence[0].model_dump(mode="python")
+    invalid["relation_kind"] = "RELATED_TO"
+    with pytest.raises(ValueError):
+        type(evidence[0]).model_validate(invalid)
 
 
 def test_graph_snapshot_hash_is_stable_across_database_row_order():

@@ -18,15 +18,15 @@ def test_chat_rejects_empty_question():
 
 
 def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(monkeypatch):
-    class FakeDriver:
+    class FakeGraphRuntime:
         def __init__(self):
             self.closed = False
+            self.retriever = object()
 
         def close(self):
             self.closed = True
 
-    fake_driver = FakeDriver()
-    fake_retriever = object()
+    fake_runtime = FakeGraphRuntime()
     received = {}
     monkeypatch.setattr(app_module, "create_embedding_model", lambda: object())
     monkeypatch.setattr(app_module, "load_vector_store", lambda _model: object())
@@ -36,7 +36,7 @@ def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(monkeypatc
     monkeypatch.setattr(
         app_module,
         "open_relationship_graph_runtime",
-        lambda: (fake_driver, fake_retriever),
+        lambda: fake_runtime,
     )
 
     def fake_chat(*_args, graph_retriever=None, **_kwargs):
@@ -54,5 +54,5 @@ def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(monkeypatc
         response = live_client.post("/chat", json={"question": "Bonjour"})
 
     assert response.status_code == 200
-    assert received["graph_retriever"] is fake_retriever
-    assert fake_driver.closed is True
+    assert received["graph_retriever"] is fake_runtime.retriever
+    assert fake_runtime.closed is True

@@ -129,13 +129,19 @@ class RelationshipEvidence(BaseModel):
     seed_filename: str
     seed_instrument_uid: str
     related_instrument_uid: str
-    relation_kind: str
+    relation_kind: Literal["CITES"] | LegalAction
     direction: Literal["OUTGOING", "INCOMING"]
     fact_uid: str
     evidence_uid: str
     filename: str
     page_number: int
     quote: str
+
+    @property
+    def relation_label(self) -> str:
+        if isinstance(self.relation_kind, LegalAction):
+            return self.relation_kind.value
+        return self.relation_kind
 
     @property
     def path(self) -> str:
@@ -145,7 +151,7 @@ class RelationshipEvidence(BaseModel):
         else:
             source = self.related_instrument_uid
             target = self.seed_instrument_uid
-        return f"{source} -[{self.relation_kind}]-> {target}"
+        return f"{source} -[{self.relation_label}]-> {target}"
 
 
 class _BundleReferences:
@@ -538,9 +544,10 @@ class Neo4jRegulatoryGraph:
             "MATCH (seed:Instrument)-[:HAS_EDITION]->"
             "(:SourceEdition {filename: seed_filename}) "
             "CALL (seed) { "
-            "MATCH (seed)-[declares:DECLARES_REFERENCE|DECLARES_CHANGE]->"
+            "MATCH (seed)-[declares]->"
             "(fact)-[:TARGETS]->(target) "
-            "WHERE fact.verification_status = 'VERIFIED' "
+            "WHERE type(declares) IN ['DECLARES_REFERENCE', 'DECLARES_CHANGE'] "
+            "AND fact.verification_status = 'VERIFIED' "
             "OPTIONAL MATCH (related_by_provision:Instrument)-[:HAS_PROVISION]->"
             "(target:Provision) "
             "WITH declares, fact, target, "
@@ -550,10 +557,10 @@ class Neo4jRegulatoryGraph:
             "RETURN declares, fact, related, "
             "'OUTGOING' AS direction "
             "UNION ALL "
-            "MATCH (related:Instrument)-"
-            "[declares:DECLARES_REFERENCE|DECLARES_CHANGE]->"
+            "MATCH (related:Instrument)-[declares]->"
             "(fact)-[:TARGETS]->(target) "
-            "WHERE fact.verification_status = 'VERIFIED' "
+            "WHERE type(declares) IN ['DECLARES_REFERENCE', 'DECLARES_CHANGE'] "
+            "AND fact.verification_status = 'VERIFIED' "
             "AND (target = seed OR EXISTS { "
             "MATCH (seed)-[:HAS_PROVISION]->(target) }) "
             "RETURN declares, fact, related, "
