@@ -511,7 +511,8 @@ class Neo4jRegulatoryGraph:
     ) -> tuple[AffectedProvision, ...]:
         if not 1 <= limit <= 20:
             raise ValueError("affected provision limit must be between 1 and 20")
-        if not seeds:
+        bounded_seeds = tuple(seed for seed in seeds if seed.page_numbers)
+        if not bounded_seeds:
             return ()
         result = self._execute(
             "UNWIND $seeds AS seed "
@@ -531,8 +532,7 @@ class Neo4jRegulatoryGraph:
             "MATCH (event)-[:EVIDENCED_BY]->(:EvidenceSpan)-[:ON_PAGE]->"
             "(page:Page)<-[:HAS_PAGE]-(seed_edition) "
             "WHERE event.verification_status = 'VERIFIED' "
-            "AND (size(seed.page_numbers) = 0 OR "
-            "page.page_number IN seed.page_numbers) "
+            "AND page.page_number IN seed.page_numbers "
             "RETURN DISTINCT provision.uid AS uid, "
             "provision.instrument_uid AS instrument_uid, "
             "provision.label AS label, "
@@ -543,7 +543,7 @@ class Neo4jRegulatoryGraph:
                     "filename": seed.filename,
                     "page_numbers": list(seed.page_numbers),
                 }
-                for seed in seeds
+                for seed in bounded_seeds
             ],
             limit=limit,
         )

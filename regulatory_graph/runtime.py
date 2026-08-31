@@ -82,10 +82,14 @@ _TEMPORAL_RULE_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
         r"\b(?:current|currently|in\s+force|applicable\s+(?:rule|provision)|"
+        r"(?:was|were)\s+applicable|applied\s+(?:on|at)|"
+        r"will\s+(?:apply|be\s+applicable)|"
         r"changed\s+across\s+years|over\s+the\s+years|as\s+of)\b",
         r"\b(?:actuel(?:le)?|en\s+vigueur|règle\s+applicable|"
+        r"(?:était|étaient)\s+applicable|"
+        r"(?:sera|seront)\s+applicable|"
         r"au\s+fil\s+des\s+années|à\s+la\s+date)\b",
-        r"(?:الساري|النافذ|الحالي|عبر\s+السنوات|اعتبارا\s+من)",
+        r"(?:الساري|النافذ|الحالي|المطبق|سيطبق|عبر\s+السنوات|اعتبارا\s+من)",
     )
 )
 _TEMPORAL_SUBJECT_CONTEXT = re.compile(
@@ -127,7 +131,6 @@ class TemporalRetrievalStatus(str, Enum):
 
 class TemporalFailureReason(str, Enum):
     INVALID_EXPLICIT_DATE = "invalid_explicit_date"
-    FUTURE_AS_OF_NOT_SUPPORTED = "future_as_of_not_supported"
     EXACT_HISTORICAL_DATE_REQUIRED = "exact_historical_date_required"
     NO_RETRIEVAL_SEED = "no_retrieval_seed"
     TEMPORAL_GRAPH_UNAVAILABLE = "temporal_graph_unavailable"
@@ -141,6 +144,7 @@ class TemporalFailureReason(str, Enum):
     INTRODUCED_VERSION_MISSING = "introduced_version_missing"
     REPLACEMENT_PREDECESSOR_INCOMPLETE = "replacement_predecessor_incomplete"
     VERSION_PREDECESSOR_INCOMPLETE = "version_predecessor_incomplete"
+    SAME_DATE_LINEAGE_ORDER_AMBIGUOUS = "same_date_lineage_order_ambiguous"
     RESOLVED_VERSION_NOT_LATEST = "resolved_version_not_latest_introduced_version"
 
 
@@ -230,6 +234,10 @@ def is_temporal_rule_query(query: str) -> bool:
     )
 
 
+def _today() -> date:
+    return date.today()
+
+
 def _temporal_as_of(query: str, *, current_date: date) -> date | None:
     iso_match = re.search(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)", query)
     if iso_match:
@@ -276,7 +284,7 @@ class RegulatoryGraphRetriever:
         self._max_seeds = max_seeds
         self._max_evidence = max_evidence
         self._max_provisions = max_provisions
-        self._current_date = current_date or date.today()
+        self._current_date = current_date
 
     def retrieve(
         self,
@@ -285,7 +293,8 @@ class RegulatoryGraphRetriever:
     ) -> GraphRetrievalResult:
         explicit_intent = is_relationship_query(query)
         temporal_intent = is_temporal_rule_query(query)
-        temporal_as_of = _temporal_as_of(query, current_date=self._current_date)
+        current_date = self._current_date or _today()
+        temporal_as_of = _temporal_as_of(query, current_date=current_date)
         if temporal_intent and temporal_as_of is None:
             reason = (
                 TemporalFailureReason.INVALID_EXPLICIT_DATE
@@ -297,13 +306,6 @@ class RegulatoryGraphRetriever:
                 TemporalRetrievalStatus.DATE_AMBIGUOUS,
                 as_of=None,
                 reason=reason,
-            )
-        if temporal_intent and temporal_as_of > self._current_date:
-            return _temporal_failure(
-                GraphRetrievalStatus.NO_EVIDENCE,
-                TemporalRetrievalStatus.DATE_AMBIGUOUS,
-                as_of=temporal_as_of,
-                reason=TemporalFailureReason.FUTURE_AS_OF_NOT_SUPPORTED,
             )
         seed_locations = _seed_locations(seed_documents, limit=self._max_seeds)
         seed_filenames = tuple(seed.filename for seed in seed_locations)
@@ -540,8 +542,6 @@ def _seed_locations(
         filename = Path(str(source)).name if source else ""
         if not filename:
             continue
-        if filename not in pages_by_filename and len(pages_by_filename) == limit:
-            break
         page_label = document.metadata.get("page_label")
         page = document.metadata.get("page")
         try:
@@ -551,10 +551,12 @@ def _seed_locations(
                 else int(page) + 1
             )
         except (TypeError, ValueError):
-            page_number = None
-        pages = pages_by_filename.setdefault(filename, set())
-        if page_number is not None and page_number >= 1:
-            pages.add(page_number)
+            continue
+        if page_number < 1:
+            continue
+        if filename not in pages_by_filename and len(pages_by_filename) == limit:
+            continue
+        pages_by_filename.setdefault(filename, set()).add(page_number)
     return tuple(
         SourcePageSeed(
             filename=filename,
@@ -610,13 +612,22 @@ def _incomplete_temporal_reason(
             return TemporalFailureReason.REPLACEMENT_PREDECESSOR_INCOMPLETE
         if entry.action != LegalAction.ADD and not entry.retired_version_uids:
             return TemporalFailureReason.VERSION_PREDECESSOR_INCOMPLETE
-    latest = max(
-        applicable,
-        key=lambda entry: (entry.effective_from, entry.event_uid),
-    )
+    latest = _latest_unambiguous_lineage_entry(applicable)
+    if latest is None:
+        return TemporalFailureReason.SAME_DATE_LINEAGE_ORDER_AMBIGUOUS
     if resolution.version.uid not in latest.introduced_version_uids:
         return TemporalFailureReason.RESOLVED_VERSION_NOT_LATEST
     return None
+
+
+def _latest_unambiguous_lineage_entry(
+    entries: tuple[LineageEntry, ...],
+) -> LineageEntry | None:
+    latest_date = max(entry.effective_from for entry in entries)
+    latest_entries = tuple(
+        entry for entry in entries if entry.effective_from == latest_date
+    )
+    return latest_entries[0] if len(latest_entries) == 1 else None
 
 
 def _temporal_document(
@@ -632,10 +643,9 @@ def _temporal_document(
         for entry in lineage
         if entry.effective_from is not None and entry.effective_from <= resolution.as_of
     )
-    latest = max(
-        applicable,
-        key=lambda entry: (entry.effective_from, entry.event_uid),
-    )
+    latest = _latest_unambiguous_lineage_entry(applicable)
+    if latest is None:
+        raise ValueError("temporal document requires unambiguous lineage chronology")
     primary_evidence = latest.evidence[0]
     lineage_text = "\n".join(
         f"- {entry.effective_from.isoformat()} {entry.action.value} "

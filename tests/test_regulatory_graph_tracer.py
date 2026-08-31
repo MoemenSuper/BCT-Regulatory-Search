@@ -507,6 +507,17 @@ def test_affected_provisions_use_verified_source_pages_and_partial_targets():
     assert parameters["limit"] == 4
 
 
+def test_affected_provisions_reject_unbounded_source_seeds():
+    driver = FakeDriver()
+
+    provisions = Neo4jRegulatoryGraph(driver).affected_provisions(
+        (SourcePageSeed(filename="Cir_2016_03_fr.pdf", page_numbers=()),),
+    )
+
+    assert provisions == ()
+    assert driver.calls == []
+
+
 def test_as_of_query_rejects_overlapping_verified_versions():
     version = circular_2016_03_fr_bundle().provision_versions[0]
     driver = FakeDriver(

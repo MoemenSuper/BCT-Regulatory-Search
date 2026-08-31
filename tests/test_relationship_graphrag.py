@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 import pytest
 
 import conversation
+import regulatory_graph.runtime as graph_runtime
 from regulatory_graph.fixtures import circular_2016_03_fr_bundle
 from regulatory_graph.neo4j_store import (
     AffectedProvision,
@@ -85,6 +86,12 @@ def test_non_document_actions_do_not_trigger_relationship_retrieval(query):
         "Quelle règle est en vigueur dans la circulaire 2016-03 ?",
         "ما هي القاعدة السارية في المنشور 2016-03؟",
         "How has Article 4 changed across years?",
+        "Which provision applied on 2017-01-01?",
+        "Quelle disposition était applicable le 31/12/2016 ?",
+        "ما الحكم المطبق في 31/12/2016؟",
+        "Which provision will apply on 2027-01-01?",
+        "Quelle disposition sera applicable le 31/12/2027 ?",
+        "ما الحكم الذي سيطبق في 31/12/2027؟",
     ),
 )
 def test_temporal_rule_intent_is_multilingual_and_provision_scoped(query):
@@ -97,6 +104,8 @@ def test_temporal_rule_intent_is_multilingual_and_provision_scoped(query):
         "What is the current account deficit?",
         "Update my current contact details.",
         "What was inflation in 2017?",
+        "Summarize Circular 2016-03 dated 30/12/2016.",
+        "What is the publication date of Circular 2016-03 (2016-12-30)?",
     ),
 )
 def test_non_regulatory_current_or_historical_questions_are_not_temporal_rule_queries(query):
@@ -232,6 +241,26 @@ def test_graph_unavailability_requires_abstention_for_temporal_relationship_quer
     assert result.trace.status == GraphRetrievalStatus.UNAVAILABLE
     assert result.trace.temporal_status == TemporalRetrievalStatus.UNAVAILABLE
     assert result.requires_temporal_abstention is True
+
+
+def test_temporal_query_without_a_valid_source_page_fails_closed():
+    class MustNotBeCalledGraph(FakeRelationshipGraph):
+        def affected_provisions(self, _seeds, *, limit):
+            raise AssertionError(f"unbounded graph query must not run with {limit}")
+
+    seed = Document(
+        page_content="ordinary evidence",
+        metadata={"source": "documents/Cir_2016_03_fr.pdf"},
+    )
+    result = RelationshipGraphRetriever(
+        MustNotBeCalledGraph(),
+        current_date=date(2026, 8, 31),
+    ).retrieve("Which provision applied on 2017-01-01?", (seed,))
+
+    assert result.documents == ()
+    assert result.trace.status == GraphRetrievalStatus.NO_SEED
+    assert result.trace.temporal_status == TemporalRetrievalStatus.NO_CANDIDATE
+    assert result.trace.temporal_reason == TemporalFailureReason.NO_RETRIEVAL_SEED
 
 
 def test_current_rule_query_returns_one_complete_verified_provision_version():
@@ -379,6 +408,69 @@ def test_current_rule_query_abstains_when_version_predecessor_is_incomplete(
     assert result.requires_temporal_abstention is True
 
 
+def test_current_rule_query_abstains_when_same_date_event_order_is_unknown():
+    version = circular_2016_03_fr_bundle().provision_versions[0]
+
+    class SameDateTemporalGraph(FakeRelationshipGraph):
+        def affected_provisions(self, _seeds, *, limit):
+            assert limit == 10
+            return (
+                AffectedProvision(
+                    uid=version.provision_uid,
+                    instrument_uid="BCT:CIRCULAR:1991:24",
+                    label="Article 4",
+                    canonical_path="article/4",
+                ),
+            )
+
+        def resolve_provision_as_of(self, provision_uid, as_of):
+            return TemporalResolution(
+                provision_uid=provision_uid,
+                as_of=as_of,
+                version=version,
+                reason="resolved",
+            )
+
+        def lineage(self, _provision_uid):
+            def entry(event_uid, introduced_uid):
+                return LineageEntry(
+                    event_uid=event_uid,
+                    source_instrument_uid="BCT:CIRCULAR:2016:03",
+                    action="ADD",
+                    effective_from=date(2016, 12, 30),
+                    introduced_version_uids=(introduced_uid,),
+                    retired_version_uids=(),
+                    evidence=(
+                        {
+                            "uid": f"evidence:{event_uid}",
+                            "filename": "Cir_2016_03_fr.pdf",
+                            "page_number": 2,
+                            "quote": "Verified same-date change.",
+                        },
+                    ),
+                    predecessor_complete=True,
+                )
+
+            return (
+                entry("event:bct:2016:03:first", "version:first"),
+                entry("event:bct:2016:03:second", version.uid),
+            )
+
+    result = RelationshipGraphRetriever(
+        SameDateTemporalGraph(),
+        current_date=date(2026, 8, 31),
+    ).retrieve(
+        "What rule in Article 4 is currently in force?",
+        (_document("Cir_2016_03_fr.pdf", page=1),),
+    )
+
+    assert result.documents == ()
+    assert result.trace.temporal_status == TemporalRetrievalStatus.INCOMPLETE
+    assert result.trace.temporal_reason == (
+        TemporalFailureReason.SAME_DATE_LINEAGE_ORDER_AMBIGUOUS
+    )
+
+
 def test_current_rule_query_does_not_guess_between_multiple_affected_parts():
     class AmbiguousTemporalGraph(FakeRelationshipGraph):
         def __init__(self):
@@ -435,6 +527,7 @@ def test_current_rule_query_does_not_guess_between_multiple_affected_parts():
     (
         ("Which rule was in force as of 2017-01-01?", date(2017, 1, 1)),
         ("Quelle règle était en vigueur au 31/12/2016 ?", date(2016, 12, 31)),
+        ("Which provision will apply on 2027-01-01?", date(2027, 1, 1)),
     ),
 )
 def test_temporal_rule_query_uses_the_explicit_supported_date(query, expected_date):
@@ -479,6 +572,44 @@ def test_temporal_rule_query_uses_the_explicit_supported_date(query, expected_da
     assert result.trace.as_of == expected_date
 
 
+def test_current_rule_query_refreshes_today_for_each_request(monkeypatch):
+    observed_dates = []
+    changing_dates = iter((date(2026, 8, 31), date(2026, 9, 1)))
+    monkeypatch.setattr(graph_runtime, "_today", lambda: next(changing_dates))
+
+    class DateCapturingGraph(FakeRelationshipGraph):
+        def affected_provisions(self, _seeds, *, limit):
+            assert limit == 10
+            return (
+                AffectedProvision(
+                    uid="BCT:CIRCULAR:1991:24:ARTICLE:4",
+                    instrument_uid="BCT:CIRCULAR:1991:24",
+                    label="Article 4",
+                    canonical_path="article/4",
+                ),
+            )
+
+        def resolve_provision_as_of(self, provision_uid, as_of):
+            observed_dates.append(as_of)
+            return TemporalResolution(
+                provision_uid=provision_uid,
+                as_of=as_of,
+                version=None,
+                reason="no_verified_version",
+            )
+
+        def lineage(self, _provision_uid):
+            return ()
+
+    retriever = RelationshipGraphRetriever(DateCapturingGraph())
+    seed = (_document("Cir_2016_03_fr.pdf", page=1),)
+
+    retriever.retrieve("What rule is currently in force?", seed)
+    retriever.retrieve("What rule is currently in force?", seed)
+
+    assert observed_dates == [date(2026, 8, 31), date(2026, 9, 1)]
+
+
 @pytest.mark.parametrize(
     "query",
     (
@@ -519,26 +650,6 @@ def test_invalid_explicit_temporal_date_abstains_instead_of_raising():
     assert result.documents == ()
     assert result.trace.temporal_status == TemporalRetrievalStatus.DATE_AMBIGUOUS
     assert result.trace.temporal_reason == TemporalFailureReason.INVALID_EXPLICIT_DATE
-
-
-def test_future_temporal_date_abstains_without_querying_the_graph():
-    class MustNotBeCalledGraph(FakeRelationshipGraph):
-        def affected_provisions(self, _seeds, *, limit):
-            raise AssertionError(f"future graph query must not run with {limit}")
-
-    result = RelationshipGraphRetriever(
-        MustNotBeCalledGraph(),
-        current_date=date(2026, 8, 31),
-    ).retrieve(
-        "Which rule was in force as of 2027-01-01?",
-        (_document("Cir_2016_03_fr.pdf", page=1),),
-    )
-
-    assert result.documents == ()
-    assert result.trace.temporal_status == TemporalRetrievalStatus.DATE_AMBIGUOUS
-    assert result.trace.temporal_reason == (
-        TemporalFailureReason.FUTURE_AS_OF_NOT_SUPPORTED
-    )
 
 
 def test_chat_reranks_graph_evidence_with_the_existing_rag_candidates(monkeypatch):
