@@ -759,7 +759,7 @@ def test_chat_reranks_graph_evidence_with_the_existing_rag_candidates(monkeypatc
     )
 
     assert len(score_calls) == 2
-    assert fake_retriever.calls[0][0] == "Quelle relation entre ces circulaires ?"
+    assert fake_retriever.calls[0][0] == "relation entre circulaires"
     assert fake_retriever.calls[0][1] == (ordinary,)
     assert answer_documents[0] is graph_document
     assert result["sources"][0]["page"] == 28

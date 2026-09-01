@@ -1,10 +1,12 @@
 import json
+from enum import Enum
 from llm import create_llm, generate_answer
 from vector_store import retrieve_relevant_chunks
 from reranker import score_documents, rank_scored_documents
 from langchain_core.prompts import ChatPromptTemplate
 from pathlib import Path
 from bm25 import retrieve_bm25
+from pydantic import BaseModel, ConfigDict, model_validator
 from regulatory_graph.runtime import (
     GraphRetrievalStatus,
     GraphRetrievalTrace,
@@ -12,6 +14,37 @@ from regulatory_graph.runtime import (
     TemporalRetrievalStatus,
     is_temporal_rule_query,
 )
+
+
+class RouteIntent(str, Enum):
+    GENERAL_CHAT = "GENERAL_CHAT"
+    NEW_TOPIC = "NEW_TOPIC"
+    FOLLOW_UP = "FOLLOW_UP"
+    AMBIGUOUS = "AMBIGUOUS"
+
+
+class MessageRoute(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    intent: RouteIntent
+    rewrite_query: str | None = None
+    new_topic: str | None = None
+    current_topic: str | None = None
+
+    @model_validator(mode="after")
+    def validate_retrieval_route(self):
+        if self.intent in {RouteIntent.NEW_TOPIC, RouteIntent.FOLLOW_UP}:
+            if not self.rewrite_query or not self.rewrite_query.strip():
+                raise ValueError("retrieval route requires a standalone rewrite_query")
+        if self.intent == RouteIntent.NEW_TOPIC and not self.new_topic:
+            raise ValueError("NEW_TOPIC requires new_topic")
+        if self.intent == RouteIntent.FOLLOW_UP and not self.current_topic:
+            raise ValueError("FOLLOW_UP requires current_topic")
+        return self
+
+
+def _ambiguous_route():
+    return MessageRoute(intent=RouteIntent.AMBIGUOUS).model_dump(mode="json")
 
 
 
@@ -56,11 +89,29 @@ def render_memory_state(memory_state):
     first_topic = memory_state.get("first_topic") or "None"
     current_topic = memory_state.get("current_topic") or "None"
 
-    return (
+    summary = (
         f"First topic: {first_topic}\n"
         f"Current topic: {current_topic}\n"
         f"Topics discussed: {', '.join(topics) if topics else 'None'}"
     )
+    turns = memory_state.get("turns", [])[-4:]
+    if not turns:
+        return summary
+    rendered_turns = []
+    for turn in turns:
+        sources = ", ".join(
+            f"{source.get('file')} p.{source.get('page')}"
+            for source in turn.get("sources", [])
+        ) or "None"
+        rendered_turns.append(
+            "User: {user}\nStandalone query: {query}\nAnswer: {answer}\nSources: {sources}".format(
+                user=turn.get("user_message", ""),
+                query=turn.get("standalone_query", ""),
+                answer=turn.get("answer", ""),
+                sources=sources,
+            )
+        )
+    return f"{summary}\n\nRecent turns:\n" + "\n\n".join(rendered_turns)
 
 
 def route_message(llm, message, memory_state):
@@ -73,6 +124,7 @@ def route_message(llm, message, memory_state):
         - GENERAL_CHAT
         - NEW_TOPIC
         - FOLLOW_UP
+        - AMBIGUOUS
 
         Return only valid JSON with these keys:
         intent
@@ -83,8 +135,9 @@ def route_message(llm, message, memory_state):
         Rules:
         - If the user refers to the first circular, previous circular, that circular, these ones, etc., use FOLLOW_UP.
         - If the user changes to a different circular/topic, use NEW_TOPIC.
+        - If a reference could point to more than one discussed topic and cannot be resolved safely, use AMBIGUOUS.
         - If the message is a greeting or identity question, use GENERAL_CHAT.
-        - rewrite_query should be the cleaned search query to use for retrieval.
+        - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query with resolved document names, provisions, and dates from memory when available.
         - current_topic should be the topic the message refers to now.
                 """),
         ("human",
@@ -99,17 +152,32 @@ def route_message(llm, message, memory_state):
         "message": message,
     }).content
 
-    print("ROUTER RAW OUTPUT:", repr(result))
-
     result = result.strip()
 
     if result.startswith("```"):
         result = result.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
-    return json.loads(result)
+    try:
+        route = MessageRoute.model_validate(json.loads(result))
+    except (json.JSONDecodeError, ValueError):
+        return _ambiguous_route()
+    if route.intent == RouteIntent.FOLLOW_UP and not (
+        memory_state.get("turns") or memory_state.get("current_topic")
+    ):
+        return _ambiguous_route()
+    return route.model_dump(mode="json")
 
 
-def update_memory_state(memory_state, route):
+def update_memory_state(
+    memory_state,
+    route,
+    *,
+    message=None,
+    standalone_query=None,
+    answer=None,
+    sources=None,
+    graph_trace=None,
+):
     topics = list(memory_state.get("topics", []))
     first_topic = memory_state.get("first_topic")
     current_topic = memory_state.get("current_topic")
@@ -128,11 +196,43 @@ def update_memory_state(memory_state, route):
         if first_topic is None and topics:
             first_topic = topics[0]
 
+    turns = list(memory_state.get("turns", []))
+    if message is not None:
+        turns.append({
+            "user_message": message,
+            "standalone_query": standalone_query or message,
+            "answer": answer or "",
+            "sources": list(sources or []),
+            "graph_trace": dict(graph_trace or {}),
+        })
+
     return {
         "topics": topics,
         "first_topic": first_topic,
         "current_topic": current_topic,
+        "turns": turns[-6:],
     }
+
+
+def _answer_memory(memory_state, route):
+    if route.get("intent") != RouteIntent.NEW_TOPIC.value:
+        return memory_state
+    topic = route.get("new_topic") or route.get("current_topic")
+    return {
+        "topics": [topic] if topic else [],
+        "first_topic": topic,
+        "current_topic": topic,
+        "turns": [],
+    }
+
+
+def _clarification_message(message):
+    if any("\u0600" <= character <= "\u06ff" for character in message):
+        return "يرجى تحديد المنشور أو المذكرة أو الموضوع الذي تشير إليه."
+    normalized = message.casefold()
+    if any(marker in normalized for marker in ("quel", "quelle", "circulaire", "précédent")):
+        return "Veuillez préciser à quelle circulaire, note ou disposition vous faites référence."
+    return "Please specify which circular, note, or provision you mean."
 
 # Combine both the chroma documents and the bm25 documents into one data structure and avoid repetition. 
 def combine_documents(chroma_docs, bm25_docs):
@@ -222,6 +322,16 @@ def chat(
             ).as_dict(),
         }
 
+    if route["intent"] == "AMBIGUOUS":
+        return {
+            "answer": _clarification_message(message),
+            "sources": [],
+            "memory_state": memory_state,
+            "graph_trace": GraphRetrievalTrace(
+                status=GraphRetrievalStatus.NOT_REQUESTED
+            ).as_dict(),
+        }
+
     query_for_retrieval = route["rewrite_query"] or message
     temporal_graph_query = (
         message
@@ -237,11 +347,21 @@ def chat(
             temporal_status=TemporalRetrievalStatus.UNAVAILABLE,
             temporal_reason=TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE,
         )
+        answer = _temporal_abstention_message(message)
+        trace = graph_trace.as_dict()
         return {
-            "answer": _temporal_abstention_message(message),
+            "answer": answer,
             "sources": [],
-            "memory_state": update_memory_state(memory_state, route),
-            "graph_trace": graph_trace.as_dict(),
+            "memory_state": update_memory_state(
+                memory_state,
+                route,
+                message=message,
+                standalone_query=query_for_retrieval,
+                answer=answer,
+                sources=[],
+                graph_trace=trace,
+            ),
+            "graph_trace": trace,
         }
 
     retrieved_docs = retrieve_relevant_chunks(query_for_retrieval, vector_store)
@@ -259,16 +379,26 @@ def chat(
     if graph_retriever is not None:
         seed_documents = [document for document, _ in reranked_results[:5]]
         graph_result = graph_retriever.retrieve(
-            temporal_graph_query or message,
+            temporal_graph_query or query_for_retrieval,
             seed_documents,
         )
         graph_trace = graph_result.trace
         if graph_result.requires_temporal_abstention:
+            answer = _temporal_abstention_message(message)
+            trace = graph_trace.as_dict()
             return {
-                "answer": _temporal_abstention_message(message),
+                "answer": answer,
                 "sources": [],
-                "memory_state": update_memory_state(memory_state, route),
-                "graph_trace": graph_trace.as_dict(),
+                "memory_state": update_memory_state(
+                    memory_state,
+                    route,
+                    message=message,
+                    standalone_query=query_for_retrieval,
+                    answer=answer,
+                    sources=[],
+                    graph_trace=trace,
+                ),
+                "graph_trace": trace,
             }
         if graph_result.documents:
             candidate_docs = combine_documents(
@@ -284,12 +414,22 @@ def chat(
     top_results = _answer_results(reranked_results)
     documents_for_llm = [document for document, _ in top_results]
 
-    memory_text = render_memory_state(memory_state)
+    memory_text = render_memory_state(_answer_memory(memory_state, route))
     answer = generate_answer(llm, message, documents_for_llm, memory_text)
+    sources = build_sources(top_results)
+    trace = graph_trace.as_dict()
 
     return {
         "answer": answer,
-        "sources": build_sources(top_results),
-        "memory_state": update_memory_state(memory_state, route),
-        "graph_trace": graph_trace.as_dict(),
+        "sources": sources,
+        "memory_state": update_memory_state(
+            memory_state,
+            route,
+            message=message,
+            standalone_query=query_for_retrieval,
+            answer=answer,
+            sources=sources,
+            graph_trace=trace,
+        ),
+        "graph_trace": trace,
     }
