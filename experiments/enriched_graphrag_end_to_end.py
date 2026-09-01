@@ -61,6 +61,35 @@ def runtime_inputs(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _load_cases(suite: Any) -> list[dict[str, Any]]:
+    if isinstance(suite, list):
+        cases = suite
+    elif isinstance(suite, dict):
+        cases = suite.get("cases")
+    else:
+        cases = None
+    if not isinstance(cases, list) or not all(isinstance(case, dict) for case in cases):
+        raise ValueError("Suite must be a case list or an object with a case list")
+    return cases
+
+
+def _expected_page_pairs(case: dict[str, Any]) -> set[tuple[str, int]]:
+    expected_sources = case.get("expected_sources") or []
+    if expected_sources:
+        return {
+            _pair(item["source"], page)
+            for item in expected_sources
+            for page in item.get("pages", [])
+        }
+    if (
+        case.get("relevant", True)
+        and case.get("expected_source") is not None
+        and case.get("expected_page") is not None
+    ):
+        return {_pair(case["expected_source"], case["expected_page"])}
+    return set()
+
+
 def graph_candidate(document: Document) -> dict[str, Any]:
     metadata = dict(document.metadata)
     page = int(metadata.get("page_label", int(metadata.get("page", -1)) + 1))
@@ -113,17 +142,23 @@ def structured_diagnostics(
         if response["status"] == "answered"
         else not response["claims"]
     )
-    expected_pairs = {
-        _pair(item["source"], page)
-        for item in case.get("expected_sources", [])
-        for page in item.get("pages", [])
-    }
+    expected_pairs = _expected_page_pairs(case)
     cited_pairs = {
         _pair(item["source"], item["page"])
         for item in response["citations"]
     }
+    if case.get("relevant", True):
+        status_expected = response["status"] == "answered"
+    else:
+        expected_status = {
+            "clarify": "clarification_needed",
+            "reject_out_of_scope": "out_of_scope",
+            "abstain": "insufficient_evidence",
+        }.get(case.get("expected_behavior"))
+        status_expected = response["status"] == expected_status
     return {
         "answered": response["status"] == "answered",
+        "status_expected": status_expected,
         "citations_match_evidence": citations_match,
         "claim_evidence_links_valid": claim_links,
         "complete_required_page_citations": expected_pairs <= cited_pairs,
@@ -261,17 +296,47 @@ def _snapshot(snapshot: Any) -> dict[str, Any]:
 def _metrics(records: list[dict[str, Any]]) -> dict[str, Any]:
     if not records:
         return {"case_count": 0}
+    relevant = [record for record in records if record["relevant"]]
+    negative = [record for record in records if not record["relevant"]]
+    relevant_count = len(relevant)
     return {
         "case_count": len(records),
-        "answered_rate": sum(r["diagnostics"]["answered"] for r in records) / len(records),
-        "complete_required_page_retrieval_at_5": sum(r["retrieval"]["complete_required_page_pairs_at_5"] for r in records) / len(records),
-        "complete_required_page_citation_rate": sum(r["diagnostics"]["complete_required_page_citations"] for r in records) / len(records),
-        "mean_required_page_citation_recall": statistics.mean(r["diagnostics"]["required_page_citation_recall"] for r in records),
+        "relevant_count": relevant_count,
+        "negative_count": len(negative),
+        "answered_rate": (
+            sum(r["diagnostics"]["answered"] for r in relevant) / relevant_count
+            if relevant_count
+            else None
+        ),
+        "complete_required_page_retrieval_at_5": (
+            sum(r["retrieval"]["complete_required_page_pairs_at_5"] for r in relevant) / relevant_count
+            if relevant_count
+            else None
+        ),
+        "complete_required_page_citation_rate": (
+            sum(r["diagnostics"]["complete_required_page_citations"] for r in relevant) / relevant_count
+            if relevant_count
+            else None
+        ),
+        "mean_required_page_citation_recall": (
+            statistics.mean(r["diagnostics"]["required_page_citation_recall"] for r in relevant)
+            if relevant_count
+            else None
+        ),
         "citation_to_evidence_integrity_rate": sum(r["diagnostics"]["citations_match_evidence"] for r in records) / len(records),
         "claim_to_evidence_integrity_rate": sum(r["diagnostics"]["claim_evidence_links_valid"] for r in records) / len(records),
+        "negative_expected_status_rate": (
+            sum(r["diagnostics"]["status_expected"] for r in negative) / len(negative)
+            if negative
+            else None
+        ),
         "graph_expansion_rate": sum(r["graph_status"] == "EXPANDED" for r in records) / len(records),
         "temporal_abstention_count": sum(r["answer_path"] == "safe_temporal_abstention" for r in records),
-        "graph_complete_pair_repairs": sum(not r["ordinary_retrieval"]["complete_required_page_pairs_at_5"] and r["retrieval"]["complete_required_page_pairs_at_5"] for r in records),
+        "graph_complete_pair_repairs": sum(
+            not r["ordinary_retrieval"]["complete_required_page_pairs_at_5"]
+            and r["retrieval"]["complete_required_page_pairs_at_5"]
+            for r in relevant
+        ),
     }
 
 
@@ -286,11 +351,14 @@ def run(
     result_path: Path,
     neo4j_uri: str,
     confirm_public_documents: bool,
+    expected_suite_sha256: str = SUITE_SHA256,
+    expected_case_count: int = EXPECTED_CASE_COUNT,
+    experiment_id: str = EXPERIMENT_ID,
 ) -> dict[str, Any]:
     if not confirm_public_documents:
         raise ValueError("Public-document confirmation is required")
     for path, expected, label in (
-        (suite_path, SUITE_SHA256, "suite"),
+        (suite_path, expected_suite_sha256, "suite"),
         (native_manifest_path, NATIVE_MANIFEST_SHA256, "native manifest"),
         (ocr_manifest_path, OCR_MANIFEST_SHA256, "OCR manifest"),
     ):
@@ -301,9 +369,9 @@ def run(
         raise ValueError("GROQ_API_KEY is not configured")
 
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
-    cases = suite["cases"]
-    if len(cases) != EXPECTED_CASE_COUNT:
-        raise ValueError(f"Expected {EXPECTED_CASE_COUNT} cases")
+    cases = _load_cases(suite)
+    if len(cases) != expected_case_count:
+        raise ValueError(f"Expected {expected_case_count} cases")
     inputs = runtime_inputs(cases)
     native = _load_search_representation(json.loads(native_manifest_path.read_text(encoding="utf-8")))
     ocr = _load_search_representation(json.loads(ocr_manifest_path.read_text(encoding="utf-8")))
@@ -344,7 +412,7 @@ def run(
                     case_id=case["id"],
                     query=case["query"],
                     evidence=evidence,
-                    suite_hash=SUITE_SHA256,
+                    suite_hash=expected_suite_sha256,
                     cache_dir=cache_dir,
                 )
                 answer_path = "retrieval_graph_structured_answer"
@@ -372,7 +440,7 @@ def run(
 
     runtime_artifact = {
         "status": "frozen_before_scoring",
-        "experiment_id": EXPERIMENT_ID,
+        "experiment_id": experiment_id,
         "runtime_gold_access": False,
         "case_count": len(runtime_records),
         "records": runtime_records,
@@ -383,21 +451,35 @@ def run(
     scored = []
     for record in runtime_records:
         case = gold[record["id"]]
-        ordinary = score_case(case, record["ordinary_candidate_pages"], record["ordinary_top20"])
-        retrieval = score_case(case, record["augmented_candidate_pages"], record["augmented_top20"])
+        ordinary = (
+            score_case(case, record["ordinary_candidate_pages"], record["ordinary_top20"])
+            if case.get("relevant", True)
+            else None
+        )
+        retrieval = (
+            score_case(case, record["augmented_candidate_pages"], record["augmented_top20"])
+            if case.get("relevant", True)
+            else None
+        )
         diagnostics = structured_diagnostics(case, record["response"], record["retrieved_evidence"])
         scored.append(
             {
                 "id": record["id"],
                 "language": record["language"],
                 "category": record["category"],
+                "relevant": case.get("relevant", True),
+                "expected_behavior": case.get("expected_behavior"),
                 "ordinary_retrieval": ordinary,
                 "retrieval": retrieval,
                 "graph_status": record["graph_trace"]["status"],
                 "answer_path": record["answer_path"],
                 "response": record["response"],
                 "diagnostics": diagnostics,
-                "automatic_answer_audit": automatic_answer_audit(case, record["response"]["answer"]),
+                "automatic_answer_audit": (
+                    automatic_answer_audit(case, record["response"]["answer"])
+                    if case.get("relevant", True)
+                    else None
+                ),
                 "usage": record["usage"],
                 "latency_seconds": record["latency_seconds"],
             }
@@ -407,7 +489,7 @@ def run(
     result = {
         "status": "complete_pending_semantic_review" if unchanged else "failed",
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
-        "experiment_id": EXPERIMENT_ID,
+        "experiment_id": experiment_id,
         "configuration": {
             "retrieval": "structured native dense20+BM15; Arabic OCR dense5+BM5; identity-aware BGE; diverse pages",
             "graph": "read-only verified Neo4j expansion from ordinary top-five pages",
@@ -416,7 +498,7 @@ def run(
             "reasoning_effort": REASONING_EFFORT,
         },
         "inputs": {
-            "suite_sha256": SUITE_SHA256,
+            "suite_sha256": expected_suite_sha256,
             "native_manifest_sha256": NATIVE_MANIFEST_SHA256,
             "ocr_manifest_sha256": OCR_MANIFEST_SHA256,
             "runtime_output_sha256": sha256_file(runtime_output_path),
@@ -440,7 +522,7 @@ def run(
         "records": scored,
         "limitations": [
             "Semantic correctness and substantive grounding remain pending case-level review.",
-            "This is the audited 50-case GraphRAG slice, not the unavailable complete 807-record source file.",
+            f"This run contains {len(cases)} frozen enriched-evaluation cases.",
             "This uses the integrated local retrieval configuration, not Voyage configuration K.",
             "The cases are independent single-turn questions; conversation-memory quality is evaluated separately.",
         ],
@@ -459,6 +541,9 @@ def main() -> None:
     parser.add_argument("--runtime-output", type=Path, required=True)
     parser.add_argument("--result", type=Path, required=True)
     parser.add_argument("--neo4j-uri", default="bolt://127.0.0.1:17687")
+    parser.add_argument("--expected-suite-sha256", default=SUITE_SHA256)
+    parser.add_argument("--expected-case-count", type=int, default=EXPECTED_CASE_COUNT)
+    parser.add_argument("--experiment-id", default=EXPERIMENT_ID)
     parser.add_argument("--confirm-public-documents", action="store_true")
     args = parser.parse_args()
     result = run(
@@ -471,6 +556,9 @@ def main() -> None:
         result_path=args.result,
         neo4j_uri=args.neo4j_uri,
         confirm_public_documents=args.confirm_public_documents,
+        expected_suite_sha256=args.expected_suite_sha256,
+        expected_case_count=args.expected_case_count,
+        experiment_id=args.experiment_id,
     )
     print(json.dumps(result["metrics"], indent=2, ensure_ascii=False))
 

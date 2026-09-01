@@ -1,6 +1,7 @@
 from langchain_core.documents import Document
 
 from experiments.enriched_graphrag_end_to_end import (
+    _load_cases,
     graph_candidate,
     runtime_inputs,
     seed_documents,
@@ -89,3 +90,52 @@ def test_structured_diagnostics_require_every_expected_source_page_citation():
     assert diagnostics["citations_match_evidence"] is True
     assert diagnostics["claim_evidence_links_valid"] is True
     assert diagnostics["complete_required_page_citations"] is False
+
+
+def test_load_cases_accepts_frozen_list_or_wrapped_suite():
+    cases = [{"id": "case"}]
+
+    assert _load_cases(cases) == cases
+    assert _load_cases({"cases": cases}) == cases
+
+
+def test_structured_diagnostics_falls_back_to_primary_expected_page():
+    evidence = [{"evidence_id": "E1", "source": "A.pdf", "page": 2}]
+    case = {
+        "relevant": True,
+        "expected_source": "A.pdf",
+        "expected_page": 2,
+        "expected_behavior": "answer",
+    }
+    response = {
+        "status": "answered",
+        "answer": "answer",
+        "claims": [{"text": "claim", "evidence_ids": ["E1"]}],
+        "citations": [{"evidence_id": "E1", "source": "A.pdf", "page": 2}],
+    }
+
+    diagnostics = structured_diagnostics(case, response, evidence)
+
+    assert diagnostics["complete_required_page_citations"] is True
+    assert diagnostics["required_page_citation_recall"] == 1.0
+    assert diagnostics["status_expected"] is True
+
+
+def test_structured_diagnostics_scores_negative_expected_status_without_gold_page():
+    case = {
+        "relevant": False,
+        "expected_source": None,
+        "expected_page": None,
+        "expected_behavior": "reject_out_of_scope",
+    }
+    response = {
+        "status": "out_of_scope",
+        "answer": "not a BCT question",
+        "claims": [],
+        "citations": [],
+    }
+
+    diagnostics = structured_diagnostics(case, response, [])
+
+    assert diagnostics["status_expected"] is True
+    assert diagnostics["complete_required_page_citations"] is True
