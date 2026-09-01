@@ -1,0 +1,186 @@
+{
+  "status": "agent_review_complete",
+  "experiment_id": "enriched-graphrag-end-to-end-v1",
+  "reviewer_type": "primary_agent",
+  "independent_human_confirmation": false,
+  "rendered_pdf_review": false,
+  "review_basis": [
+    "frozen query and expected answer",
+    "frozen generated response",
+    "cited source/page and retrieved evidence text"
+  ],
+  "scope": {
+    "reviewed_cases": 50,
+    "french_cases": 44,
+    "arabic_cases": 6,
+    "all_cases_relevant": true,
+    "unavailable_enriched_records_not_reviewed": 757
+  },
+  "metrics": {
+    "semantic_answer_correct": {
+      "overall": {"count": 34, "total": 50, "rate": 0.68},
+      "fr": {"count": 30, "total": 44, "rate": 0.6818181818181818},
+      "ar": {"count": 4, "total": 6, "rate": 0.6666666666666666}
+    },
+    "semantic_answer_correct_with_all_frozen_gold_pages_cited": {
+      "overall": {"count": 23, "total": 50, "rate": 0.46},
+      "fr": {"count": 21, "total": 44, "rate": 0.4772727272727273},
+      "ar": {"count": 2, "total": 6, "rate": 0.3333333333333333}
+    },
+    "relevant_safe_abstentions": 5,
+    "answered_incorrect_or_materially_incomplete": 11,
+    "unsafe_unsupported_affirmative_answers": 8,
+    "graph_complete_required_page_repairs_at_5": 0
+  },
+  "semantic_correct_ids": [
+    "graph_fr_2019_07_multi_office_02",
+    "graph_fr_2019_07_start_deadline_03",
+    "graph_fr_2019_07_local_requirement_04",
+    "graph_fr_2019_07_cash_ceiling_per_office_05",
+    "graph_fr_2019_07_reporting_multiple_offices_06",
+    "graph_fr_2019_07_annex_scope_07",
+    "graph_fr_2020_03_selective_amendment_08",
+    "graph_fr_2020_03_new_category_09",
+    "graph_fr_2020_03_exporter_cap_unchanged_10",
+    "graph_fr_2020_03_annex_replacement_11",
+    "graph_fr_2020_03_abrogations_12",
+    "graph_fr_2020_03_section_2bis_15",
+    "graph_ar_2023_08_application_deadline_extension_17",
+    "graph_ar_2022_06_asof_2023_06_18",
+    "graph_ar_2023_08_asof_2024_06_19",
+    "graph_ar_2023_08_partial_change_20",
+    "graph_fr_2024_13_partial_replacement_22",
+    "graph_fr_2024_13_scope_unchanged_23",
+    "graph_fr_2024_13_asof_2025_01_25",
+    "graph_fr_2016_10_general_validity_27",
+    "graph_fr_2024_06_pilgrim_derogation_28",
+    "graph_fr_2025_16_pilgrim_derogation_30",
+    "graph_fr_pilgrimage_duration_evolution_31",
+    "graph_fr_pilgrimage_derogation_scope_33",
+    "graph_fr_aml_suspicious_declaration_lineage_36",
+    "graph_fr_aml_code_ethics_reference_39",
+    "graph_fr_aml_ctaf_designation_added_40",
+    "graph_fr_aml_frozen_assets_new_article_41",
+    "graph_fr_aml_children_field_removed_43",
+    "graph_fr_aml_reporting_2017_06_amended_44",
+    "graph_fr_aml_object_proliferation_45",
+    "graph_fr_2024_07_external_abrogation_48",
+    "graph_fr_2025_10_external_abrogation_49",
+    "graph_fr_2025_13_external_provisions_50"
+  ],
+  "failures": [
+    {
+      "id": "graph_fr_2019_07_partial_replacement_01",
+      "response_status": "answered",
+      "classification": "evidence_window_incomplete",
+      "safe": false,
+      "reason": "The answer presents articles 10 and 11 plus annex 1 as the changed scope, omitting the other expressly listed provisions. The cited chunk begins mid-list."
+    },
+    {
+      "id": "graph_fr_2020_03_transitional_article_25_13",
+      "response_status": "insufficient_evidence",
+      "classification": "retrieval_or_graph_evidence_absent",
+      "safe": true,
+      "reason": "It abstains instead of stating that article 25 was expressly abrogated."
+    },
+    {
+      "id": "graph_fr_2020_03_categories_after_amendment_14",
+      "response_status": "insufficient_evidence",
+      "classification": "false_temporal_abstention",
+      "safe": true,
+      "reason": "The required page was in the final five, but the temporal graph path returned no usable evidence and withheld the three categories."
+    },
+    {
+      "id": "graph_ar_2023_08_financing_period_extension_16",
+      "response_status": "answered",
+      "classification": "date_role_attribution_error",
+      "safe": false,
+      "reason": "It correctly gives 31 December 2024 for eligible financing, but incorrectly attaches the separate 30 June 2025 application deadline to the financing-period answer."
+    },
+    {
+      "id": "graph_ar_2023_08_loan_in_2024_21",
+      "response_status": "answered",
+      "classification": "temporal_rule_inversion",
+      "safe": false,
+      "reason": "It answers no even though the amendment extends the relevant financing period through 31 December 2024."
+    },
+    {
+      "id": "graph_fr_2024_07_asof_2024_09_24",
+      "response_status": "insufficient_evidence",
+      "classification": "retrieval_evidence_absent",
+      "safe": true,
+      "reason": "It abstains because the pre-October 2024 declaration page was not available in the final evidence."
+    },
+    {
+      "id": "graph_fr_2024_13_reporting_change_26",
+      "response_status": "answered",
+      "classification": "version_delta_misattribution",
+      "safe": false,
+      "reason": "It characterizes monthly SED reporting itself as newly introduced, although that duty already existed; the real change was the recording layout and guide, effective for December 2024 reporting."
+    },
+    {
+      "id": "graph_fr_2025_05_pilgrim_derogation_29",
+      "response_status": "answered",
+      "classification": "general_rule_misattribution",
+      "safe": false,
+      "reason": "It says four months is the 2016 general maximum. The general rule is two months; four months is the 2025 pilgrimage derogation."
+    },
+    {
+      "id": "graph_fr_2026_pilgrim_vs_ordinary_32",
+      "response_status": "insufficient_evidence",
+      "classification": "cross_document_evidence_missing",
+      "safe": true,
+      "reason": "It finds the six-month pilgrimage rule but lacks the ordinary two-month rule needed for the comparison."
+    },
+    {
+      "id": "graph_fr_aml_article4_evolution_34",
+      "response_status": "insufficient_evidence",
+      "classification": "predecessor_text_missing",
+      "safe": true,
+      "reason": "It lacks the 2017 article 4 text needed to describe the evolution."
+    },
+    {
+      "id": "graph_fr_aml_risk_update_frequency_35",
+      "response_status": "answered",
+      "classification": "answer_incomplete",
+      "safe": true,
+      "reason": "It states the three-year minimum and two early-update triggers but omits legal or regulatory changes and national-risk-assessment updates requested by the question."
+    },
+    {
+      "id": "graph_fr_aml_not_full_replacement_37",
+      "response_status": "answered",
+      "classification": "cross_document_attribution",
+      "safe": false,
+      "reason": "The core no is correct, but the answer attributes a unified-framework statement to 2025-17 that comes from the separate 2025-06 instrument."
+    },
+    {
+      "id": "graph_fr_aml_correspondent_questionnaire_38",
+      "response_status": "answered",
+      "classification": "answer_incomplete",
+      "safe": true,
+      "reason": "It names the Wolfsberg questionnaire but omits the annex 3 questionnaire even though both appear in the cited evidence."
+    },
+    {
+      "id": "graph_fr_aml_annex_reporting_42",
+      "response_status": "answered",
+      "classification": "evidence_assembly_incomplete",
+      "safe": true,
+      "reason": "It reports only the two additions to the 2017-06 reporting annex, omitting replacement of annex 5 and the new annex 6 frozen-assets statement."
+    },
+    {
+      "id": "graph_fr_aml_lineage_2018_2025_46",
+      "response_status": "answered",
+      "classification": "wrong_instrument_lineage",
+      "safe": false,
+      "reason": "It returns 2025-08 and unrelated references instead of the explicit 2018-09 then 2025-17 lineage."
+    },
+    {
+      "id": "graph_fr_2024_02_external_abrogations_47",
+      "response_status": "answered",
+      "classification": "wrong_instrument_retrieved",
+      "safe": false,
+      "reason": "It answers from circular 2024-14 and names 2007-18, not the provisions of 91-22 and circular 2006-12 abrogated by 2024-02."
+    }
+  ],
+  "conclusion": "The integrated GraphRAG path works end to end and is conservative on five missing-evidence cases, but this slice does not justify claiming reliable GraphRAG answer quality. The dominant remaining problem is version-safe, answer-bearing evidence assembly; graph expansion produced no complete required-page repair at final top five."
+}
