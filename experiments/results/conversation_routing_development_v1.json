@@ -1,0 +1,358 @@
+{
+  "experiment_id": "conversation-routing-development-v1",
+  "status": "complete",
+  "timestamp": "2026-09-01T17:30:51.427944+00:00",
+  "suite_sha256": "B408B078A12F1AA66E2EEEF64EB4DA79C5AECD89B5174FBB4F0A7515F6039C3B",
+  "model": "openai/gpt-oss-120b",
+  "case_count": 19,
+  "metrics": {
+    "intent_accuracy": 1.0,
+    "rewrite_accuracy": 1.0,
+    "full_pass_rate": 1.0,
+    "provider_error_count": 0
+  },
+  "records": [
+    {
+      "id": "en_general",
+      "message": "Hello, what can you help me with?",
+      "expected_intent": "GENERAL_CHAT",
+      "route": {
+        "intent": "GENERAL_CHAT",
+        "rewrite_query": "",
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.82,
+      "error": null
+    },
+    {
+      "id": "en_new",
+      "message": "What does Circular 2019-07 regulate?",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "Circular 2019-07 regulation details",
+        "new_topic": "Circular 2019-07",
+        "current_topic": "Circular 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.515,
+      "error": null
+    },
+    {
+      "id": "en_follow_deadline",
+      "message": "What deadline does it set?",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "deadline set by Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.207,
+      "error": null
+    },
+    {
+      "id": "en_follow_amendment",
+      "message": "Was that rule amended later?",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "later amendments to the exchange-office rule introduced after Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.922,
+      "error": null
+    },
+    {
+      "id": "en_new_after_topic",
+      "message": "Switch to Circular 2025-17 and explain its reporting duties.",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "reporting duties in Circular 2025-17",
+        "new_topic": "Circular 2025-17",
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.434,
+      "error": null
+    },
+    {
+      "id": "en_compare_first",
+      "message": "Compare this circular with the first one.",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "comparison between Circular 2025-17 and Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.34,
+      "error": null
+    },
+    {
+      "id": "en_ambiguous",
+      "message": "What about that one?",
+      "expected_intent": "AMBIGUOUS",
+      "route": {
+        "intent": "AMBIGUOUS",
+        "rewrite_query": "",
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.546,
+      "error": null
+    },
+    {
+      "id": "fr_general",
+      "message": "Bonjour, que pouvez-vous faire ?",
+      "expected_intent": "GENERAL_CHAT",
+      "route": {
+        "intent": "GENERAL_CHAT",
+        "rewrite_query": "",
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.677,
+      "error": null
+    },
+    {
+      "id": "fr_new",
+      "message": "Que prévoit la circulaire 2019-07 ?",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "circulaire 2019-07",
+        "new_topic": "circulaire 2019-07",
+        "current_topic": "circulaire 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.816,
+      "error": null
+    },
+    {
+      "id": "fr_follow_deadline",
+      "message": "Et quel délai prévoit-elle ?",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "deadline provided by Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.228,
+      "error": null
+    },
+    {
+      "id": "fr_new_after_topic",
+      "message": "Passons à la circulaire 2025-17 et à ses obligations déclaratives.",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "obligations déclaratives de la circulaire 2025-17",
+        "new_topic": "Circular 2025-17",
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 2.048,
+      "error": null
+    },
+    {
+      "id": "fr_compare_first",
+      "message": "Comparez cette circulaire avec la première.",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "compare the provisions and changes of Circular 2025-17 with those of Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.948,
+      "error": null
+    },
+    {
+      "id": "fr_ambiguous",
+      "message": "Et l'autre, que dit-elle ?",
+      "expected_intent": "AMBIGUOUS",
+      "route": {
+        "intent": "AMBIGUOUS",
+        "rewrite_query": null,
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.203,
+      "error": null
+    },
+    {
+      "id": "ar_general",
+      "message": "مرحبا، كيف يمكنك مساعدتي؟",
+      "expected_intent": "GENERAL_CHAT",
+      "route": {
+        "intent": "GENERAL_CHAT",
+        "rewrite_query": "",
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 0.716,
+      "error": null
+    },
+    {
+      "id": "ar_new",
+      "message": "ماذا ينظم المنشور 2019-07؟",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "ما هو محتوى المنشور رقم 2019-07 وما الذي ينظمه؟",
+        "new_topic": "المنشور 2019-07",
+        "current_topic": "المنشور 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.024,
+      "error": null
+    },
+    {
+      "id": "ar_follow_deadline",
+      "message": "وما هو الأجل الذي يحدده؟",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "deadline specified in Circular 2019-07",
+        "new_topic": null,
+        "current_topic": "Circular 2019-07"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.007,
+      "error": null
+    },
+    {
+      "id": "ar_new_after_topic",
+      "message": "لننتقل إلى المنشور 2025-17 والتزامات التصريح فيه.",
+      "expected_intent": "NEW_TOPIC",
+      "route": {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "declaration obligations in Circular 2025-17",
+        "new_topic": "Circular 2025-17",
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.014,
+      "error": null
+    },
+    {
+      "id": "ar_compare_first",
+      "message": "قارن هذا المنشور بالمنشور الأول.",
+      "expected_intent": "FOLLOW_UP",
+      "route": {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "compare the provisions of Circular 2025-17 (2025) with the provisions of Circular 2019-07 (2019)",
+        "new_topic": null,
+        "current_topic": "Circular 2025-17"
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 1.356,
+      "error": null
+    },
+    {
+      "id": "ar_ambiguous",
+      "message": "وماذا عن ذلك؟",
+      "expected_intent": "AMBIGUOUS",
+      "route": {
+        "intent": "AMBIGUOUS",
+        "rewrite_query": "",
+        "new_topic": null,
+        "current_topic": null
+      },
+      "score": {
+        "intent_correct": true,
+        "rewrite_correct": true,
+        "passed": true
+      },
+      "latency_seconds": 5.225,
+      "error": null
+    }
+  ]
+}
