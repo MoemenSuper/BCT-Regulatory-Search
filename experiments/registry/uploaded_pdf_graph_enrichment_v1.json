@@ -1,0 +1,51 @@
+{
+  "experiment_id": "uploaded-pdf-graph-enrichment-v1",
+  "timestamp": "2026-09-01T00:04:58.6775733Z",
+  "hypothesis": "One small post-extraction coordinator can make newly uploaded PDFs graph-ready by writing their supplied structural bundle, extracting reusable relationship signals, and persisting only references that pass the existing verification boundary.",
+  "changed_variable": "one_pdf_post_extraction_graph_enrichment_coordinator",
+  "code_commit": "fddca8f23977466096401d536f205e2228043126",
+  "code_commits": [
+    "851010144e9029c65d95167a8a779ae229f3e95f",
+    "41a5e7973b9faefe20ad0b468ed3771b7ee573be",
+    "fddca8f23977466096401d536f205e2228043126"
+  ],
+  "configuration": {
+    "pdfs_per_call": 1,
+    "automatic_reference_promotion": false,
+    "automatic_legal_effect_promotion": false,
+    "runtime_gold_access": false,
+    "hosted_calls": 0
+  },
+  "dataset_hashes": {
+    "predeclaration": "1612B6C8C1CF8D7FE3E296096E00B3E6D1F382060D71DE2AE56DDC45B8F24D16",
+    "persistent_graph_content": "86F24BB172A7E75D5FAF46A79C493D6A218AAFF18A6B3945B557DAA159B614E1",
+    "result": "CC4E8493711BC0072D75F0329DF64B0D0D6DFD452C93B4086D6230609175799D"
+  },
+  "development_metrics": {
+    "focused_related_tests_passed": 18,
+    "repository_tests_passed": 304,
+    "repository_tests_skipped": 2,
+    "disposable_live_nodes": 6,
+    "disposable_live_relationships": 6,
+    "disposable_live_idempotent": true,
+    "disposable_nodes_after_cleanup": 0,
+    "persistent_graph_unchanged": true
+  },
+  "gate": {
+    "source_and_artifact_binding": "PASS",
+    "structural_and_verified_reference_write": "PASS",
+    "unverified_legal_effects_excluded": "PASS",
+    "stale_input_rejection": "PASS",
+    "idempotent_live_write": "PASS",
+    "standards_and_spec_review": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_UPLOADED_PDF_GRAPH_ENRICHMENT_V1",
+  "conclusion": "Keep the narrow per-PDF coordinator; do not add upload orchestration or automatic legal-effect promotion in this milestone.",
+  "recommendation": "Call this seam once per validated extracted PDF from the future upload worker and supply reviewed relationship evidence when available.",
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}

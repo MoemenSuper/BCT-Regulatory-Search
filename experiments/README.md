@@ -519,3 +519,19 @@ relationships, and hash
 This proves fail-closed runtime behavior, not corpus-wide temporal coverage or
 answer accuracy. Complete provision lineage still has to be verified and
 ingested as each document arrives.
+
+## Uploaded PDF graph enrichment v1
+
+`regulatory_graph/upload_enrichment.py` now connects the existing components
+through one per-PDF operation. Given one validated structural bundle and its
+already-extracted pages, it verifies the PDF and extraction-artifact identity,
+writes the document through the existing idempotent Neo4j writer, returns the
+known citation/legal-action signals, and persists only citations that pass the
+existing rendered-page and target review checks.
+
+The decision is `KEEP_UPLOADED_PDF_GRAPH_ENRICHMENT_V1`. A disposable live run
+created one verified source/page-linked citation path and remained unchanged at
+6 nodes and 6 relationships on repeat; cleanup returned to zero nodes. Legal
+action signals remain `NEEDS_REVIEW` rather than becoming invented replacement
+or amendment facts. This is the intended small integration seam for a future
+upload worker, not a new upload API, job system, or legal consolidation engine.

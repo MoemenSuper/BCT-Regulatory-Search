@@ -1,0 +1,91 @@
+{
+  "experiment_id": "uploaded-pdf-graph-enrichment-v1",
+  "timestamp": "2026-09-01T00:04:58.6775733Z",
+  "status": "complete",
+  "hypothesis": "One small post-extraction coordinator can make newly uploaded PDFs graph-ready by writing their supplied structural bundle, extracting reusable relationship signals, and persisting only references that pass the existing verification boundary.",
+  "changed_variable": "one_pdf_post_extraction_graph_enrichment_coordinator",
+  "code_commits": [
+    "851010144e9029c65d95167a8a779ae229f3e95f",
+    "41a5e7973b9faefe20ad0b468ed3771b7ee573be",
+    "fddca8f23977466096401d536f205e2228043126"
+  ],
+  "configuration": {
+    "branch": "experiment/temporal-provision-graphrag-20260827",
+    "pdfs_per_call": 1,
+    "automatic_reference_promotion": false,
+    "automatic_legal_effect_promotion": false,
+    "runtime_gold_access": false,
+    "hosted_calls": 0
+  },
+  "implemented": [
+    "verify immutable PDF hash and extraction-artifact identity before writing",
+    "write one supplied structural graph bundle through the existing idempotent writer",
+    "extract deterministic French and Arabic instrument-reference candidates",
+    "extract the existing provision and legal-action signals from the same pages",
+    "persist reviewed references only after existing rendered-page and target checks pass",
+    "reject stale review IDs, pre-populated reference edges, and unverified change events",
+    "return all unresolved signals as review-only candidates"
+  ],
+  "disposable_live_verification": {
+    "source_instrument_uid": "BCT:CIRCULAR:2027:01",
+    "target_instrument_uid": "BCT:CIRCULAR:2013:15",
+    "initial_reference_candidates": 1,
+    "initial_legal_action_candidates": 2,
+    "initial_verified_references": 0,
+    "reviewed_verified_references": 1,
+    "verified_path_page": 1,
+    "verified_path_status": "VERIFIED",
+    "nodes_after_verified_write": 6,
+    "relationships_after_verified_write": 6,
+    "repeat_nodes": 6,
+    "repeat_relationships": 6,
+    "idempotent": true,
+    "nodes_after_cleanup": 0,
+    "container_removed": true
+  },
+  "persistent_graph_verification": {
+    "nodes": 7233,
+    "relationships": 9688,
+    "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1",
+    "unchanged": true
+  },
+  "development_metrics": {
+    "focused_related_tests_passed": 18,
+    "repository_tests_passed": 304,
+    "repository_tests_skipped": 2,
+    "compileall": "PASS",
+    "diff_check": "PASS",
+    "standards_review": "PASS_NO_ACTIONABLE_FINDINGS",
+    "spec_review": "PASS_NO_MATERIAL_FINDINGS"
+  },
+  "gate": {
+    "one_pdf_per_call": "PASS",
+    "source_and_artifact_binding": "PASS",
+    "structural_write": "PASS",
+    "deterministic_relationship_candidates": "PASS",
+    "verified_reference_persistence": "PASS",
+    "unverified_legal_effects_excluded": "PASS",
+    "stale_input_rejection": "PASS",
+    "idempotent_live_write": "PASS",
+    "persistent_graph_unchanged": "PASS",
+    "overall": "PASS"
+  },
+  "decision": "KEEP_UPLOADED_PDF_GRAPH_ENRICHMENT_V1",
+  "conclusion": "Keep the narrow coordinator. An existing upload worker can call it once per extracted PDF to add the document structure, obtain relationship signals, and persist reviewed citation relationships without adding a second extraction or ingestion framework.",
+  "limitations": [
+    "This is a callable ingestion seam, not an HTTP upload endpoint, SQL job ledger, queue, or retry worker.",
+    "Legal-effect keywords remain NEEDS_REVIEW and do not automatically become REPLACE, MODIFY, ABROGATE, or other answer-bearing graph facts.",
+    "Complete temporal resolution still requires verified affected provisions, effective dates, and predecessor and successor versions in the supplied bundle.",
+    "The coordinator is implemented on the experiment branch and is not merged into main."
+  ],
+  "approximate_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "hosted_calls": 0
+  },
+  "validation_metrics": {
+    "status": "not_run",
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
