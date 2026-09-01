@@ -204,6 +204,100 @@ def test_arabic_indic_digits_resolve_without_reversal_or_normalizing_the_quote()
     assert candidate.signal == "المنشور عدد ٦ لسنة ٢٠٢٢"
 
 
+def test_arabic_official_audience_phrase_survives_extraction_spacing_variants():
+    structured_text = (
+        "وعلى ال منشور إلى البنوك والمؤسسات المالية عدد 6 لسنة 2022.\n"
+        "من المنشور إلى البنوك والمؤسسات المالية عدد6 لسنة2022.\n"
+        "من المنشور إلى البنوك والمؤسسات المالية عدد 6 لسنة2022."
+    )
+    rendered_text = (
+        "وعلى ال  منشور  إلى  البنوك والمؤسسات  المالية عدد  \n"
+        "6\n  لسنة2022.\n"
+        "من المنشور إلى البنوك والمؤسسات المالية عدد6 لسنة2022.\n"
+        "من المنشور إلى\nالبنوك والمؤسسات المالية\nعدد6\nلسنة2022."
+    )
+    target = Instrument(
+        uid="BCT:CIRCULAR:2022:06",
+        authority="BCT",
+        kind=InstrumentKind.CIRCULAR,
+        year=2022,
+        number="06",
+        corpus_present=True,
+        source_status=SourceStatus.LOCAL,
+    )
+    edition = _edition(language="ar")
+    catalog = _catalog(target, source_edition=edition)
+
+    structured = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text=structured_text,
+                extraction_method="structured",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )
+    rendered = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text=rendered_text,
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )
+
+    assert [item.target_instrument_uid for item in structured] == [
+        "BCT:CIRCULAR:2022:06",
+    ] * 3
+    assert [item.target_occurrence_index for item in structured] == [0, 1, 2]
+    assert [item.target_instrument_uid for item in rendered] == [
+        "BCT:CIRCULAR:2022:06",
+    ] * 3
+    assert [item.target_occurrence_index for item in rendered] == [0, 1, 2]
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "\u200fال\u200f منشور \u200eإلى\u200f البنوك "
+        "والمؤسسات المالية عدد\u200f6 لسنة\u200e2022",
+        "المنشور إلى البنوك عدد: 6 لسنة 2022",
+        "المنشور إلى البنوك عدد، 6 لسنة 2022",
+    ),
+)
+def test_arabic_reference_accepts_bidi_controls_and_number_punctuation(text):
+    candidates = extract_document_reference_candidates(
+        _edition(language="ar"),
+        (ReferencePage(page_number=1, text=text, extraction_method="native"),),
+        instrument_catalog=_catalog(source_edition=_edition(language="ar")),
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].target_instrument_uid == "BCT:CIRCULAR:2022:06"
+    assert candidates[0].signal in text
+
+
+def test_arabic_visually_reversed_year_is_not_a_reference_candidate():
+    page = ReferencePage(
+        page_number=1,
+        text="المذكرة إلى البنوك عدد 02 لسنة 6102",
+        extraction_method="native",
+    )
+
+    candidates = extract_document_reference_candidates(
+        _edition(language="ar"),
+        (page,),
+        instrument_catalog=_catalog(source_edition=_edition(language="ar")),
+    )
+
+    assert candidates == ()
+
+
 def test_reference_promotion_fails_closed_until_every_source_check_passes(tmp_path):
     pdf_path = tmp_path / "CB_2017_08_FR.pdf"
     source_text = "La presente circulaire cite la circulaire n 2013-15."
@@ -354,6 +448,69 @@ def test_deterministic_reference_verification_rejects_self_reference(tmp_path):
 
     assert decision.status == VerificationStatus.NEEDS_REVIEW
     assert decision.reasons == ("self_reference",)
+
+
+def test_deterministic_verifier_quarantines_arabic_reversed_self_number_only(
+    tmp_path,
+):
+    source = Instrument(
+        uid="BCT:NOTE:2019:05",
+        authority="BCT",
+        kind=InstrumentKind.NOTE,
+        year=2019,
+        number="05",
+        corpus_present=True,
+        source_status=SourceStatus.LOCAL,
+    )
+    edition = _edition(language="ar").model_copy(
+        update={
+            "uid": "edition:note-2019-05-ar",
+            "instrument_uid": source.uid,
+            "filename": "Note_2019_05_ar.pdf",
+        }
+    )
+    catalog = VerifiedInstrumentCatalog((source,), (edition,))
+    candidate = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text="المذكرة إلى البنوك عدد 50 لسنة 2019",
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )[0]
+
+    assert candidate.target_instrument_uid == "BCT:NOTE:2019:50"
+    decision = verify_reference_candidate(
+        candidate,
+        source_pdf_path=tmp_path / "not-needed.pdf",
+        instrument_catalog=catalog,
+    )
+
+    assert decision.status == VerificationStatus.NEEDS_REVIEW
+    assert decision.reasons == ("possible_rtl_reversed_self_reference",)
+
+    cross_kind_candidate = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text="المنشور إلى البنوك عدد 50 لسنة 2019",
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )[0]
+    cross_kind = verify_reference_candidate(
+        cross_kind_candidate,
+        source_pdf_path=tmp_path / "not-needed.pdf",
+        instrument_catalog=catalog,
+    )
+
+    assert cross_kind.status == VerificationStatus.NEEDS_REVIEW
+    assert cross_kind.reasons == ("source_pdf_unavailable",)
 
 
 def test_promotion_preserves_repeated_target_occurrence_on_the_same_page(tmp_path):

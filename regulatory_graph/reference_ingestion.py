@@ -223,10 +223,21 @@ _FRENCH_REFERENCE = re.compile(
     r"n\s*[°º�]?\s*(?P<year>[0-9]{2,4})\s*[-/]\s*(?P<number>[0-9]+)\b",
     re.IGNORECASE,
 )
+_ARABIC_FORMAT_MARK = r"[\u200c-\u200f\u202a-\u202e\u2066-\u2069]"
+_ARABIC_LAYOUT_SEPARATOR = rf"(?:\s|{_ARABIC_FORMAT_MARK})"
 _ARABIC_REFERENCE = re.compile(
-    r"(?P<kind>المنشور|منشور|المذكرة|مذكرة)\s+"
-    r"(?:عدد\s+)?(?P<number>[0-9٠-٩]+)\s+"
-    r"لسنة\s+(?P<year>[0-9٠-٩]{4})"
+    rf"{_ARABIC_FORMAT_MARK}*(?:ال{_ARABIC_LAYOUT_SEPARATOR}*)?"
+    rf"(?P<kind>منشور|مذكرة){_ARABIC_LAYOUT_SEPARATOR}+"
+    rf"(?:[إا]{_ARABIC_LAYOUT_SEPARATOR}*لى"
+    rf"{_ARABIC_LAYOUT_SEPARATOR}+البنوك"
+    rf"(?:{_ARABIC_LAYOUT_SEPARATOR}+والمؤسسات"
+    rf"{_ARABIC_LAYOUT_SEPARATOR}+المالية)?"
+    rf"{_ARABIC_LAYOUT_SEPARATOR}+)?"
+    rf"(?:عدد{_ARABIC_LAYOUT_SEPARATOR}*"
+    rf"(?:[:،]{_ARABIC_LAYOUT_SEPARATOR}*)?)?"
+    rf"(?P<number>[0-9٠-٩]+){_ARABIC_LAYOUT_SEPARATOR}+"
+    rf"لسنة{_ARABIC_LAYOUT_SEPARATOR}*"
+    rf"(?P<year>[0-9٠-٩]{{4}})"
 )
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
@@ -439,6 +450,24 @@ def verify_reference_candidate(
     """Verify an exact citation without inferring any legal effect from it."""
     if candidate.source_instrument_uid == candidate.target_instrument_uid:
         return NeedsReviewReferencePromotion(reasons=("self_reference",))
+    source = instrument_catalog.get(candidate.source_instrument_uid)
+    target = candidate.target_instrument
+    if (
+        candidate.resolver_rule
+        == ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1
+        and source is not None
+        and candidate.page_number == 1
+        and source.kind == target.kind
+        and source.year == target.year
+        and source.number is not None
+        and target.number is not None
+        and not target.corpus_present
+        and source.number != target.number
+        and source.number == target.number[::-1]
+    ):
+        return NeedsReviewReferencePromotion(
+            reasons=("possible_rtl_reversed_self_reference",),
+        )
     return _verify_reference_candidate(
         candidate,
         confirmed_target_instrument_uid=candidate.target_instrument_uid,
@@ -605,12 +634,18 @@ def _resolved_reference_matches(page_text: str) -> tuple[_ResolvedReferenceMatch
         (ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1, _ARABIC_REFERENCE),
     ):
         for match in pattern.finditer(page_text):
+            year = _four_digit_year(match.group("year"))
+            if (
+                rule == ReferenceResolverRule.ARABIC_BCT_INSTRUMENT_V1
+                and not 1900 <= year <= 2099
+            ):
+                continue
             resolved.append(
                 _ResolvedReferenceMatch(
                     rule=rule,
                     match=match,
                     kind=_instrument_kind(match.group("kind")),
-                    year=_four_digit_year(match.group("year")),
+                    year=year,
                     number=_normalize_number(match.group("number")),
                 )
             )

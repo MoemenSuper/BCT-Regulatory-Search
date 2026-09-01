@@ -1,0 +1,71 @@
+{
+  "status": "complete",
+  "evaluated_at": "2026-09-01T15:16:33.813891+00:00",
+  "experiment_id": "full-corpus-verified-references-v1",
+  "configuration": {
+    "documents_dir": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search\\documents",
+    "manifest_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-experiment-20260823-v3\\ingestion_manifest.json",
+    "chunks_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-ablations-20260824-v1\\representations\\structured_baseline_chunking\\chunks.jsonl",
+    "neo4j_uri": "bolt://127.0.0.1:17687",
+    "write_graph": true,
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "automatic_legal_effect_promotion": false
+  },
+  "input_hashes": {
+    "manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "artifact_aggregate": "343F697BEE208FB72165B937A4529E3B0A52FF0F4BC600B9068D9DE9019BF9DC",
+    "review_output": "E7D10E5AB6F0CBC6289D5FC320B0CFA4E45680C10EFF0591BFCB3FBDD0693379"
+  },
+  "metrics": {
+    "candidate_count": 547,
+    "verified_reference_count": 387,
+    "needs_review_reference_count": 160,
+    "documents_with_candidates": 180,
+    "documents_with_verified_references": 132,
+    "verified_local_target_count": 129,
+    "verified_external_target_count": 258,
+    "needs_review_reason_counts": {
+      "possible_rtl_reversed_self_reference": 1,
+      "rendered_page_reference_not_found": 33,
+      "self_reference": 126
+    }
+  },
+  "graph": {
+    "write_requested": true,
+    "before": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "after_first": {
+      "nodes": 8058,
+      "relationships": 11236,
+      "content_sha256": "256548b0ecc9ec2705a06ed8fc1384e098f3776a25e4ef6278853cc213b4ee64"
+    },
+    "after_second": {
+      "nodes": 8058,
+      "relationships": 11236,
+      "content_sha256": "256548b0ecc9ec2705a06ed8fc1384e098f3776a25e4ef6278853cc213b4ee64"
+    },
+    "idempotent_repeat": true,
+    "first_write_bundle_sha256": "732ce67cafccc61dd63b7662f3733b328822dfe372fcd552e3d0939c8229e202",
+    "second_write_bundle_sha256": "732ce67cafccc61dd63b7662f3733b328822dfe372fcd552e3d0939c8229e202",
+    "retrieval_seed_filename": "Cir_2016_01_fr.pdf",
+    "retrieval_evidence_count": 10
+  },
+  "gates": {
+    "verified_documents_at_least_100": true,
+    "only_verified_decisions_written": true,
+    "write_idempotent": true,
+    "verified_relationship_retrievable": true
+  },
+  "decision": "KEEP_CONNECTED_REFERENCE_GRAPH",
+  "latency_seconds": 66.3080864000076,
+  "limitations": [
+    "Verified CITES relationships do not imply amendment, replacement, or abrogation.",
+    "Scanned or extraction-divergent references remain NEEDS_REVIEW.",
+    "Temporal legal-effect lineage remains separately review-gated."
+  ]
+}

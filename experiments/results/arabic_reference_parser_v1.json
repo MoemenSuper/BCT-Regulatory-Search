@@ -1,0 +1,87 @@
+{
+  "status": "complete",
+  "experiment_id": "arabic-reference-parser-v1",
+  "fixed_point": "468e7a5e7dbf98ab4bd26338672f7a55c3f7ecf0",
+  "decision": "KEEP_EXPERIMENTAL_ARABIC_REFERENCE_PARSER_V1",
+  "scope": {
+    "application_integration": false,
+    "persistent_experimental_neo4j_updated": true,
+    "automatic_legal_effect_promotion": false
+  },
+  "parser_behavior": {
+    "accepted_variants": [
+      "split Arabic definite article",
+      "official BCT audience phrase",
+      "whitespace and line-break variation",
+      "compact number and year spacing",
+      "Arabic bidi formatting controls between tokens",
+      "colon or Arabic comma after the number marker"
+    ],
+    "safety_guards": [
+      "explicit circular or note word remains required",
+      "explicit number and four-digit year remain required",
+      "Arabic years outside 1900 through 2099 are rejected",
+      "probable page-one RTL-reversed self numbers remain NEEDS_REVIEW",
+      "target identity, PDF hash, rendered page, and occurrence count verification remain unchanged"
+    ]
+  },
+  "corpus_comparison": {
+    "before": {
+      "candidate_count": 461,
+      "verified_reference_count": 340,
+      "needs_review_reference_count": 121,
+      "documents_with_verified_references": 100
+    },
+    "after": {
+      "candidate_count": 547,
+      "verified_reference_count": 387,
+      "needs_review_reference_count": 160,
+      "documents_with_verified_references": 132,
+      "review_sha256": "E7D10E5AB6F0CBC6289D5FC320B0CFA4E45680C10EFF0591BFCB3FBDD0693379"
+    }
+  },
+  "disposable_neo4j": {
+    "uri": "bolt://127.0.0.1:17688",
+    "before": {
+      "nodes": 0,
+      "relationships": 0
+    },
+    "after": {
+      "nodes": 8045,
+      "relationships": 11211,
+      "content_sha256": "b9f51d11a0ad13993732392c10cff99d9167cc490b1e04ff17c6c301feb917ca"
+    },
+    "bundle_sha256": "732ce67cafccc61dd63b7662f3733b328822dfe372fcd552e3d0939c8229e202",
+    "idempotent_repeat": true,
+    "relationship_evidence_retrievable": true,
+    "container_removed": true
+  },
+  "persistent_experimental_neo4j": {
+    "uri": "bolt://127.0.0.1:17687",
+    "before": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "after": {
+      "nodes": 8058,
+      "relationships": 11236,
+      "content_sha256": "256548b0ecc9ec2705a06ed8fc1384e098f3776a25e4ef6278853cc213b4ee64"
+    },
+    "bundle_sha256": "732ce67cafccc61dd63b7662f3733b328822dfe372fcd552e3d0939c8229e202",
+    "idempotent_repeat": true
+  },
+  "runtime_evaluation": {
+    "case_count": 50,
+    "graph_evidence_cases_before": 42,
+    "graph_evidence_cases_after": 48,
+    "arabic_graph_evidence_cases_before": 0,
+    "arabic_graph_evidence_cases_after": 6,
+    "arabic_case_count": 6,
+    "remaining_no_evidence_case_ids": [
+      "graph_fr_2020_03_transitional_article_25_13",
+      "graph_fr_2020_03_categories_after_amendment_14"
+    ],
+    "persistent_graph_unchanged_by_evaluation": true
+  }
+}
