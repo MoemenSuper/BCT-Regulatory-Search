@@ -73,6 +73,7 @@ def test_uploaded_pdf_processing_writes_structure_and_returns_relationship_candi
         bundle,
         pages,
         source_pdf_path=pdf_path,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
         instrument_catalog=VerifiedInstrumentCatalog.from_bundle(bundle),
         graph_writer=writer,
     )
@@ -100,12 +101,13 @@ def test_uploaded_pdf_processing_writes_structure_and_returns_relationship_candi
 
 
 def test_uploaded_pdf_processing_persists_only_a_reviewed_exact_reference(tmp_path):
-    pdf_path, bundle, _edition, pages = _uploaded_bundle(tmp_path)
+    pdf_path, bundle, edition, pages = _uploaded_bundle(tmp_path)
     catalog = VerifiedInstrumentCatalog.from_bundle(bundle)
     initial = process_uploaded_pdf_graph(
         bundle,
         pages,
         source_pdf_path=pdf_path,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
         instrument_catalog=catalog,
         graph_writer=CapturingGraphWriter(),
     )
@@ -116,6 +118,7 @@ def test_uploaded_pdf_processing_persists_only_a_reviewed_exact_reference(tmp_pa
         bundle,
         pages,
         source_pdf_path=pdf_path,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
         instrument_catalog=catalog,
         graph_writer=writer,
         reference_reviews={
@@ -141,7 +144,7 @@ def test_uploaded_pdf_processing_persists_only_a_reviewed_exact_reference(tmp_pa
 
 
 def test_uploaded_pdf_processing_rejects_stale_review_before_writing(tmp_path):
-    pdf_path, bundle, _edition, pages = _uploaded_bundle(tmp_path)
+    pdf_path, bundle, edition, pages = _uploaded_bundle(tmp_path)
     writer = CapturingGraphWriter()
 
     with pytest.raises(ValueError, match="do not belong to the uploaded PDF"):
@@ -149,6 +152,7 @@ def test_uploaded_pdf_processing_rejects_stale_review_before_writing(tmp_path):
             bundle,
             pages,
             source_pdf_path=pdf_path,
+            extraction_artifact_hash=edition.extraction_artifact_hash,
             instrument_catalog=VerifiedInstrumentCatalog.from_bundle(bundle),
             graph_writer=writer,
             reference_reviews={
@@ -159,6 +163,95 @@ def test_uploaded_pdf_processing_rejects_stale_review_before_writing(tmp_path):
                     )
                 )
             },
+        )
+
+    assert writer.bundles == []
+
+
+def test_uploaded_pdf_processing_rejects_stale_extracted_pages_before_writing(
+    tmp_path,
+):
+    pdf_path, bundle, _edition, pages = _uploaded_bundle(tmp_path)
+    writer = CapturingGraphWriter()
+
+    with pytest.raises(ValueError, match="extraction artifact hash"):
+        process_uploaded_pdf_graph(
+            bundle,
+            pages,
+            source_pdf_path=pdf_path,
+            extraction_artifact_hash="d" * 64,
+            instrument_catalog=VerifiedInstrumentCatalog.from_bundle(bundle),
+            graph_writer=writer,
+        )
+
+    assert writer.bundles == []
+
+
+def test_uploaded_pdf_processing_rejects_prepopulated_reference_edges(tmp_path):
+    pdf_path, bundle, edition, pages = _uploaded_bundle(tmp_path)
+    catalog = VerifiedInstrumentCatalog.from_bundle(bundle)
+    initial = process_uploaded_pdf_graph(
+        bundle,
+        pages,
+        source_pdf_path=pdf_path,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
+        instrument_catalog=catalog,
+        graph_writer=CapturingGraphWriter(),
+    )
+    candidate = initial.reference_candidates[0]
+    enriched_writer = CapturingGraphWriter()
+    process_uploaded_pdf_graph(
+        bundle,
+        pages,
+        source_pdf_path=pdf_path,
+        extraction_artifact_hash=edition.extraction_artifact_hash,
+        instrument_catalog=catalog,
+        graph_writer=enriched_writer,
+        reference_reviews={
+            candidate.uid: ReferencePromotionEvidence(
+                reviewed_target_instrument_uid=candidate.target_instrument_uid,
+                reviewer="manual:test-reviewer",
+            )
+        },
+    )
+    enriched_bundle = enriched_writer.bundles[0]
+    rejected_writer = CapturingGraphWriter()
+
+    with pytest.raises(ValueError, match="pre-existing instrument references"):
+        process_uploaded_pdf_graph(
+            enriched_bundle,
+            pages,
+            source_pdf_path=pdf_path,
+            extraction_artifact_hash=edition.extraction_artifact_hash,
+            instrument_catalog=VerifiedInstrumentCatalog.from_bundle(
+                enriched_bundle
+            ),
+            graph_writer=rejected_writer,
+        )
+
+    assert rejected_writer.bundles == []
+
+
+def test_uploaded_pdf_processing_rejects_unverified_change_events(tmp_path):
+    pdf_path, bundle, edition, pages = _uploaded_bundle(tmp_path)
+    unsafe_event = bundle.change_events[0].model_copy(
+        update={"verification_status": VerificationStatus.NEEDS_REVIEW}
+    )
+    unsafe_bundle = bundle.model_copy(
+        update={"change_events": (unsafe_event, *bundle.change_events[1:])}
+    )
+    writer = CapturingGraphWriter()
+
+    with pytest.raises(ValueError, match="unverified change events"):
+        process_uploaded_pdf_graph(
+            unsafe_bundle,
+            pages,
+            source_pdf_path=pdf_path,
+            extraction_artifact_hash=edition.extraction_artifact_hash,
+            instrument_catalog=VerifiedInstrumentCatalog.from_bundle(
+                unsafe_bundle
+            ),
+            graph_writer=writer,
         )
 
     assert writer.bundles == []

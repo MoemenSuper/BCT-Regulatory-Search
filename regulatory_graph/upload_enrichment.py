@@ -6,7 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
 
-from regulatory_graph.models import RegulatoryGraphBundle
+from regulatory_graph.models import RegulatoryGraphBundle, VerificationStatus
 from regulatory_graph.neo4j_store import WriteReceipt
 from regulatory_graph.reference_ingestion import (
     InstrumentReferenceCandidate,
@@ -53,6 +53,7 @@ def process_uploaded_pdf_graph(
     pages: tuple[ReferencePage, ...],
     *,
     source_pdf_path: str | Path,
+    extraction_artifact_hash: str,
     instrument_catalog: VerifiedInstrumentCatalog,
     graph_writer: GraphBundleWriter,
     reference_reviews: Mapping[str, ReferencePromotionEvidence] | None = None,
@@ -60,6 +61,24 @@ def process_uploaded_pdf_graph(
     if len(bundle.source_editions) != 1:
         raise ValueError("uploaded PDF graph processing requires one source edition")
     edition = bundle.source_editions[0]
+    if bundle.instrument_references:
+        raise ValueError(
+            "uploaded PDF graph bundle must not contain pre-existing "
+            "instrument references"
+        )
+    if any(
+        event.verification_status != VerificationStatus.VERIFIED
+        for event in bundle.change_events
+    ):
+        raise ValueError("uploaded PDF graph bundle contains unverified change events")
+    if (
+        edition.extraction_artifact_hash is None
+        or extraction_artifact_hash.casefold()
+        != edition.extraction_artifact_hash.casefold()
+    ):
+        raise ValueError(
+            "extracted pages do not match the source edition extraction artifact hash"
+        )
     try:
         source_bytes = Path(source_pdf_path).read_bytes()
     except OSError as error:
