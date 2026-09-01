@@ -102,7 +102,8 @@ def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
         ),
     )
 
-    def answer(_llm, _message, _documents, memory):
+    def answer(_llm, message, _documents, memory):
+        calls["answer_query"] = message
         calls["answer_memory"] = memory
         return "follow-up answer"
 
@@ -122,6 +123,7 @@ def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
     assert calls["bm25_query"] == rewritten
     assert calls["reranker_query"] == rewritten
     assert calls["graph_query"] == rewritten
+    assert calls["answer_query"] == rewritten
     assert "What did Circular 2019-07 change?" in calls["answer_memory"]
     assert result["memory_state"]["turns"][-1]["standalone_query"] == rewritten
     assert result["memory_state"]["turns"][-1]["answer"] == "follow-up answer"
@@ -203,4 +205,3 @@ def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatc
     assert "which" in result["answer"].casefold()
     assert result["sources"] == []
     assert result["memory_state"]["turns"] == _previous_state()["turns"]
-

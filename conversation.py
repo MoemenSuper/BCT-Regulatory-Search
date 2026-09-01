@@ -415,7 +415,12 @@ def chat(
     documents_for_llm = [document for document, _ in top_results]
 
     memory_text = render_memory_state(_answer_memory(memory_state, route))
-    answer = generate_answer(llm, message, documents_for_llm, memory_text)
+    answer = generate_answer(
+        llm,
+        query_for_retrieval,
+        documents_for_llm,
+        memory_text,
+    )
     sources = build_sources(top_results)
     trace = graph_trace.as_dict()
 
