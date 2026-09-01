@@ -165,6 +165,12 @@ def route_message(llm, message, memory_state):
         memory_state.get("turns") or memory_state.get("current_topic")
     ):
         return _ambiguous_route()
+    if (
+        route.intent == RouteIntent.FOLLOW_UP
+        and len(memory_state.get("topics", [])) > 1
+        and not memory_state.get("current_topic")
+    ):
+        return _ambiguous_route()
     return route.model_dump(mode="json")
 
 

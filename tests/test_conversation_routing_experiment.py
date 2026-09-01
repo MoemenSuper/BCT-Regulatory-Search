@@ -1,4 +1,8 @@
-from experiments.conversation_routing_experiment import memory_fixture, score_case
+from experiments.conversation_routing_experiment import (
+    memory_fixture,
+    route_with_retry,
+    score_case,
+)
 
 
 def test_score_case_requires_both_intent_and_answer_bearing_rewrite_terms():
@@ -26,3 +30,28 @@ def test_ambiguous_fixture_has_no_current_topic_but_retains_both_topics():
     assert memory["current_topic"] is None
     assert memory["topics"] == ["Circular 2019-07", "Circular 2025-17"]
     assert len(memory["turns"]) == 2
+
+
+def test_route_evaluation_retries_only_transient_rate_limits(monkeypatch):
+    calls = []
+
+    class RateLimitError(Exception):
+        pass
+
+    def fake_route(*_args):
+        calls.append(None)
+        if len(calls) == 1:
+            raise RateLimitError("slow down")
+        return {"intent": "GENERAL_CHAT"}
+
+    monkeypatch.setattr(
+        "experiments.conversation_routing_experiment.route_message",
+        fake_route,
+    )
+    monkeypatch.setattr(
+        "experiments.conversation_routing_experiment.time.sleep",
+        lambda _seconds: None,
+    )
+
+    assert route_with_retry(object(), "hello", {}) == {"intent": "GENERAL_CHAT"}
+    assert len(calls) == 2

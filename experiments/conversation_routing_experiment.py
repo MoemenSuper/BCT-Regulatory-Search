@@ -70,6 +70,16 @@ def score_case(case, route):
     }
 
 
+def route_with_retry(llm, message, memory, *, attempts=3):
+    for attempt in range(attempts):
+        try:
+            return route_message(llm, message, memory)
+        except Exception as exc:
+            if type(exc).__name__ != "RateLimitError" or attempt == attempts - 1:
+                raise
+            time.sleep(2)
+
+
 def run(suite_path=DEFAULT_SUITE, output_path=DEFAULT_OUTPUT):
     suite_path = Path(suite_path)
     output_path = Path(output_path)
@@ -81,7 +91,11 @@ def run(suite_path=DEFAULT_SUITE, output_path=DEFAULT_OUTPUT):
     for case in suite["cases"]:
         started = time.perf_counter()
         try:
-            route = route_message(llm, case["message"], memory_fixture(case["memory"]))
+            route = route_with_retry(
+                llm,
+                case["message"],
+                memory_fixture(case["memory"]),
+            )
             error = None
         except Exception as exc:
             route = {"intent": "ERROR", "rewrite_query": None}

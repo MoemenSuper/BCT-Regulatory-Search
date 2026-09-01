@@ -20,7 +20,7 @@
     {"id": "ar_general", "memory": "empty", "message": "مرحبا، كيف يمكنك مساعدتي؟", "expected_intent": "GENERAL_CHAT", "required_rewrite_groups": []},
     {"id": "ar_new", "memory": "empty", "message": "ماذا ينظم المنشور 2019-07؟", "expected_intent": "NEW_TOPIC", "required_rewrite_groups": [["2019"], ["07"]]},
     {"id": "ar_follow_deadline", "memory": "one", "message": "وما هو الأجل الذي يحدده؟", "expected_intent": "FOLLOW_UP", "required_rewrite_groups": [["2019"], ["07"], ["الأجل", "مدة", "deadline"]]},
-    {"id": "ar_new_after_topic", "memory": "one", "message": "لننتقل إلى المنشور 2025-17 والتزامات التصريح فيه.", "expected_intent": "NEW_TOPIC", "required_rewrite_groups": [["2025"], ["17"], ["تصريح", "report"]]},
+    {"id": "ar_new_after_topic", "memory": "one", "message": "لننتقل إلى المنشور 2025-17 والتزامات التصريح فيه.", "expected_intent": "NEW_TOPIC", "required_rewrite_groups": [["2025"], ["17"], ["تصريح", "report", "declaration"]]},
     {"id": "ar_compare_first", "memory": "two_current", "message": "قارن هذا المنشور بالمنشور الأول.", "expected_intent": "FOLLOW_UP", "required_rewrite_groups": [["2019"], ["07"], ["2025"], ["17"]]},
     {"id": "ar_ambiguous", "memory": "two_no_current", "message": "وماذا عن ذلك؟", "expected_intent": "AMBIGUOUS", "required_rewrite_groups": []}
   ]

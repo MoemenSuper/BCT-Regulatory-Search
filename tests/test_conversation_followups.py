@@ -58,6 +58,25 @@ def test_route_message_fails_closed_on_malformed_output():
     assert route["rewrite_query"] is None
 
 
+def test_route_message_fails_closed_when_multiple_topics_have_no_current_topic():
+    response = {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "content of Circular 2019-07",
+        "new_topic": None,
+        "current_topic": "Circular 2019-07",
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+    memory = {
+        **_previous_state(),
+        "topics": ["Circular 2019-07", "Circular 2025-17"],
+        "current_topic": None,
+    }
+
+    route = conversation.route_message(llm, "What about that one?", memory)
+
+    assert route["intent"] == "AMBIGUOUS"
+
+
 def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
     rewritten = "relationship between Circular 2019-07 and Circular 2018-07"
     ordinary = _document()
