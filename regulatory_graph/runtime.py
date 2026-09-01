@@ -312,10 +312,9 @@ class RegulatoryGraphRetriever:
         seeded_follow_up = bool(seed_filenames) and _is_anaphoric_relationship_query(
             query
         )
-        if not explicit_intent and not seeded_follow_up and not temporal_intent:
-            return _empty_result(GraphRetrievalStatus.NOT_REQUESTED)
-
         if not seed_filenames:
+            if not explicit_intent and not seeded_follow_up and not temporal_intent:
+                return _empty_result(GraphRetrievalStatus.NOT_REQUESTED)
             if temporal_intent:
                 return _temporal_failure(
                     GraphRetrievalStatus.NO_SEED,
@@ -326,36 +325,35 @@ class RegulatoryGraphRetriever:
             return _empty_result(GraphRetrievalStatus.NO_SEED)
 
         evidence: tuple[RelationshipEvidence, ...] = ()
-        if explicit_intent or seeded_follow_up:
-            try:
-                evidence = self._graph.relationship_evidence(
-                    seed_filenames,
-                    limit=self._max_evidence,
-                )
-            except Exception as error:
-                logger.warning(
-                    "Neo4j relationship expansion unavailable: %s",
-                    type(error).__name__,
-                )
-                return GraphRetrievalResult(
-                    documents=(),
-                    trace=GraphRetrievalTrace(
-                        status=GraphRetrievalStatus.UNAVAILABLE,
-                        seed_filenames=seed_filenames,
-                        error_type=type(error).__name__,
-                        temporal_status=(
-                            TemporalRetrievalStatus.UNAVAILABLE
-                            if temporal_intent
-                            else TemporalRetrievalStatus.NOT_REQUESTED
-                        ),
-                        as_of=temporal_as_of if temporal_intent else None,
-                        temporal_reason=(
-                            TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE
-                            if temporal_intent
-                            else None
-                        ),
+        try:
+            evidence = self._graph.relationship_evidence(
+                seed_filenames,
+                limit=self._max_evidence,
+            )
+        except Exception as error:
+            logger.warning(
+                "Neo4j relationship expansion unavailable: %s",
+                type(error).__name__,
+            )
+            return GraphRetrievalResult(
+                documents=(),
+                trace=GraphRetrievalTrace(
+                    status=GraphRetrievalStatus.UNAVAILABLE,
+                    seed_filenames=seed_filenames,
+                    error_type=type(error).__name__,
+                    temporal_status=(
+                        TemporalRetrievalStatus.UNAVAILABLE
+                        if temporal_intent
+                        else TemporalRetrievalStatus.NOT_REQUESTED
                     ),
-                )
+                    as_of=temporal_as_of if temporal_intent else None,
+                    temporal_reason=(
+                        TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE
+                        if temporal_intent
+                        else None
+                    ),
+                ),
+            )
 
         if temporal_intent:
             if temporal_as_of is None:

@@ -1,0 +1,70 @@
+{
+  "status": "complete",
+  "evaluated_at": "2026-09-01T01:03:45.641282+00:00",
+  "experiment_id": "full-corpus-verified-references-v1",
+  "configuration": {
+    "documents_dir": "C:\\Users\\Moemen Super\\BCT-Regulatory-Search\\documents",
+    "manifest_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-experiment-20260823-v3\\ingestion_manifest.json",
+    "chunks_path": "C:\\Users\\Moemen Super\\AppData\\Local\\Temp\\bct-structured-ingestion-ablations-20260824-v1\\representations\\structured_baseline_chunking\\chunks.jsonl",
+    "neo4j_uri": "bolt://127.0.0.1:17687",
+    "write_graph": true,
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "automatic_legal_effect_promotion": false
+  },
+  "input_hashes": {
+    "manifest": "09ABE18E9DCAD9043650EC1B204967642741CE6C2F1EE93F042B83375B59D5BA",
+    "chunks": "1E4300E460A7FF346764633AAE8BBF6A71965B635BBECC6707B2634B79DBECCD",
+    "artifact_aggregate": "343F697BEE208FB72165B937A4529E3B0A52FF0F4BC600B9068D9DE9019BF9DC",
+    "review_output": "3629B9D51210E6C87504D2B61CD4AAF17419ED385EBB5C43B80B8CB1063B3AC2"
+  },
+  "metrics": {
+    "candidate_count": 461,
+    "verified_reference_count": 340,
+    "needs_review_reference_count": 121,
+    "documents_with_candidates": 125,
+    "documents_with_verified_references": 100,
+    "verified_local_target_count": 123,
+    "verified_external_target_count": 217,
+    "needs_review_reason_counts": {
+      "rendered_page_reference_not_found": 44,
+      "self_reference": 77
+    }
+  },
+  "graph": {
+    "write_requested": true,
+    "before": {
+      "nodes": 7233,
+      "relationships": 9688,
+      "content_sha256": "86f24bb172a7e75d5faf46a79c493d6a218aaff18a6b3945b557daa159b614e1"
+    },
+    "after_first": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "after_second": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "idempotent_repeat": true,
+    "first_write_bundle_sha256": "d1060087bed7d509eadda001c6437339fc93e86135beda238ab40d58b162db1d",
+    "second_write_bundle_sha256": "d1060087bed7d509eadda001c6437339fc93e86135beda238ab40d58b162db1d",
+    "retrieval_seed_filename": "Cir_2016_01_fr.pdf",
+    "retrieval_evidence_count": 10
+  },
+  "gates": {
+    "verified_documents_at_least_100": true,
+    "only_verified_decisions_written": true,
+    "write_idempotent": true,
+    "verified_relationship_retrievable": true
+  },
+  "decision": "KEEP_CONNECTED_REFERENCE_GRAPH",
+  "latency_seconds": 62.884711999999126,
+  "limitations": [
+    "Verified CITES relationships do not imply amendment, replacement, or abrogation.",
+    "Scanned or extraction-divergent references remain NEEDS_REVIEW.",
+    "Temporal legal-effect lineage remains separately review-gated."
+  ]
+}

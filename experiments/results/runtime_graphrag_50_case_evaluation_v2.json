@@ -1,0 +1,574 @@
+{
+  "status": "complete",
+  "evaluated_at": "2026-09-01T01:04:02.418385+00:00",
+  "experiment_id": "runtime-graphrag-50-case-evaluation-v1",
+  "decision": "CURRENT_GRAPH_INVENTORY_PARTIALLY_COVERS_50_CASE_SLICE",
+  "inputs": {
+    "slice_sha256": "F77A6B0F5727CB2FD8820A787AA4BBC2906A8E3FE012A872553729065A6E167E",
+    "control_sha256": "57E605B3582A4D09164D538291F5F314E3EDA8E9F99C492B48578F6CF409EA86",
+    "runtime_output_sha256": "88F134AFF7F09B215DE395AE8A5A0A9829AEE6CCC278C099EE4FE9D2A34EC268",
+    "runtime_gold_access": false,
+    "hosted_calls": 0,
+    "answer_calls": 0,
+    "ordinary_seed_count": 5,
+    "fixed_current_date": "2026-09-01"
+  },
+  "metrics": {
+    "case_count": 50,
+    "relationship_intent_count": 12,
+    "temporal_intent_count": 2,
+    "routed_case_count": 50,
+    "routing_coverage": 1.0,
+    "graph_status_counts": {
+      "EXPANDED": 42,
+      "NO_EVIDENCE": 8
+    },
+    "temporal_status_counts": {
+      "DATE_AMBIGUOUS": 2,
+      "NOT_REQUESTED": 48
+    },
+    "temporal_reason_counts": {
+      "exact_historical_date_required": 2
+    },
+    "graph_evidence_case_count": 42,
+    "graph_evidence_coverage": 0.84,
+    "temporal_abstention_count": 2,
+    "ordinary_top5_complete_required_pairs": 39,
+    "augmented_complete_required_pairs": 41,
+    "complete_pair_repairs_from_graph": 2,
+    "cases_with_missing_required_pair_added_by_graph": 2,
+    "mean_graph_latency_seconds": 0.02974946599948453,
+    "median_graph_latency_seconds": 0.018133099998522084,
+    "max_graph_latency_seconds": 0.6115532000003441
+  },
+  "persistent_graph": {
+    "before": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "after": {
+      "nodes": 7962,
+      "relationships": 11048,
+      "content_sha256": "74a12b33a0f4c8e9bef26d2a1513aa9e2f589d579ac95f7fd93818086267b0bf"
+    },
+    "unchanged": true
+  },
+  "records": [
+    {
+      "id": "graph_fr_2019_07_partial_replacement_01",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2019_07_multi_office_02",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2019_07_start_deadline_03",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2019_07_local_requirement_04",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": false,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": [
+        {
+          "source": "cir_2018_07_fr.pdf",
+          "page": 2
+        }
+      ]
+    },
+    {
+      "id": "graph_fr_2019_07_cash_ceiling_per_office_05",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2019_07_reporting_multiple_offices_06",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2019_07_annex_scope_07",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_selective_amendment_08",
+      "required_page_pair_count": 3,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.3333333333333333,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_new_category_09",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_exporter_cap_unchanged_10",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_annex_replacement_11",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_abrogations_12",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_transitional_article_25_13",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_categories_after_amendment_14",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2020_03_section_2bis_15",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2023_08_financing_period_extension_16",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2023_08_application_deadline_extension_17",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2022_06_asof_2023_06_18",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2023_08_asof_2024_06_19",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2023_08_partial_change_20",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_ar_2023_08_loan_in_2024_21",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_13_partial_replacement_22",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_13_scope_unchanged_23",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_07_asof_2024_09_24",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 0.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.0,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_13_asof_2025_01_25",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_13_reporting_change_26",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2016_10_general_validity_27",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_06_pilgrim_derogation_28",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2025_05_pilgrim_derogation_29",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2025_16_pilgrim_derogation_30",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_pilgrimage_duration_evolution_31",
+      "required_page_pair_count": 3,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.6666666666666666,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2026_pilgrim_vs_ordinary_32",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_pilgrimage_derogation_scope_33",
+      "required_page_pair_count": 3,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.6666666666666666,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_article4_evolution_34",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.5,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.5,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_risk_update_frequency_35",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_suspicious_declaration_lineage_36",
+      "required_page_pair_count": 3,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.3333333333333333,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_not_full_replacement_37",
+      "required_page_pair_count": 4,
+      "ordinary_top5_required_pair_recall": 0.75,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": false,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": [
+        {
+          "source": "cir_2025_17_fr.pdf",
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "graph_fr_aml_correspondent_questionnaire_38",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_code_ethics_reference_39",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_ctaf_designation_added_40",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.5,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_frozen_assets_new_article_41",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_annex_reporting_42",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_children_field_removed_43",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_reporting_2017_06_amended_44",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_object_proliferation_45",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_aml_lineage_2018_2025_46",
+      "required_page_pair_count": 2,
+      "ordinary_top5_required_pair_recall": 0.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.0,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_02_external_abrogations_47",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 0.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 0.0,
+      "ordinary_top5_complete": false,
+      "augmented_complete": false,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2024_07_external_abrogation_48",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2025_10_external_abrogation_49",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 0.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    },
+    {
+      "id": "graph_fr_2025_13_external_provisions_50",
+      "required_page_pair_count": 1,
+      "ordinary_top5_required_pair_recall": 1.0,
+      "graph_required_pair_recall": 1.0,
+      "augmented_required_pair_recall": 1.0,
+      "ordinary_top5_complete": true,
+      "augmented_complete": true,
+      "missing_required_pairs_added_by_graph": []
+    }
+  ],
+  "limitations": [
+    "This measures graph routing and verified graph evidence retrieval, not final answer correctness.",
+    "Ordinary retrieval seeds were reused from the prior frozen benchmark; embeddings and reranking were not rerun.",
+    "The graph layer can return only verified relationships and complete verified temporal lineages already persisted in Neo4j."
+  ]
+}

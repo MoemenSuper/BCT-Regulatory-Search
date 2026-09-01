@@ -330,6 +330,27 @@ def promote_reference_candidate(
     source_pdf_path: str | Path,
     instrument_catalog: VerifiedInstrumentCatalog,
 ) -> ReferencePromotionDecision:
+    return _verify_reference_candidate(
+        candidate,
+        confirmed_target_instrument_uid=(
+            evidence.reviewed_target_instrument_uid
+        ),
+        verification_method=evidence.verification_method,
+        verified_by=evidence.reviewer,
+        source_pdf_path=source_pdf_path,
+        instrument_catalog=instrument_catalog,
+    )
+
+
+def _verify_reference_candidate(
+    candidate: InstrumentReferenceCandidate,
+    *,
+    confirmed_target_instrument_uid: str,
+    verification_method: ReferenceVerificationMethod,
+    verified_by: str,
+    source_pdf_path: str | Path,
+    instrument_catalog: VerifiedInstrumentCatalog,
+) -> ReferencePromotionDecision:
     target = candidate.target_instrument
     if (
         target.authority != "BCT"
@@ -362,8 +383,7 @@ def promote_reference_candidate(
             "source_catalog_changed",
         ),
         (
-            evidence.reviewed_target_instrument_uid
-            == candidate.target_instrument_uid,
+            confirmed_target_instrument_uid == candidate.target_instrument_uid,
             "target_identity_ambiguous",
         ),
         (catalog_target == candidate.target_instrument, "target_catalog_changed"),
@@ -399,14 +419,35 @@ def promote_reference_candidate(
         extraction_method=candidate.extraction_method,
         resolver_rule=candidate.resolver_rule,
         verification_status=VerificationStatus.VERIFIED,
-        verification_method=evidence.verification_method,
+        verification_method=verification_method,
         rendered_image_sha256=rendered.rendered_image_sha256,
-        verified_by=evidence.reviewer,
+        verified_by=verified_by,
     )
     return VerifiedReferencePromotion(
         reference=reference,
         evidence_span=evidence_span,
         target_instrument=catalog_target,
+    )
+
+
+def verify_reference_candidate(
+    candidate: InstrumentReferenceCandidate,
+    *,
+    source_pdf_path: str | Path,
+    instrument_catalog: VerifiedInstrumentCatalog,
+) -> ReferencePromotionDecision:
+    """Verify an exact citation without inferring any legal effect from it."""
+    if candidate.source_instrument_uid == candidate.target_instrument_uid:
+        return NeedsReviewReferencePromotion(reasons=("self_reference",))
+    return _verify_reference_candidate(
+        candidate,
+        confirmed_target_instrument_uid=candidate.target_instrument_uid,
+        verification_method=(
+            ReferenceVerificationMethod.DETERMINISTIC_RENDERED_PDF_V1
+        ),
+        verified_by="deterministic_exact_reference_v1",
+        source_pdf_path=source_pdf_path,
+        instrument_catalog=instrument_catalog,
     )
 
 

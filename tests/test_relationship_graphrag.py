@@ -112,7 +112,7 @@ def test_non_regulatory_current_or_historical_questions_are_not_temporal_rule_qu
     assert is_temporal_rule_query(query) is False
 
 
-def test_non_relationship_query_never_calls_neo4j():
+def test_seeded_question_without_verified_connections_keeps_ordinary_fallback():
     graph = FakeRelationshipGraph()
     retriever = RelationshipGraphRetriever(graph)
 
@@ -121,10 +121,41 @@ def test_non_relationship_query_never_calls_neo4j():
         (_document("Cir_2016_03_fr.pdf"),),
     )
 
-    assert is_relationship_query("Quel est le ratio minimum requis ?") is False
     assert result.documents == ()
-    assert result.trace.status == GraphRetrievalStatus.NOT_REQUESTED
-    assert graph.calls == []
+    assert result.trace.status == GraphRetrievalStatus.NO_EVIDENCE
+    assert graph.calls == [(("Cir_2016_03_fr.pdf",), 10)]
+
+
+def test_natural_language_regulatory_question_uses_verified_seed_connections():
+    evidence = RelationshipEvidence(
+        seed_filename="Cir_2019_07_fr.pdf",
+        seed_instrument_uid="BCT:CIRCULAR:2019:07",
+        related_instrument_uid="BCT:CIRCULAR:2018:07",
+        relation_kind="CITES",
+        direction="OUTGOING",
+        fact_uid="reference:2019-07:2018-07",
+        evidence_uid="evidence:2019-07:p2:2018-07",
+        filename="Cir_2019_07_fr.pdf",
+        page_number=2,
+        quote=(
+            "Les dispositions de la circulaire n°2018-07 sont abrogées et "
+            "remplacées comme suit."
+        ),
+    )
+    graph = FakeRelationshipGraph((evidence,))
+
+    result = RelationshipGraphRetriever(graph).retrieve(
+        (
+            "Une personne autorisée sous le régime de 2018 peut-elle, après "
+            "la modification de 2019, exploiter plusieurs bureaux ?"
+        ),
+        (_document("Cir_2019_07_fr.pdf", page=1),),
+    )
+
+    assert result.trace.status == GraphRetrievalStatus.EXPANDED
+    assert result.trace.evidence_count == 1
+    assert evidence.quote in result.documents[0].page_content
+    assert graph.calls == [(("Cir_2019_07_fr.pdf",), 10)]
 
 
 @pytest.mark.parametrize(

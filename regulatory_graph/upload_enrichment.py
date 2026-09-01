@@ -18,6 +18,7 @@ from regulatory_graph.reference_ingestion import (
     enrich_bundle_with_verified_references,
     extract_document_reference_candidates,
     promote_reference_candidate,
+    verify_reference_candidate,
 )
 from regulatory_graph.semantic_candidates import (
     CandidateType,
@@ -123,13 +124,21 @@ def process_uploaded_pdf_graph(
             f"{unknown_review_uids}"
         )
     decisions = tuple(
-        promote_reference_candidate(
-            candidates_by_uid[candidate_uid],
-            review,
-            source_pdf_path=source_pdf_path,
-            instrument_catalog=instrument_catalog,
+        (
+            promote_reference_candidate(
+                candidate,
+                reviews[candidate.uid],
+                source_pdf_path=source_pdf_path,
+                instrument_catalog=instrument_catalog,
+            )
+            if candidate.uid in reviews
+            else verify_reference_candidate(
+                candidate,
+                source_pdf_path=source_pdf_path,
+                instrument_catalog=instrument_catalog,
+            )
         )
-        for candidate_uid, review in sorted(reviews.items())
+        for candidate in reference_candidates
     )
     verified_decisions = tuple(
         decision

@@ -63,7 +63,7 @@ def _uploaded_bundle(tmp_path):
     return pdf_path, bundle, edition, pages
 
 
-def test_uploaded_pdf_processing_writes_structure_and_returns_relationship_candidates(
+def test_uploaded_pdf_processing_auto_verifies_exact_citation_and_keeps_actions_reviewed(
     tmp_path,
 ):
     pdf_path, bundle, edition, pages = _uploaded_bundle(tmp_path)
@@ -79,11 +79,14 @@ def test_uploaded_pdf_processing_writes_structure_and_returns_relationship_candi
     )
 
     assert len(writer.bundles) == 1
-    assert writer.bundles[0].instrument_references == ()
+    assert len(writer.bundles[0].instrument_references) == 1
+    assert writer.bundles[0].instrument_references[0].verified_by == (
+        "deterministic_exact_reference_v1"
+    )
     assert result.receipt.source_edition_uid == edition.uid
     assert result.receipt.reference_candidate_count == 1
-    assert result.receipt.verified_reference_count == 0
-    assert result.receipt.needs_review_reference_count == 1
+    assert result.receipt.verified_reference_count == 1
+    assert result.receipt.needs_review_reference_count == 0
     assert result.receipt.legal_action_candidate_count == 2
     assert result.receipt.write_receipt.bundle_sha256 == "c" * 64
     assert result.reference_candidates[0].target_instrument_uid == (

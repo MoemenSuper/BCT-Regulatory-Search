@@ -109,6 +109,7 @@ class ReferenceResolverRule(str, Enum):
 
 class ReferenceVerificationMethod(str, Enum):
     MANUAL_RENDERED_PDF_V1 = "manual_rendered_pdf_v1"
+    DETERMINISTIC_RENDERED_PDF_V1 = "deterministic_rendered_pdf_v1"
 
 
 class GraphModel(BaseModel):

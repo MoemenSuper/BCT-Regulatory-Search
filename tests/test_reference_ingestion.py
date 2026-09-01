@@ -18,6 +18,7 @@ from regulatory_graph.reference_ingestion import (
     enrich_bundle_with_verified_references,
     extract_document_reference_candidates,
     promote_reference_candidate,
+    verify_reference_candidate,
 )
 
 
@@ -286,6 +287,73 @@ def test_reference_promotion_fails_closed_until_every_source_check_passes(tmp_pa
     )
     assert stale.status == VerificationStatus.NEEDS_REVIEW
     assert stale.reasons == ("target_catalog_changed",)
+
+
+def test_exact_rendered_reference_can_be_verified_without_manual_routing_review(
+    tmp_path,
+):
+    pdf_path = tmp_path / "CB_2017_08_FR.pdf"
+    source_text = "La presente circulaire cite la circulaire n 2013-15."
+    source_sha256 = _write_pdf(pdf_path, (source_text,))
+    edition = _edition().model_copy(
+        update={"sha256": source_sha256, "page_count": 1}
+    )
+    catalog = _catalog(source_edition=edition)
+    candidate = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text=source_text,
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )[0]
+
+    decision = verify_reference_candidate(
+        candidate,
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
+    )
+
+    assert decision.status == VerificationStatus.VERIFIED
+    assert decision.reference.verification_method == (
+        "deterministic_rendered_pdf_v1"
+    )
+    assert decision.reference.verified_by == "deterministic_exact_reference_v1"
+    assert decision.evidence_span.quote == source_text
+    assert decision.target_instrument.uid == "BCT:CIRCULAR:2013:15"
+
+
+def test_deterministic_reference_verification_rejects_self_reference(tmp_path):
+    pdf_path = tmp_path / "CB_2017_08_FR.pdf"
+    source_text = "La presente circulaire est la circulaire n 2017-08."
+    source_sha256 = _write_pdf(pdf_path, (source_text,))
+    edition = _edition().model_copy(
+        update={"sha256": source_sha256, "page_count": 1}
+    )
+    catalog = _catalog(source_edition=edition)
+    candidate = extract_document_reference_candidates(
+        edition,
+        (
+            ReferencePage(
+                page_number=1,
+                text=source_text,
+                extraction_method="native",
+            ),
+        ),
+        instrument_catalog=catalog,
+    )[0]
+
+    decision = verify_reference_candidate(
+        candidate,
+        source_pdf_path=pdf_path,
+        instrument_catalog=catalog,
+    )
+
+    assert decision.status == VerificationStatus.NEEDS_REVIEW
+    assert decision.reasons == ("self_reference",)
 
 
 def test_promotion_preserves_repeated_target_occurrence_on_the_same_page(tmp_path):
