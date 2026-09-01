@@ -1,0 +1,2262 @@
+{
+  "status": "frozen_before_scoring",
+  "experiment_id": "runtime-graphrag-50-case-evaluation-v1",
+  "runtime_gold_access": false,
+  "fixed_current_date": "2026-09-01",
+  "case_count": 50,
+  "records": [
+    {
+      "id": "graph_fr_2019_07_partial_replacement_01",
+      "query": "La circulaire de 2019 sur les bureaux de change a-t-elle remplacé toute la circulaire de 2018, ou seulement certaines parties ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 3.37966249999954,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2019_07_fr.pdf",
+          "Cir_2026_02_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_multi_office_02",
+      "query": "Une personne qui avait une autorisation de bureau de change sous le régime de 2018 peut-elle, après la modification de 2019, exploiter plusieurs bureaux avec la même activité ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5
+        }
+      ],
+      "latency_seconds": 0.0004338000035204459,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_start_deadline_03",
+      "query": "Après la modification de 2019, quel délai a le titulaire d’une autorisation de bureau de change pour commencer effectivement son activité, et ce délai peut-il être prolongé ?",
+      "language": "fr",
+      "category": "temporal_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5
+        }
+      ],
+      "latency_seconds": 0.0003572999994503334,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_local_requirement_04",
+      "query": "Qu’est-ce que la modification de 2019 a changé dans les justificatifs et conditions liés au local d’un bureau de change ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 9
+        }
+      ],
+      "latency_seconds": 0.0002448999985062983,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_cash_ceiling_per_office_05",
+      "query": "Si un même titulaire exploite plusieurs bureaux de change après 2019, le plafond d’encaisse de 200 000 dinars s’applique-t-il globalement ou à chaque bureau ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 0.0002936000018962659,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_reporting_multiple_offices_06",
+      "query": "Un même changeur exploite plusieurs bureaux. Comment la déclaration mensuelle au SED doit-elle être faite après la réforme de 2019 ?",
+      "language": "fr",
+      "category": "reporting_lineage",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 11
+        }
+      ],
+      "latency_seconds": 0.0002677999982552137,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2019_07_annex_scope_07",
+      "query": "La modification de 2019 a-t-elle remplacé toutes les annexes de la circulaire 2018-07 ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2019_07_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 10
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2018_07_fr.pdf",
+          "page": 13
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.02291259999765316,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2019_07_fr.pdf",
+          "Cir_2018_07_fr.pdf",
+          "Cir_2026_02_fr.pdf",
+          "Cir_2025_17_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_selective_amendment_08",
+      "query": "La circulaire de 2020 sur les voyages d’affaires a-t-elle annulé toute la circulaire 2016-08 ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 5
+        }
+      ],
+      "latency_seconds": 0.0003412000005482696,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_new_category_09",
+      "query": "En 2016, les allocations de voyages d’affaires étaient divisées entre « exportateurs » et « autres activités ». Quelle nouvelle catégorie la modification de 2020 a-t-elle ajoutée ?",
+      "language": "fr",
+      "category": "added_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 0.0002013000012084376,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_exporter_cap_unchanged_10",
+      "query": "Le remplacement de l’article 4 en 2020 a-t-il changé le taux et le plafond annuel de l’allocation de voyages d’affaires des exportateurs ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7
+        }
+      ],
+      "latency_seconds": 0.00022049999824957922,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_annex_replacement_11",
+      "query": "Quelles annexes de la circulaire 2016-08 ont été remplacées par la circulaire de 2020 ?",
+      "language": "fr",
+      "category": "annex_lineage",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2020_18_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5
+        }
+      ],
+      "latency_seconds": 0.01556930000151624,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2020_03_fr.pdf",
+          "Cir_2020_18_fr.pdf",
+          "Cir_2025_17_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_abrogations_12",
+      "query": "Quelles parties de la circulaire 2016-08 ont été purement abrogées en 2020, sans être annoncées comme remplacées ?",
+      "language": "fr",
+      "category": "abrogation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2021_03_fr.pdf",
+          "page": 14
+        },
+        {
+          "source": "Cir_2021_02_fr.pdf",
+          "page": 10
+        },
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.02377839999826392,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2020_03_fr.pdf",
+          "Cir_2021_03_fr.pdf",
+          "Cir_2021_02_fr.pdf",
+          "Cir_2016_10_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_transitional_article_25_13",
+      "query": "Les dispositions transitoires de l’article 25 de la circulaire 2016-08 doivent-elles encore être traitées comme actives après l’entrée en vigueur de la circulaire de 2020 ?",
+      "language": "fr",
+      "category": "temporal_rule",
+      "relationship_intent": false,
+      "temporal_intent": true,
+      "seeds": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 11
+        },
+        {
+          "source": "Cir_2020_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_05_fr.pdf",
+          "page": 29
+        },
+        {
+          "source": "Cir_2024_14_fr.pdf",
+          "page": 24
+        }
+      ],
+      "latency_seconds": 0.0007927000006020535,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "DATE_AMBIGUOUS",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": "exact_historical_date_required"
+      },
+      "requires_temporal_abstention": true,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_categories_after_amendment_14",
+      "query": "Après l’entrée en vigueur de la modification de 2020, quelles sont les trois catégories d’allocations pour voyages d’affaires prévues par l’article 2 ?",
+      "language": "fr",
+      "category": "current_provision",
+      "relationship_intent": false,
+      "temporal_intent": true,
+      "seeds": [
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 8
+        }
+      ],
+      "latency_seconds": 0.00022909999825060368,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "DATE_AMBIGUOUS",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": "exact_historical_date_required"
+      },
+      "requires_temporal_abstention": true,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2020_03_section_2bis_15",
+      "query": "Comment la circulaire 2020-03 a-t-elle intégré les marchés réalisables à l’étranger dans la structure de la circulaire 2016-08 ?",
+      "language": "fr",
+      "category": "added_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_08_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2025_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2020_03_fr.pdf",
+          "page": 6
+        }
+      ],
+      "latency_seconds": 0.0004107000022486318,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2023_08_financing_period_extension_16",
+      "query": "ما التغيير الذي أدخله منشور 2023-08 على آخر تاريخ للتمويلات التي يمكن أن يشملها امتياز تكفل الدولة لفائدة المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "temporal_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 7
+        }
+      ],
+      "latency_seconds": 0.00033740000071702525,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2023_08_application_deadline_extension_17",
+      "query": "كيف تغير آخر أجل لإيداع مطلب الانتفاع بالامتياز بعد منشور 2023-08؟",
+      "language": "ar",
+      "category": "temporal_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.0002282999994349666,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2022_06_asof_2023_06_18",
+      "query": "بتاريخ 1 جوان 2023، وقبل صدور التمديد اللاحق، ما آخر أجل المنصوص عليه لإيداع مطلب الانتفاع بامتياز المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "historical_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2018_05_ar.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.00025349999850732274,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2023_08_asof_2024_06_19",
+      "query": "بتاريخ 1 جوان 2024، ما آخر أجل المعمول به لإيداع مطلب الانتفاع بامتياز تكفل الدولة لفائدة المؤسسات الصغرى والمتوسطة؟",
+      "language": "ar",
+      "category": "historical_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.00021980000019539148,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2023_08_partial_change_20",
+      "query": "هل استبدل منشور 2023-08 كامل نظام الامتياز الوارد بمنشور 2022-06؟",
+      "language": "ar",
+      "category": "partial_replacement",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 0.00023599999985890463,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_ar_2023_08_loan_in_2024_21",
+      "query": "إذا أُسند قرض استثمار لمؤسسة صغيرة خلال سنة 2024، فهل أصبح تاريخ الإسناد داخل الفترة الزمنية التي يشملها الامتياز بعد تعديل 2023؟",
+      "language": "ar",
+      "category": "scenario_temporal",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2023_08_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2022_06_ar.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_12_ar.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.00022840000019641593,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_13_partial_replacement_22",
+      "query": "La circulaire 2024-13 a-t-elle abrogé toute la circulaire 2024-07 sur les transferts reçus par les associations ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.01300450000053388,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2024_13_fr.pdf",
+          "Cir_2024_07_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_13_scope_unchanged_23",
+      "query": "Après la modification d’octobre 2024, quels transferts restent concernés par l’obligation de déclaration des intermédiaires agréés ?",
+      "language": "fr",
+      "category": "current_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.0003789000002143439,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_07_asof_2024_09_24",
+      "query": "Au 1er septembre 2024, avant la circulaire d’octobre, quelle modalité de déclaration s’appliquait aux transferts reçus par les associations ?",
+      "language": "fr",
+      "category": "historical_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.00037399999928311445,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_13_asof_2025_01_25",
+      "query": "Au 1er janvier 2025, quelle version de l’article 2 régit la déclaration des transferts reçus par les associations, et depuis quel mois cette modalité doit-elle être appliquée ?",
+      "language": "fr",
+      "category": "historical_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2020_16_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_09_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.00034579999919515103,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_13_reporting_change_26",
+      "query": "Qu’a réellement changé la circulaire 2024-13 dans la déclaration mensuelle des transferts aux associations ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2016_09_fr.pdf",
+          "page": 7
+        }
+      ],
+      "latency_seconds": 0.00029290000020409934,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2016_10_general_validity_27",
+      "query": "En dehors d’une dérogation spéciale, quelle est la durée maximale générale de validité d’une autorisation d’exportation de devises prévue par l’article 5 de la circulaire 2016-10 ?",
+      "language": "fr",
+      "category": "base_rule",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.0004441999990376644,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_06_pilgrim_derogation_28",
+      "query": "Pour un pèlerin de la campagne 2024, la règle générale de deux mois de 2016-10 s’applique-t-elle telle quelle ?",
+      "language": "fr",
+      "category": "derogation",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0002869000018108636,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2025_05_pilgrim_derogation_29",
+      "query": "Pour la campagne de pèlerinage 2025, combien de temps l’autorisation d’exportation de devises reste-t-elle valable par rapport à la règle générale de 2016 ?",
+      "language": "fr",
+      "category": "derogation",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2016_10_fr.pdf",
+          "page": 7
+        }
+      ],
+      "latency_seconds": 0.000311100000544684,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2025_16_pilgrim_derogation_30",
+      "query": "Pour la campagne de pèlerinage 2026, quelle durée spéciale remplace temporairement la limite générale de deux mois ?",
+      "language": "fr",
+      "category": "derogation",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.00022610000087297522,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_pilgrimage_duration_evolution_31",
+      "query": "Comment la durée spéciale de validité de l’autorisation d’exportation de devises pour le pèlerinage a-t-elle évolué entre les campagnes 2024, 2025 et 2026 ?",
+      "language": "fr",
+      "category": "multi_document_synthesis",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.0002544999988458585,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2026_pilgrim_vs_ordinary_32",
+      "query": "Deux voyageurs reçoivent leur autorisation le même jour: un voyageur ordinaire et un pèlerin de la campagne 2026. Quelle différence de durée de validité faut-il appliquer ?",
+      "language": "fr",
+      "category": "scenario_temporal",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.0002587999988463707,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_pilgrimage_derogation_scope_33",
+      "query": "Les circulaires de pèlerinage qui portent la validité à quatre ou six mois ont-elles définitivement remplacé l’article 5 de 2016-10 pour tous les voyageurs ?",
+      "language": "fr",
+      "category": "derogation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_16_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2024_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_05_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2018_04_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.017409400003089104,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2025_16_fr.pdf",
+          "Cir_2024_06_fr.pdf",
+          "Cir_2018_04_fr.pdf",
+          "Cir_2025_05_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_article4_evolution_34",
+      "query": "Comment l’obligation d’évaluation des risques de l’article 4 du cadre LBA/FT a-t-elle évolué entre 2017 et la modification de 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2016_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0004320999978517648,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_risk_update_frequency_35",
+      "query": "Après la modification de 2025, à quelle fréquence minimale le rapport d’évaluation des risques LBA/FT/prolifération doit-il être mis à jour, et quand faut-il le mettre à jour plus tôt ?",
+      "language": "fr",
+      "category": "current_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2023_06_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2026_03_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.0003231999980926048,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_suspicious_declaration_lineage_36",
+      "query": "Comment la règle de déclaration des opérations suspectes de l’article 58 a-t-elle évolué de 2017 à 2018 puis à 2025 ?",
+      "language": "fr",
+      "category": "multi_hop_lineage",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 27
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0002808999997796491,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_not_full_replacement_37",
+      "query": "La circulaire 2025-17 remplace-t-elle entièrement le cadre 2017-08 de lutte contre le blanchiment ?",
+      "language": "fr",
+      "category": "partial_replacement",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_06_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 0.010840300001291325,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2025_17_fr.pdf",
+          "Cir_2025_06_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_correspondent_questionnaire_38",
+      "query": "Après la modification de 2025, quel questionnaire peut être utilisé pour évaluer le dispositif LBA/FT d’un correspondant bancaire transfrontalier ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 32
+        },
+        {
+          "source": "Cir_2017_06_fr.pdf",
+          "page": 16
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 11
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0004092999988642987,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_code_ethics_reference_39",
+      "query": "À quel cadre de gouvernance les règles déontologiques de l’article 53 sont-elles désormais rattachées après la modification de 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 25
+        },
+        {
+          "source": "Cir_2021_05_fr.pdf",
+          "page": 24
+        },
+        {
+          "source": "Cir_2021_05_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2021_05_fr.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 0.0002765000026556663,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_ctaf_designation_added_40",
+      "query": "Quelle nouvelle obligation a été ajoutée en 2025 après le premier alinéa de l’article 57 concernant le correspondant CTAF ?",
+      "language": "fr",
+      "category": "added_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 26
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 27
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0002585000002000015,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_frozen_assets_new_article_41",
+      "query": "Quelle obligation de reporting a été créée par l’article 59 bis ajouté en 2025 ?",
+      "language": "fr",
+      "category": "added_provision",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2017_06_fr.pdf",
+          "page": 3
+        },
+        {
+          "source": "Note_2022_05_fr.pdf",
+          "page": 23
+        },
+        {
+          "source": "Note_2022_05_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Note_2022_05_fr.pdf",
+          "page": 31
+        }
+      ],
+      "latency_seconds": 0.00020589999985531904,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_annex_reporting_42",
+      "query": "Quels changements la circulaire 2025-17 apporte-t-elle aux annexes de reporting LBA/FT ?",
+      "language": "fr",
+      "category": "multi_document_synthesis",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2025_01_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2023_05_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2017_06_fr.pdf",
+          "page": 7
+        },
+        {
+          "source": "Cir_2017_06_fr.pdf",
+          "page": 8
+        }
+      ],
+      "latency_seconds": 0.0003285999991931021,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_children_field_removed_43",
+      "query": "Le champ « Nombre d’enfants » doit-il encore figurer parmi les informations minimales d’identification des clients personnes physiques après la circulaire 2025-17 ?",
+      "language": "fr",
+      "category": "fragment_removal",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2018_09_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2018_16_fr.pdf",
+          "page": 8
+        },
+        {
+          "source": "Cir_2026_02_fr.pdf",
+          "page": 11
+        }
+      ],
+      "latency_seconds": 0.00041960000089602545,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_reporting_2017_06_amended_44",
+      "query": "En plus de modifier le cadre LBA/FT de 2017-08, la circulaire 2025-17 modifie-t-elle aussi le dispositif de reporting 2017-06 ?",
+      "language": "fr",
+      "category": "cross_document_change",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 5
+        },
+        {
+          "source": "Cir_2017_06_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2022_08_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2022_08_fr.pdf",
+          "page": 6
+        },
+        {
+          "source": "Cir_2024_02_fr.pdf",
+          "page": 10
+        }
+      ],
+      "latency_seconds": 0.014350299999932759,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2025_17_fr.pdf",
+          "Cir_2017_06_fr.pdf",
+          "Cir_2022_08_fr.pdf",
+          "Cir_2024_02_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_object_proliferation_45",
+      "query": "Le champ du cadre 2017-08 reste-t-il limité au blanchiment et au financement du terrorisme après 2025 ?",
+      "language": "fr",
+      "category": "provision_version",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "CB_2017_08_FR.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.0003569000000425149,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_aml_lineage_2018_2025_46",
+      "query": "Quelles circulaires du corpus montrent explicitement l’évolution du cadre 2017-08 avant et en 2025 ?",
+      "language": "fr",
+      "category": "multi_hop_lineage",
+      "relationship_intent": false,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_08_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_17_fr.pdf",
+          "page": 4
+        },
+        {
+          "source": "Cir_2018_16_fr.pdf",
+          "page": 6
+        }
+      ],
+      "latency_seconds": 0.0003225999971618876,
+      "trace": {
+        "status": "NOT_REQUESTED",
+        "seed_filenames": [],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_02_external_abrogations_47",
+      "query": "Quels textes antérieurs la circulaire 2024-02 abroge-t-elle expressément en fin de dispositif ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_14_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_05_fr.pdf",
+          "page": 29
+        },
+        {
+          "source": "Cir_2024_01_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_03_fr.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 0.016888900001504226,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2024_14_fr.pdf",
+          "Cir_2024_13_fr.pdf",
+          "Cir_2024_05_fr.pdf",
+          "Cir_2024_01_fr.pdf",
+          "Cir_2024_03_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2024_07_external_abrogation_48",
+      "query": "Quelle ancienne circulaire sur les dons, aides et secours est expressément abrogée par la circulaire 2024-07 ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2024_07_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_01_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2024_14_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.01014020000002347,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2024_07_fr.pdf",
+          "Cir_2024_13_fr.pdf",
+          "Cir_2025_01_fr.pdf",
+          "Cir_2024_14_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2025_10_external_abrogation_49",
+      "query": "Quelle ancienne circulaire sur les transferts de frais de scolarité à l’étranger est abrogée par la circulaire 2025-10 ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 11
+        },
+        {
+          "source": "Cir_2020_16_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2023_03_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_10_fr.pdf",
+          "page": 16
+        }
+      ],
+      "latency_seconds": 0.0740829999995185,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2025_10_fr.pdf",
+          "Cir_2020_16_fr.pdf",
+          "Cir_2023_03_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    },
+    {
+      "id": "graph_fr_2025_13_external_provisions_50",
+      "query": "Quelles dispositions de l’ancienne circulaire 94-14 sont remplacées par la circulaire 2025-13 sur les délais de règlement des exportations ?",
+      "language": "fr",
+      "category": "external_instrument_relation",
+      "relationship_intent": true,
+      "temporal_intent": false,
+      "seeds": [
+        {
+          "source": "Cir_2020_02_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2025_13_fr.pdf",
+          "page": 2
+        },
+        {
+          "source": "Cir_2026_04_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Cir_2025_13_fr.pdf",
+          "page": 1
+        },
+        {
+          "source": "Note_2023_06_fr.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 0.014102299999649404,
+      "trace": {
+        "status": "NO_EVIDENCE",
+        "seed_filenames": [
+          "Cir_2020_02_fr.pdf",
+          "Cir_2025_13_fr.pdf",
+          "Cir_2026_04_fr.pdf",
+          "Note_2023_06_fr.pdf"
+        ],
+        "evidence_count": 0,
+        "paths": [],
+        "error_type": null,
+        "temporal_status": "NOT_REQUESTED",
+        "as_of": null,
+        "provision_uids": [],
+        "temporal_reason": null
+      },
+      "requires_temporal_abstention": false,
+      "documents": []
+    }
+  ]
+}
