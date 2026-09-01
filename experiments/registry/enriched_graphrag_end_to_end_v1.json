@@ -1,0 +1,90 @@
+{
+  "experiment_id": "enriched-graphrag-end-to-end-v1",
+  "timestamp": "2026-09-01T21:10:20.2763064Z",
+  "objective": "Run the integrated local GraphRAG answer path on the exact audited 50-case graph-temporal slice from the unavailable 807-record enriched evaluation file.",
+  "code_commit": "4589329d43ebd6bdc6e1ac15c719f908de73b569",
+  "result_commit": "209624377b28d376901dfa7bbed11a9ead6f4ee3",
+  "configuration": {
+    "native_chunks": 4611,
+    "arabic_ocr_chunks": 196,
+    "dense_top_k": 20,
+    "bm25_top_k": 15,
+    "arabic_ocr_dense_top_k": 5,
+    "arabic_ocr_bm25_top_k": 5,
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "ordinary_graph_seed_pages": 5,
+    "graph_mode": "read_only_verified_evidence",
+    "answer_model": "openai/gpt-oss-120b",
+    "answer_reasoning": "low",
+    "answer_temperature": 0,
+    "runtime_gold_access": false,
+    "voyage_configuration_k_used": false
+  },
+  "dataset_hashes": {
+    "unavailable_enriched_source_recorded_hash": "6DACE8538C9D5F47EFCA5E038DC4853B66A283803C1B0CF06A8B11DBD8DC99EB",
+    "audited_graph_temporal_slice": "F77A6B0F5727CB2FD8820A787AA4BBC2906A8E3FE012A872553729065A6E167E",
+    "predeclaration": "DC7FAE69AC4FA274416E557F89CAD826678E61CDB6210417683664F96DD9DE4B",
+    "runtime_artifact": "55BC11155AA48692B4D9576C56E99C3F8782733DC68231E94CC0AD6A5B9EB537",
+    "result": "A1E9DECD027C35251654E967EF6D6AFFB2C040EDB891068E97B21105541D5A95",
+    "agent_review": "319764E9ACBF56691AB4B2F91501760D7006084698A81F97F71DA63F2399651B",
+    "persistent_graph_before_and_after": "256548B0ECC9EC2705A06ED8FC1384E098F3776A25E4EF6278853CC213B4EE64"
+  },
+  "automatic_metrics": {
+    "case_count": 50,
+    "answered_count": 45,
+    "safe_abstention_count": 5,
+    "complete_required_page_retrieval_at_5": 0.78,
+    "complete_required_page_citation_rate": 0.54,
+    "mean_required_page_citation_recall": 0.6966666666666667,
+    "citation_to_evidence_link_integrity": 1.0,
+    "claim_to_evidence_link_integrity": 1.0,
+    "graph_expansion_rate": 0.96,
+    "ordinary_complete_required_pages_at_5_count": 39,
+    "graph_augmented_complete_required_pages_at_5_count": 39,
+    "graph_complete_page_repairs": 0,
+    "graph_complete_page_regressions": 0,
+    "final_top_5_ranking_changed_case_count": 1
+  },
+  "semantic_review": {
+    "semantic_answer_correct_count": 34,
+    "semantic_answer_correct_rate": 0.68,
+    "french_semantic_answer_correct_count": 30,
+    "french_semantic_answer_correct_rate": 0.6818181818181818,
+    "arabic_semantic_answer_correct_count": 4,
+    "arabic_semantic_answer_correct_rate": 0.6666666666666666,
+    "semantic_correct_with_all_frozen_gold_pages_cited_count": 23,
+    "semantic_correct_with_all_frozen_gold_pages_cited_rate": 0.46,
+    "answered_incorrect_or_materially_incomplete_count": 11,
+    "unsafe_unsupported_affirmative_count": 8,
+    "reviewer_type": "primary_agent",
+    "independent_human_confirmation": false,
+    "rendered_pdf_review": false
+  },
+  "execution": {
+    "hosted_answer_calls": 45,
+    "cache_hits": 0,
+    "prompt_tokens": 109584,
+    "completion_tokens": 16667,
+    "total_tokens": 126251,
+    "total_hosted_latency_seconds": 842.2288699000928,
+    "mean_hosted_latency_seconds": 16.844577398001856,
+    "provider_failures": 0,
+    "cost_status": "not_estimated_without_verified_applicable_rate"
+  },
+  "persistent_graph": {
+    "nodes": 8058,
+    "relationships": 11236,
+    "unchanged": true
+  },
+  "decision": "MEASURED_NOT_QUALIFIED_FOR_PRODUCTION_PROMOTION",
+  "conclusion": "The integrated GraphRAG system completed the focused slice, but graph evidence yielded no complete required-page repair at final top five and semantic answer correctness was 34/50. The dominant limitation remains version-safe answer-bearing evidence assembly and use.",
+  "limitations": [
+    "The original 807-record enriched source file is unavailable, so only its exact audited 50-case GraphRAG slice was run.",
+    "This runtime uses the integrated local embeddings and BGE reranker, not Voyage Context-4 plus Voyage reranking.",
+    "The semantic review is primary-agent review against frozen gold and retrieved text, not independent human or rendered-PDF confirmation."
+  ],
+  "validation_metrics": {
+    "provisional_answer_validation": "unopened",
+    "final_holdout": "unopened"
+  }
+}
