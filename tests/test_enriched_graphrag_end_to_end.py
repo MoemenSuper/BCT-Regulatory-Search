@@ -1,7 +1,10 @@
+from types import SimpleNamespace
+
 from langchain_core.documents import Document
 
 from experiments.enriched_graphrag_end_to_end import (
     _load_cases,
+    _rate_limit_wait_seconds,
     graph_candidate,
     runtime_inputs,
     seed_documents,
@@ -139,3 +142,11 @@ def test_structured_diagnostics_scores_negative_expected_status_without_gold_pag
 
     assert diagnostics["status_expected"] is True
     assert diagnostics["complete_required_page_citations"] is True
+
+
+def test_rate_limit_wait_honors_provider_reset_longer_than_one_minute():
+    error = SimpleNamespace(
+        response=SimpleNamespace(headers={"retry-after": "812.592"})
+    )
+
+    assert _rate_limit_wait_seconds(error) == 812.592

@@ -198,6 +198,16 @@ def _answer_ranked(ranked: list[tuple[dict[str, Any], float]]) -> list[tuple[dic
     return [mandatory, *(item for item in ranked if item is not mandatory)][:5]
 
 
+def _rate_limit_wait_seconds(error: Any) -> float:
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", {}) if response is not None else {}
+    try:
+        retry_after = float(headers.get("retry-after", 60.0))
+    except (TypeError, ValueError):
+        retry_after = 60.0
+    return max(retry_after, 1.0)
+
+
 def _answer_with_cache(
     *,
     client: Groq,
@@ -229,7 +239,7 @@ def _answer_with_cache(
         )
         return response, cached["usage"], True
 
-    for attempt in range(5):
+    for attempt in range(24):
         try:
             completion = client.chat.completions.create(
                 model=MODEL,
@@ -252,15 +262,9 @@ def _answer_with_cache(
             )
             break
         except RateLimitError as error:
-            if attempt == 4:
+            if attempt == 23:
                 raise
-            retry_after = 10.0
-            if error.response is not None:
-                try:
-                    retry_after = float(error.response.headers.get("retry-after", 10))
-                except (TypeError, ValueError):
-                    pass
-            wait = min(max(retry_after, 1.0), 60.0)
+            wait = _rate_limit_wait_seconds(error)
             print(f"[rate-limit] waiting {wait:.1f}s", flush=True)
             time.sleep(wait)
 
