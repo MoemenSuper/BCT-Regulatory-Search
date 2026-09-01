@@ -20,6 +20,11 @@ def default_conversation_database_path():
     return root / "BCT-Regulatory-Search" / "conversations.sqlite3"
 
 
+def open_conversation_store():
+    configured_path = os.environ.get("BCT_CONVERSATION_DB")
+    return ConversationStore(configured_path or default_conversation_database_path())
+
+
 class ConversationStore:
     def __init__(self, path, *, max_turns=6):
         self.path = Path(path)
@@ -80,4 +85,3 @@ class ConversationStore:
     @staticmethod
     def _serialize(state):
         return json.dumps(state, ensure_ascii=False, sort_keys=True)
-
