@@ -1,8 +1,11 @@
 from types import SimpleNamespace
 
+import httpx
+from groq import RateLimitError
 from langchain_core.documents import Document
 
 from experiments.enriched_graphrag_end_to_end import (
+    GroqClientPool,
     _load_cases,
     _rate_limit_wait_seconds,
     graph_candidate,
@@ -150,3 +153,69 @@ def test_rate_limit_wait_honors_provider_reset_longer_than_one_minute():
     )
 
     assert _rate_limit_wait_seconds(error) == 812.592
+
+
+def _rate_limit_error(wait_seconds):
+    request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    response = httpx.Response(
+        429,
+        request=request,
+        headers={"retry-after": str(wait_seconds)},
+    )
+    return RateLimitError("rate limited", response=response, body={})
+
+
+class _StubCompletions:
+    def __init__(self, events):
+        self.events = list(events)
+        self.call_count = 0
+
+    def create(self, **_kwargs):
+        self.call_count += 1
+        event = self.events.pop(0)
+        if isinstance(event, Exception):
+            raise event
+        return event
+
+
+def _stub_client(events):
+    completions = _StubCompletions(events)
+    return SimpleNamespace(
+        chat=SimpleNamespace(completions=completions),
+        completions_stub=completions,
+    )
+
+
+def test_groq_client_pool_rotates_on_429_then_stays_on_healthy_slot():
+    first = _stub_client([_rate_limit_error(600)])
+    second = _stub_client(["second-1", "second-2"])
+    pool = GroqClientPool(
+        [("GROQ_API_KEY", first), ("GROQ_API_KEY_2", second)],
+        clock=lambda: 0.0,
+        sleeper=lambda _seconds: None,
+    )
+
+    assert pool.create(model="model") == ("second-1", "GROQ_API_KEY_2")
+    assert pool.create(model="model") == ("second-2", "GROQ_API_KEY_2")
+    assert first.completions_stub.call_count == 1
+    assert second.completions_stub.call_count == 2
+
+
+def test_groq_client_pool_waits_for_earliest_slot_when_all_are_limited():
+    now = [0.0]
+    sleeps = []
+
+    def sleep(seconds):
+        sleeps.append(seconds)
+        now[0] += seconds
+
+    first = _stub_client([_rate_limit_error(10), "first-reset"])
+    second = _stub_client([_rate_limit_error(20)])
+    pool = GroqClientPool(
+        [("GROQ_API_KEY", first), ("GROQ_API_KEY_2", second)],
+        clock=lambda: now[0],
+        sleeper=sleep,
+    )
+
+    assert pool.create(model="model") == ("first-reset", "GROQ_API_KEY")
+    assert sleeps == [10.0]

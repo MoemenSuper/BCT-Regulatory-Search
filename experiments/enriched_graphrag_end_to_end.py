@@ -49,6 +49,7 @@ PROMPT_VERSION = "bct-enriched-graphrag-answer-v1-structured-v5"
 REASONING_EFFORT = "low"
 MAX_COMPLETION_TOKENS = 1536
 FIXED_CURRENT_DATE = date(2026, 9, 1)
+GROQ_KEY_SLOTS = ("GROQ_API_KEY", *(f"GROQ_API_KEY_{index}" for index in range(2, 8)))
 
 
 def runtime_inputs(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -208,15 +209,82 @@ def _rate_limit_wait_seconds(error: Any) -> float:
     return max(retry_after, 1.0)
 
 
+class GroqClientPool:
+    def __init__(
+        self,
+        clients: list[tuple[str, Any]],
+        *,
+        clock: Any = time.monotonic,
+        sleeper: Any = time.sleep,
+    ) -> None:
+        if not clients:
+            raise ValueError("At least one Groq client is required")
+        self._clients = clients
+        self._clock = clock
+        self._sleeper = sleeper
+        self._cooldown_until = [0.0] * len(clients)
+        self._current = 0
+
+    @property
+    def size(self) -> int:
+        return len(self._clients)
+
+    def create(self, **kwargs: Any) -> tuple[Any, str]:
+        while True:
+            now = self._clock()
+            for offset in range(len(self._clients)):
+                index = (self._current + offset) % len(self._clients)
+                if self._cooldown_until[index] > now:
+                    continue
+                slot, client = self._clients[index]
+                self._current = index
+                try:
+                    completion = client.chat.completions.create(**kwargs)
+                except RateLimitError as error:
+                    wait = _rate_limit_wait_seconds(error)
+                    self._cooldown_until[index] = self._clock() + wait
+                    self._current = (index + 1) % len(self._clients)
+                    print(
+                        f"[rate-limit] {slot} cooling for {wait:.1f}s; rotating",
+                        flush=True,
+                    )
+                    break
+                return completion, slot
+            else:
+                wait = max(min(self._cooldown_until) - self._clock(), 0.0)
+                print(
+                    f"[rate-limit] all Groq accounts cooling; waiting {wait:.1f}s",
+                    flush=True,
+                )
+                self._sleeper(wait)
+
+
+def _groq_client_pool_from_environment() -> GroqClientPool:
+    clients = []
+    seen = set()
+    for slot in GROQ_KEY_SLOTS:
+        api_key = os.getenv(slot)
+        if not api_key or api_key in seen:
+            continue
+        seen.add(api_key)
+        clients.append(
+            (
+                slot,
+                Groq(api_key=api_key, max_retries=0, timeout=90.0),
+            )
+        )
+    return GroqClientPool(clients)
+
+
 def _answer_with_cache(
     *,
-    client: Groq,
+    client_pool: GroqClientPool,
     case_id: str,
     query: str,
     evidence: list[dict[str, Any]],
     suite_hash: str,
     cache_dir: Path,
-) -> tuple[dict[str, Any], dict[str, int], bool]:
+) -> tuple[dict[str, Any], dict[str, int], bool, str]:
     payload = json.dumps(
         {
             "question": query,
@@ -237,36 +305,27 @@ def _answer_with_cache(
             json.dumps(cached["response"], ensure_ascii=False),
             require_nonempty_answer=True,
         )
-        return response, cached["usage"], True
+        return response, cached["usage"], True, cached.get("credential_slot", "GROQ_API_KEY")
 
-    for attempt in range(24):
-        try:
-            completion = client.chat.completions.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_V5},
-                    {"role": "user", "content": payload},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "bct_enriched_graphrag_answer",
-                        "strict": True,
-                        "schema": _SCHEMA_V2,
-                    },
-                },
-                reasoning_effort=REASONING_EFFORT,
-                temperature=0,
-                seed=20260901,
-                max_completion_tokens=MAX_COMPLETION_TOKENS,
-            )
-            break
-        except RateLimitError as error:
-            if attempt == 23:
-                raise
-            wait = _rate_limit_wait_seconds(error)
-            print(f"[rate-limit] waiting {wait:.1f}s", flush=True)
-            time.sleep(wait)
+    completion, credential_slot = client_pool.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": _SYSTEM_V5},
+            {"role": "user", "content": payload},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "bct_enriched_graphrag_answer",
+                "strict": True,
+                "schema": _SCHEMA_V2,
+            },
+        },
+        reasoning_effort=REASONING_EFFORT,
+        temperature=0,
+        seed=20260901,
+        max_completion_tokens=MAX_COMPLETION_TOKENS,
+    )
 
     response = parse_structured_answer(
         completion.choices[0].message.content or "",
@@ -282,11 +341,12 @@ def _answer_with_cache(
             "suite_sha256": suite_hash,
             "user_payload": payload,
             "response_id": completion.id,
+            "credential_slot": credential_slot,
             "usage": usage,
             "response": response,
         },
     )
-    return response, usage, False
+    return response, usage, False, credential_slot
 
 
 def _snapshot(snapshot: Any) -> dict[str, Any]:
@@ -369,8 +429,8 @@ def run(
         if sha256_file(path) != expected:
             raise ValueError(f"Frozen {label} hash differs")
     load_dotenv(dotenv_path=dotenv_path, override=False)
-    if not os.getenv("GROQ_API_KEY"):
-        raise ValueError("GROQ_API_KEY is not configured")
+    if not any(os.getenv(slot) for slot in GROQ_KEY_SLOTS):
+        raise ValueError("No GROQ_API_KEY slot is configured")
 
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     cases = _load_cases(suite)
@@ -380,7 +440,7 @@ def run(
     native = _load_search_representation(json.loads(native_manifest_path.read_text(encoding="utf-8")))
     ocr = _load_search_representation(json.loads(ocr_manifest_path.read_text(encoding="utf-8")))
     reranker = create_reranker()
-    client = Groq(max_retries=3, timeout=90.0)
+    client_pool = _groq_client_pool_from_environment()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     driver = GraphDatabase.driver(neo4j_uri, auth=None, connection_timeout=2.0)
@@ -409,10 +469,11 @@ def run(
                 response = _temporal_abstention(case["language"])
                 usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
                 cache_hit = False
+                credential_slot = None
                 answer_path = "safe_temporal_abstention"
             else:
-                response, usage, cache_hit = _answer_with_cache(
-                    client=client,
+                response, usage, cache_hit, credential_slot = _answer_with_cache(
+                    client_pool=client_pool,
                     case_id=case["id"],
                     query=case["query"],
                     evidence=evidence,
@@ -434,6 +495,7 @@ def run(
                     "response": response,
                     "usage": usage,
                     "cache_hit": cache_hit,
+                    "credential_slot": credential_slot,
                     "latency_seconds": time.perf_counter() - started,
                 }
             )
@@ -500,6 +562,7 @@ def run(
             "answer_model": MODEL,
             "prompt_version": PROMPT_VERSION,
             "reasoning_effort": REASONING_EFFORT,
+            "groq_account_count": client_pool.size,
         },
         "inputs": {
             "suite_sha256": expected_suite_sha256,
@@ -517,6 +580,15 @@ def run(
             field: sum(r["usage"][field] for r in scored)
             for field in ("prompt_tokens", "completion_tokens", "total_tokens")
         },
+        "credential_slot_counts": dict(
+            sorted(
+                Counter(
+                    record["credential_slot"]
+                    for record in runtime_records
+                    if record["credential_slot"] is not None
+                ).items()
+            )
+        ),
         "latency_seconds": {
             "total": sum(r["latency_seconds"] for r in scored),
             "mean": statistics.mean(r["latency_seconds"] for r in scored),
