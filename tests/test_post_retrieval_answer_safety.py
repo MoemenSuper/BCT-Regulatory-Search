@@ -41,6 +41,45 @@ def _state(**overrides):
     return value
 
 
+def test_generic_authorization_validity_requests_clarification():
+    guarded, audit = apply_answer_safety(
+        question="Combien de temps mon autorisation reste-t-elle valable ?",
+        language="fr",
+        response={"status": "insufficient_evidence", "answer": "Inconnu.", "claims": [], "citations": []},
+        evidence=_evidence(),
+        query_state=_state(),
+    )
+
+    assert guarded["status"] == "clarification_needed"
+    assert audit["action"] == "request_clarification_missing_operation"
+
+
+def test_generic_arabic_reporting_deadline_requests_clarification():
+    guarded, audit = apply_answer_safety(
+        question="ما هو آخر أجل لإرسال التصريح إلى البنك المركزي؟",
+        language="ar",
+        response=_response(),
+        evidence=_evidence(),
+        query_state=_state(),
+    )
+
+    assert guarded["status"] == "clarification_needed"
+    assert audit["action"] == "request_clarification_missing_operation"
+
+
+def test_unsupported_current_status_abstains_even_after_model_clarification():
+    guarded, audit = apply_answer_safety(
+        question="Quel est aujourd'hui le plafond en vigueur pour une allocation de voyage d'affaires ?",
+        language="fr",
+        response={"status": "clarification_needed", "answer": "Précisez.", "claims": [], "citations": []},
+        evidence=_evidence(text="Une ancienne circulaire fixe un plafond."),
+        query_state=_state(),
+    )
+
+    assert guarded["status"] == "insufficient_evidence"
+    assert audit["action"] == "fail_closed_current_status_not_established"
+
+
 def test_explicit_instrument_claim_must_cite_that_instrument():
     guarded, audit = apply_answer_safety(
         question="Selon la circulaire n°2021-06, quel est le plafond ?",

@@ -245,6 +245,59 @@ def _asks_current_status(question: str) -> bool:
     return not has_historical_anchor
 
 
+def _missing_operation_detail(question: str, language: str) -> str | None:
+    """Recognize a few broad regulatory requests that lack the governing operation."""
+    if parse_query_identity(question) is not None or re.search(r"\b(?:19|20)\d{2}\b", question):
+        return None
+    folded = _fold(question)
+    rules = (
+        (
+            r"\bautorisation\b.*\b(?:valable|validite|duree|combien de temps)\b|\bcombien de temps\b.*\bautorisation\b",
+            r"\b(?:change|devise|sortie|import|export|investissement|credit|transfert)\w*\b",
+            "type d'autorisation",
+        ),
+        (
+            r"\b(?:documents?|pieces?)\b.*\b(?:fournir|donner|remettre|exiger)\w*\b.*\b(?:banque|transfert|operation)\b|\b(?:fournir|donner|remettre|exiger)\w*\b.*\b(?:documents?|pieces?)\b.*\b(?:banque|transfert|operation)\b",
+            r"\b(?:import|export|investissement|heritage|pension|etude|soin|fournisseur|non.resident|formation|domiciliation|dossier|crowdfunding|agrement)\w*\b",
+            "type de transfert ou d'opération",
+        ),
+        (
+            r"\b(?:montant|maximal|maximum|plafond)\b.*\btransfert\b",
+            r"\b(?:import|export|investissement|heritage|pension|etude|soin|fournisseur|beneficiaire)\w*\b",
+            "type et motif du transfert",
+        ),
+        (
+            r"\bpayer\b.*\bfournisseur\b.*\bavance\b",
+            r"\b(?:marchandise|bien|contrat|import|service)\w*\b",
+            "nature de l'importation ou du contrat",
+        ),
+        (
+            r"(?:اقصى|أقصى|كم|مبلغ).*تحويل.*الخارج",
+            r"(?:استيراد|تصدير|استثمار|دراسة|علاج|مورد|مستفيد)",
+            "نوع التحويل والغرض منه",
+        ),
+        (
+            r"(?:منحة|مخصصات).*سفر",
+            r"(?:اعمال|أعمال|دراسة|سياحة|حج|عمرة|مصدر)",
+            "نوع السفر وصفة المستفيد",
+        ),
+        (
+            r"(?:الوثائق|الوثايق|المستندات).*البنك.*(?:العملية|التحويل)",
+            r"(?:استيراد|تصدير|استثمار|دراسة|علاج|مورد|مستفيد)",
+            "نوع العملية المصرفية",
+        ),
+        (
+            r"(?:اخر|آخر).*اجل.*(?:التصريح|الإقرار).*البنك المركزي",
+            r"(?:صرف|قرض|استثمار|مخاطر|امتثال|غسل|سيولة)",
+            "نوع التصريح المطلوب",
+        ),
+    )
+    for request, qualifier, detail in rules:
+        if re.search(request, folded) and not re.search(qualifier, folded):
+            return detail
+    return None
+
+
 def _material_requirements(question: str) -> set[str]:
     matches = [*_FRENCH_REQUIREMENT.findall(question), *_ARABIC_REQUIREMENT.findall(question)]
     requirements = set()
@@ -322,7 +375,23 @@ def apply_answer_safety(
     answer_path: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Apply runtime-observable answer guards and return the action audit."""
+    if _asks_current_status(question):
+        all_evidence_text = "\n".join(str(item.get("text", "")) for item in evidence)
+        if not _EXPLICIT_CURRENT_SUPPORT.search(all_evidence_text):
+            return _validation_failure(
+                language, "fail_closed_current_status_not_established"
+            )
+
     if response.get("status") != "answered":
+        missing_operation = _missing_operation_detail(question, language)
+        if missing_operation:
+            return (
+                _clarification(language, missing_operation),
+                {
+                    "action": "request_clarification_missing_operation",
+                    "missing_detail": missing_operation,
+                },
+            )
         false_preemption = (
             response.get("status") == "out_of_scope"
             and generated_status_before_query_state == "insufficient_evidence"
@@ -359,12 +428,15 @@ def apply_answer_safety(
             },
         )
 
-    if _asks_current_status(question):
-        all_evidence_text = "\n".join(str(item.get("text", "")) for item in evidence)
-        if not _EXPLICIT_CURRENT_SUPPORT.search(all_evidence_text):
-            return _validation_failure(
-                language, "fail_closed_current_status_not_established"
-            )
+    missing_operation = _missing_operation_detail(question, language)
+    if missing_operation:
+        return (
+            _clarification(language, missing_operation),
+            {
+                "action": "request_clarification_missing_operation",
+                "missing_detail": missing_operation,
+            },
+        )
 
     claims = response.get("claims")
     citations = response.get("citations")
