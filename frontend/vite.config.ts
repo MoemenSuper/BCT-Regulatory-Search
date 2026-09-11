@@ -6,8 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Forward API calls to the FastAPI backend (uvicorn app:app).
-      // Gradio remains available separately; this UI talks to /chat.
+      // Forward the UI API surface to the FastAPI backend.
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,

@@ -1,90 +1,90 @@
-import { AlertTriangle, FileText } from 'lucide-react';
+import { FileText, MessageSquareText } from 'lucide-react';
 import type { ResearchNoteData } from '../types/ui';
 
 interface ResearchNoteProps {
   note: ResearchNoteData;
-  loading?: boolean;
-  error?: string | null;
+  compact?: boolean;
+  selectedSourceIndex?: number;
+  onSelectSource?: (index: number) => void;
 }
 
-export function ResearchNote({ note, loading = false, error = null }: ResearchNoteProps) {
+export function ResearchNote({
+  note,
+  compact = false,
+  selectedSourceIndex = 0,
+  onSelectSource,
+}: ResearchNoteProps) {
   return (
-    <article className="research-note">
-      <div className="note-header">
-        <div className="note-title-row">
-          <span className="note-icon-wrap" aria-hidden="true">
-            <FileText size={18} strokeWidth={1.75} />
-          </span>
-          <h2 className="note-title">{note.title}</h2>
-        </div>
-
-        <aside className="warning-box">
-          <div className="warning-title-row">
-            <AlertTriangle size={14} strokeWidth={2} />
-            <strong>{note.warningTitle}</strong>
+    <article className={`research-note${compact ? ' research-note-compact' : ''}`}>
+      {!compact ? (
+        <div className="note-header">
+          <div className="note-title-row">
+            <span className="note-icon-wrap" aria-hidden="true">
+              <FileText size={18} strokeWidth={1.75} />
+            </span>
+            <h2 className="note-title">{note.title}</h2>
           </div>
-          <p>{note.warningText}</p>
-        </aside>
-      </div>
-
-      <p className="note-meta">
-        Date : {note.date}
-        <span className="meta-sep">|</span>
-        Analyste : {note.analyst}
-        <span className="meta-sep">|</span>
-        Référence interne : {note.reference}
-      </p>
-
-      {loading ? (
-        <div className="note-status" role="status">
-          Recherche en cours auprès du moteur réglementaire…
         </div>
-      ) : null}
-
-      {error ? (
-        <div className="note-status note-status-error" role="alert">
-          {error}
+      ) : (
+        <div className="note-turn-badge">
+          <MessageSquareText size={14} strokeWidth={1.75} aria-hidden="true" />
+          <span>Échange suivant</span>
+          <span className="note-turn-date">{note.date}</span>
         </div>
+      )}
+
+      {!compact ? (
+        <p className="note-meta">
+          Date : {note.date}
+          <span className="meta-sep">|</span>
+          Analyste : {note.analyst}
+          <span className="meta-sep">|</span>
+          Référence interne : {note.reference}
+        </p>
       ) : null}
 
       <section className="note-section">
-        <h3>Question de recherche</h3>
-        <p className="note-question">{note.question}</p>
+        <h3>Question</h3>
+        <p className={`note-question${note.question ? '' : ' note-question-empty'}`}>
+          {note.question || 'Aucune question active.'}
+        </p>
       </section>
 
       <section className="note-section">
-        <h3>Synthèse</h3>
+        <h3>{note.searchResults ? 'Recherche' : 'Réponse'}</h3>
         {note.synthesis.map((paragraph, index) => (
-          <p key={index} className="note-body">
+          <p key={`${index}-${paragraph.slice(0, 24)}`} className="note-body">
             {paragraph}
           </p>
         ))}
       </section>
 
-      {note.keyFindings.length > 0 ? (
-        <section className="note-section">
-          <h3>Constats clés</h3>
-          <ol className="key-findings">
-            {note.keyFindings.map((finding, index) => (
-              <li key={finding.title}>
-                <span className="finding-index">{index + 1}.</span>
-                <span>
-                  <strong>{finding.title}. </strong>
-                  {finding.text}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
-
       <section className="note-section">
-        <h3>Sources principales</h3>
+        <h3>{note.searchResults ? 'Résultats à examiner' : 'Sources'}</h3>
         {note.sources.length > 0 ? (
-          <ol className="sources-list">
-            {note.sources.map((source) => (
-              <li key={source.id}>
-                <span className="source-ref">[{source.id}]</span> {source.citation}
+          <ol className="sources-list sources-list-live">
+            {note.sources.map((source, index) => (
+              <li
+                key={`${source.file}-${source.page}-${index}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectSource?.(index);
+                }}
+              >
+                <button
+                  type="button"
+                  className={`source-link${selectedSourceIndex === index ? ' selected' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectSource?.(index);
+                  }}
+                >
+                  <span className="source-ref">{note.searchResults ? `${source.id}.` : `[${source.id}]`}</span>
+                  <span>{source.citation}</span>
+                </button>
+                {note.searchResults && source.excerpt ? (
+                  <p className="note-body" dir="auto">{source.excerpt}</p>
+                ) : null}
               </li>
             ))}
           </ol>
