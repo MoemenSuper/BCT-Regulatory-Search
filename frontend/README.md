@@ -1,103 +1,44 @@
-# Espace Recherche Réglementaire — Frontend
+# BCT Regulatory Search frontend
 
-React + TypeScript + Vite UI for the Banque Centrale de Tunisie regulatory research desk. It implements the three-panel research layout from the design mockups and can call the existing FastAPI `/chat` backend for live answers.
+React + TypeScript + Vite interface for the final BCT regulatory-search prototype.
 
-## What this UI is
+This is no longer a screenshot-only mock. It is wired to the FastAPI backend for:
 
-A professional institutional prototype (not a Gradio shell) with:
+- new searches and follow-up questions;
+- persistent conversation history;
+- grounded sources returned by the backend;
+- the real cited PDF and physical page;
+- highlighted quoted evidence;
+- full-document viewing.
 
-| Panel | Role |
-| --- | --- |
-| **Header** | BCT branding, app title, Signets / Historique, FR \| عربي, researcher menu |
-| **Left (~20%)** | Research history (`Nouvelle recherche`, date groups, selected navy card) |
-| **Center** | Search bar, regulatory research note, follow-up question box |
-| **Right (~29%)** | Evidence / Document tabs, mock PDF viewer, selected passage |
+## Run
 
-Stack: **React 19**, **TypeScript**, **Vite**, **plain CSS**, **lucide-react** (icons only). No Tailwind, Next.js, Redux, shadcn, or MUI.
+Start the backend first, then:
 
-## Layout & visual system
-
-- Full-viewport shell: navy header (`#002060`) + light blue-gray workspace
-- Thin blue-gray borders, light panel shadows, restrained motion (press feedback, gated hovers, `prefers-reduced-motion`)
-- Research note titles use a **serif** face; UI chrome stays sans-serif
-- Official BCT logo assets in `public/` (color + white header variant with crest linework preserved)
-
-## Source map
-
-```
-frontend/src/
-  App.tsx                 # Shell state, search/follow-up → API
-  styles.css              # Global institutional styling
-  api/chat.ts             # POST /api/chat client
-  components/
-    Header.tsx
-    HistorySidebar.tsx
-    SearchBar.tsx
-    ResearchNote.tsx
-    FollowUpBox.tsx
-    EvidencePanel.tsx
-    PdfMockViewer.tsx
-  data/mockData.ts        # Seed content + helpers to map API → note/evidence
-  types/ui.ts
-```
-
-## Local interactivity
-
-- History card selection styling
-- Preuve / Document tab switching
-- PDF zoom percentage (+/−)
-- Search (Enter) and **Poser** submit live questions when the backend is up
-
-## Backend wiring
-
-The Gradio ChatInterface is not used by this UI. The React app talks to FastAPI:
-
-1. Vite dev server proxies `/api/*` → `http://127.0.0.1:8000` (see `vite.config.ts`)
-2. `POST /api/chat` with `{ "question": "..." }`
-3. Response `{ answer, sources[] }` is mapped into:
-   - note **Synthèse** / **Sources principales**
-   - evidence filename / page from the first source
-4. `app.py` allows CORS from the Vite origin for local use
-
-Still mock / later work:
-
-- Real PDF rendering and in-document highlight sync
-- Persistent history / bookmarks
-- Multi-turn memory in the UI (API currently uses an empty memory state per request)
-
-## How to run
-
-From the **repository root** (not `frontend/`):
-
-```bash
-uvicorn app:app --reload --port 8000
-```
-
-In another terminal:
-
-```bash
-cd frontend
-npm install
+```powershell
+npm ci
 npm run dev
 ```
 
-Open the URL Vite prints (usually `http://localhost:5173`).
+Vite proxies `/api/*` to `http://127.0.0.1:8000`.
 
-Useful scripts:
+Useful checks:
 
-```bash
-npm run build    # tsc + production bundle
-npm run preview  # serve the production build
+```powershell
+npm run build
+npm run lint
 ```
 
-## Assets
+## Main files
 
-| File | Use |
-| --- | --- |
-| `public/bct-logo-official.png` | Official color logo |
-| `public/bct-logo-white.png` | Header logo (white wordmark, dark crest detail, transparent) |
-| `public/favicon.svg` | Browser tab icon |
+```text
+src/App.tsx                     application state + real API flow
+src/api/chat.ts                 chat/history/source API client
+src/components/HistorySidebar.tsx
+src/components/ResearchNote.tsx
+src/components/EvidencePanel.tsx
+src/data/presentation.ts        maps backend data into the research-note UI
+src/styles.css
+```
 
-## Design reference
-
-The visual target is `design-concepts/bct-three-panel-research-desk.png` (and related BCT design crops): dark navy header, three columns, research note with double-ruled metadata, Acrobat-style PDF mark, paper-plane send icon.
+`EvidencePanel` uses backend-rendered source pages for the **Preuve** tab and the original PDF for the **Document** tab. No fake PDF content is used.

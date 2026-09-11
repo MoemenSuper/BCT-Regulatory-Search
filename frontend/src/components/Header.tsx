@@ -1,49 +1,32 @@
-import {
-  Bookmark,
-  ChevronDown,
-  Clock,
-} from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 
 export function Header() {
+  const { theme, toggleTheme } = useTheme();
+  const dark = theme === 'dark';
+
   return (
     <header className="app-header">
-      <div className="header-left">
+      <div className="header-brand">
         <img
           src="/bct-logo-white.png"
-          alt="Banque Centrale de Tunisie"
+          alt="Banque Centrale de Tunisie — Central Bank of Tunisia"
           className="bct-logo"
         />
         <span className="header-divider" aria-hidden="true" />
         <h1 className="app-title">Espace Recherche Réglementaire</h1>
       </div>
-
-      <div className="header-right">
-        <button type="button" className="header-action">
-          <Bookmark size={16} strokeWidth={1.75} />
-          <span>Signets</span>
-        </button>
-        <button type="button" className="header-action">
-          <Clock size={16} strokeWidth={1.75} />
-          <span>Historique</span>
-        </button>
-
-        <div className="lang-toggle" aria-label="Choix de langue">
-          <button type="button" className="lang-btn active">
-            FR
-          </button>
-          <button type="button" className="lang-btn">
-            عربي
-          </button>
-        </div>
-
-        <button type="button" className="user-menu">
-          <span className="user-avatar" aria-hidden="true">
-            FR
-          </span>
-          <span className="user-name">Rechercheur</span>
-          <ChevronDown size={14} strokeWidth={2} />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={toggleTheme}
+        aria-pressed={dark}
+        aria-label={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+        title={dark ? 'Mode clair' : 'Mode sombre'}
+      >
+        {dark ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
+        <span>{dark ? 'Clair' : 'Sombre'}</span>
+      </button>
     </header>
   );
 }
