@@ -155,18 +155,28 @@ export default function App() {
   const activeTurn = turns[selectedTurnIndex];
   const sources: ChatSource[] = activeTurn?.sources || [];
   const passage = evidenceFromSource(sources[selectedSourceIndex]);
-  const panels = useWorkspacePanels();
+  const {
+    workspaceRef,
+    leftCollapsed,
+    rightCollapsed,
+    resizing,
+    leftColumn,
+    rightColumn,
+    setLeftCollapsed,
+    setRightCollapsed,
+    startResize,
+  } = useWorkspacePanels();
 
   return (
     <div className="app-shell">
       <Header />
       <div
-        ref={panels.workspaceRef}
-        className={`workspace${panels.resizing ? ' is-resizing' : ''}`}
+        ref={workspaceRef}
+        className={`workspace${resizing ? ' is-resizing' : ''}`}
         style={
           {
-            '--left-w': `${panels.leftColumn}px`,
-            '--right-w': `${panels.rightColumn}px`,
+            '--left-w': `${leftColumn}px`,
+            '--right-w': `${rightColumn}px`,
           } as CSSProperties
         }
       >
@@ -179,16 +189,16 @@ export default function App() {
           onDelete={(id) => void deleteHistoryItem(id)}
           onNewSearch={startNewSearch}
           onRefresh={() => void refreshHistory(500)}
-          collapsed={panels.leftCollapsed}
-          onCollapse={() => panels.setLeftCollapsed(true)}
-          onExpand={() => panels.setLeftCollapsed(false)}
+          collapsed={leftCollapsed}
+          onCollapse={() => setLeftCollapsed(true)}
+          onExpand={() => setLeftCollapsed(false)}
         />
         <PanelResizeHandle
           side="left"
-          disabled={panels.leftCollapsed}
-          active={panels.resizing === 'left'}
-          onResizeStart={(event) => panels.startResize('left', event)}
-          onCollapse={() => panels.setLeftCollapsed(true)}
+          disabled={leftCollapsed}
+          active={resizing === 'left'}
+          onResizeStart={(event) => startResize('left', event)}
+          onCollapse={() => setLeftCollapsed(true)}
         />
 
         <main className="center-panel">
@@ -267,10 +277,10 @@ export default function App() {
 
         <PanelResizeHandle
           side="right"
-          disabled={panels.rightCollapsed}
-          active={panels.resizing === 'right'}
-          onResizeStart={(event) => panels.startResize('right', event)}
-          onCollapse={() => panels.setRightCollapsed(true)}
+          disabled={rightCollapsed}
+          active={resizing === 'right'}
+          onResizeStart={(event) => startResize('right', event)}
+          onCollapse={() => setRightCollapsed(true)}
         />
         <EvidencePanel
           searchResults={activeTurn?.answer_status === 'search_results'}
@@ -279,9 +289,9 @@ export default function App() {
           onTabChange={setActiveTab}
           zoom={zoom}
           onZoomChange={setZoom}
-          collapsed={panels.rightCollapsed}
-          onCollapse={() => panels.setRightCollapsed(true)}
-          onExpand={() => panels.setRightCollapsed(false)}
+          collapsed={rightCollapsed}
+          onCollapse={() => setRightCollapsed(true)}
+          onExpand={() => setRightCollapsed(false)}
         />
       </div>
       <LegalFooter />
