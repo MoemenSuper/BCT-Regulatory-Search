@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { FileText } from 'lucide-react';
 import {
+  deleteConversation,
   getConversation,
   getConversations,
   postChat,
+  renameConversation,
 } from './api/chat';
 import { Composer } from './components/Composer';
 import { EvidencePanel } from './components/EvidencePanel';
@@ -128,6 +130,26 @@ export default function App() {
     setError(null);
   }
 
+  async function renameHistoryItem(id: string, title: string) {
+    try {
+      await renameConversation(id, title);
+      if (id === conversationId) setConversationTitle(title);
+      await refreshHistory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de renommer cette recherche.');
+    }
+  }
+
+  async function deleteHistoryItem(id: string) {
+    try {
+      await deleteConversation(id);
+      if (id === conversationId) startNewSearch();
+      await refreshHistory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de supprimer cette recherche.');
+    }
+  }
+
   const busy = pendingQuestion !== null || opening;
   const historyGroups = useMemo(() => historyGroupsFromConversations(history), [history]);
   const activeTurn = turns[selectedTurnIndex];
@@ -153,6 +175,8 @@ export default function App() {
           selectedId={selectedHistoryId}
           loading={historyLoading}
           onSelect={(id) => void openConversation(id)}
+          onRename={(id, title) => void renameHistoryItem(id, title)}
+          onDelete={(id) => void deleteHistoryItem(id)}
           onNewSearch={startNewSearch}
           onRefresh={() => void refreshHistory(500)}
           collapsed={panels.leftCollapsed}

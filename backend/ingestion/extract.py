@@ -1,0 +1,289 @@
+from __future__ import annotations
+
+import hashlib
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from .gemini_visual import GeminiVisualTranscriber
+from .models import Block, Page, StructuredDocument
+from .quality import arabic_character_ratio, assess_page_quality, contains_sensitive_literals
+
+
+_ARTICLE_FR = re.compile(r"^\s*(Article\s+(?:premier|1er|\d+(?:\s*(?:bis|ter|quater))?)(?:\s*\([^)]*\))?)\s*[:\-–—]?\s*(.*)$", re.I)
+_HEADING_FR = re.compile(r"^\s*((?:TITRE|CHAPITRE|SECTION|SOUS[-\s]?SECTION|ANNEXE)\b.*)$", re.I)
+_ARTICLE_AR = re.compile(r"^\s*((?:الفصل|فصل|المادة|مادة)\s+(?:[\d٠-٩]+|الأول(?:ى)?|الثاني(?:ة)?|الثالث(?:ة)?))\s*[:\-–—]?\s*(.*)$", re.I)
+_HEADING_AR = re.compile(r"^\s*((?:العنوان|الباب|القسم|الجزء|الفرع|الملحق|ملحق)\b.*)$", re.I)
+_LIST = re.compile(r"^\s*(?:[-•▪◦]|\d+[.)]|[أ-ي][.)])\s+")
+
+
+@dataclass
+class Hierarchy:
+    headings: list[str]
+
+    def update(self, text: str, language: str) -> tuple[str, str]:
+        normalized = " ".join(text.split())
+        article = (_ARTICLE_AR if language == "ar" else _ARTICLE_FR).match(normalized)
+        if article:
+            heading = article.group(1).strip()
+            body = article.group(2).strip()
+            self.headings = [value for value in self.headings if not _is_article(value, language)]
+            self.headings.append(heading)
+            return "article", body or heading
+        heading = (_HEADING_AR if language == "ar" else _HEADING_FR).match(normalized)
+        if heading:
+            value = heading.group(1).strip()
+            # Keep the hierarchy intentionally shallow. Retrieval experiments did not
+            # justify a large legal-structure parser.
+            self.headings = [value]
+            return "heading", value
+        if _LIST.match(normalized):
+            return "list_item", normalized
+        return "paragraph", text.strip()
+
+
+def _is_article(text: str, language: str) -> bool:
+    return bool((_ARTICLE_AR if language == "ar" else _ARTICLE_FR).match(text))
+
+
+def classify_blocks(
+    blocks: list[Block],
+    language: str,
+    hierarchy: Hierarchy | None = None,
+) -> Hierarchy:
+    """Classify one ordered block sequence while optionally carrying state across pages."""
+    hierarchy = hierarchy or Hierarchy([])
+    for block in blocks:
+        block_type, normalized = hierarchy.update(block.text, language)
+        block.type = block_type  # type: ignore[assignment]
+        block.text = normalized
+        block.heading_path = list(hierarchy.headings)
+    return hierarchy
+
+
+def sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def detect_document_language(filename: str, texts: list[str]) -> str:
+    stem = Path(filename).stem.casefold()
+    if stem.endswith("_ar"):
+        return "ar"
+    if stem.endswith("_fr"):
+        return "fr"
+    joined = "\n".join(texts[:8])
+    return "ar" if arabic_character_ratio(joined) >= 0.20 else "fr" if joined.strip() else "unknown"
+
+
+def _native_blocks(page, page_number: int) -> list[Block]:
+    blocks: list[Block] = []
+    for raw in page.get_text("blocks", sort=True):
+        if len(raw) < 5:
+            continue
+        text = str(raw[4]).strip()
+        if not text:
+            continue
+        block_type = int(raw[6]) if len(raw) > 6 and isinstance(raw[6], (int, float)) else 0
+        if block_type != 0:
+            continue
+        blocks.append(
+            Block(
+                type="paragraph",
+                text=text,
+                page_number=page_number,
+                metadata={"extraction_method": "native"},
+            )
+        )
+    return blocks
+
+
+def _text_blocks(text: str, page_number: int, *, extraction_method: str) -> list[Block]:
+    pieces = [piece.strip() for piece in text.replace("\r\n", "\n").split("\n\n") if piece.strip()]
+    if len(pieces) <= 1:
+        pieces = [piece.strip() for piece in text.splitlines() if piece.strip()]
+    return [
+        Block(
+            type="paragraph",
+            text=piece,
+            page_number=page_number,
+            metadata={"extraction_method": extraction_method},
+        )
+        for piece in pieces
+    ]
+
+
+def _visual_plan(*, language: str, native_text: str, requires_fallback: bool) -> tuple[bool, bool]:
+    """Return (should_visualize, require_complete_visual)."""
+    if os.environ.get("BCT_GEMINI_VISUAL", "1") != "1":
+        return False, False
+    if requires_fallback:
+        return True, True
+    if language != "ar":
+        return False, False
+    mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "all").strip().casefold()
+    if mode == "off":
+        return False, False
+    if mode == "risk":
+        return contains_sensitive_literals(native_text), False
+    if mode != "all":
+        raise ValueError("BCT_GEMINI_ARABIC_MODE must be one of: all, risk, off")
+    return True, True
+
+
+class PdfExtractor:
+    """Page-preserving extraction: PyMuPDF native text + selective Gemini vision.
+
+    This deliberately replaces the heavier two-pass Docling/OCR runtime. The
+    structured legal hierarchy is retained as lightweight metadata because the
+    project's retrieval experiments favored simple page-local chunks.
+    """
+
+    def __init__(self, *, visual_transcriber: GeminiVisualTranscriber | None = None) -> None:
+        self.visual_transcriber = visual_transcriber
+
+    def extract(self, pdf_path: str | Path) -> StructuredDocument:
+        try:
+            import pymupdf
+        except ImportError as error:
+            raise RuntimeError("PDF ingestion requires PyMuPDF") from error
+
+        path = Path(pdf_path)
+        content_hash = sha256_file(path)
+        with pymupdf.open(path) as pdf:
+            if pdf.page_count < 1:
+                raise ValueError("PDF contains no pages")
+            max_pages = int(os.environ.get("BCT_MAX_PDF_PAGES", "1000"))
+            if pdf.page_count > max_pages:
+                raise ValueError(f"PDF exceeds the configured page limit ({max_pages})")
+
+            native_by_page: list[tuple[list[Block], str]] = []
+            for index in range(pdf.page_count):
+                page = pdf.load_page(index)
+                blocks = _native_blocks(page, index + 1)
+                text = "\n".join(block.text for block in blocks).strip()
+                if not text:
+                    text = page.get_text("text", sort=True).strip()
+                    if text:
+                        blocks = _text_blocks(text, index + 1, extraction_method="native")
+                native_by_page.append((blocks, text))
+
+            language = detect_document_language(path.name, [text for _blocks, text in native_by_page])
+            pages: list[Page] = []
+            visual_count = 0
+            hierarchy = Hierarchy([])
+            for index, (native_blocks, native_text) in enumerate(native_by_page):
+                page_number = index + 1
+                quality = assess_page_quality(native_text, len(native_blocks))
+                page_language = "ar" if arabic_character_ratio(native_text) >= 0.20 else language
+                visual = None
+                visual_error = None
+                should_visualize, require_complete = _visual_plan(
+                    language=page_language,
+                    native_text=native_text,
+                    requires_fallback=quality.requires_fallback,
+                )
+                if should_visualize:
+                    if self.visual_transcriber is None:
+                        visual_error = "gemini_not_configured"
+                    else:
+                        page = pdf.load_page(index)
+                        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2.0, 2.0), alpha=False)
+                        try:
+                            visual = self.visual_transcriber.transcribe(
+                                image_png=pixmap.tobytes("png"),
+                                source_pdf_sha256=content_hash,
+                                page_number=page_number,
+                            )
+                            visual_count += 1
+                        except Exception as error:  # provider/runtime failure is recorded per page
+                            visual_error = f"{type(error).__name__}: {error}"
+
+                # Ingestion is an offline operation, so correctness is preferable to
+                # silently activating a degraded page. Operators can opt into
+                # best-effort behavior with BCT_ALLOW_DEGRADED_INGESTION=1.
+                allow_degraded = os.environ.get("BCT_ALLOW_DEGRADED_INGESTION", "0") == "1"
+                visual_complete = bool(
+                    visual is not None and visual.complete and visual.transcription.strip()
+                )
+                if should_visualize and require_complete and not allow_degraded and not visual_complete:
+                    detail = visual_error or "gemini_returned_incomplete_transcription"
+                    raise ValueError(
+                        f"Page {page_number} requires complete Gemini visual extraction: {detail}"
+                    )
+
+                use_visual_as_primary = bool(
+                    quality.requires_fallback
+                    and visual is not None
+                    and visual.transcription.strip()
+                    and visual.complete
+                )
+                if quality.requires_fallback and not use_visual_as_primary and not native_text.strip():
+                    raise ValueError(
+                        f"Page {page_number} has unusable native extraction and no complete Gemini fallback"
+                    )
+
+                if use_visual_as_primary:
+                    raw_text = visual.transcription.strip()
+                    chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="vlm")
+                    method = "vlm"
+                    flags = list(quality.flags) + ["native_replaced_by_gemini"]
+                else:
+                    raw_text = native_text
+                    chosen_blocks = native_blocks
+                    method = "native"
+                    flags = list(quality.flags)
+                    if quality.requires_fallback:
+                        flags.append("fallback_unavailable_native_retained")
+
+                hierarchy = classify_blocks(chosen_blocks, page_language, hierarchy)
+                metadata = {
+                    "native_raw_text": native_text,
+                    "native_quality_score": quality.score,
+                    "native_quality_flags": list(quality.flags),
+                    "latin_character_ratio": quality.latin_character_ratio,
+                    "single_arabic_token_ratio": quality.single_arabic_token_ratio,
+                    "visual_attempted": should_visualize,
+                    "visual_error": visual_error,
+                }
+                if visual is not None:
+                    metadata.update(
+                        {
+                            "visual_text": visual.transcription.strip(),
+                            "visual_complete": visual.complete,
+                            "visual_uncertain_regions": list(visual.uncertain_regions),
+                            "visual_sensitive_items": [item.model_dump() for item in visual.items],
+                            "visual_model": self.visual_transcriber.model if self.visual_transcriber else None,
+                        }
+                    )
+                    if visual.uncertain_regions:
+                        flags.append("gemini_reported_uncertainty")
+
+                pages.append(
+                    Page(
+                        page_number=page_number,
+                        raw_text=raw_text,
+                        quality_score=1.0 if use_visual_as_primary and visual and visual.complete else quality.score,
+                        extraction_method=method,
+                        quality_flags=flags,
+                        metadata=metadata,
+                        blocks=chosen_blocks,
+                    )
+                )
+
+        return StructuredDocument(
+            filename=path.name,
+            language=language,
+            content_sha256=content_hash,
+            pages=pages,
+            metadata={
+                "native_extractor": "pymupdf",
+                "visual_provider": "google_gemini" if visual_count else None,
+                "visual_page_count": visual_count,
+                "page_count": len(pages),
+            },
+        )

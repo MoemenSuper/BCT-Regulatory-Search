@@ -1,0 +1,320 @@
+import json
+
+from langchain_core.documents import Document
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+
+import conversation
+from graph_contract import (
+    GraphRetrievalResult,
+    GraphRetrievalStatus,
+    GraphRetrievalTrace,
+)
+
+
+def _document(filename="Cir_2019_07_fr.pdf", page=2):
+    return Document(
+        page_content="verified regulatory evidence",
+        metadata={"source": filename, "page": page},
+    )
+
+
+def _previous_state():
+    return {
+        "topics": ["Circular 2019-07"],
+        "first_topic": "Circular 2019-07",
+        "current_topic": "Circular 2019-07",
+        "turns": [
+            {
+                "user_message": "What did Circular 2019-07 change?",
+                "standalone_query": "changes made by Circular 2019-07",
+                "answer": "It amended the exchange-office rules.",
+                "sources": [{"file": "Cir_2019_07_fr.pdf", "page": 3}],
+                "graph_trace": {"status": "EXPANDED"},
+            }
+        ],
+    }
+
+
+def test_route_message_validates_a_follow_up_rewrite_against_memory():
+    response = {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "current deadline under Circular 2019-07",
+        "new_topic": None,
+        "current_topic": "Circular 2019-07",
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+
+    route = conversation.route_message(llm, "What about the deadline?", _previous_state())
+
+    assert route == response
+
+
+def test_route_message_fails_closed_on_malformed_output():
+    llm = FakeListChatModel(responses=["not valid json"])
+
+    route = conversation.route_message(llm, "What about that one?", _previous_state())
+
+    assert route["intent"] == "AMBIGUOUS"
+    assert route["rewrite_query"] is None
+
+
+def test_route_message_fails_closed_when_multiple_topics_have_no_current_topic():
+    response = {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "content of Circular 2019-07",
+        "new_topic": None,
+        "current_topic": "Circular 2019-07",
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+    memory = {
+        **_previous_state(),
+        "topics": ["Circular 2019-07", "Circular 2025-17"],
+        "current_topic": None,
+    }
+
+    route = conversation.route_message(llm, "What about that one?", memory)
+
+    assert route["intent"] == "AMBIGUOUS"
+
+
+def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
+    rewritten = "relationship between Circular 2019-07 and Circular 2018-07"
+    ordinary = _document()
+    calls = {}
+
+    class GraphRetriever:
+        def retrieve(self, query, seed_documents):
+            calls["graph_query"] = query
+            calls["seeds"] = tuple(seed_documents)
+            return GraphRetrievalResult(
+                documents=(),
+                trace=GraphRetrievalTrace(status=GraphRetrievalStatus.NO_EVIDENCE),
+            )
+
+    class Backend:
+        def retrieve(self, query):
+            calls["retrieval_query"] = query
+            return [(ordinary, 1.0)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "FOLLOW_UP",
+            "rewrite_query": rewritten,
+            "new_topic": None,
+            "current_topic": "Circular 2019-07",
+        },
+    )
+
+    def answer(_llm, message, _documents, memory):
+        calls["answer_query"] = message
+        calls["answer_memory"] = memory
+        return "follow-up answer"
+
+    monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *args, **_kwargs: {"answer": answer(*args), "sources": []})
+
+    result = conversation.chat(
+        "How is it related to the previous circular?",
+        _previous_state(),
+        retrieval_backend=Backend(),
+        graph_retriever=GraphRetriever(),
+    )
+
+    assert calls["retrieval_query"] == rewritten
+    assert calls["graph_query"] == rewritten
+    assert calls["answer_query"] == "How is it related to the previous circular?"
+    assert rewritten in calls["answer_memory"]
+    assert "What did Circular 2019-07 change?" in calls["answer_memory"]
+    assert result["memory_state"]["turns"][-1]["standalone_query"] == rewritten
+    assert result["memory_state"]["turns"][-1]["answer"] == "follow-up answer"
+
+
+def test_new_topic_does_not_leak_old_turns_into_answer_memory(monkeypatch):
+    ordinary = _document("Cir_2025_17_fr.pdf", page=3)
+    captured = {}
+
+    class Backend:
+        def retrieve(self, _query):
+            return [(ordinary, 1.0)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "NEW_TOPIC",
+            "rewrite_query": "reporting under Circular 2025-17",
+            "new_topic": "Circular 2025-17",
+            "current_topic": "Circular 2025-17",
+        },
+    )
+
+    def answer(_llm, _message, _documents, memory):
+        captured["memory"] = memory
+        return "new-topic answer"
+
+    monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *args, **_kwargs: {"answer": answer(*args), "sources": []})
+
+    result = conversation.chat(
+        "Now tell me about Circular 2025-17.",
+        _previous_state(),
+        retrieval_backend=Backend(),
+    )
+
+    assert "What did Circular 2019-07 change?" not in captured["memory"]
+    assert "Circular 2025-17" in captured["memory"]
+    assert result["memory_state"]["current_topic"] == "Circular 2025-17"
+
+
+def test_chat_uses_the_selected_profile_backend_and_answer_provider(monkeypatch):
+    ordinary = _document("Cir_2025_17_fr.pdf", page=3)
+    calls = {}
+
+    class Backend:
+        def retrieve(self, query):
+            calls["retrieval_query"] = query
+            return [(ordinary, 0.9)]
+
+        def rank(self, _query, _documents):
+            raise AssertionError("graph rerank is not needed")
+
+    monkeypatch.setattr(
+        conversation,
+        "create_llm",
+        lambda provider: calls.setdefault("answer_provider", provider) or object(),
+    )
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "NEW_TOPIC",
+            "rewrite_query": "Circular 2025-17 reporting",
+            "new_topic": "Circular 2025-17",
+            "current_topic": "Circular 2025-17",
+        },
+    )
+    monkeypatch.setattr(
+        conversation,
+        "generate_grounded_answer",
+        lambda _llm, _query, _documents, _memory, **_kwargs: {"answer": "answer", "sources": []},
+    )
+
+    result = conversation.chat(
+        "What does Circular 2025-17 require?",
+        {"topics": [], "turns": []},
+        retrieval_backend=Backend(),
+        llm_provider="ollama",
+    )
+
+    assert calls["answer_provider"] == "ollama"
+    assert calls["retrieval_query"] == "What does Circular 2025-17 require?"
+    assert result["answer"] == "answer"
+
+
+def test_new_topic_retrieval_preserves_the_user_question(monkeypatch):
+    message = (
+        "Notre établissement traverse un problème temporaire de liquidité. "
+        "Dans quels cas peut-on demander une assistance financière exceptionnelle "
+        "à la Banque Centrale ?"
+    )
+    contaminated_rewrite = (
+        "Quelles sont les conditions selon la réglementation française et les "
+        "directives de l'Autorité de contrôle prudentiel ?"
+    )
+    calls = {}
+    ordinary = _document("Cir_2016_07_fr.pdf", page=1)
+
+    class Backend:
+        def retrieve(self, query):
+            calls["retrieval_query"] = query
+            return [(ordinary, 1.0)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "NEW_TOPIC",
+            "rewrite_query": contaminated_rewrite,
+            "new_topic": "Assistance financière exceptionnelle",
+            "current_topic": "Assistance financière exceptionnelle",
+        },
+    )
+    monkeypatch.setattr(
+        conversation,
+        "generate_grounded_answer",
+        lambda _llm, query, _documents, _memory, **_kwargs: calls.__setitem__("answer_query", query)
+        or {"answer": "answer", "sources": []},
+    )
+
+    result = conversation.chat(
+        message,
+        _previous_state(),
+        retrieval_backend=Backend(),
+    )
+
+    assert calls["retrieval_query"] == message
+    assert calls["answer_query"] == message
+    assert result["memory_state"]["turns"][-1]["standalone_query"] == message
+
+
+def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatch):
+    class Backend:
+        def retrieve(self, _query):
+            raise AssertionError("retrieval must not run")
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "AMBIGUOUS",
+            "rewrite_query": None,
+            "new_topic": None,
+            "current_topic": None,
+        },
+    )
+
+    result = conversation.chat(
+        "What about that one?",
+        {
+            **_previous_state(),
+            "topics": ["Circular 2019-07", "Circular 2025-17"],
+            "current_topic": None,
+        },
+        retrieval_backend=Backend(),
+    )
+
+    assert "which" in result["answer"].casefold()
+    assert result["sources"] == []
+    assert result["memory_state"]["turns"] == _previous_state()["turns"]
+
+
+def test_general_chat_refusal_reports_out_of_scope_status(monkeypatch):
+    class Backend:
+        def retrieve(self, _query):
+            raise AssertionError("retrieval must not run")
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "GENERAL_CHAT",
+            "rewrite_query": None,
+            "new_topic": None,
+            "current_topic": None,
+        },
+    )
+
+    result = conversation.chat(
+        "كيف أعد طبق كسكسي تونسي في المنزل ؟",
+        {"topics": [], "turns": []},
+        retrieval_backend=Backend(),
+    )
+
+    assert result["status"] == "out_of_scope"
+    assert result["sources"] == []
+    assert result["answer"].startswith("يمكنني")
