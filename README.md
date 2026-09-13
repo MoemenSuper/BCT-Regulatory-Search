@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/bct-crest.png" alt="Banque Centrale de Tunisie crest" width="96" />
+  <img src="docs/bct-crest.png" alt="Banque Centrale de Tunisie crest" width="296" />
 </p>
 
 <h1 align="center">🏦 BCT Regulatory Search</h1>
