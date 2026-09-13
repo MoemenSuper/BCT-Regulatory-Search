@@ -191,5 +191,6 @@ Set `BCT_DEFAULT_PROFILE` before startup:
 
 - Frontend details: [`frontend/README.md`](frontend/README.md)
 - Graph Lite policy: [`backend/GRAPH_LITE.md`](backend/GRAPH_LITE.md)
+- CI: GitHub Actions runs backend `pytest` and frontend lint/build on `main` and pull requests (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 Built as an internship / research prototype. Use it to find and inspect sources, not to replace expert review.
