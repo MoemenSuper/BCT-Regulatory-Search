@@ -52,17 +52,33 @@ export function EvidencePanel({
   onCollapse,
   onExpand,
 }: EvidencePanelProps) {
+  const filename = passage?.filename ?? '';
+  const page = passage?.page ?? 0;
+  const quote = passage?.quote || '';
+  const passageKey = `${filename}:${page}:${quote}`;
+
   const [info, setInfo] = useState<SourceInfo | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [quoteExpanded, setQuoteExpanded] = useState(false);
+  const [loadedFilename, setLoadedFilename] = useState(filename);
+  const [loadingFor, setLoadingFor] = useState('');
+  const [quoteKey, setQuoteKey] = useState(passageKey);
+
+  if (loadedFilename !== filename) {
+    setLoadedFilename(filename);
+    setInfo(null);
+    setViewerError(null);
+  }
+  if (quoteKey !== passageKey) {
+    setQuoteKey(passageKey);
+    setQuoteExpanded(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setInfo(null);
-    setViewerError(null);
-    if (!passage?.filename) return;
-    getSourceInfo(passage.filename)
+    if (!filename) return undefined;
+    getSourceInfo(filename)
       .then((value) => {
         if (!cancelled) setInfo(value);
       })
@@ -74,25 +90,21 @@ export function EvidencePanel({
     return () => {
       cancelled = true;
     };
-  }, [passage?.filename]);
+  }, [filename]);
 
   const pageImage = useMemo(() => {
     if (!passage) return '';
     return sourcePageImageUrl(passage.filename, passage.page, passage.quote, 2.2);
   }, [passage]);
 
-  useEffect(() => {
-    if (pageImage) setImageLoading(true);
-  }, [pageImage]);
+  if (pageImage && loadingFor !== pageImage) {
+    setLoadingFor(pageImage);
+    setImageLoading(true);
+  }
 
   const pdfUrl = passage ? sourcePdfUrl(passage.filename, passage.page) : '';
   const totalPages = info?.pages ?? null;
-  const quote = passage?.quote || '';
   const quoteLong = quote.length > 280;
-
-  useEffect(() => {
-    setQuoteExpanded(false);
-  }, [passage?.filename, passage?.page, quote]);
 
   function decreaseZoom() {
     onZoomChange(Math.max(70, zoom - 10));

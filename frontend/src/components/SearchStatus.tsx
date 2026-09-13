@@ -19,7 +19,7 @@ const EN_WORDS = new Set([
   'about', 'under', 'circular', 'circulars', 'bank', 'tunisia', 'must', 'may',
   'whether', 'please', 'explain', 'describe', 'when', 'where', 'why', 'who',
   'not', 'and', 'of', 'in', 'on', 'to', 'by', 'if', 'any', 'all', 'its', 'their',
-  'there', 'been', 'has', 'have', 'will', 'would', 'could',
+  'there', 'here', 'has', 'have', 'will', 'would', 'could',
 ]);
 
 function detectQueryLanguage(text: string): QueryLanguage {
@@ -61,12 +61,16 @@ const ANNOUNCE: Record<QueryLanguage, string> = {
   ar: 'البحث جارٍ.',
 };
 
+function readPrefersReducedMotion() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(readPrefersReducedMotion);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(media.matches);
     const onChange = () => setReduced(media.matches);
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
@@ -84,10 +88,12 @@ export function SearchStatus({ question }: SearchStatusProps) {
   const phrases = PHRASES[language];
   const reducedMotion = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
-
-  useEffect(() => {
+  const [rotationKey, setRotationKey] = useState(`${language}:${question}`);
+  const nextKey = `${language}:${question}`;
+  if (rotationKey !== nextKey) {
+    setRotationKey(nextKey);
     setIndex(0);
-  }, [question, language]);
+  }
 
   useEffect(() => {
     if (reducedMotion) return undefined;
@@ -95,7 +101,7 @@ export function SearchStatus({ question }: SearchStatusProps) {
       setIndex((current) => (current + 1) % phrases.length);
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [phrases, reducedMotion]);
+  }, [phrases, reducedMotion, nextKey]);
 
   const phrase = phrases[reducedMotion ? 0 : index];
 
