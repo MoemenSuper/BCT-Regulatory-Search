@@ -53,6 +53,22 @@ export function getConversation(conversationId: string): Promise<ConversationDet
   return getJson(`/api/conversations/${encodeURIComponent(conversationId)}`);
 }
 
+export async function renameConversation(conversationId: string, title: string): Promise<void> {
+  const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}
+
 export function getSourceInfo(filename: string): Promise<SourceInfo> {
   return getJson(`/api/sources/${encodeURIComponent(filename)}/info`);
 }

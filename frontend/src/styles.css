@@ -404,8 +404,7 @@ ol {
   flex-shrink: 0;
 }
 
-.history-card.selected .history-doc-icon,
-.history-card.selected .history-more {
+.history-card.selected .history-doc-icon {
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -431,10 +430,143 @@ ol {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.history-item {
+  position: relative;
+}
+
+/* Card action trigger: quiet until hovered, always legible on the selected card. */
 .history-more {
-  color: var(--text-soft);
+  position: absolute;
+  top: 6px;
+  right: 5px;
   display: inline-flex;
-  margin-top: 1px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  opacity: 0.55;
+  transition:
+    opacity var(--ui-duration) var(--ease-color),
+    background-color var(--ui-duration) var(--ease-color),
+    color var(--ui-duration) var(--ease-color);
+}
+
+.history-item:hover .history-more,
+.history-more:focus-visible,
+.history-more[aria-expanded="true"] {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .history-more:hover {
+    color: var(--bct-navy);
+    background: rgba(0, 32, 96, 0.08);
+  }
+}
+
+.history-more[aria-expanded="true"] {
+  color: var(--bct-navy);
+  background: rgba(0, 32, 96, 0.1);
+}
+
+.history-card.selected + .history-more {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0.85;
+}
+
+.history-card.selected + .history-more:hover,
+.history-card.selected + .history-more[aria-expanded="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.history-menu {
+  position: absolute;
+  top: 32px;
+  right: 5px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 156px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow:
+    0 8px 24px rgba(0, 32, 96, 0.14),
+    0 1px 2px rgba(0, 32, 96, 0.08);
+  transform-origin: top right;
+  animation: menu-in var(--press-duration) var(--ease-enter);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.history-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    background-color var(--ui-duration) var(--ease-color),
+    color var(--ui-duration) var(--ease-color);
+}
+
+.history-menu button svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.history-menu button:hover,
+.history-menu button:focus-visible {
+  background: rgba(0, 32, 96, 0.06);
+  color: var(--bct-navy);
+  outline: none;
+}
+
+.history-menu button:hover svg,
+.history-menu button:focus-visible svg {
+  color: inherit;
+}
+
+.history-menu .danger,
+.history-menu .danger svg {
+  color: #a32d2d;
+}
+
+.history-menu .danger:hover,
+.history-menu .danger:focus-visible {
+  background: rgba(163, 45, 45, 0.08);
+  color: #8a1f1f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-menu {
+    animation: none;
+  }
 }
 
 .btn-see-all {
@@ -1449,6 +1581,35 @@ html[data-theme="dark"] .history-card.selected {
   background: var(--bct-navy);
   border-color: var(--bct-navy);
   color: #fff;
+}
+
+html[data-theme="dark"] .history-more:hover,
+html[data-theme="dark"] .history-more[aria-expanded="true"] {
+  color: #d6e4f6;
+  background: rgba(214, 228, 246, 0.12);
+}
+
+html[data-theme="dark"] .history-menu {
+  background: var(--panel-bg);
+  border-color: #3a516c;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] .history-menu button:hover,
+html[data-theme="dark"] .history-menu button:focus-visible {
+  background: #1b2638;
+  color: #d6e4f6;
+}
+
+html[data-theme="dark"] .history-menu .danger,
+html[data-theme="dark"] .history-menu .danger svg {
+  color: #f08c8c;
+}
+
+html[data-theme="dark"] .history-menu .danger:hover,
+html[data-theme="dark"] .history-menu .danger:focus-visible {
+  background: rgba(240, 140, 140, 0.12);
+  color: #ffb3b3;
 }
 
 html[data-theme="dark"] .note-title,

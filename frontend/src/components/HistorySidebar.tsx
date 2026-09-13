@@ -1,4 +1,14 @@
-import { FileText, MoreVertical, PanelLeft, PanelLeftClose, Plus, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  FileText,
+  MoreVertical,
+  PanelLeft,
+  PanelLeftClose,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import type { HistoryGroup } from '../types/ui';
 
 interface HistorySidebarProps {
@@ -6,6 +16,8 @@ interface HistorySidebarProps {
   selectedId: string | null;
   loading?: boolean;
   onSelect: (id: string) => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
   onNewSearch: () => void;
   onRefresh: () => void;
   collapsed?: boolean;
@@ -18,6 +30,8 @@ export function HistorySidebar({
   selectedId,
   loading = false,
   onSelect,
+  onRename,
+  onDelete,
   onNewSearch,
   onRefresh,
   collapsed = false,
@@ -25,6 +39,21 @@ export function HistorySidebar({
   onExpand,
 }: HistorySidebarProps) {
   const total = groups.reduce((count, group) => count + group.items.length, 0);
+  const [menuId, setMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuId]);
 
   if (collapsed) {
     return (
@@ -79,7 +108,7 @@ export function HistorySidebar({
               {group.items.map((item) => {
                 const selected = item.id === selectedId;
                 return (
-                  <li key={item.id}>
+                  <li key={item.id} className="history-item">
                     <button
                       type="button"
                       className={`history-card${selected ? ' selected' : ''}`}
@@ -92,10 +121,46 @@ export function HistorySidebar({
                           {item.time}{item.turnCount > 1 ? ` · ${item.turnCount} échanges` : ''}
                         </span>
                       </span>
-                      <span className="history-more" aria-hidden="true">
-                        <MoreVertical size={14} strokeWidth={1.75} />
-                      </span>
                     </button>
+                    <button
+                      type="button"
+                      className="history-more"
+                      aria-label="Options de la recherche"
+                      aria-haspopup="menu"
+                      aria-expanded={menuId === item.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMenuId(menuId === item.id ? null : item.id);
+                      }}
+                    >
+                      <MoreVertical size={14} strokeWidth={1.75} />
+                    </button>
+                    {menuId === item.id ? (
+                      <div className="history-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            const title = window.prompt('Nouveau titre', item.title)?.trim();
+                            if (title && title !== item.title) onRename(item.id, title);
+                          }}
+                        >
+                          <Pencil size={14} strokeWidth={1.75} />
+                          Renommer
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="danger"
+                          onClick={() => {
+                            if (window.confirm('Supprimer définitivement cette recherche ?')) onDelete(item.id);
+                          }}
+                        >
+                          <Trash2 size={14} strokeWidth={1.75} />
+                          Supprimer
+                        </button>
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
