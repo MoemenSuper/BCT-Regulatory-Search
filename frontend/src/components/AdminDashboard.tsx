@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, FileText, FileUp, Gauge, KeyRound, LogOut, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteUser, getConfig, getOverview, listDocuments, listUsers, promoteUser, rejectUser, setProfile, setSecrets, uploadDocument, type AdminConfig, type AdminOverview } from '../api/admin';
+import { approveUser, deleteUser, getConfig, getOverview, listDocuments, listUsers, promoteUser, rejectUser, setProfile, setSecrets, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
@@ -180,9 +180,52 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
 
 function OverviewPage({ overview, loading, locale, onNavigate }: { overview: AdminOverview | null; loading: boolean; locale: UiLocale; onNavigate: (tab: AdminTab) => void }) {
   if (loading || !overview) return <><section className="admin-hero"><div className="admin-hero-copy"><p>{t(locale, 'admin.operations')}</p><h2>{t(locale, 'admin.heroTitle')}</h2></div><img src="/bct-building.jpg" alt="" /></section><OverviewSkeleton label={t(locale, 'admin.loading')} /></>;
-  const cards = [{ label: t(locale, 'admin.approvedUsers'), value: overview.users_approved, detail: t(locale, 'admin.pendingReview', { count: overview.users_pending }), icon: UsersRound, color: 'blue' }, { label: t(locale, 'admin.indexedPdfs'), value: overview.documents_ready, detail: t(locale, 'admin.availableCorpus'), icon: Database, color: 'red' }, { label: t(locale, 'admin.runtimeProfile'), value: overview.active_profile, detail: t(locale, 'admin.activeRetrieval'), icon: Activity, color: 'navy' }, { label: t(locale, 'admin.graphLite'), value: overview.graph.graph_ready ? t(locale, 'admin.ready') : t(locale, 'admin.unavailable'), detail: overview.graph.graph_enabled ? t(locale, 'admin.graphEnabled') : t(locale, 'admin.graphDisabled'), icon: Network, color: overview.graph.graph_ready ? 'green' : 'gray' }];
+  const cards = [{ label: t(locale, 'admin.approvedUsers'), value: overview.users_approved, detail: t(locale, 'admin.pendingReview', { count: overview.users_pending }), icon: UsersRound, color: 'blue' }, { label: t(locale, 'admin.indexedPdfs'), value: overview.documents_ready, detail: t(locale, 'admin.availableCorpus'), icon: Database, color: 'red' }, { label: t(locale, 'admin.runtimeProfile'), value: overview.active_profile, detail: t(locale, 'admin.activeRetrieval'), icon: Activity, color: 'navy' }, { label: t(locale, 'admin.refusals'), value: overview.answer_refusals_total ?? 0, detail: t(locale, 'admin.refusalsHelp', { count: overview.answer_refusals_total ?? 0 }), icon: CircleAlert, color: 'red' }];
   const focus = [{ title: t(locale, 'admin.accessReview'), detail: overview.users_pending ? t(locale, 'admin.pendingRequests', { count: overview.users_pending }) : t(locale, 'admin.noPendingRequests'), action: t(locale, 'admin.reviewUsers'), tab: 'users' as const, icon: UsersRound }, { title: t(locale, 'admin.corpusReadiness'), detail: overview.documents_ready ? t(locale, 'admin.activePdfCount', { count: overview.documents_ready }) : t(locale, 'admin.noActivePdfs'), action: t(locale, 'admin.inspectDocuments'), tab: 'documents' as const, icon: Database }, { title: t(locale, 'admin.relationshipIndex'), detail: overview.graph.graph_ready ? t(locale, 'admin.graphReady') : overview.graph.graph_enabled ? t(locale, 'admin.graphNotReady') : t(locale, 'admin.graphOff'), action: t(locale, 'admin.openConfiguration'), tab: 'configuration' as const, icon: Network }];
-  return <><section className="admin-hero" aria-labelledby="overview-heading"><div className="admin-hero-copy"><p>{t(locale, 'admin.operations')}</p><h2 id="overview-heading">{t(locale, 'admin.heroTitle')}</h2><span>{t(locale, 'admin.heroText')}</span></div><img src="/bct-building.jpg" alt={t(locale, 'auth.eyebrow')} /></section><section className="admin-overview-grid">{cards.map(({ label, value, detail, icon: Icon, color }) => <article className={`admin-stat-card ${color}`} key={label}><div className="admin-stat-icon"><Icon aria-hidden="true" size={21} /></div><p>{label}</p><strong>{value}</strong><span>{detail}</span></article>)}</section><section className="admin-overview-lower"><article className="admin-focus-panel"><div className="admin-panel-heading"><div><p>{t(locale, 'admin.operationalFocus')}</p><h2>{t(locale, 'admin.needsAttention')}</h2></div><CircleAlert aria-hidden="true" size={21} /></div><div className="admin-focus-list">{focus.map(({ title, detail, action, tab, icon: Icon }) => <div className="admin-focus-item" key={title}><span className="admin-focus-icon"><Icon aria-hidden="true" size={18} /></span><div><strong>{title}</strong><p>{detail}</p></div><button type="button" onClick={() => onNavigate(tab)}>{action}<ArrowUpRight aria-hidden="true" size={16} /></button></div>)}</div></article><aside className="admin-grounding-panel"><div className="admin-grounding-mark"><ShieldCheck aria-hidden="true" size={22} /></div><p>{t(locale, 'admin.safeguards')}</p><h2>{t(locale, 'admin.safeguardTitle')}</h2><span>{t(locale, 'admin.safeguardText')}</span></aside></section></>;
+  const refusals = overview.recent_answer_refusals ?? [];
+  return <><section className="admin-hero" aria-labelledby="overview-heading"><div className="admin-hero-copy"><p>{t(locale, 'admin.operations')}</p><h2 id="overview-heading">{t(locale, 'admin.heroTitle')}</h2><span>{t(locale, 'admin.heroText')}</span></div><img src="/bct-building.jpg" alt={t(locale, 'auth.eyebrow')} /></section><section className="admin-overview-grid">{cards.map(({ label, value, detail, icon: Icon, color }) => <article className={`admin-stat-card ${color}`} key={label}><div className="admin-stat-icon"><Icon aria-hidden="true" size={21} /></div><p>{label}</p><strong>{value}</strong><span>{detail}</span></article>)}</section><section className="admin-overview-lower"><article className="admin-focus-panel"><div className="admin-panel-heading"><div><p>{t(locale, 'admin.operationalFocus')}</p><h2>{t(locale, 'admin.needsAttention')}</h2></div><CircleAlert aria-hidden="true" size={21} /></div><div className="admin-focus-list">{focus.map(({ title, detail, action, tab, icon: Icon }) => <div className="admin-focus-item" key={title}><span className="admin-focus-icon"><Icon aria-hidden="true" size={18} /></span><div><strong>{title}</strong><p>{detail}</p></div><button type="button" onClick={() => onNavigate(tab)}>{action}<ArrowUpRight aria-hidden="true" size={16} /></button></div>)}</div></article><aside className="admin-grounding-panel"><div className="admin-grounding-mark"><ShieldCheck aria-hidden="true" size={22} /></div><p>{t(locale, 'admin.safeguards')}</p><h2>{t(locale, 'admin.safeguardTitle')}</h2><span>{t(locale, 'admin.safeguardText')}</span></aside></section><RefusalsPanel refusals={refusals} total={overview.answer_refusals_total ?? 0} locale={locale} /></>;
+}
+
+function RefusalsPanel({ refusals, total, locale }: { refusals: AnswerRefusal[]; total: number; locale: UiLocale }) {
+  return (
+    <section className="admin-panel admin-table-panel admin-refusals-panel" aria-labelledby="refusals-heading">
+      <div className="admin-panel-heading">
+        <div>
+          <p>{t(locale, 'admin.refusals')}</p>
+          <h2 id="refusals-heading">{t(locale, 'admin.refusalsTitle')}</h2>
+        </div>
+        <span className="admin-count">{total}</span>
+      </div>
+      {!refusals.length ? (
+        <p className="admin-empty">{t(locale, 'admin.refusalsEmpty')}</p>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table admin-refusals-table">
+            <thead>
+              <tr>
+                <th>{t(locale, 'admin.refusalWhen')}</th>
+                <th>{t(locale, 'admin.refusalUser')}</th>
+                <th>{t(locale, 'admin.refusalStatus')}</th>
+                <th>{t(locale, 'admin.refusalQuestion')}</th>
+                <th>{t(locale, 'admin.refusalReason')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {refusals.map((item) => (
+                <tr key={item.refusal_id}>
+                  <td>{item.created_at}</td>
+                  <td>{item.user_email || '—'}</td>
+                  <td><code>{item.answer_status}</code></td>
+                  <td>{item.question}</td>
+                  <td className="admin-refusal-reason"><code>{item.reason}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPromote, onReject, onDelete }: {

@@ -303,10 +303,25 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "users_rejected": sum(1 for user in users if user.status == "rejected"),
         "documents_ready": len(docs),
         "active_profile": settings["active_profile"],
+        "answer_refusals_total": request.app.state.conversation_store.count_answer_refusals(),
+        "recent_answer_refusals": request.app.state.conversation_store.list_answer_refusals(limit=25),
         "graph": graph_lite_status(
             getattr(request.app.state, "graph_runtime", None),
             getattr(request.app.state, "graph_retriever", None),
         ),
+    }
+
+
+@app.get("/admin/answer-refusals")
+def admin_answer_refusals(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+    _admin=Depends(require_admin),
+):
+    store = request.app.state.conversation_store
+    return {
+        "total": store.count_answer_refusals(),
+        "items": store.list_answer_refusals(limit=limit),
     }
 
 
@@ -418,7 +433,7 @@ def _conversation_title(question: str, provider: str) -> str:
 def post_chat(
     payload: ChatRequest,
     request: Request,
-    _user=Depends(require_approved_user),
+    user=Depends(require_approved_user),
 ):
     profile = request.app.state.settings_store.active_profile().value
     try:
@@ -461,6 +476,17 @@ def post_chat(
             profile=runtime.spec.value.value,
             answer_status=result.get("status"),
         )
+        if result.get("refusal_reason"):
+            store.record_answer_refusal(
+                conversation_id=conversation_id,
+                user_id=user.id,
+                user_email=user.email,
+                question=question,
+                answer_status=result.get("status"),
+                reason=result["refusal_reason"],
+                diagnostics=result.get("refusal_diagnostics") or [],
+                profile=runtime.spec.value.value,
+            )
     if payload.conversation_id is None:
         store.rename(conversation_id, _conversation_title(payload.question, runtime.answer_provider))
     return {

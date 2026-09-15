@@ -228,7 +228,10 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
     class Backend:
         def retrieve(self, query):
             return [(doc, .9)]
-    assert "diagnostics" not in conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
+    chat_result = conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
+    assert "diagnostics" not in chat_result
+    assert chat_result["refusal_reason"] == "quote_not_found"
+    assert chat_result["refusal_diagnostics"] == ["quote_not_found", "quote_not_found"]
 
 
 def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():

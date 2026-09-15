@@ -123,6 +123,26 @@ class ConversationStore:
                 "CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_time "
                 "ON conversation_turns(conversation_id, created_at, turn_id)"
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS answer_refusals (
+                    refusal_id TEXT PRIMARY KEY,
+                    conversation_id TEXT,
+                    user_id TEXT,
+                    user_email TEXT,
+                    question TEXT NOT NULL,
+                    answer_status TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    diagnostics_json TEXT NOT NULL,
+                    profile TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_answer_refusals_time "
+                "ON answer_refusals(created_at DESC, refusal_id)"
+            )
             self._ensure_session_title_column(connection)
 
     def create(self):
@@ -206,6 +226,77 @@ class ConversationStore:
                 ),
             )
         return turn_id
+
+    def record_answer_refusal(
+        self,
+        *,
+        question,
+        answer_status,
+        reason,
+        diagnostics=None,
+        conversation_id=None,
+        user_id=None,
+        user_email=None,
+        profile=None,
+    ):
+        """Persist why a turn fell back or abstained (not shown to chat users)."""
+        refusal_id = str(uuid4())
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO answer_refusals (
+                    refusal_id, conversation_id, user_id, user_email, question,
+                    answer_status, reason, diagnostics_json, profile
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    refusal_id,
+                    conversation_id,
+                    user_id,
+                    user_email,
+                    str(question or ""),
+                    str(answer_status or ""),
+                    str(reason or "")[:4000],
+                    json.dumps(list(diagnostics or []), ensure_ascii=False),
+                    profile,
+                ),
+            )
+        return refusal_id
+
+    def list_answer_refusals(self, *, limit=100):
+        limit = max(1, min(int(limit), 500))
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                """
+                SELECT refusal_id, conversation_id, user_id, user_email, question,
+                       answer_status, reason, diagnostics_json, profile, created_at
+                FROM answer_refusals
+                ORDER BY created_at DESC, rowid DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            {
+                "refusal_id": row["refusal_id"],
+                "conversation_id": row["conversation_id"],
+                "user_id": row["user_id"],
+                "user_email": row["user_email"],
+                "question": row["question"],
+                "answer_status": row["answer_status"],
+                "reason": row["reason"],
+                "diagnostics": json.loads(row["diagnostics_json"] or "[]"),
+                "profile": row["profile"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def count_answer_refusals(self):
+        with self._connect() as connection:
+            row = connection.execute("SELECT COUNT(*) FROM answer_refusals").fetchone()
+        return int(row[0] if row else 0)
 
     def rename(self, conversation_id, title):
         with self._connect() as connection:

@@ -35,11 +35,26 @@ export interface AdminOverview {
   users_rejected: number;
   documents_ready: number;
   active_profile: string;
+  answer_refusals_total: number;
+  recent_answer_refusals: AnswerRefusal[];
   graph: {
     graph_enabled: boolean;
     neo4j_connected: boolean;
     graph_ready: boolean;
   };
+}
+
+export interface AnswerRefusal {
+  refusal_id: string;
+  conversation_id: string | null;
+  user_id: string | null;
+  user_email: string | null;
+  question: string;
+  answer_status: string;
+  reason: string;
+  diagnostics: string[];
+  profile: string | null;
+  created_at: string;
 }
 
 export interface SecretInfo {
