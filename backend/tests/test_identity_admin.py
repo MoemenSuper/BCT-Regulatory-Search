@@ -182,3 +182,37 @@ def test_admin_can_promote_approved_user_but_not_demote_or_delete_admins(auth_cl
 
     blocked_delete = auth_client.delete(f"/admin/users/{registered['id']}")
     assert blocked_delete.status_code == 400
+
+
+def test_admin_exports_full_answer_refusals_csv(auth_client):
+    auth_client.post(
+        "/auth/login",
+        json={"email": "admin@bct.tn", "password": "AdminPass123"},
+    )
+    store = auth_client.app.state.conversation_store
+    for index in range(3):
+        store.record_answer_refusal(
+            conversation_id=f"c{index}",
+            user_id="u1",
+            user_email="analyst@bct.gov.tn",
+            question=f"Question {index} ?",
+            answer_status="search_results",
+            reason=f"quote_not_found:{index}",
+            diagnostics=[f"quote_not_found:{index}"],
+            profile="cloud",
+        )
+
+    response = auth_client.get("/admin/answer-refusals/export")
+    assert response.status_code == 200
+    assert "text/csv" in response.headers["content-type"]
+    assert "attachment" in response.headers["content-disposition"]
+    body = response.text
+    assert "created_at,user_email,user_id,answer_status" in body
+    assert "Question 0 ?" in body
+    assert "Question 2 ?" in body
+    assert "quote_not_found:1" in body
+
+    listed = auth_client.get("/admin/answer-refusals?limit=5000")
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 3
+    assert len(listed.json()["items"]) == 3
