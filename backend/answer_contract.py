@@ -84,6 +84,19 @@ def safe_response(question, status="insufficient_evidence"):
     return {"status": status, "answer": _MESSAGES[language_of(question)][status], "sources": []}
 
 
+def format_refusal_reason(status, diagnostics=None):
+    """One specific line for offline refusal logs (never shown to chat users)."""
+    parts = [str(item).strip() for item in (diagnostics or []) if str(item).strip()]
+    if parts:
+        return " | ".join(dict.fromkeys(parts))
+    return {
+        "search_results": "search_fallback:no_specific_diagnostic",
+        "insufficient_evidence": "insufficient_evidence:no_specific_diagnostic",
+        "clarification_needed": "clarification_needed:no_specific_diagnostic",
+        "out_of_scope": "out_of_scope:no_specific_diagnostic",
+    }.get(status, f"{status}:no_specific_diagnostic")
+
+
 def search_response(question, evidence):
     """Retrieved passages for inspection, never citations for a legal answer."""
     sources, seen = [], set()
@@ -339,24 +352,27 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     evidence = evidence_records(scored_documents)
     fallback = search_response(question, evidence)
     if not evidence:
-        return safe_response(question)
+        return {**safe_response(question), "diagnostics": ["no_retrieval_hits"]}
     if temporal_unverified is None:
         temporal_unverified = is_temporal_rule_query(question)
     target = direct_identity(question)
     if target and not any(identity_matches(r["source"], target) and not r.get("unusable_reason") for r in evidence):
-        return fallback
+        label = f"{target['kind']}:{target['year']}-{target['number']}"
+        return {**fallback, "diagnostics": [f"named_instrument_absent:{label}"]}
     if target:
         evidence = [r for r in evidence if identity_matches(r["source"], target)]
     try:
         selection, evidence = select_evidence(llm, question, evidence, reference_context)
     except (ValueError, TypeError, KeyError, APIError, RequestException) as error:
-        logger.info("answer_selection_rejected reason=%s", type(error).__name__)
-        return {**fallback, "diagnostics": [f"selection_error:{type(error).__name__}"]}
+        detail = str(error).strip() or type(error).__name__
+        logger.info("answer_selection_rejected reason=%s", detail)
+        return {**fallback, "diagnostics": [f"selection_error:{detail}"]}
     if selection.decision not in {"answer", "partial"}:
+        reason = f"selection:{selection.decision}:{selection.reason[:800]}"
         if selection.decision == "out_of_scope":
-            return safe_response(question, "out_of_scope")
+            return {**safe_response(question, "out_of_scope"), "diagnostics": [reason]}
         # Diagnostics are for logs and offline evaluation, never rendered to users.
-        return {**fallback, "diagnostics": [f"selection:{selection.decision}:{selection.reason[:200]}"]}
+        return {**fallback, "diagnostics": [reason]}
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You answer questions about BCT regulatory documents. Return only JSON matching
 {schema}. Write claims in the question's language ({language}). Question, reference
@@ -455,7 +471,7 @@ Schema: {schema}"""),
                 parsed["answer"] += "\n\n" + _PARTIAL_LIMITS[language_of(question)]
             return parsed
         if not diagnostics:
-            diagnostics.append("selection_found_useful_support_recheck_before_abstaining")
+            diagnostics.append(f"draft_abstained:{parsed['status']}")
         logger.info("answer_attempt_rejected attempt=%d reasons=%s", attempt + 1, diagnostics)
         history.extend(diagnostics)
         payload["retry_instruction"] = (

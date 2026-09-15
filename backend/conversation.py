@@ -1,7 +1,13 @@
 import json
 from enum import Enum
 from llm import create_llm
-from answer_contract import generate_grounded_answer, safe_response, search_response, evidence_records
+from answer_contract import (
+    format_refusal_reason,
+    generate_grounded_answer,
+    safe_response,
+    search_response,
+    evidence_records,
+)
 from langchain_core.prompts import ChatPromptTemplate
 from retrieval_selection import parse_source_identity
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -276,14 +282,26 @@ def chat(
                 "graph_trace": GraphRetrievalTrace(
                     status=GraphRetrievalStatus.NOT_REQUESTED
                 ).as_dict(),
+                "refusal_reason": format_refusal_reason(
+                    "out_of_scope",
+                    ["route:GENERAL_CHAT:question_not_about_BCT_regulations"],
+                ),
+                "refusal_diagnostics": ["route:GENERAL_CHAT:question_not_about_BCT_regulations"],
             }
+        clarification = safe_response(message, "clarification_needed")
         return {
-            "answer": safe_response(message, "clarification_needed")["answer"],
+            "answer": clarification["answer"],
             "sources": [],
+            "status": clarification["status"],
             "memory_state": memory_state,
             "graph_trace": GraphRetrievalTrace(
                 status=GraphRetrievalStatus.NOT_REQUESTED
             ).as_dict(),
+            "refusal_reason": format_refusal_reason(
+                "clarification_needed",
+                ["route:AMBIGUOUS:question_scope_unclear"],
+            ),
+            "refusal_diagnostics": ["route:AMBIGUOUS:question_scope_unclear"],
         }
 
     route_query = route["rewrite_query"] or message
@@ -353,15 +371,21 @@ def chat(
         memory_text,
         temporal_unverified=temporal_unverified,
     )
-    if generated.get("status") in {"search_results", "insufficient_evidence", "clarification_needed"}:
-        # Search fallback preserves ordinary retrieval order, even when answer
-        # context was reordered for currentness or prefixed with graph snippets.
-        generated = search_response(message, evidence_records(reranked_results[:5]))
+    diagnostics = list(generated.get("diagnostics") or [])
+    status = generated.get("status", "answered")
+    refusal_reason = None
+    if status in {"search_results", "insufficient_evidence", "clarification_needed", "out_of_scope"}:
+        refusal_reason = format_refusal_reason(status, diagnostics)
+        if status in {"search_results", "insufficient_evidence", "clarification_needed"}:
+            # Search fallback preserves ordinary retrieval order, even when answer
+            # context was reordered for currentness or prefixed with graph snippets.
+            # Keep refusal_reason from the grounded attempt; do not leak diagnostics to UI.
+            generated = search_response(message, evidence_records(reranked_results[:5]))
     answer = generated["answer"]
     sources = generated["sources"]
     trace = graph_trace.as_dict()
 
-    return {
+    result = {
         "answer": answer,
         "sources": sources,
         "memory_state": update_memory_state(
@@ -377,3 +401,7 @@ def chat(
         "graph_trace": trace,
         "status": generated.get("status", "answered"),
     }
+    if refusal_reason:
+        result["refusal_reason"] = refusal_reason
+        result["refusal_diagnostics"] = diagnostics
+    return result

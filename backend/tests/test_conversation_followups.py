@@ -317,4 +317,5 @@ def test_general_chat_refusal_reports_out_of_scope_status(monkeypatch):
 
     assert result["status"] == "out_of_scope"
     assert result["sources"] == []
+    assert "GENERAL_CHAT" in result["refusal_reason"]
     assert result["answer"].startswith("يمكنني")
