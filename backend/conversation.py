@@ -332,8 +332,14 @@ def chat(
                 for index, document in enumerate(graph_result.documents)
             ]
 
+    # Retrieval is scored per chunk; the answer layer reads the whole retrieved page
+    # so a fact in a neighbouring chunk is not lost. Order and citations are unchanged.
+    expand_pages = getattr(retrieval_backend, "expand_pages", None)
+    answer_candidates = reranked_results[:5]
+    if expand_pages is not None:
+        answer_candidates = expand_pages(answer_candidates)
     top_results = _answer_results(
-        reranked_results,
+        answer_candidates,
         graph_results=graph_ranked_results,
         prefer_later_instruments=temporal_unverified,
     )

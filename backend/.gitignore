@@ -19,3 +19,4 @@ local_chroma/
 voyage-cache/
 viewer-cache/
 .ingestion.lock
+documents/

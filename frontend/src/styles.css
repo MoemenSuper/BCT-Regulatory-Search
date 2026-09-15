@@ -21,9 +21,11 @@
   --font-serif: "Times New Roman", Times, "Liberation Serif", Georgia, serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-color: ease;
   --press-duration: 140ms;
   --ui-duration: 180ms;
+  --panel-duration: 340ms;
   --reveal-duration: 560ms;
   --shadow-panel: 0 1px 2px rgba(0, 32, 96, 0.04), 0 0 0 1px rgba(0, 32, 96, 0.04);
 }
@@ -99,11 +101,13 @@ ol {
   grid-template-columns: var(--left-w, 280px) 5px minmax(0, 1fr) 5px var(--right-w, 400px);
   column-gap: 8px;
   padding: 10px 10px 8px;
+  transition: grid-template-columns var(--panel-duration) var(--ease-drawer);
 }
 
 .workspace.is-resizing {
   cursor: col-resize;
   user-select: none;
+  transition: none;
 }
 
 .panel-resize {
@@ -142,9 +146,12 @@ ol {
 }
 
 .panel-rail-btn {
-  width: 100%;
-  height: 100%;
-  min-height: 44px;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  min-height: 0;
   border: 0;
   background: transparent;
   color: var(--text-muted);
@@ -152,6 +159,34 @@ ol {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 180ms var(--ease-out),
+    color var(--ui-duration) var(--ease-color),
+    background-color var(--ui-duration) var(--ease-color);
+}
+
+.history-sidebar.is-collapsed .panel-rail-btn,
+.evidence-panel.is-collapsed .panel-rail-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.panel-expanded {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.history-sidebar.is-collapsed .panel-expanded,
+.evidence-panel.is-collapsed .panel-expanded {
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -185,6 +220,13 @@ ol {
   min-width: 0;
   flex: 1;
   height: 100%;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .bct-logo {
@@ -246,6 +288,7 @@ ol {
 /* ——— Left sidebar ——— */
 
 .history-sidebar {
+  position: relative;
   min-width: 0;
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
@@ -255,6 +298,7 @@ ol {
   flex-direction: column;
   padding: 12px;
   overflow: hidden;
+  transition: padding var(--panel-duration) var(--ease-drawer);
 }
 
 .btn-new-search {
@@ -289,9 +333,6 @@ ol {
 .history-sidebar.is-collapsed,
 .evidence-panel.is-collapsed {
   padding: 6px;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
 }
 
 .history-heading-row {
@@ -379,6 +420,7 @@ ol {
     background-color var(--ui-duration) var(--ease-color),
     border-color var(--ui-duration) var(--ease-color),
     color var(--ui-duration) var(--ease-color);
+  animation: reveal-in 320ms var(--ease-enter) both;
 }
 
 .history-card:active {
@@ -670,7 +712,21 @@ ol {
   font-weight: 400;
   letter-spacing: 0.01em;
   color: #5d7083;
-  animation: phrase-in 420ms var(--ease-enter) both;
+  background-image: linear-gradient(
+    90deg,
+    #5d7083 0%,
+    #5d7083 38%,
+    #c8d4e0 50%,
+    #5d7083 62%,
+    #5d7083 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    phrase-in 420ms var(--ease-enter) both,
+    status-shimmer 2.4s linear infinite;
 }
 
 .visually-hidden {
@@ -702,6 +758,16 @@ ol {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Claude-style waiting shimmer: light band sweeps across italic status text */
+@keyframes status-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: -100% 50%;
   }
 }
 
@@ -933,6 +999,7 @@ ol {
 /* ——— Evidence panel ——— */
 
 .evidence-panel {
+  position: relative;
   min-width: 0;
   background: var(--panel-bg);
   border: 1px solid var(--border);
@@ -941,6 +1008,7 @@ ol {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: padding var(--panel-duration) var(--ease-drawer);
 }
 
 .evidence-tabs {
@@ -966,8 +1034,13 @@ ol {
   padding: 7px 12px 6px;
   margin-bottom: -1px;
   transition:
+    transform var(--press-duration) var(--ease-out),
     color var(--ui-duration) var(--ease-color),
     border-color var(--ui-duration) var(--ease-out);
+}
+
+.evidence-tab:active {
+  transform: scale(0.97);
 }
 
 .evidence-tab.active {
@@ -1163,8 +1236,15 @@ ol {
   .btn-see-all:active,
   .btn-full-source:active,
   .history-card:active,
+  .evidence-tab:active,
   .pdf-expand:active {
     transform: none;
+  }
+
+  .search-status-phrase {
+    background-image: none;
+    -webkit-text-fill-color: #5d7083;
+    color: #5d7083;
   }
 }
 
@@ -1329,6 +1409,18 @@ ol {
   height: auto;
   background: #fff;
   transition: width 140ms var(--ease-out);
+  animation: page-in 280ms var(--ease-enter) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .pdf-loading {
@@ -1620,10 +1712,33 @@ html[data-theme="dark"] .evidence-tab.active,
 html[data-theme="dark"] .btn-see-all,
 html[data-theme="dark"] .btn-full-source,
 html[data-theme="dark"] .composer-label,
-html[data-theme="dark"] .search-status-phrase,
 html[data-theme="dark"] .panel-rail-btn:hover,
 html[data-theme="dark"] .icon-ghost:hover {
   color: #d6e4f6;
+}
+
+html[data-theme="dark"] .search-status-phrase {
+  color: #9eb0c4;
+  background-image: linear-gradient(
+    90deg,
+    #9eb0c4 0%,
+    #9eb0c4 38%,
+    #e8f0fa 50%,
+    #9eb0c4 62%,
+    #9eb0c4 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .search-status-phrase {
+    background-image: none;
+    -webkit-text-fill-color: #d6e4f6;
+    color: #d6e4f6;
+  }
 }
 
 html[data-theme="dark"] .note-icon-wrap {

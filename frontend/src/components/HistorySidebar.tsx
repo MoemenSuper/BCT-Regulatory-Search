@@ -55,124 +55,133 @@ export function HistorySidebar({
     };
   }, [menuId]);
 
-  if (collapsed) {
-    return (
-      <aside className="history-sidebar is-collapsed">
-        <button
-          type="button"
-          className="panel-rail-btn"
-          onClick={onExpand}
-          aria-label="Afficher l’historique"
-          title="Historique"
-        >
-          <PanelLeft size={20} strokeWidth={1.75} />
-        </button>
-      </aside>
-    );
-  }
+  useEffect(() => {
+    if (collapsed) setMenuId(null);
+  }, [collapsed]);
 
   return (
-    <aside id="history-sidebar" className="history-sidebar" tabIndex={-1}>
-      <button type="button" className="btn-new-search pressable" onClick={onNewSearch}>
-        <Plus size={18} strokeWidth={2.25} />
-        <span>Nouvelle recherche</span>
+    <aside
+      id="history-sidebar"
+      className={`history-sidebar${collapsed ? ' is-collapsed' : ''}`}
+      tabIndex={-1}
+    >
+      <button
+        type="button"
+        className="panel-rail-btn"
+        onClick={onExpand}
+        aria-label="Afficher l’historique"
+        title="Historique"
+        tabIndex={collapsed ? 0 : -1}
+        aria-hidden={!collapsed}
+      >
+        <PanelLeft size={20} strokeWidth={1.75} />
       </button>
 
-      <div className="history-heading-row">
-        <h2 className="history-heading">HISTORIQUE DES RECHERCHES</h2>
-        {onCollapse ? (
-          <button
-            type="button"
-            className="icon-ghost panel-collapse-btn"
-            aria-label="Masquer l’historique"
-            title="Masquer l’historique"
-            onClick={onCollapse}
-          >
-            <PanelLeftClose size={20} strokeWidth={1.75} />
-          </button>
-        ) : null}
-      </div>
+      <div className="panel-expanded" aria-hidden={collapsed}>
+        <button type="button" className="btn-new-search pressable" onClick={onNewSearch} tabIndex={collapsed ? -1 : 0}>
+          <Plus size={18} strokeWidth={2.25} />
+          <span>Nouvelle recherche</span>
+        </button>
 
-      <div className="history-scroll">
-        {total === 0 && !loading ? (
-          <div className="history-empty">
-            <FileText size={22} strokeWidth={1.5} />
-            <span>Aucune recherche enregistrée.</span>
-          </div>
-        ) : null}
+        <div className="history-heading-row">
+          <h2 className="history-heading">HISTORIQUE DES RECHERCHES</h2>
+          {onCollapse ? (
+            <button
+              type="button"
+              className="icon-ghost panel-collapse-btn"
+              aria-label="Masquer l’historique"
+              title="Masquer l’historique"
+              onClick={onCollapse}
+              tabIndex={collapsed ? -1 : 0}
+            >
+              <PanelLeftClose size={20} strokeWidth={1.75} />
+            </button>
+          ) : null}
+        </div>
 
-        {groups.map((group) => (
-          <section key={group.label} className="history-group">
-            <h3 className="history-date-label">{group.label}</h3>
-            <ul className="history-list">
-              {group.items.map((item) => {
-                const selected = item.id === selectedId;
-                return (
-                  <li key={item.id} className="history-item">
-                    <button
-                      type="button"
-                      className={`history-card${selected ? ' selected' : ''}`}
-                      onClick={() => onSelect(item.id)}
-                    >
-                      <FileText size={15} strokeWidth={1.75} className="history-doc-icon" />
-                      <span className="history-card-text">
-                        <span className="history-card-title">{item.title}</span>
-                        <span className="history-card-time">
-                          {item.time}{item.turnCount > 1 ? ` · ${item.turnCount} échanges` : ''}
+        <div className="history-scroll">
+          {total === 0 && !loading ? (
+            <div className="history-empty">
+              <FileText size={22} strokeWidth={1.5} />
+              <span>Aucune recherche enregistrée.</span>
+            </div>
+          ) : null}
+
+          {groups.map((group) => (
+            <section key={group.label} className="history-group">
+              <h3 className="history-date-label">{group.label}</h3>
+              <ul className="history-list">
+                {group.items.map((item) => {
+                  const selected = item.id === selectedId;
+                  return (
+                    <li key={item.id} className="history-item">
+                      <button
+                        type="button"
+                        className={`history-card${selected ? ' selected' : ''}`}
+                        onClick={() => onSelect(item.id)}
+                        tabIndex={collapsed ? -1 : 0}
+                      >
+                        <FileText size={15} strokeWidth={1.75} className="history-doc-icon" />
+                        <span className="history-card-text">
+                          <span className="history-card-title">{item.title}</span>
+                          <span className="history-card-time">
+                            {item.time}{item.turnCount > 1 ? ` · ${item.turnCount} échanges` : ''}
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="history-more"
-                      aria-label="Options de la recherche"
-                      aria-haspopup="menu"
-                      aria-expanded={menuId === item.id}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setMenuId(menuId === item.id ? null : item.id);
-                      }}
-                    >
-                      <MoreVertical size={14} strokeWidth={1.75} />
-                    </button>
-                    {menuId === item.id ? (
-                      <div className="history-menu" role="menu">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            const title = window.prompt('Nouveau titre', item.title)?.trim();
-                            if (title && title !== item.title) onRename(item.id, title);
-                          }}
-                        >
-                          <Pencil size={14} strokeWidth={1.75} />
-                          Renommer
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="danger"
-                          onClick={() => {
-                            if (window.confirm('Supprimer définitivement cette recherche ?')) onDelete(item.id);
-                          }}
-                        >
-                          <Trash2 size={14} strokeWidth={1.75} />
-                          Supprimer
-                        </button>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="history-more"
+                        aria-label="Options de la recherche"
+                        aria-haspopup="menu"
+                        aria-expanded={menuId === item.id}
+                        tabIndex={collapsed ? -1 : 0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setMenuId(menuId === item.id ? null : item.id);
+                        }}
+                      >
+                        <MoreVertical size={14} strokeWidth={1.75} />
+                      </button>
+                      {menuId === item.id ? (
+                        <div className="history-menu" role="menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              const title = window.prompt('Nouveau titre', item.title)?.trim();
+                              if (title && title !== item.title) onRename(item.id, title);
+                            }}
+                          >
+                            <Pencil size={14} strokeWidth={1.75} />
+                            Renommer
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="danger"
+                            onClick={() => {
+                              if (window.confirm('Supprimer définitivement cette recherche ?')) onDelete(item.id);
+                            }}
+                          >
+                            <Trash2 size={14} strokeWidth={1.75} />
+                            Supprimer
+                          </button>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
 
-      <button type="button" className="btn-see-all pressable" onClick={onRefresh}>
-        <RefreshCw className={loading ? 'spin' : undefined} size={16} strokeWidth={1.75} />
-        <span>{loading ? 'Actualisation…' : 'Actualiser l’historique'}</span>
-      </button>
+        <button type="button" className="btn-see-all pressable" onClick={onRefresh} tabIndex={collapsed ? -1 : 0}>
+          <RefreshCw className={loading ? 'spin' : undefined} size={16} strokeWidth={1.75} />
+          <span>{loading ? 'Actualisation…' : 'Actualiser l’historique'}</span>
+        </button>
+      </div>
     </aside>
   );
 }

@@ -31,7 +31,10 @@ PROFILE_SPECS = {
         retrieval="local_e5_bge",
         answer="ollama",
         qualification="experimental_rejected",
-        description="Local E5/BGE retrieval and a configurable Ollama answer model.",
+        description=(
+            "Search: local multilingual-e5-small (no cloud API). "
+            "Answer: local Ollama (default qwen3.5:9b-q4_K_M, configurable)."
+        ),
     ),
     RuntimeProfile.LOCAL_HYBRID: ProfileSpec(
         value=RuntimeProfile.LOCAL_HYBRID,
@@ -39,7 +42,10 @@ PROFILE_SPECS = {
         retrieval="local_e5_bge",
         answer="groq",
         qualification="development",
-        description="Local E5/BGE retrieval with the Groq answer model.",
+        description=(
+            "Search: local multilingual-e5-small (no cloud API). "
+            "Answer: Groq API (model via BCT_GROQ_MODEL)."
+        ),
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
         value=RuntimeProfile.CLOUD,
@@ -47,7 +53,10 @@ PROFILE_SPECS = {
         retrieval="voyage_context_4_rerank_2_5",
         answer="groq",
         qualification="development_not_legally_qualified",
-        description="Voyage Context-4 retrieval/rerank with the Groq answer model.",
+        description=(
+            "Search: Voyage Context-4 + rerank (VOYAGE_API_KEY). "
+            "Answer: Groq API (GROQ_API_KEY / BCT_GROQ_MODEL)."
+        ),
     ),
 }
 

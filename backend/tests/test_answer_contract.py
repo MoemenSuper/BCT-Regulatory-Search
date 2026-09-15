@@ -31,11 +31,22 @@ def test_invalid_or_unsupported_output_has_no_answer_sources(value):
     assert "fabricated" not in result["answer"]
 
 
-def test_conflicting_native_header_does_not_become_an_affirmative_answer():
-    conflicting = [{**EVIDENCE[0], "text": "CIRCULAIRE AUX INTERMEDIAIRES AGREES n° 2002-03 du 04 février 2020\n" + EVIDENCE[0]["text"]}]
-    result = parse_answer(json.dumps(draft()), "Quel est l'objet ?", conflicting)
-    assert result["status"] == "insufficient_evidence"
-    assert result["sources"] == []
+def test_conflicting_native_header_is_a_warning_not_a_discarded_page():
+    from langchain_core.documents import Document
+    from answer_contract import evidence_records
+    text = "CIRCULAIRE AUX INTERMEDIAIRES AGREES n° 2002-03 du 04 février 2020\n" + EVIDENCE[0]["text"]
+    records = evidence_records([(Document(page_content=text, metadata={"source": "Cir_2020_03_fr.pdf", "page": 1}), 0.8)])
+    assert records[0]["evidence_warning"] == "source_header_conflict"
+    assert "unusable_reason" not in records[0]
+    # Identity is the trusted filename; the body still supports a verbatim claim.
+    result = parse_answer(json.dumps(draft()), "Quel est l'objet ?", records)
+    assert result["status"] == "answered"
+    assert result["sources"][0]["file"] == "Cir_2020_03_fr.pdf"
+    # Ingestion-detected extraction conflicts remain unusable.
+    conflicted = evidence_records([(Document(page_content=text, metadata={
+        "source": "Cir_2020_03_fr.pdf", "page": 1, "extraction_conflict": True}), 0.8)])
+    assert conflicted[0]["unusable_reason"] == "extraction_conflict"
+    assert parse_answer(json.dumps(draft()), "Quel est l'objet ?", conflicted)["status"] == "insufficient_evidence"
 
 
 def test_invalid_model_response_keeps_the_arabic_question_language():
@@ -65,6 +76,25 @@ def test_partial_answer_does_not_bypass_evidence_requirements(change):
     result = parse_answer(json.dumps(value), "Quel est l'objet ?", EVIDENCE)
     assert result["status"] == "insufficient_evidence"
     assert result["sources"] == []
+
+
+def test_graph_relationship_note_is_surfaced_for_drafting():
+    from langchain_core.documents import Document
+    from answer_contract import evidence_records
+
+    records = evidence_records([(Document(
+        page_content="abroge la circulaire n° 2001-11",
+        metadata={
+            "source": "Cir_2018_09_fr.pdf",
+            "page": 15,
+            "temporal_relation": "ABROGATES",
+            "temporal_source_id": "cir:2018:9",
+            "temporal_target_id": "cir:2001:11",
+            "temporal_verification": "VERIFIED_RELATIONSHIP_ONLY",
+        },
+    ), 0.9)])
+    assert records[0]["relationship_note"].startswith("cir:2018:9 ABROGATES cir:2001:11")
+    assert "not proof" in records[0]["relationship_note"]
 
 
 def test_unverified_temporal_scope_cannot_be_presented_as_a_complete_answer():

@@ -1,0 +1,60 @@
+export type UserRole = 'user' | 'admin';
+export type UserStatus = 'pending' | 'approved' | 'rejected';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+async function readError(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: string | { msg?: string }[] };
+    if (typeof payload.detail === 'string') return payload.detail;
+    if (Array.isArray(payload.detail) && payload.detail[0]?.msg) return payload.detail[0].msg;
+    return 'La requête a échoué.';
+  } catch {
+    return 'La requête a échoué.';
+  }
+}
+
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    credentials: 'include',
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init?.headers || {}),
+    },
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export function getMe(): Promise<{ user: AuthUser }> {
+  return request('/api/auth/me');
+}
+
+export function login(email: string, password: string): Promise<{ user: AuthUser }> {
+  return request('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function register(email: string, password: string): Promise<{ user: AuthUser; message: string }> {
+  return request('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function logout(): Promise<{ ok: boolean }> {
+  return request('/api/auth/logout', { method: 'POST' });
+}

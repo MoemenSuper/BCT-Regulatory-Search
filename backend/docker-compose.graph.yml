@@ -7,6 +7,6 @@ services:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7687:7687"
     environment:
-      NEO4J_AUTH: "neo4j/${BCT_NEO4J_PASSWORD}"
+      NEO4J_AUTH: "neo4j/${BCT_NEO4J_PASSWORD:-bct-graph-lite-verify}"
     volumes:
       - ./.neo4j-data:/data

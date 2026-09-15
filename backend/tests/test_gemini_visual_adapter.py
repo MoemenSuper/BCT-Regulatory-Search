@@ -52,7 +52,7 @@ def test_gemini_adapter_uses_structured_output_and_bound_cache(tmp_path: Path):
     assert client.interactions.last_kwargs["generation_config"]["thinking_level"] == "low"
 
 
-def test_gemini_adapter_rejects_literal_not_present_in_transcription(tmp_path: Path):
+def test_gemini_adapter_marks_literal_not_present_in_transcription_uncertain(tmp_path: Path):
     payload = {
         "transcription": "النص الصحيح",
         "items": [
@@ -68,5 +68,10 @@ def test_gemini_adapter_rejects_literal_not_present_in_transcription(tmp_path: P
     }
     adapter = GeminiVisualTranscriber(tmp_path, client=FakeClient(payload))
 
-    with pytest.raises(ValueError, match="not bound to its transcription"):
-        adapter.transcribe(image_png=b"image", source_pdf_sha256="abc123", page_number=1)
+    page = adapter.transcribe(image_png=b"image", source_pdf_sha256="abc123", page_number=1)
+
+    # The transcription stays usable and complete; only the index entry is distrusted.
+    assert page.complete is True
+    assert page.transcription == "النص الصحيح"
+    assert page.items[0].uncertain is True
+    assert page.uncertain_regions == ["unbound_item:١١ أكتوبر ٢٠٢٦"]

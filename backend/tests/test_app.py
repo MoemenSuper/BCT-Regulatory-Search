@@ -23,7 +23,6 @@ class _FakeTitleLLM:
 def _offline_title_llm(monkeypatch):
     """Conversation titles come from an LLM call; never reach Groq from tests."""
     monkeypatch.setattr(app_module, "create_llm", lambda provider="groq": _FakeTitleLLM())
-
 def test_health():
     response = client.get("/health")
 
@@ -46,6 +45,8 @@ def test_health_reports_graph_lite_not_ready_when_enabled_but_unavailable(
 ):
     monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
     monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: None)
@@ -90,6 +91,8 @@ def test_health_reports_graph_ready_when_runtime_is_attached(
 
     monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
     monkeypatch.setattr(
@@ -170,6 +173,8 @@ def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         response = live_client.post("/chat", json={"question": "Bonjour"})
 
@@ -178,7 +183,7 @@ def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(
     assert fake_runtime.closed is True
 
 
-def test_chat_selects_the_requested_runtime_profile(monkeypatch, tmp_path):
+def test_chat_uses_application_active_runtime_profile(monkeypatch, tmp_path):
     class FakeGraphRuntime:
         retriever = None
 
@@ -187,6 +192,8 @@ def test_chat_selects_the_requested_runtime_profile(monkeypatch, tmp_path):
 
     selected_backend = object()
     store = ConversationStore(tmp_path / "conversations.sqlite3")
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
     monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
@@ -206,6 +213,9 @@ def test_chat_selects_the_requested_runtime_profile(monkeypatch, tmp_path):
                 spec=SimpleNamespace(value=SimpleNamespace(value="local")),
             )
 
+        def reset(self):
+            return None
+
     monkeypatch.setattr(
         app_module,
         "create_runtime_profile_manager",
@@ -224,10 +234,13 @@ def test_chat_selects_the_requested_runtime_profile(monkeypatch, tmp_path):
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
+        live_client.app.state.settings_store.set_active_profile("local")
         response = live_client.post(
             "/chat",
-            json={"question": "Question", "profile": "local"},
+            json={"question": "Question", "profile": "cloud"},
         )
 
     assert response.status_code == 200
@@ -282,6 +295,8 @@ def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_pat
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         first = live_client.post("/chat", json={"question": "First question"})
         conversation_id = first.json()["conversation_id"]
@@ -331,6 +346,8 @@ def test_chat_rejects_an_unknown_conversation_id(monkeypatch, tmp_path):
         ),
     )
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         response = live_client.post(
             "/chat",
@@ -387,6 +404,8 @@ def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_pa
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         response = live_client.post(
             "/chat",
@@ -420,6 +439,8 @@ def test_conversation_rename_and_delete_endpoints(monkeypatch, tmp_path):
     conversation_id = store.create()
     store.save_with_turn(conversation_id, new_memory_state(), question="Question ?", answer="A")
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         assert live_client.patch(f"/conversations/{conversation_id}", json={"title": "   "}).status_code == 400
         renamed = live_client.patch(f"/conversations/{conversation_id}", json={"title": " Mon titre "})
@@ -456,6 +477,8 @@ def test_new_conversation_title_comes_from_the_llm(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "create_llm", lambda provider="groq": _FakeTitleLLM(' "Dépôt à distance d’une demande de change." '))
     question = "Comment une personne ou une entreprise peut-elle déposer à distance une demande d’autorisation pour une opération de change ?"
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         first = live_client.post("/chat", json={"question": question}).json()
         live_client.post("/chat", json={"question": "Et pour une banque ?", "conversation_id": first["conversation_id"]})
@@ -468,6 +491,8 @@ def test_conversation_title_falls_back_when_llm_fails(monkeypatch, tmp_path):
     store = _title_setup(monkeypatch, tmp_path)
     monkeypatch.setattr(app_module, "create_llm", lambda provider="groq": _FakeTitleLLM(RuntimeError("down")))
 
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         first = live_client.post("/chat", json={"question": "Quelles sont les heures d'ouverture des guichets ?"}).json()
 

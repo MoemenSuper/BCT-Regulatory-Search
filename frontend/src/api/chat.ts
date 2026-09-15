@@ -23,7 +23,10 @@ async function readError(response: Response): Promise<string> {
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
   if (!response.ok) throw new Error(await readError(response));
   return response.json() as Promise<T>;
 }
@@ -38,6 +41,7 @@ export async function postChat(
   if (profile) body.profile = profile;
   const response = await fetch('/api/chat', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -56,6 +60,7 @@ export function getConversation(conversationId: string): Promise<ConversationDet
 export async function renameConversation(conversationId: string, title: string): Promise<void> {
   const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
     method: 'PATCH',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title }),
   });
@@ -65,6 +70,7 @@ export async function renameConversation(conversationId: string, title: string):
 export async function deleteConversation(conversationId: string): Promise<void> {
   const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!response.ok) throw new Error(await readError(response));
 }

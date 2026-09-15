@@ -18,6 +18,8 @@ from bm25 import create_bm25, retrieve_bm25
 from retrieval_selection import (
     diversify_ranked_pages,
     build_identity_reranker_documents,
+    expand_ranked_pages,
+    page_chunks,
     parse_query_identity,
     parse_source_identity,
     is_arabic_query,
@@ -86,6 +88,11 @@ class LocalRetrievalBackend:
         self.ocr_vector_store = ocr_vector_store
         self.ocr_bm25 = ocr_bm25
         self.ocr_documents = list(ocr_documents or [])
+        self._pages = page_chunks([*bm25_documents, *self.ocr_documents])
+
+    def expand_pages(self, ranked):
+        """Full retrieved page text for the answer layer; ranking is untouched."""
+        return expand_ranked_pages(ranked, self._pages)
 
     def retrieve(self, query):
         dense = retrieve_relevant_chunks(query, self.vector_store)
@@ -151,6 +158,11 @@ class VoyageRetrievalBackend:
         self.client = client
         self.native_bm25 = create_bm25(self.native_documents)
         self.ocr_bm25 = create_bm25(self.ocr_documents)
+        self._pages = page_chunks([*self.native_documents, *self.ocr_documents])
+
+    def expand_pages(self, ranked):
+        """Full retrieved page text for the answer layer; ranking is untouched."""
+        return expand_ranked_pages(ranked, self._pages)
 
     def retrieve(self, query):
         query_vector = np.asarray(self.client.embed_query(query), dtype=np.float32)

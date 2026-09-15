@@ -1,13 +1,17 @@
 """Answer-only identity and literal gates. Never use benchmark labels or reorder retrieval."""
 import re
 import unicodedata
+from difflib import SequenceMatcher
 
 from graph_contract import is_relationship_query, is_temporal_rule_query
-from retrieval_selection import parse_query_identity, parse_source_identity
+from retrieval_selection import _ARABIC_RANGE as _AR, parse_query_identity, parse_source_identity
 
 
 _TYPOGRAPHY = str.maketrans({**{c: "-" for c in "‐‑‒–—−"}, "’": "'", "‘": "'",
                            **{c: str(unicodedata.decimal(c)) for c in "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹"}})
+# Arabic tatweel and harakat: presentation marks that OCR emits inconsistently.
+_ARABIC_MARKS = re.compile(r"[\u0640\u064b-\u065f\u0670]")
+_NEGATION = re.compile(r"(?<![\w-])(?:n'|(?:ne|pas|non|sans|jamais|aucun|aucune|not|no|never|لا|لم|لن|ليس|ليست|غير|دون)(?![\w-]))", re.I)
 
 
 def plain(text):
@@ -16,8 +20,39 @@ def plain(text):
     return " ".join(unicodedata.normalize("NFC", text).translate(_TYPOGRAPHY).split())
 
 
+def _compact(text):
+    """Drop whitespace and Arabic presentation marks for locating, never for display."""
+    return _ARABIC_MARKS.sub("", text).replace(" ", "")
+
+
+def _negations(text):
+    return sorted(_NEGATION.findall(text.casefold()))
+
+
+def _near_match(haystack, needle):
+    """Bounded near-match on compact text: ≥95% of the quote's characters align
+    contiguously, the span stays within the quote's length, digits are identical.
+    Locating tolerates OCR letter noise, never a changed number."""
+    if len(needle) < 20:
+        return None
+    blocks = [b for b in SequenceMatcher(None, haystack, needle, autojunk=False).get_matching_blocks() if b.size]
+    if not blocks:
+        return None
+    matched = sum(b.size for b in blocks)
+    start, end = blocks[0].a, blocks[-1].a + blocks[-1].size
+    if matched < 0.95 * len(needle) or end - start > len(needle) * 1.05 + 3:
+        return None
+    if re.findall(r"\d+", haystack[start:end]) != re.findall(r"\d+", needle):
+        return None
+    return start, end
+
+
 def source_quote(quote, text):
-    """Recover the original excerpt, including its typography, after matching."""
+    """Recover the original excerpt, including its typography, after matching.
+
+    Locating tolerates whitespace/punctuation spacing and small OCR letter noise;
+    the returned quotation is always the page's own characters.
+    """
     needle = plain(quote)
     if not needle:
         raise ValueError("empty_quote")
@@ -32,20 +67,43 @@ def source_quote(quote, text):
             ends.append(match.end())
     normalized = "".join(chars)
     offset = normalized.find(needle)
-    if offset < 0:
-        segments = [s.strip() for s in re.split(r"(?:\[?…\]?|\[?\.{3}\]?)", needle)]
-        if len(segments) < 2 or any(len(s) < 12 for s in segments):
-            raise ValueError("quote_not_found")
-        cursor, offsets = 0, []
-        for segment in segments:
-            index = normalized.find(segment, cursor)
-            if index < 0:
-                raise ValueError("quote_not_found")
-            offsets.append(index)
-            cursor = index + len(segment)
-        # Return the entire original span, including any omitted condition.
-        return text[starts[offsets[0]]:ends[cursor - 1]]
-    return text[starts[offset]:ends[offset + len(needle) - 1]]
+    if offset >= 0:
+        return text[starts[offset]:ends[offset + len(needle) - 1]]
+
+    # Whitespace-insensitive pass: "premier :La Banque" vs "premier : La Banque",
+    # "2018 ," vs "2018,". Offsets map compact positions back to the page.
+    keep = [i for i, c in enumerate(normalized) if c != " " and not _ARABIC_MARKS.match(c)]
+    compact = "".join(normalized[i] for i in keep)
+    compact_needle = _compact(needle)
+    if not compact_needle:
+        raise ValueError("empty_quote")
+    span = None
+    offset = compact.find(compact_needle)
+    if offset >= 0:
+        span = offset, offset + len(compact_needle)
+    else:
+        segments = [_compact(s.strip()) for s in re.split(r"(?:\[?…\]?|\[?\.{3}\]?)", needle)]
+        if len(segments) >= 2 and all(len(s) >= 10 for s in segments):
+            cursor, first = 0, None
+            for segment in segments:
+                index = compact.find(segment, cursor)
+                if index < 0:
+                    first = None
+                    break
+                first = index if first is None else first
+                cursor = index + len(segment)
+            if first is not None:
+                # Return the entire original span, including any omitted condition.
+                span = first, cursor
+    if span is None:
+        span = _near_match(compact, compact_needle)
+        # A flipped polarity ("ne peut pas" -> "peut") is within 5% of the characters
+        # but must never anchor a claim to the page.
+        if span is not None and _negations(normalized[keep[span[0]]:keep[span[1] - 1] + 1]) != _negations(needle):
+            span = None
+    if span is None:
+        raise ValueError("quote_not_found")
+    return text[starts[keep[span[0]]]:ends[keep[span[1] - 1]]]
 
 
 def numeric_literals(text):
@@ -107,7 +165,16 @@ def identity_matches(source, target):
 
 
 def evidence_problem(record):
-    """Reject observable identity corruption; this is not a complete OCR detector."""
+    """Ingestion-detected extraction conflicts make a passage unusable."""
+    if record.get("numeric_conflict") or record.get("extraction_conflict"):
+        return "extraction_conflict"
+    return None
+
+
+def evidence_warning(record):
+    """Observable OCR noise in the page header. Identity still comes from the trusted
+    filename and quotes stay digit-exact, so the body may support claims; the model
+    is told never to repair the header. This is not a complete OCR detector."""
     identity = parse_source_identity(record["source"])
     if not identity:
         return None
@@ -115,15 +182,44 @@ def evidence_problem(record):
     header = re.match(r"\s*(?:CIRCULAIRE|NOTE)\b.{0,150}?n\s*[°ºo]\s*(\d{4})\s*[-/]\s*(\d+)", text, re.I)
     if header and (int(header[1]), int(header[2])) != (identity["year"], identity["number"]):
         return "source_header_conflict"
-    arabic = re.sub(r"[\u0640\u064b-\u065f\u0670]", "", text[:450])
-    header_ar = re.search(r"(?:مذكرة|منشور).{0,100}?(?:عدد|رقم)\s*(\d+)\s*لسنة\s*(\d{4})", arabic)
+    arabic = _ARABIC_MARKS.sub("", text[:450])
+    # The instrument's own title ("منشور إلى البنوك عدد 4 لسنة 2016"); a body
+    # cross-reference is prefixed ("بالمنشور عدد 6 لسنة 2008") and is not a header.
+    header_ar = re.search(rf"(?<![{_AR}])(?:مذكرة|منشور).{{0,100}}?(?:عدد|رقم)\s*(\d+)\s*لسنة\s*(\d{{4}})", arabic)
     if header_ar and (int(header_ar[2]), int(header_ar[1])) != (identity["year"], identity["number"]):
         return "source_header_conflict"
     # Impossible Gregorian years in a contemporary instrument are a corruption
-    # signal, never an invitation to silently transpose or replace the digits.
-    for match in re.finditer(r"(?:جانفي|فيفري|مارس|أفريل|ماي|جوان|جويلية|أوت|سبتمبر|أكتوبر|نوفمبر|ديسمبر)\s+(\d{4})", arabic):
-        if int(match[1]) > identity["year"] + 100:
+    # signal (a broken font map yields "لسنة 6112" for 2016), never an invitation
+    # to silently transpose or replace the digits.
+    dated = r"(?:لسنة|جانفي|فيفري|مارس|أفريل|ماي|جوان|جويلية|أوت|سبتمبر|أكتوبر|نوفمبر|ديسمبر)\s*(\d{4})(?!\d)"
+    for match in re.finditer(dated, _ARABIC_MARKS.sub("", text)):
+        if not 1900 <= int(match[1]) <= identity["year"] + 10:
             return "implausible_gregorian_year"
-    if record.get("numeric_conflict") or record.get("extraction_conflict"):
-        return "extraction_conflict"
     return None
+
+
+def strip_instrument_references(text, records):
+    """Remove 'YEAR-NUMBER' / 'عدد N لسنة YEAR' references to the cited instruments.
+
+    The identity is trusted filename metadata, so naming it in a claim is not a rule
+    number that must be quoted. Only the cited instruments' own identifiers are removed.
+    """
+    for record in records:
+        identity = parse_source_identity(record["source"])
+        if not identity:
+            continue
+        year, number = identity["year"], identity["number"]
+        text = re.sub(rf"(?<!\d){year}\s*[-/]\s*0*{number}(?!\d)", " ", text)
+        text = re.sub(rf"(?:عدد|رقم)\s*0*{number}\s*لسنة\s*{year}(?!\d)", " ", text)
+    return text
+
+
+def trusted_years(question, records):
+    """Years the claim may name without quoting: the question's own and the cited
+    instruments' filename years. Trusted metadata, not rule values."""
+    years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", plain(question)))
+    for record in records:
+        identity = parse_source_identity(record["source"])
+        if identity:
+            years.add(str(identity["year"]))
+    return years

@@ -114,144 +114,147 @@ export function EvidencePanel({
     onZoomChange(Math.min(180, zoom + 10));
   }
 
-  if (collapsed) {
-    return (
-      <aside className="evidence-panel is-collapsed">
-        <button
-          type="button"
-          className="panel-rail-btn"
-          onClick={onExpand}
-          aria-label="Afficher les sources"
-          title="Sources"
-        >
-          <PanelRight size={20} strokeWidth={1.75} />
-        </button>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="evidence-panel">
-      <div className="evidence-tabs">
-        <button
-          type="button"
-          className={`evidence-tab${activeTab === 'preuve' ? ' active' : ''}`}
-          onClick={() => onTabChange('preuve')}
-        >
-          {searchResults ? 'Passage' : 'Preuve'}
-        </button>
-        <button
-          type="button"
-          className={`evidence-tab${activeTab === 'document' ? ' active' : ''}`}
-          onClick={() => onTabChange('document')}
-        >
-          Document
-        </button>
-        {onCollapse ? (
+    <aside className={`evidence-panel${collapsed ? ' is-collapsed' : ''}`}>
+      <button
+        type="button"
+        className="panel-rail-btn"
+        onClick={onExpand}
+        aria-label="Afficher les sources"
+        title="Sources"
+        tabIndex={collapsed ? 0 : -1}
+        aria-hidden={!collapsed}
+      >
+        <PanelRight size={20} strokeWidth={1.75} />
+      </button>
+
+      <div className="panel-expanded" aria-hidden={collapsed}>
+        <div className="evidence-tabs">
           <button
             type="button"
-            className="icon-ghost panel-collapse-btn evidence-collapse"
-            aria-label="Masquer le panneau des sources"
-            title="Masquer les sources"
-            onClick={onCollapse}
+            className={`evidence-tab${activeTab === 'preuve' ? ' active' : ''}`}
+            onClick={() => onTabChange('preuve')}
+            tabIndex={collapsed ? -1 : 0}
           >
-            <PanelRightClose size={20} strokeWidth={1.75} />
+            {searchResults ? 'Passage' : 'Preuve'}
           </button>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            className={`evidence-tab${activeTab === 'document' ? ' active' : ''}`}
+            onClick={() => onTabChange('document')}
+            tabIndex={collapsed ? -1 : 0}
+          >
+            Document
+          </button>
+          {onCollapse ? (
+            <button
+              type="button"
+              className="icon-ghost panel-collapse-btn evidence-collapse"
+              aria-label="Masquer le panneau des sources"
+              title="Masquer les sources"
+              onClick={onCollapse}
+              tabIndex={collapsed ? -1 : 0}
+            >
+              <PanelRightClose size={20} strokeWidth={1.75} />
+            </button>
+          ) : null}
+        </div>
 
-      <div className="evidence-content">
-        {!passage ? (
-          <div className="document-tab-placeholder evidence-empty">
-            <FileText size={30} strokeWidth={1.5} />
-            <p>Aucune preuve sélectionnée</p>
-            <span>Les pages PDF citées apparaîtront ici après une réponse sourcée.</span>
-          </div>
-        ) : (
-          <>
-            <div className="evidence-file-row">
-              <PdfAcrobatIcon />
-              <div className="evidence-file-copy">
-                <strong title={passage.filename}>{passage.filename}</strong>
-                {info?.title && info.title !== passage.filename ? (
-                  <span title={info.title}>{info.title}</span>
-                ) : null}
-              </div>
+        <div className="evidence-content">
+          {!passage ? (
+            <div className="document-tab-placeholder evidence-empty">
+              <FileText size={30} strokeWidth={1.5} />
+              <p>Aucune preuve sélectionnée</p>
+              <span>Les pages PDF citées apparaîtront ici après une réponse sourcée.</span>
             </div>
-
-            <div className="pdf-toolbar-row">
-              <span className="pdf-page-label">
-                Page {passage.page}{totalPages ? ` / ${totalPages}` : ''}
-              </span>
-              <div className="pdf-toolbar-actions">
-                <div className="zoom-control">
-                  <button type="button" aria-label="Zoom arrière" onClick={decreaseZoom}>
-                    <Minus size={14} strokeWidth={2} />
-                  </button>
-                  <span>{zoom}%</span>
-                  <button type="button" aria-label="Zoom avant" onClick={increaseZoom}>
-                    <Plus size={14} strokeWidth={2} />
-                  </button>
+          ) : (
+            <>
+              <div className="evidence-file-row">
+                <PdfAcrobatIcon />
+                <div className="evidence-file-copy">
+                  <strong title={passage.filename}>{passage.filename}</strong>
+                  {info?.title && info.title !== passage.filename ? (
+                    <span title={info.title}>{info.title}</span>
+                  ) : null}
                 </div>
-                <a className="pdf-expand" aria-label="Ouvrir le PDF" href={pdfUrl} target="_blank" rel="noreferrer">
-                  <Expand size={15} strokeWidth={1.75} />
+              </div>
+
+              <div className="pdf-toolbar-row">
+                <span className="pdf-page-label">
+                  Page {passage.page}{totalPages ? ` / ${totalPages}` : ''}
+                </span>
+                <div className="pdf-toolbar-actions">
+                  <div className="zoom-control">
+                    <button type="button" aria-label="Zoom arrière" onClick={decreaseZoom} tabIndex={collapsed ? -1 : 0}>
+                      <Minus size={14} strokeWidth={2} />
+                    </button>
+                    <span>{zoom}%</span>
+                    <button type="button" aria-label="Zoom avant" onClick={increaseZoom} tabIndex={collapsed ? -1 : 0}>
+                      <Plus size={14} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <a className="pdf-expand" aria-label="Ouvrir le PDF" href={pdfUrl} target="_blank" rel="noreferrer" tabIndex={collapsed ? -1 : 0}>
+                    <Expand size={15} strokeWidth={1.75} />
+                  </a>
+                </div>
+              </div>
+
+              {viewerError ? <div className="viewer-error">{viewerError}</div> : null}
+
+              {activeTab === 'preuve' ? (
+                <div className="pdf-real-stage">
+                  {imageLoading ? <div className="pdf-loading">Chargement de la page…</div> : null}
+                  <img
+                    key={pageImage}
+                    src={pageImage}
+                    alt={`Page ${passage.page} de ${passage.filename}`}
+                    className="pdf-real-page"
+                    style={{ width: `${zoom}%` }}
+                    onLoad={() => {
+                      setImageLoading(false);
+                      setViewerError(null);
+                    }}
+                    onError={() => {
+                      setImageLoading(false);
+                      setViewerError("Impossible d'afficher cette page PDF. Vérifiez BCT_DOCUMENTS_DIR.");
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="pdf-document-frame-wrap">
+                  <iframe
+                    className="pdf-document-frame"
+                    src={pdfUrl}
+                    title={`Document ${passage.filename}`}
+                    tabIndex={collapsed ? -1 : 0}
+                  />
+                </div>
+              )}
+
+              <section className="selected-passage">
+                <h3>Passage sélectionné</h3>
+                <blockquote className={`selected-quote${quoteLong && !quoteExpanded ? ' is-collapsed' : ''}`}>
+                  {quote ? `“${quote}”` : 'Aucun extrait textuel fourni par le backend.'}
+                </blockquote>
+                {quoteLong ? (
+                  <button
+                    type="button"
+                    className="quote-expand-btn"
+                    onClick={() => setQuoteExpanded((open) => !open)}
+                    tabIndex={collapsed ? -1 : 0}
+                  >
+                    {quoteExpanded ? 'Réduire' : 'Développer'}
+                  </button>
+                ) : null}
+                <p className="selected-source">{passage.sourceLabel}</p>
+                <a className="btn-full-source" href={pdfUrl} target="_blank" rel="noreferrer" tabIndex={collapsed ? -1 : 0}>
+                  <ExternalLink size={14} strokeWidth={1.75} />
+                  <span>Voir la source complète</span>
                 </a>
-              </div>
-            </div>
-
-            {viewerError ? <div className="viewer-error">{viewerError}</div> : null}
-
-            {activeTab === 'preuve' ? (
-              <div className="pdf-real-stage">
-                {imageLoading ? <div className="pdf-loading">Chargement de la page…</div> : null}
-                <img
-                  key={pageImage}
-                  src={pageImage}
-                  alt={`Page ${passage.page} de ${passage.filename}`}
-                  className="pdf-real-page"
-                  style={{ width: `${zoom}%` }}
-                  onLoad={() => {
-                    setImageLoading(false);
-                    setViewerError(null);
-                  }}
-                  onError={() => {
-                    setImageLoading(false);
-                    setViewerError("Impossible d'afficher cette page PDF. Vérifiez BCT_DOCUMENTS_DIR.");
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="pdf-document-frame-wrap">
-                <iframe
-                  className="pdf-document-frame"
-                  src={pdfUrl}
-                  title={`Document ${passage.filename}`}
-                />
-              </div>
-            )}
-
-            <section className="selected-passage">
-              <h3>Passage sélectionné</h3>
-              <blockquote className={`selected-quote${quoteLong && !quoteExpanded ? ' is-collapsed' : ''}`}>
-                {quote ? `“${quote}”` : 'Aucun extrait textuel fourni par le backend.'}
-              </blockquote>
-              {quoteLong ? (
-                <button
-                  type="button"
-                  className="quote-expand-btn"
-                  onClick={() => setQuoteExpanded((open) => !open)}
-                >
-                  {quoteExpanded ? 'Réduire' : 'Développer'}
-                </button>
-              ) : null}
-              <p className="selected-source">{passage.sourceLabel}</p>
-              <a className="btn-full-source" href={pdfUrl} target="_blank" rel="noreferrer">
-                <ExternalLink size={14} strokeWidth={1.75} />
-                <span>Voir la source complète</span>
-              </a>
-            </section>
-          </>
-        )}
+              </section>
+            </>
+          )}
+        </div>
       </div>
     </aside>
   );

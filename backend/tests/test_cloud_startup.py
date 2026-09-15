@@ -8,6 +8,8 @@ def test_cloud_startup_and_health_do_not_load_local_models(monkeypatch, tmp_path
     monkeypatch.setenv("BCT_DEFAULT_PROFILE", "cloud")
     monkeypatch.setenv("BCT_ENABLE_GRAPH", "0")
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     def forbidden():
         raise AssertionError("Cloud startup must not load local models")
     monkeypatch.setattr(app_module, "create_local_backend", forbidden)

@@ -88,6 +88,26 @@ def test_blank_scanned_page_uses_complete_gemini_transcription_as_primary(tmp_pa
     assert "native_replaced_by_gemini" in page.quality_flags
 
 
+def test_page_with_garbled_native_digits_is_replaced_by_gemini_transcription(tmp_path: Path, monkeypatch):
+    path = tmp_path / "Cir_2016_04_fr.pdf"
+    # A broken font map keeps the text readable but reverses digits; the header
+    # then contradicts the trusted filename, which routes the page to Gemini.
+    _make_pdf(path, "CIRCULAIRE AUX BANQUES n° 6112-04 du 15 septembre 6112. Ligne de financement de 31 millions.")
+    fake = FakeVisualTranscriber(transcription="CIRCULAIRE AUX BANQUES n° 2016-04 du 15 septembre 2016. Ligne de financement de 31 millions.")
+    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
+    monkeypatch.delenv("BCT_ALLOW_DEGRADED_INGESTION", raising=False)
+
+    page = PdfExtractor(visual_transcriber=fake).extract(path).pages[0]
+
+    assert len(fake.calls) == 1
+    assert page.extraction_method == "vlm"
+    assert "2016-04" in page.raw_text
+    assert "native_digits_unreliable:source_header_conflict" in page.quality_flags
+    assert "native_replaced_by_gemini" in page.quality_flags
+    assert not any(flag.startswith("gemini_digits_unreliable") for flag in page.quality_flags)
+    assert "6112" in page.metadata["native_raw_text"]
+
+
 def test_required_arabic_visual_failure_fails_closed(tmp_path: Path, monkeypatch):
     path = tmp_path / "Note_2026_03_ar.pdf"
     _make_pdf(path, "BCT regulatory text with enough native content to avoid the native quality fallback.")

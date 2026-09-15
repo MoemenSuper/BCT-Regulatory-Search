@@ -90,10 +90,145 @@ def test_cited_document_name_is_metadata_not_an_unsupported_rule_number():
     assert wrong["status"] == "insufficient_evidence"
 
 
-def test_arabic_corrupt_header_is_not_silently_repaired():
-    text = "مذكرة إلى البنوك عدد 41 لسنة 2202\nالرمز هو 709."
-    result = parse(draft("الرمز هو 709.", "الرمز هو 709."), [record(source="Note_2022_41_ar.pdf", text=text)], "ما الرمز؟")
-    assert result["status"] == "insufficient_evidence"
+def test_arabic_corrupt_header_warns_words_may_support_claims_digits_may_not():
+    from answer_contract import evidence_records
+    text = "مذكرة إلى البنوك عدد 41 لسنة 2202\nلون الورقة أخضر. الرمز هو 709. المدة ثلاث سنوات."
+    records = evidence_records([(Document(page_content=text, metadata={"source": "Note_2022_41_ar.pdf", "page": 2}), 0.9)])
+    assert records[0]["evidence_warning"] == "source_header_conflict"
+    assert "unusable_reason" not in records[0]
+    # Non-numeric fact from the body: supported.
+    assert parse(draft("لون الورقة أخضر.", "لون الورقة أخضر."), records, "ما اللون؟")["status"] == "answered"
+    # Digits on a page with reversed/garbled header digits are not reliable, even verbatim.
+    assert parse(draft("الرمز هو 709.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
+    assert parse(draft("الرمز هو 907.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
+    # Numbers written in words remain usable.
+    assert parse(draft("المدة 3 سنوات.", "المدة ثلاث سنوات."), records, "ما المدة؟")["status"] == "answered"
+    # Spelling a garbled digit out in words does not launder it.
+    assert parse(draft("الرمز هو سبعة.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
+
+
+def test_quote_locating_ignores_spacing_around_punctuation_and_returns_page_text():
+    page = "DECIDE :\nArticle premier :La Banque mettra en circulation, à compter du  19  mars  2018 , trois pièces."
+    quote = "Article premier : La Banque mettra en circulation, à compter du 19 mars 2018, trois pièces."
+    result = parse(draft("Les pièces sont mises en circulation à compter du 19 mars 2018.", quote),
+                   [record(source="Cir_2018_02_fr.pdf", text=page)])
+    assert result["status"] == "answered"
+    assert result["sources"][0]["excerpt"] == page.split("\n", 1)[1]
+
+
+def test_small_ocr_letter_noise_is_located_but_digits_and_negations_are_exact():
+    page = "نعلمكم أن البنك طرح للتدداول بدايدة من تاريخ 4 أكتوبر 2017 ورقة نقدية جديدة من فئة 10 جنيه استرليني."
+    typo_fixed = "طرح للتداول بداية من تاريخ 4 أكتوبر 2017 ورقة نقدية جديدة من فئة 10 جنيه استرليني."
+    result = parse(draft("بدأ التداول في 4 أكتوبر 2017.", typo_fixed), [record(source="Note_2017_65_ar.pdf", text=page)], "متى؟")
+    assert result["status"] == "answered"
+    assert result["sources"][0]["excerpt"] in page and "للتدداول" in result["sources"][0]["excerpt"]
+    digit_changed = typo_fixed.replace("2017", "2018")
+    assert parse(draft("بدأ التداول في 4 أكتوبر 2018.", digit_changed), [record(source="Note_2017_65_ar.pdf", text=page)], "متى؟")["status"] == "insufficient_evidence"
+    page_fr = "Le titulaire ne peut pas céder son allocation touristique à un tiers pendant la campagne."
+    flipped = "Le titulaire peut céder son allocation touristique à un tiers pendant la campagne."
+    assert parse(draft("Le titulaire peut céder son allocation.", flipped), [record(text=page_fr)])["status"] == "insufficient_evidence"
+
+
+def test_claim_may_name_the_cited_instrument_year_without_quoting_it():
+    table = "| d'hiver | d'été |\n| 630 | 1005 |"
+    result = parse(draft("En 2018, le plafond pour les fourrages d'hiver en sec était de 630 dinars par hectare.", table),
+                   [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond pour les fourrages d'hiver ?")
+    assert result["status"] == "answered"
+    other_year = parse(draft("En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", table),
+                       [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond pour les fourrages d'hiver ?")
+    assert other_year["status"] == "insufficient_evidence"
+    asked_year = parse(draft("En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", table),
+                       [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond en 2016 ?")
+    assert asked_year["status"] == "answered"
+
+
+def test_evidence_warning_targets_garbled_digits_not_body_cross_references():
+    from answer_evidence import evidence_warning
+    # A body reference to another instrument is not this page's header.
+    body = "الفصل 23 : يجب ألا يكون المستفيد مخلّ بتعهدات على معنى المنشور عدد 6 لسنة 2008 المؤرخ في 10 مارس 2008."
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": body}) is None
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": "منشور إلى البنوك عدد 04 لسنة 2016\n" + body}) is None
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": "منشور إلى البنوك عدد 40 لسنة 2016"}) == "source_header_conflict"
+    # Font-map garbling ("6112" for 2016) is caught anywhere on the page, spaced or not.
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": body + "\nقرض المبرم بتاريخ 18 مارس6112"}) == "implausible_gregorian_year"
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": "القانون عدد 84 لسنة 6112"}) == "implausible_gregorian_year"
+    assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": "أجل أقصاه 31 ديسمبر 2020"}) is None
+
+
+def test_claim_may_scope_itself_to_the_cited_instrument_identifier():
+    page = "L'horaire conventionnel s'étend de 8h00 à 17h00 heure locale."
+    ok = parse(draft("Selon la circulaire 2016-01, l'horaire s'étend de 8h00 à 17h00.", page),
+               [record(source="Cir_2016_01_fr.pdf", text=page)], "Quelles sont les heures d'ouverture ?")
+    assert ok["status"] == "answered"
+    ok_ar = parse(draft("حسب المنشور عدد 1 لسنة 2016، يمتد التوقيت من 8h00 إلى 17h00.", page),
+                  [record(source="Cir_2016_01_fr.pdf", text=page)], "ما هو التوقيت؟")
+    assert ok_ar["status"] == "answered"
+    # Another instrument's identifier is not trusted metadata for this claim.
+    other = parse(draft("Selon la circulaire 2021-03, l'horaire s'étend de 8h00 à 17h00.", page),
+                  [record(source="Cir_2016_01_fr.pdf", text=page)], "Quelles sont les heures d'ouverture ?")
+    assert other["status"] == "insufficient_evidence"
+
+
+def test_question_numbers_present_on_the_cited_page_may_be_restated():
+    page = "Objet : billets de 100 et 500 couronnes.\nLes anciens billets restent acceptés jusqu'au 10 mai 2017 inclus."
+    quote = "Les anciens billets restent acceptés jusqu'au 10 mai 2017 inclus."
+    question = "Jusqu'à quand les billets de 100 et 500 couronnes restaient-ils acceptés ?"
+    ok = parse(draft("Les billets de 100 et 500 couronnes restaient acceptés jusqu'au 10 mai 2017.", quote),
+               [record(source="Note_2017_22_fr.pdf", text=page)], question)
+    assert ok["status"] == "answered"
+    # A number asked about but absent from the page is not laundered into a claim.
+    leading = parse(draft("Le plafond est de 500 dinars.", "Le plafond est de 320 dinars."), [record()],
+                    "Le plafond est-il de 500 dinars ?")
+    assert leading["status"] == "insufficient_evidence"
+
+
+def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
+    import conversation
+    from retrieval_selection import expand_ranked_pages, page_chunks
+    chunks = [Document(page_content=text, metadata={"source": "Cir_2016_02_fr.pdf", "page": 2, "pages": [2], "chunk_index": i})
+              for i, text in enumerate(["Article 1. Objet du crédit auto et conditions générales applicables aux emprunteurs.",
+                                        "conditions générales applicables aux emprunteurs. Article 2. La durée est de 7 ans.",
+                                        "Article 3. Dispositions finales."])]
+    pages = page_chunks(chunks)
+    expanded = expand_ranked_pages([(chunks[0], 0.9)], pages)
+    assert expanded[0][0].page_content == chunks[0].page_content + " Article 2. La durée est de 7 ans.\nArticle 3. Dispositions finales."
+    assert expanded[0][0].metadata["source"] == "Cir_2016_02_fr.pdf" and expanded[0][0].metadata["page"] == 2
+    # Long pages stay bounded around the retrieved chunk.
+    assert expand_ranked_pages([(chunks[1], 0.9)], pages, max_chars=len(chunks[1].page_content) + 40)[0][0].page_content \
+        == chunks[1].page_content + "\nArticle 3. Dispositions finales."
+    # The chat flow expands answer evidence but keeps search fallback on original chunks.
+    class Backend:
+        def retrieve(self, query):
+            return [(chunks[0], 0.9)]
+        def expand_pages(self, ranked):
+            return expand_ranked_pages(ranked, pages)
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
+    def answer(_llm, _question, evidence, *_args, **_kwargs):
+        assert "7 ans" in evidence[0][0].page_content
+        return dict(status="search_results", answer="fallback", sources=[])
+    monkeypatch.setattr(conversation, "generate_grounded_answer", answer)
+    result = conversation.chat("Quelle est la durée ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
+    assert result["sources"][0]["excerpt"] == chunks[0].page_content
+
+
+def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monkeypatch):
+    import conversation
+    def respond(prompt):
+        if "Select evidence for" in prompt.to_messages()[0].content:
+            return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
+        return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
+    assert result["status"] == "search_results"
+    assert result["diagnostics"] == ["quote_not_found", "quote_not_found"]
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
+    monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
+    class Backend:
+        def retrieve(self, query):
+            return [(doc, .9)]
+    assert "diagnostics" not in conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
 
 
 def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
@@ -217,6 +352,8 @@ def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_p
     from conversation_memory import ConversationStore
     from answer_contract import search_response
     monkeypatch.setenv("BCT_ENABLE_GRAPH", "0")
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
     monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: None)

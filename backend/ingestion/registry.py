@@ -108,7 +108,7 @@ class IngestionRegistry:
         rows = self.connection.execute(
             """
             SELECT content_sha256, original_filename, stored_path, status, asset_version,
-                   created_at, activated_at
+                   report_json, created_at, activated_at
             FROM ingestion_documents
             WHERE status='ready'
             ORDER BY activated_at DESC
@@ -116,4 +116,31 @@ class IngestionRegistry:
             """,
             (max(1, min(int(limit), 1000)),),
         ).fetchall()
-        return [dict(row) for row in rows]
+        documents = []
+        for row in rows:
+            item = dict(row)
+            report = {}
+            if item.get("report_json"):
+                try:
+                    report = json.loads(item["report_json"]) or {}
+                except json.JSONDecodeError:
+                    report = {}
+            title = ""
+            if isinstance(report, dict):
+                admin_meta = report.get("administrator_metadata")
+                if isinstance(admin_meta, dict):
+                    title = str(admin_meta.get("title") or "")
+                if not title:
+                    title = str(report.get("title") or "")
+            documents.append(
+                {
+                    "document_id": item["content_sha256"],
+                    "filename": item["original_filename"],
+                    "title": title or item["original_filename"],
+                    "status": item["status"],
+                    "asset_version": item["asset_version"],
+                    "activated_at": item["activated_at"],
+                    "pages": report.get("pages") if isinstance(report, dict) else None,
+                }
+            )
+        return documents

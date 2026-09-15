@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -62,6 +63,20 @@ def _configuration_hash(model: str) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _gemini_keys() -> list[str]:
+    keys = []
+    for name in ("GEMINI_API_KEY", *(f"GEMINI_API_KEY_{n}" for n in range(2, 16))):
+        value = (os.environ.get(name) or "").strip()
+        if value and value not in keys:
+            keys.append(value)
+    return keys
+
+
+def _quota_exhausted(error: BaseException) -> bool:
+    text = str(error)
+    return any(token in text for token in ("429", "RESOURCE_EXHAUSTED", "quota", "rate-limit", "too_many_requests"))
+
+
 def gemini_json_from_image(
     image_png: bytes,
     *,
@@ -69,38 +84,56 @@ def gemini_json_from_image(
     schema: dict,
     model: str,
     client=None,
+    on_rotate=None,
 ) -> tuple[str, object]:
     """Run one Gemini Interactions JSON call against a page image.
 
-    Returns ``(output_text, response_id)``.
+    Returns ``(output_text, response_id)``. Rotates through GEMINI_API_KEY[_N]
+    when a key hits quota.
     """
+    try:
+        from google import genai
+    except ImportError as error:
+        raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
+    keys = _gemini_keys() if client is None else [None]
+    if client is None and not keys:
+        raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
+    key_index = 0
     if client is None:
+        client = genai.Client(api_key=keys[0])
+    for attempt in range(max(4, len(keys) * 2)):
         try:
-            from google import genai
-        except ImportError as error:
-            raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
-        client = genai.Client(api_key=api_key)
-    interaction = client.interactions.create(
-        model=model,
-        input=[
-            {"type": "text", "text": prompt},
-            {
-                "type": "image",
-                "data": base64.b64encode(image_png).decode("ascii"),
-                "mime_type": "image/png",
-            },
-        ],
-        generation_config={"thinking_level": "low"},
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": schema,
-        },
-    )
-    return interaction.output_text, getattr(interaction, "id", None)
+            interaction = client.interactions.create(
+                model=model,
+                input=[
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image",
+                        "data": base64.b64encode(image_png).decode("ascii"),
+                        "mime_type": "image/png",
+                    },
+                ],
+                generation_config={"thinking_level": "low"},
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": schema,
+                },
+            )
+            return interaction.output_text, getattr(interaction, "id", None)
+        except Exception as error:
+            if client is not None and keys[0] is not None and _quota_exhausted(error) and key_index + 1 < len(keys):
+                key_index += 1
+                client = genai.Client(api_key=keys[key_index])
+                if on_rotate is not None:
+                    on_rotate(client, key_index)
+                continue
+            transient = getattr(error, "code", None) in {429, 500, 503} or any(
+                token in str(error) for token in ("429", "500", "503", "high demand", "RESOURCE_EXHAUSTED"))
+            if not transient or attempt >= 3:
+                raise
+            time.sleep(15 * (attempt + 1))
+    raise RuntimeError("Gemini visual extraction exhausted all API keys")
 
 
 class GeminiVisualTranscriber:
@@ -116,6 +149,7 @@ class GeminiVisualTranscriber:
         self.model = model or os.environ.get("BCT_GEMINI_MODEL", DEFAULT_MODEL)
         # Keep provider setup lazy: a clean French PDF should still be ingestible
         # when Gemini is enabled globally but no visual fallback is actually needed.
+        self._injected_client = client is not None
         self._client = client
 
     def _get_client(self):
@@ -125,10 +159,10 @@ class GeminiVisualTranscriber:
             from google import genai
         except ImportError as error:
             raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
+        keys = _gemini_keys()
+        if not keys:
             raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(api_key=keys[0])
         return self._client
 
     def transcribe(
@@ -153,19 +187,28 @@ class GeminiVisualTranscriber:
                 raise ValueError("Gemini visual cache binding mismatch")
             return VisualPage.model_validate(cached["response"])
 
+        def _rotate(client, index):
+            self._client = client
+            print(f"gemini key rotated to slot {index + 1}", flush=True)
+
         output_text, response_id = gemini_json_from_image(
             image_png,
             prompt=_PROMPT,
             schema=VisualPage.model_json_schema(),
             model=self.model,
-            client=self._get_client(),
+            client=self._client if self._injected_client else None,
+            on_rotate=_rotate,
         )
         parsed = VisualPage.model_validate_json(output_text)
         if not parsed.transcription.strip():
             raise ValueError("Gemini returned an empty page transcription")
+        # The transcription is the evidence; items are an index into it. An item whose
+        # literal/context is not found verbatim (Arabic marks, spacing) is kept as
+        # uncertain rather than failing the whole page.
         for item in parsed.items:
             if item.literal not in parsed.transcription or item.context not in parsed.transcription:
-                raise ValueError("Gemini structured literal/context is not bound to its transcription")
+                item.uncertain = True
+                parsed.uncertain_regions.append(f"unbound_item:{item.literal}")
 
         payload = {
             "binding": binding,

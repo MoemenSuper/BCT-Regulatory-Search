@@ -233,6 +233,23 @@ def _chroma_metadata(metadata: dict) -> dict:
     return cleaned
 
 
+def _document_chunk_id(document: Document) -> str:
+    """Stable Chroma id; synthesize for legacy jsonl rows that predate chunk_id."""
+    existing = document.metadata.get("chunk_id")
+    if existing:
+        return str(existing)
+    seed = "|".join(
+        [
+            str(document.metadata.get("source", "")),
+            str(document.metadata.get("page", "")),
+            str(document.metadata.get("representation", "")),
+            str(document.metadata.get("flat_part", "")),
+            document.page_content,
+        ]
+    )
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
 def _collection_exists(client, name: str) -> bool:
     try:
         client.get_collection(name)
@@ -302,16 +319,23 @@ def stage_local_collections(
     old_primary_name = str(base_snapshot.get("local_collection") or os.environ.get("BCT_CHROMA_COLLECTION", "bct_regulations"))
     old_visual_name = str(base_snapshot.get("local_visual_collection") or os.environ.get("BCT_OCR_CHROMA_COLLECTION", "bct_arabic_ocr_secondary_v1"))
 
+    has_old_primary = _collection_exists(client, old_primary_name)
+    has_old_visual = _collection_exists(client, old_visual_name)
+    # ponytail: ceiling=full local re-embed via ingest CLI when seeding Chroma from a legacy
+    # cloud-only corpus (no existing collection). Admin PDF upload should not block on that.
+    if not has_old_primary and len(all_primary) > len(new_primary):
+        return {}
+
     primary_target = client.create_collection(primary_name)
     visual_target = client.create_collection(visual_name)
     embedding = create_embedding_model()
     try:
-        if _collection_exists(client, old_primary_name):
+        if has_old_primary:
             _copy_collection(client.get_collection(old_primary_name), primary_target, exclude_source=source_filename)
             primary_to_add = new_primary
         else:
             primary_to_add = all_primary
-        if _collection_exists(client, old_visual_name):
+        if has_old_visual:
             _copy_collection(client.get_collection(old_visual_name), visual_target, exclude_source=source_filename)
             visual_to_add = new_visual
         else:
@@ -323,7 +347,7 @@ def stage_local_collections(
             texts = [doc.page_content for doc in documents]
             vectors = embedding.embed_documents(texts)
             collection.upsert(
-                ids=[str(doc.metadata["chunk_id"]) for doc in documents],
+                ids=[_document_chunk_id(doc) for doc in documents],
                 documents=texts,
                 metadatas=[_chroma_metadata(doc.metadata) for doc in documents],
                 embeddings=vectors,
