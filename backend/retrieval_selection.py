@@ -210,3 +210,102 @@ def diversify_ranked_pages(
 
 def is_arabic_query(query: str) -> bool:
     return bool(ARABIC.search(query))
+
+
+def _chunk_order(document: Document) -> int:
+    try:
+        return int(document.metadata.get("chunk_index", document.metadata.get("flat_part", 0)) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _representation_page_key(document: Document):
+    return _page_key(document), document.metadata.get("representation")
+
+
+def page_chunks(documents: list[Document]) -> dict:
+    """Group indexed chunks by (source, physical page, representation) in page order."""
+    pages: dict = {}
+    for document in documents:
+        pages.setdefault(_representation_page_key(document), []).append(document)
+    for chunks in pages.values():
+        chunks.sort(key=_chunk_order)
+    return pages
+
+
+def _join(left: str, right: str) -> str:
+    """Join consecutive page chunks, removing the chunker's overlap when it is visible."""
+    for size in range(min(len(right), 300), 19, -1):
+        if left.endswith(right[:size]):
+            return left + right[size:]
+    return left + "\n" + right
+
+
+def _chunks_for_ranked_hit(document: Document, pages: dict) -> list[Document] | None:
+    exact = pages.get(_representation_page_key(document))
+    if exact:
+        return exact
+    # Re-ingest may change representation (structured_baseline → native). Prefer
+    # the active page for the same source/page regardless of representation label.
+    page = _page_key(document)
+    candidates = [chunks for key, chunks in pages.items() if key[0] == page]
+    if not candidates:
+        return None
+    for chunks in candidates:
+        if chunks and chunks[0].metadata.get("representation") == "native":
+            return chunks
+    return candidates[0]
+
+
+def expand_ranked_pages(
+    ranked: list[tuple[Document, float]],
+    pages: dict,
+    *,
+    max_chars: int = 8000,
+) -> list[tuple[Document, float]]:
+    """Give the answer layer the retrieved page, not only its best-scoring chunk.
+
+    Retrieval hit the right page; the answer may sit in a neighbouring chunk. The page
+    is rebuilt from the same indexed chunks (same trusted source/page metadata), growing
+    outward from the retrieved chunk until max_chars so long pages stay bounded.
+    """
+    expanded = []
+    for document, score in ranked:
+        chunks = _chunks_for_ranked_hit(document, pages)
+        if not chunks:
+            expanded.append((document, score))
+            continue
+        if len(chunks) == 1:
+            chunk = chunks[0]
+            if chunk.page_content == document.page_content:
+                expanded.append((document, score))
+            else:
+                metadata = {**document.metadata, "expanded_from_chunk": document.metadata.get("chunk_id")}
+                expanded.append((Document(page_content=chunk.page_content, metadata=metadata), score))
+            continue
+        texts = [chunk.page_content for chunk in chunks]
+        try:
+            center = texts.index(document.page_content)
+        except ValueError:
+            # Re-ingested page text no longer equals the ranked chunk; still
+            # feed the answer layer the active page (ranking metadata intact).
+            center = 0
+        left, right, size = center, center, len(texts[center])
+        while True:
+            grew = False
+            for candidate, side in ((left - 1, "left"), (right + 1, "right")):
+                if 0 <= candidate < len(texts) and size + len(texts[candidate]) <= max_chars:
+                    size += len(texts[candidate])
+                    left, right = (candidate, right) if side == "left" else (left, candidate)
+                    grew = True
+            if not grew:
+                break
+        text = texts[left]
+        for piece in texts[left + 1:right + 1]:
+            text = _join(text, piece)
+        if text == document.page_content:
+            expanded.append((document, score))
+            continue
+        metadata = {**document.metadata, "expanded_from_chunk": document.metadata.get("chunk_id")}
+        expanded.append((Document(page_content=text, metadata=metadata), score))
+    return expanded

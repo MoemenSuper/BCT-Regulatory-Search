@@ -1,21 +1,32 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import date
 import logging
 import os
 import re
-import secrets
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
+from starlette.concurrency import run_in_threadpool
 
+from app_settings import open_app_settings
 from conversation import chat
 from conversation_memory import open_conversation_store, summarize_conversation_title
+from identity import (
+    SESSION_COOKIE,
+    clear_session_cookie,
+    open_auth_store,
+    require_admin,
+    require_approved_user,
+    require_user,
+    set_session_cookie,
+)
 from llm import create_llm
 from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile, profile_options
 from runtime_retrieval import LocalRetrievalBackend, create_voyage_backend_from_environment
@@ -157,6 +168,11 @@ def announce_graph_lite_status(status: dict[str, bool]) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    auth_store = open_auth_store()
+    settings_store = open_app_settings()
+    auth_store.bootstrap_admin()
+    app.state.auth_store = auth_store
+    app.state.settings_store = settings_store
     app.state.profile_manager = create_runtime_profile_manager()
     graph_runtime = open_relationship_graph_runtime() if _graph_enabled() else None
     conversation_store = open_conversation_store()
@@ -174,6 +190,11 @@ async def lifespan(app: FastAPI):
     finally:
         if graph_runtime is not None:
             graph_runtime.close()
+        closer = getattr(conversation_store, "close", None)
+        if callable(closer):
+            closer()
+        settings_store.close()
+        auth_store.close()
 
 
 app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
@@ -193,9 +214,175 @@ def health(request: Request):
     return {"status": "ok", **graph_lite_status(runtime, retriever)}
 
 
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class ProfileUpdateRequest(BaseModel):
+    profile: str
+
+    @field_validator("profile")
+    @classmethod
+    def validate_profile(cls, value: str) -> str:
+        return parse_profile(value).value
+
+
+class SecretsUpdateRequest(BaseModel):
+    secrets: dict[str, str | None]
+
+
+@app.post("/auth/register")
+def register(payload: RegisterRequest, request: Request):
+    store = request.app.state.auth_store
+    try:
+        user = store.create_user(email=payload.email, password=payload.password, role="user", status="pending")
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {
+        "user": user.public_dict(),
+        "message": "Registration received. An administrator must approve your account before you can sign in.",
+    }
+
+
+@app.post("/auth/login")
+def login(payload: LoginRequest, request: Request, response: Response):
+    store = request.app.state.auth_store
+    user = store.authenticate(payload.email, payload.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    token = store.create_session(user.id)
+    set_session_cookie(response, token)
+    return {"user": user.public_dict()}
+
+
+@app.post("/auth/logout")
+def logout(request: Request, response: Response):
+    token = request.cookies.get(SESSION_COOKIE)
+    request.app.state.auth_store.delete_session(token)
+    clear_session_cookie(response)
+    return {"ok": True}
+
+
+@app.get("/auth/me")
+def me(user=Depends(require_user)):
+    return {"user": user.public_dict()}
+
+
 @app.get("/profiles")
-def profiles():
+def profiles(_user=Depends(require_approved_user)):
     return profile_options()
+
+
+@app.get("/admin/overview")
+def admin_overview(request: Request, _admin=Depends(require_admin)):
+    users = request.app.state.auth_store.list_users()
+    settings = request.app.state.settings_store.public_configuration()
+    docs = []
+    try:
+        from ingestion.pipeline import IngestionConfig
+        from ingestion.registry import IngestionRegistry
+
+        config = IngestionConfig.from_environment()
+        registry = IngestionRegistry(config.registry_path)
+        try:
+            docs = registry.list_ready(limit=20)
+        finally:
+            registry.close()
+    except Exception:
+        logger.info("Ingestion registry unavailable for overview.")
+    return {
+        "users_total": len(users),
+        "users_pending": sum(1 for user in users if user.status == "pending"),
+        "users_approved": sum(1 for user in users if user.status == "approved"),
+        "users_rejected": sum(1 for user in users if user.status == "rejected"),
+        "documents_ready": len(docs),
+        "active_profile": settings["active_profile"],
+        "graph": graph_lite_status(
+            getattr(request.app.state, "graph_runtime", None),
+            getattr(request.app.state, "graph_retriever", None),
+        ),
+    }
+
+
+@app.get("/admin/users")
+def admin_list_users(request: Request, _admin=Depends(require_admin)):
+    return [user.public_dict() for user in request.app.state.auth_store.list_users()]
+
+
+@app.post("/admin/users/{user_id}/approve")
+def admin_approve_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot change your own account status.")
+    try:
+        user = request.app.state.auth_store.set_status(user_id, "approved")
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    return {"user": user.public_dict()}
+
+
+@app.post("/admin/users/{user_id}/reject")
+def admin_reject_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot change your own account status.")
+    try:
+        user = request.app.state.auth_store.set_status(user_id, "rejected")
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    return {"user": user.public_dict()}
+
+
+@app.post("/admin/users/{user_id}/promote")
+def admin_promote_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    """Grant administrator role. There is intentionally no demote endpoint."""
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You are already an administrator.")
+    try:
+        user = request.app.state.auth_store.promote_to_admin(user_id)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"user": user.public_dict()}
+
+
+@app.delete("/admin/users/{user_id}", status_code=204, response_class=Response)
+def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+    try:
+        request.app.state.auth_store.delete_user(user_id)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    except PermissionError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.get("/admin/config")
+def admin_get_config(request: Request, _admin=Depends(require_admin)):
+    return request.app.state.settings_store.public_configuration()
+
+
+@app.put("/admin/config/profile")
+def admin_set_profile(payload: ProfileUpdateRequest, request: Request, _admin=Depends(require_admin)):
+    profile = request.app.state.settings_store.set_active_profile(payload.profile)
+    request.app.state.profile_manager.reset()
+    return {"active_profile": profile.value}
+
+
+@app.put("/admin/config/secrets")
+def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, _admin=Depends(require_admin)):
+    try:
+        config = request.app.state.settings_store.update_secrets(payload.secrets)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    request.app.state.profile_manager.reset()
+    return config
 
 
 _QUESTION_SPLIT = re.compile(r"(?<=[?؟])\s+(?=\S)")
@@ -228,9 +415,14 @@ def _conversation_title(question: str, provider: str) -> str:
 
 
 @app.post("/chat", response_model=ChatResponse)
-def post_chat(payload: ChatRequest, request: Request):
+def post_chat(
+    payload: ChatRequest,
+    request: Request,
+    _user=Depends(require_approved_user),
+):
+    profile = request.app.state.settings_store.active_profile().value
     try:
-        runtime = request.app.state.profile_manager.get(payload.profile)
+        runtime = request.app.state.profile_manager.get(profile)
     except (OSError, RuntimeError, ValueError):
         logger.exception("Runtime profile is unavailable.")
         raise HTTPException(status_code=503, detail="Selected runtime is unavailable.")
@@ -284,12 +476,20 @@ def post_chat(payload: ChatRequest, request: Request):
 
 
 @app.get("/conversations")
-def list_conversations(request: Request, limit: int = Query(default=100, ge=1, le=500)):
+def list_conversations(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+    _user=Depends(require_approved_user),
+):
     return request.app.state.conversation_store.list_conversations(limit=limit)
 
 
 @app.get("/conversations/{conversation_id}")
-def get_conversation(conversation_id: str, request: Request):
+def get_conversation(
+    conversation_id: str,
+    request: Request,
+    _user=Depends(require_approved_user),
+):
     if not conversation_id or len(conversation_id) > 128:
         raise HTTPException(status_code=400, detail="Invalid conversation identifier.")
     transcript = request.app.state.conversation_store.transcript(conversation_id)
@@ -303,7 +503,12 @@ class RenameRequest(BaseModel):
 
 
 @app.patch("/conversations/{conversation_id}")
-def rename_conversation(conversation_id: str, payload: RenameRequest, request: Request):
+def rename_conversation(
+    conversation_id: str,
+    payload: RenameRequest,
+    request: Request,
+    _user=Depends(require_approved_user),
+):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Title must not be blank.")
@@ -315,7 +520,11 @@ def rename_conversation(conversation_id: str, payload: RenameRequest, request: R
 
 
 @app.delete("/conversations/{conversation_id}", status_code=204, response_class=Response)
-def delete_conversation(conversation_id: str, request: Request):
+def delete_conversation(
+    conversation_id: str,
+    request: Request,
+    _user=Depends(require_approved_user),
+):
     try:
         request.app.state.conversation_store.delete(conversation_id)
     except KeyError:
@@ -332,7 +541,7 @@ def _resolve_source(filename: str, request: Request):
 
 
 @app.get("/sources/{filename}/info")
-def get_source_info(filename: str, request: Request):
+def get_source_info(filename: str, request: Request, _user=Depends(require_approved_user)):
     try:
         return source_info(_resolve_source(filename, request))
     except RuntimeError:
@@ -347,6 +556,7 @@ def get_source_page(
     request: Request,
     quote: str = Query(default="", max_length=2000),
     scale: float = Query(default=1.8, ge=0.75, le=3.0),
+    _user=Depends(require_approved_user),
 ):
     try:
         payload, headers = render_page_png(
@@ -366,7 +576,7 @@ def get_source_page(
 
 
 @app.get("/sources/{filename}")
-def get_source_pdf(filename: str, request: Request):
+def get_source_pdf(filename: str, request: Request, _user=Depends(require_approved_user)):
     document = _resolve_source(filename, request)
     return FileResponse(
         document.path,
@@ -385,24 +595,55 @@ def _refresh_runtime_asset_environment() -> None:
     configure_runtime_assets(root_value)
 
 
+def _validate_upload_metadata(
+    *,
+    title: str | None,
+    publication_date: str | None,
+    document_type: str | None,
+    category: str | None,
+    document_number: str | None,
+) -> dict[str, str]:
+    """Require compact, parseable metadata before an immutable ingest begins."""
+    fields = {
+        "title": (title, 300),
+        "publication_date": (publication_date, 64),
+        "document_type": (document_type, 120),
+        "category": (category, 120),
+        "document_number": (document_number, 120),
+    }
+    cleaned: dict[str, str] = {}
+    for name, (raw, limit) in fields.items():
+        value = (raw or "").strip()
+        if not value:
+            raise HTTPException(status_code=422, detail=f"{name} is required.")
+        if len(value) > limit or any(ord(character) < 32 for character in value):
+            raise HTTPException(status_code=422, detail=f"Invalid {name}.")
+        cleaned[name] = value
+
+    if len(cleaned["title"]) < 3:
+        raise HTTPException(status_code=422, detail="title must contain at least 3 characters.")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", cleaned["publication_date"]):
+        raise HTTPException(status_code=422, detail="publication_date must use YYYY-MM-DD.")
+    try:
+        date.fromisoformat(cleaned["publication_date"])
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="publication_date is invalid.") from error
+    if cleaned["document_type"].casefold() not in {"circulaire", "note"}:
+        raise HTTPException(status_code=422, detail="document_type must be circulaire or note.")
+    if len(cleaned["category"]) < 2:
+        raise HTTPException(status_code=422, detail="category must contain at least 2 characters.")
+    if not any(character.isdigit() for character in cleaned["document_number"]):
+        raise HTTPException(status_code=422, detail="document_number must contain a digit.")
+    return {
+        "title": cleaned["title"],
+        "publication_date": cleaned["publication_date"],
+        "type": cleaned["document_type"].casefold(),
+        "category": cleaned["category"],
+        "document_number": cleaned["document_number"],
+    }
+
+
 def _install_ingestion_routes(target: FastAPI) -> None:
-    # Importing File/Form performs python-multipart validation, so keep the whole
-    # administrator upload feature optional at process startup.
-    from fastapi import File, Form, Header, UploadFile
-    from starlette.concurrency import run_in_threadpool
-
-    configured_token = os.environ.get("BCT_INGESTION_TOKEN")
-    if not configured_token:
-        raise RuntimeError(
-            "BCT_ENABLE_INGESTION=1 requires BCT_INGESTION_TOKEN; "
-            "use the ingest.py CLI if you do not need the HTTP administrator endpoint"
-        )
-
-    def require_admin(authorization: str | None) -> None:
-        expected = f"Bearer {configured_token}"
-        if authorization is None or not secrets.compare_digest(authorization, expected):
-            raise HTTPException(status_code=401, detail="Administrator authorization required.")
-
     @target.post("/documents")
     async def ingest_document(
         request: Request,
@@ -412,15 +653,27 @@ def _install_ingestion_routes(target: FastAPI) -> None:
         document_type: str | None = Form(default=None),
         category: str | None = Form(default=None),
         document_number: str | None = Form(default=None),
-        authorization: str | None = Header(default=None),
+        _admin=Depends(require_admin),
     ):
-        require_admin(authorization)
+        metadata = _validate_upload_metadata(
+            title=title,
+            publication_date=publication_date,
+            document_type=document_type,
+            category=category,
+            document_number=document_number,
+        )
+        filename = (file.filename or "").strip()
+        if not filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
+        content_type = (file.content_type or "").lower()
+        if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
+            raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
+
         max_bytes = int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024)))
-        suffix = ".pdf"
         temporary_path = None
         size = 0
         try:
-            with NamedTemporaryFile(delete=False, suffix=suffix) as handle:
+            with NamedTemporaryFile(delete=False, suffix=".pdf") as handle:
                 temporary_path = Path(handle.name)
                 while True:
                     chunk = await file.read(1024 * 1024)
@@ -430,8 +683,13 @@ def _install_ingestion_routes(target: FastAPI) -> None:
                     if size > max_bytes:
                         raise HTTPException(status_code=413, detail="PDF exceeds the configured size limit.")
                     handle.write(chunk)
+            if size == 0:
+                raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
             from ingestion.pipeline import IngestionConfig, IngestionPipeline
+
+            if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+                raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
 
             config = IngestionConfig.from_environment()
             pipeline = IngestionPipeline(config)
@@ -439,18 +697,8 @@ def _install_ingestion_routes(target: FastAPI) -> None:
                 report = await run_in_threadpool(
                     pipeline.ingest,
                     temporary_path,
-                    original_filename=file.filename or "document.pdf",
-                    metadata={
-                        key: value
-                        for key, value in {
-                            "title": title,
-                            "publication_date": publication_date,
-                            "type": document_type,
-                            "category": category,
-                            "document_number": document_number,
-                        }.items()
-                        if value is not None
-                    },
+                    original_filename=filename or "document.pdf",
+                    metadata=metadata,
                 )
             finally:
                 pipeline.close()
@@ -460,17 +708,21 @@ def _install_ingestion_routes(target: FastAPI) -> None:
             return report
         except HTTPException:
             raise
-        except (OSError, RuntimeError, ValueError) as error:
+        except Exception as error:
+            # Surface unexpected ingest failures (incl. legacy snapshot shape bugs) to the admin UI.
             logger.exception("Document ingestion failed.")
-            raise HTTPException(status_code=422, detail="Document ingestion failed.")
+            raise HTTPException(status_code=422, detail=str(error) or "Document ingestion failed.") from error
         finally:
             await file.close()
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
 
     @target.get("/documents")
-    def list_documents(limit: int = 100, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
+    def list_documents(
+        request: Request,
+        limit: int = 100,
+        _admin=Depends(require_admin),
+    ):
         from ingestion.pipeline import IngestionConfig
         from ingestion.registry import IngestionRegistry
 
@@ -482,5 +734,4 @@ def _install_ingestion_routes(target: FastAPI) -> None:
             registry.close()
 
 
-if os.environ.get("BCT_ENABLE_INGESTION") == "1":
-    _install_ingestion_routes(app)
+_install_ingestion_routes(app)

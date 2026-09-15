@@ -14,6 +14,8 @@ def test_new_ready_version_supersedes_previous_same_filename(tmp_path: Path):
         assert registry.get("hash-new")["status"] == "ready"
         assert registry.get("hash-old")["status"] == "superseded"
         ready = registry.list_ready()
-        assert [row["content_sha256"] for row in ready] == ["hash-new"]
+        assert [row["document_id"] for row in ready] == ["hash-new"]
+        assert ready[0]["filename"] == "Cir_2026_01_fr.pdf"
+        assert ready[0]["title"] == "Cir_2026_01_fr.pdf"
     finally:
         registry.close()

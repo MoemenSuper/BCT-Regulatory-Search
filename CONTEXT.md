@@ -39,11 +39,15 @@ A page-local indexed unit of text used for retrieval. Not a legal unit.
 _Avoid_: passage, evidence, provision
 
 **Evidence**:
-A retrieved passage that may support an answer: trusted filename, physical page, and text (labeled `E1`, `E2`, …).
+A retrieved passage that may support an answer: trusted filename, physical page, and text (labeled `E1`, `E2`, …). Retrieval ranks chunks; the answer layer receives the retrieved page's text (bounded), rebuilt from the same indexed chunks.
 _Avoid_: source, citation, quotation, search result (when not yet selected)
 
+**Evidence warning**:
+Observable OCR noise in a page header (`source_header_conflict`, `implausible_gregorian_year`). The passage stays usable: identity comes from the trusted filename, quotations stay digit-exact. Distinct from `unusable_reason` (ingestion-detected extraction conflict), which blocks claims.
+_Avoid_: unusable, corrupt document, “bad PDF” (the PDF is authoritative; the extraction is noisy)
+
 **Quotation**:
-A verbatim contiguous excerpt recoverable from the supplied physical page text.
+A verbatim contiguous excerpt recoverable from the supplied physical page text. Locating tolerates spacing and small OCR letter noise; digits and negations must match exactly, and the rendered text is always the page's own characters.
 _Avoid_: citation, paraphrase, summary, highlight alone
 
 **Citation**:

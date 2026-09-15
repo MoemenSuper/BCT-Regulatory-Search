@@ -25,7 +25,10 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Graph Lite runtime / bootstrap | `backend/graph_lite.py`, `backend/regulatory_graph_lite/` |
 | Ingest → stage → activate | `backend/ingest.py`, `backend/ingestion/` |
 | HTTP surface | `backend/app.py`, `backend/run_api.py` |
+| Auth / sessions / roles | `backend/identity.py` |
+| App profile + provider secrets | `backend/app_settings.py` |
 | UI turn presentation | `frontend/src/` (`ResearchNote`, `EvidencePanel`, `api/chat.ts`) |
+| Login / admin UI | `frontend/src/Root.tsx`, `LoginPage`, `AdminDashboard` |
 
 ## Hard rules
 

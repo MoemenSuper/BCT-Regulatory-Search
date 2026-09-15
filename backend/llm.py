@@ -46,6 +46,9 @@ def _create_ollama_llm():
                 "num_predict": int(
                     os.environ.get("BCT_LOCAL_LLM_MAX_TOKENS", "2048")
                 ),
+                # Evidence is whole pages, not single chunks; Ollama's default
+                # 4k window would silently truncate the prompt.
+                "num_ctx": int(os.environ.get("BCT_LOCAL_LLM_NUM_CTX", "16384")),
             },
         }
         response = requests.post(

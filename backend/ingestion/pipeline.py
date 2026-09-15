@@ -102,7 +102,12 @@ def validate_pdf_file(path: str | Path, *, max_bytes: int) -> None:
 
 def _read_snapshot(active: Path) -> dict:
     path = active / "snapshot.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    # Legacy Codex/provider snapshots are a list of representation bindings;
+    # versioned ingestion snapshots are dicts with local_collection keys.
+    return payload if isinstance(payload, dict) else {}
 
 
 def _restore_active_pointer(root: Path, previous: bytes | None) -> None:
@@ -264,6 +269,8 @@ class IngestionPipeline:
                     "status": "ready",
                     "duplicate": False,
                     "filename": filename,
+                    "title": metadata.get("title") or filename,
+                    "administrator_metadata": metadata,
                     "content_sha256": content_hash,
                     "stored_pdf": str(immutable_pdf),
                     "structured_document": str(structured_path),
@@ -274,7 +281,7 @@ class IngestionPipeline:
                     "visual_chunks_added": len(visual),
                     "asset_version": staged_snapshot["version"],
                     "active_pointer": pointer,
-                    "local_indexed": self.config.build_local,
+                    "local_indexed": bool(snapshot_updates.get("local_collection")),
                     "graph": graph_report,
                 }
                 try:

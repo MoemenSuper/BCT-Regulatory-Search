@@ -30,7 +30,11 @@ import type {
 } from './types/ui';
 import './styles.css';
 
-export default function App() {
+interface AppProps {
+  onLogout?: () => void;
+}
+
+export default function App({ onLogout }: AppProps) {
   const [activeTab, setActiveTab] = useState<EvidenceTab>('preuve');
   const [zoom, setZoom] = useState(100);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
@@ -169,7 +173,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Header />
+      <Header onLogout={onLogout} />
       <div
         ref={workspaceRef}
         className={`workspace${resizing ? ' is-resizing' : ''}`}

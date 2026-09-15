@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from answer_evidence import evidence_warning
+
 from .gemini_visual import GeminiVisualTranscriber
 from .models import Block, Page, StructuredDocument
 from .quality import arabic_character_ratio, assess_page_quality, contains_sensitive_literals
@@ -180,12 +182,16 @@ class PdfExtractor:
                 page_number = index + 1
                 quality = assess_page_quality(native_text, len(native_blocks))
                 page_language = "ar" if arabic_character_ratio(native_text) >= 0.20 else language
+                # Native text can look healthy while its digits are garbled by a broken
+                # font map (header reads "لسنة 6112" for 2016). Such a page is only
+                # usable through Gemini's reading of the page image.
+                digits_unreliable = evidence_warning({"source": path.name, "text": native_text}) if native_text else None
                 visual = None
                 visual_error = None
                 should_visualize, require_complete = _visual_plan(
                     language=page_language,
                     native_text=native_text,
-                    requires_fallback=quality.requires_fallback,
+                    requires_fallback=quality.requires_fallback or bool(digits_unreliable),
                 )
                 if should_visualize:
                     if self.visual_transcriber is None:
@@ -217,7 +223,7 @@ class PdfExtractor:
                     )
 
                 use_visual_as_primary = bool(
-                    quality.requires_fallback
+                    (quality.requires_fallback or digits_unreliable)
                     and visual is not None
                     and visual.transcription.strip()
                     and visual.complete
@@ -227,17 +233,22 @@ class PdfExtractor:
                         f"Page {page_number} has unusable native extraction and no complete Gemini fallback"
                     )
 
+                flags = list(quality.flags)
+                if digits_unreliable:
+                    flags.append(f"native_digits_unreliable:{digits_unreliable}")
                 if use_visual_as_primary:
                     raw_text = visual.transcription.strip()
                     chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="vlm")
                     method = "vlm"
-                    flags = list(quality.flags) + ["native_replaced_by_gemini"]
+                    flags.append("native_replaced_by_gemini")
+                    still_unreliable = evidence_warning({"source": path.name, "text": raw_text})
+                    if still_unreliable:
+                        flags.append(f"gemini_digits_unreliable:{still_unreliable}")
                 else:
                     raw_text = native_text
                     chosen_blocks = native_blocks
                     method = "native"
-                    flags = list(quality.flags)
-                    if quality.requires_fallback:
+                    if quality.requires_fallback or digits_unreliable:
                         flags.append("fallback_unavailable_native_retained")
 
                 hierarchy = classify_blocks(chosen_blocks, page_language, hierarchy)

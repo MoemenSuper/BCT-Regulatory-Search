@@ -123,6 +123,7 @@ class ConversationStore:
                 "CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_time "
                 "ON conversation_turns(conversation_id, created_at, turn_id)"
             )
+            self._ensure_session_title_column(connection)
 
     def create(self):
         conversation_id = str(uuid4())
@@ -336,6 +337,19 @@ class ConversationStore:
 
     def _connect(self):
         return sqlite3.connect(self.path, timeout=30)
+
+    @staticmethod
+    def _ensure_session_title_column(connection):
+        # Older DBs were created before title existed; CREATE TABLE IF NOT EXISTS
+        # does not add new columns to an already-present table.
+        columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(conversation_sessions)").fetchall()
+        }
+        if "title" not in columns:
+            connection.execute(
+                "ALTER TABLE conversation_sessions ADD COLUMN title TEXT"
+            )
 
     def _bounded_state(self, state):
         value = dict(state)

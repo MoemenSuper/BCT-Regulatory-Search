@@ -78,6 +78,8 @@ VOYAGE_API_KEY=...
 GEMINI_API_KEY=...
 BCT_DOCUMENTS_DIR=C:\path\to\your\BCT-PDF-corpus
 BCT_DEFAULT_PROFILE=cloud
+BCT_BOOTSTRAP_ADMIN_EMAIL=admin@bct.tn
+BCT_BOOTSTRAP_ADMIN_PASSWORD=change-me-now
 ```
 
 | Key | Used for |
@@ -86,6 +88,7 @@ BCT_DEFAULT_PROFILE=cloud
 | `VOYAGE_API_KEY` | Cloud retrieval / rerank |
 | `GEMINI_API_KEY` | Visual repair on hard / Arabic pages |
 | `BCT_DOCUMENTS_DIR` | Root of original public BCT PDFs |
+| `BCT_BOOTSTRAP_ADMIN_EMAIL` / `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Creates the first approved administrator on API startup |
 
 ---
 
@@ -127,7 +130,7 @@ python run_api.py `
 
 API default: `http://127.0.0.1:8000`
 
-Admin PDF upload: set a long `BCT_INGESTION_TOKEN` in `.env`, then add `--enable-ingestion`.
+Authentication uses httpOnly session cookies. New registrations start as `role=user` / `status=pending` until an administrator approves them. PDF upload and runtime configuration live in the administrator dashboard (same login page as normal users).
 
 ---
 
@@ -161,6 +164,24 @@ PDF → validate → PyMuPDF extract → StructuredDocument
 
 - HTTP upload: the API reloads retrieval backends after success.
 - CLI ingest while the API is running: restart the API so it loads the new asset version.
+- A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by Gemini and the transcription becomes the page's text (`native_replaced_by_gemini`). The garbled native text stays in `structured.json` only.
+
+### Re-extract pages with unreliable digits (staged)
+
+Works on a **candidate** copy of the asset root; the live corpus is untouched until you point the API at the candidate.
+
+```powershell
+cd backend
+# list affected PDFs/pages in the live corpus
+python reingest_unreliable.py --assets "C:\path\to\runtime-assets" --dry-run
+# copy the live root, then re-ingest every affected PDF through Gemini
+$env:BCT_GEMINI_MODEL = "gemini-3.5-flash-lite"   # free tier: 500 req/day; gemini-3.7-flash is 20/day
+python reingest_unreliable.py --assets "C:\path\to\runtime-assets-candidate" --seed-from "C:\path\to\runtime-assets" --documents "C:\path\to\documents"
+# compare, then serve from the candidate root
+python run_api.py --assets "C:\path\to\runtime-assets-candidate" ...
+```
+
+Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Cloud (Voyage) indexes only; rebuild the local Chroma collections separately if you use the `local` profiles.
 
 ---
 
