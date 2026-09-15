@@ -36,7 +36,6 @@ export interface AdminOverview {
   documents_ready: number;
   active_profile: string;
   answer_refusals_total: number;
-  recent_answer_refusals: AnswerRefusal[];
   graph: {
     graph_enabled: boolean;
     neo4j_connected: boolean;
@@ -55,6 +54,11 @@ export interface AnswerRefusal {
   diagnostics: string[];
   profile: string | null;
   created_at: string;
+}
+
+export interface AnswerRefusalsPage {
+  total: number;
+  items: AnswerRefusal[];
 }
 
 export interface SecretInfo {
@@ -79,6 +83,30 @@ export interface AdminConfig {
 
 export function getOverview(): Promise<AdminOverview> {
   return request('/api/admin/overview');
+}
+
+export function listAnswerRefusals(limit = 500): Promise<AnswerRefusalsPage> {
+  return request(`/api/admin/answer-refusals?limit=${Math.max(1, Math.min(limit, 5000))}`);
+}
+
+export async function downloadAnswerRefusalsExport(): Promise<void> {
+  const response = await fetch('/api/admin/answer-refusals/export', {
+    credentials: 'include',
+    headers: { Accept: 'text/csv' },
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const matched = /filename="([^"]+)"/i.exec(disposition);
+  const filename = matched?.[1] || 'answer-refusals.csv';
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function listUsers(): Promise<AuthUser[]> {

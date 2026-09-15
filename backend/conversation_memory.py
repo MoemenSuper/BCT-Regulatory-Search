@@ -264,7 +264,7 @@ class ConversationStore:
         return refusal_id
 
     def list_answer_refusals(self, *, limit=100):
-        limit = max(1, min(int(limit), 500))
+        limit = max(1, min(int(limit), 100_000))
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(

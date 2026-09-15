@@ -14,6 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
+import csv
+import io
+from datetime import datetime, timezone
 
 from app_settings import open_app_settings
 from conversation import chat
@@ -304,7 +307,6 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "documents_ready": len(docs),
         "active_profile": settings["active_profile"],
         "answer_refusals_total": request.app.state.conversation_store.count_answer_refusals(),
-        "recent_answer_refusals": request.app.state.conversation_store.list_answer_refusals(limit=25),
         "graph": graph_lite_status(
             getattr(request.app.state, "graph_runtime", None),
             getattr(request.app.state, "graph_retriever", None),
@@ -315,7 +317,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
 @app.get("/admin/answer-refusals")
 def admin_answer_refusals(
     request: Request,
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int = Query(default=500, ge=1, le=5000),
     _admin=Depends(require_admin),
 ):
     store = request.app.state.conversation_store
@@ -323,6 +325,48 @@ def admin_answer_refusals(
         "total": store.count_answer_refusals(),
         "items": store.list_answer_refusals(limit=limit),
     }
+
+
+@app.get("/admin/answer-refusals/export")
+def admin_export_answer_refusals(request: Request, _admin=Depends(require_admin)):
+    """Download the full refusal log as CSV (all rows, not the UI page)."""
+    store = request.app.state.conversation_store
+    items = store.list_answer_refusals(limit=100_000)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "created_at",
+        "user_email",
+        "user_id",
+        "answer_status",
+        "profile",
+        "question",
+        "reason",
+        "diagnostics",
+        "conversation_id",
+        "refusal_id",
+    ])
+    for item in items:
+        writer.writerow([
+            item.get("created_at") or "",
+            item.get("user_email") or "",
+            item.get("user_id") or "",
+            item.get("answer_status") or "",
+            item.get("profile") or "",
+            item.get("question") or "",
+            item.get("reason") or "",
+            " | ".join(str(part) for part in (item.get("diagnostics") or [])),
+            item.get("conversation_id") or "",
+            item.get("refusal_id") or "",
+        ])
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"answer-refusals-{stamp}.csv"
+    payload = buffer.getvalue().encode("utf-8-sig")
+    return Response(
+        content=payload,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/admin/users")
