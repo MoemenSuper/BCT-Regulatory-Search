@@ -130,7 +130,9 @@ def route_message(llm, message, memory_state):
         - If the message is a greeting or identity question, use GENERAL_CHAT.
         - A request explaining how you can help, without a specific regulatory fact to look up, is GENERAL_CHAT.
         - Keep rewrite_query in the language of the current user message.
-        - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query with resolved document names, provisions, and dates from memory when available.
+        - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query.
+        - For NEW_TOPIC, rewrite only the current user message. Do not import facts, document names,
+          provisions, dates, or topics from memory. For FOLLOW_UP, resolve references from memory when available.
         - current_topic should be the topic the message refers to now.
         - new_topic and current_topic must be short topic strings, never booleans.
         - Example NEW_TOPIC JSON:
@@ -305,11 +307,7 @@ def chat(
         }
 
     route_query = route["rewrite_query"] or message
-    query_for_retrieval = (
-        message
-        if route["intent"] == RouteIntent.NEW_TOPIC.value
-        else route_query
-    )
+    query_for_retrieval = route_query
     temporal_graph_query = (
         message
         if is_temporal_rule_query(message)
@@ -376,7 +374,7 @@ def chat(
     refusal_reason = None
     if status in {"search_results", "insufficient_evidence", "clarification_needed", "out_of_scope"}:
         refusal_reason = format_refusal_reason(status, diagnostics)
-        if status in {"search_results", "insufficient_evidence", "clarification_needed"}:
+        if status in {"search_results", "insufficient_evidence"}:
             # Search fallback preserves ordinary retrieval order, even when answer
             # context was reordered for currentness or prefixed with graph snippets.
             # Keep refusal_reason from the grounded attempt; do not leak diagnostics to UI.

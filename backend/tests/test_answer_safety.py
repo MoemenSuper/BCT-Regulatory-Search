@@ -248,17 +248,75 @@ def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
     assert any("quote_not_found" in m[-1].content for m in seen)
 
 
-def test_conflicting_scope_returns_search_results_without_drafting():
+def test_unresolved_scope_requests_clarification_without_drafting():
     def respond(prompt):
         assert "Select evidence for" in prompt.to_messages()[0].content
         return AIMessage(content=json.dumps(dict(decision="clarification_needed", reason="Same scope, different ceilings; no requested instrument or precedence.", evidence_ids=[])))
     docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", docs)
-    assert result["status"] == "search_results"
+    assert result["status"] == "clarification_needed"
     assert "320" not in result["answer"]
-    assert len(result["sources"]) == 2
-    assert result["sources"][0]["excerpt"] == "Le plafond est de 320 dinars."
+    assert result["sources"] == []
+
+
+def test_selector_insufficiency_gets_one_literal_checked_partial_attempt():
+    calls = []
+    def respond(prompt):
+        calls.append(prompt.to_messages())
+        if "Select evidence for" in calls[-1][0].content:
+            return AIMessage(content=json.dumps(dict(
+                decision="insufficient_evidence", reason="uncertain scope", evidence_ids=[])))
+        return AIMessage(content=json.dumps(draft()))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
+    assert result["status"] == "partial_answer"
+    assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
+    assert len(calls) == 2
+
+
+def test_best_effort_attempt_never_bypasses_named_instrument_identity():
+    calls = []
+    def respond(prompt):
+        calls.append(prompt.to_messages())
+        if "Select evidence for" in calls[-1][0].content:
+            return AIMessage(content=json.dumps(dict(
+                decision="insufficient_evidence", reason="uncertain", evidence_ids=[])))
+        assert "Cir_2024_52_fr.pdf" not in calls[-1][-1].content
+        return AIMessage(content=json.dumps(draft()))
+    docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
+            for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
+    result = generate_grounded_answer(RunnableLambda(respond),
+        "Selon la circulaire 2022-41, quel est le plafond ?", docs)
+    assert result["status"] == "partial_answer"
+    assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
+
+
+def test_broad_question_synthesizes_selected_parts_and_carries_answer_intent():
+    seen = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        seen.append(messages)
+        if "Select evidence for" in messages[0].content:
+            assert "answer_intent" in messages[0].content
+            assert "Do not confuse topical evidence" in messages[0].content
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="conditions", reason="E1 and E2 support distinct conditions",
+                evidence_ids=["E1", "E2"])))
+        assert '"answer_intent": "conditions"' in messages[-1].content
+        return AIMessage(content=json.dumps(dict(status="partial_answer", message="", claims=[
+            dict(text="La condition A s'applique.", quotes=[dict(evidence_id="E1", quote="La condition A s'applique.")]),
+            dict(text="La condition B s'applique.", quotes=[dict(evidence_id="E2", quote="La condition B s'applique.")]),
+        ])))
+    docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
+            for r in [record(text="La condition A s'applique."),
+                      record("Cir_2022_41_fr.pdf", "La condition B s'applique.", "E2")]]
+    result = generate_grounded_answer(RunnableLambda(respond),
+        "Quelles sont les conditions A, B et C ?", docs)
+    assert result["status"] == "partial_answer"
+    assert "La condition A s'applique." in result["answer"]
+    assert "La condition B s'applique." in result["answer"]
+    assert len(seen) == 2
 
 
 def test_draft_cannot_cite_evidence_excluded_by_selection():

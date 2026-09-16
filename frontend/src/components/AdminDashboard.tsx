@@ -65,7 +65,7 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
         else if (tab === 'documents') { const data = await listDocuments(); if (!cancelled) setDocuments(data); }
         else if (tab === 'refusals') { const data = await listAnswerRefusals(5000); if (!cancelled) setRefusals(data); }
         else { const data = await getConfig(); if (!cancelled) setConfig(data); }
-      } catch { if (!cancelled) setError(t(locale, 'admin.loadFailed')); }
+      } catch (err) { if (!cancelled) setError(err instanceof Error && err.message ? err.message : t(locale, 'admin.loadFailed')); }
       finally { if (!cancelled) setLoading(false); }
     }
     void load();

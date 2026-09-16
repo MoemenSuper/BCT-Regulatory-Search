@@ -209,19 +209,19 @@ def test_chat_uses_the_selected_profile_backend_and_answer_provider(monkeypatch)
     )
 
     assert calls["answer_provider"] == "ollama"
-    assert calls["retrieval_query"] == "What does Circular 2025-17 require?"
+    assert calls["retrieval_query"] == "Circular 2025-17 reporting"
     assert result["answer"] == "answer"
 
 
-def test_new_topic_retrieval_preserves_the_user_question(monkeypatch):
+def test_new_topic_retrieval_uses_the_standalone_rewrite(monkeypatch):
     message = (
         "Notre établissement traverse un problème temporaire de liquidité. "
         "Dans quels cas peut-on demander une assistance financière exceptionnelle "
         "à la Banque Centrale ?"
     )
-    contaminated_rewrite = (
-        "Quelles sont les conditions selon la réglementation française et les "
-        "directives de l'Autorité de contrôle prudentiel ?"
+    rewritten_query = (
+        "Dans quels cas une banque peut-elle demander une assistance financière "
+        "exceptionnelle à la Banque Centrale de Tunisie ?"
     )
     calls = {}
     ordinary = _document("Cir_2016_07_fr.pdf", page=1)
@@ -237,7 +237,7 @@ def test_new_topic_retrieval_preserves_the_user_question(monkeypatch):
         "route_message",
         lambda *_: {
             "intent": "NEW_TOPIC",
-            "rewrite_query": contaminated_rewrite,
+            "rewrite_query": rewritten_query,
             "new_topic": "Assistance financière exceptionnelle",
             "current_topic": "Assistance financière exceptionnelle",
         },
@@ -255,9 +255,9 @@ def test_new_topic_retrieval_preserves_the_user_question(monkeypatch):
         retrieval_backend=Backend(),
     )
 
-    assert calls["retrieval_query"] == message
+    assert calls["retrieval_query"] == rewritten_query
     assert calls["answer_query"] == message
-    assert result["memory_state"]["turns"][-1]["standalone_query"] == message
+    assert result["memory_state"]["turns"][-1]["standalone_query"] == rewritten_query
 
 
 def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatch):
