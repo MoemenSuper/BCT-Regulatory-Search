@@ -299,6 +299,11 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
             registry.close()
     except Exception:
         logger.info("Ingestion registry unavailable for overview.")
+    refusals_total = 0
+    try:
+        refusals_total = request.app.state.conversation_store.count_answer_refusals()
+    except Exception:
+        logger.exception("Answer refusal log unavailable for overview.")
     return {
         "users_total": len(users),
         "users_pending": sum(1 for user in users if user.status == "pending"),
@@ -306,7 +311,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "users_rejected": sum(1 for user in users if user.status == "rejected"),
         "documents_ready": len(docs),
         "active_profile": settings["active_profile"],
-        "answer_refusals_total": request.app.state.conversation_store.count_answer_refusals(),
+        "answer_refusals_total": refusals_total,
         "graph": graph_lite_status(
             getattr(request.app.state, "graph_runtime", None),
             getattr(request.app.state, "graph_retriever", None),
