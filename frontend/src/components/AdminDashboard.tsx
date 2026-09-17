@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, LogOut, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, setProfile, setSecrets, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage } from '../api/admin';
+import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
@@ -107,8 +107,60 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
   }
   async function handleReject(id: string) { setBusy(true); try { await rejectUser(id); setMessage(t(locale, 'admin.rejected')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
   async function handleDelete(id: string, email: string) { if (!window.confirm(t(locale, 'admin.deleteConfirm', { email }))) return; setBusy(true); try { await deleteUser(id); setMessage(t(locale, 'admin.deleted')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
-  async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
-  async function handleSecrets(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const secrets: Record<string, string | null> = {}; for (const [key, value] of new FormData(event.currentTarget).entries()) { const text = String(value).trim(); if (text) secrets[key] = text; } setBusy(true); setError(null); try { setConfig(await setSecrets(secrets)); setMessage(t(locale, 'admin.credentialsSaved')); event.currentTarget.reset(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
+
+  async function handleTokenLimit(id: string, tokenLimit: number) {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await setUserTokenLimit(id, tokenLimit);
+      setMessage(t(locale, 'admin.tokenLimitSaved'));
+      await refresh();
+    } catch {
+      setError(t(locale, 'admin.tokenLimitFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResetTokens(id: string, email: string) {
+    if (!window.confirm(t(locale, 'admin.resetTokensConfirm', { email }))) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await resetUserTokens(id);
+      setMessage(t(locale, 'admin.tokensReset'));
+      await refresh();
+    } catch {
+      setError(t(locale, 'admin.tokenLimitFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); setMessage(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
+  async function handleSecrets(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const secrets: Record<string, string | null> = {};
+    for (const [key, value] of new FormData(form).entries()) {
+      const text = String(value).trim();
+      if (text) secrets[key] = text;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      setConfig(await setSecrets(secrets));
+      setMessage(t(locale, 'admin.credentialsSaved'));
+      form.reset();
+    } catch {
+      setError(t(locale, 'admin.configFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function handleExportRefusals() {
     setBusy(true);
     setError(null);
@@ -165,12 +217,12 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
       <div className="admin-sidebar-foot"><div className="admin-account-mark" aria-hidden="true">{user.email.charAt(0).toUpperCase()}</div><div><strong>{user.email}</strong><span>{t(locale, 'admin.administrator')}</span></div><button type="button" className="admin-icon-button" aria-label={t(locale, 'auth.signOut')} onClick={() => void handleLogout()}><LogOut aria-hidden="true" size={18} /></button></div>
     </aside>
     <div className="admin-workspace">
-      <header className="admin-header"><div><p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p><h1>{currentPage}</h1></div><div className="admin-header-actions"><LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" /><div className="admin-live-status"><span aria-hidden="true" />{t(locale, 'admin.secure')}</div><button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}><RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} /><span>{t(locale, 'admin.refresh')}</span></button></div></header>
+      <header className="admin-header"><div><p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p><h1>{currentPage}</h1></div><div className="admin-header-actions"><LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" /><button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}><RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} /><span>{t(locale, 'admin.refresh')}</span></button></div></header>
       <main id="admin-content" className="admin-main">
         {error ? <div className="admin-banner error" role="alert"><XCircle aria-hidden="true" size={19} />{error}</div> : null}
         {message ? <div className="admin-banner ok" role="status"><CheckCircle2 aria-hidden="true" size={19} />{message}</div> : null}
         {tab === 'overview' ? <OverviewPage overview={overview} loading={loading} locale={locale} onNavigate={selectTab} /> : null}
-        {tab === 'users' ? <UsersPage users={users} currentUser={user} busy={busy} loading={loading} locale={locale} onApprove={handleApprove} onPromote={handlePromote} onReject={handleReject} onDelete={handleDelete} /> : null}
+        {tab === 'users' ? <UsersPage users={users} currentUser={user} busy={busy} loading={loading} locale={locale} onApprove={handleApprove} onPromote={handlePromote} onReject={handleReject} onDelete={handleDelete} onTokenLimit={handleTokenLimit} onResetTokens={handleResetTokens} /> : null}
         {tab === 'documents' ? (
           <DocumentsPage
             documents={Array.isArray(documents) ? documents : []}
@@ -281,7 +333,15 @@ function RefusalsPage({
   );
 }
 
-function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPromote, onReject, onDelete }: {
+function formatTokens(value: number | undefined) {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value || 0);
+}
+
+function formatUsd(value: number | undefined) {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 4 }).format(value || 0);
+}
+
+function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPromote, onReject, onDelete, onTokenLimit, onResetTokens }: {
   users: AuthUser[];
   currentUser: AuthUser;
   busy: boolean;
@@ -291,77 +351,172 @@ function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPro
   onPromote: (id: string, email: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   onDelete: (id: string, email: string) => Promise<void>;
+  onTokenLimit: (id: string, tokenLimit: number) => Promise<void>;
+  onResetTokens: (id: string, email: string) => Promise<void>;
 }) {
+  const [draftLimits, setDraftLimits] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const entry of users) next[entry.id] = String(entry.token_limit ?? 0);
+    setDraftLimits(next);
+  }, [users]);
+
   return (
-    <section className="admin-panel admin-table-panel">
-      <div className="admin-panel-heading">
-        <div>
-          <p>{t(locale, 'admin.accessControl')}</p>
-          <h2>{t(locale, 'admin.userDirectory')}</h2>
+    <>
+      <section className="admin-panel admin-table-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <p>{t(locale, 'admin.accessControl')}</p>
+            <h2>{t(locale, 'admin.userDirectory')}</h2>
+          </div>
+          <span className="admin-count">{users.length} {t(locale, 'admin.accounts')}</span>
         </div>
-        <span className="admin-count">{users.length} {t(locale, 'admin.accounts')}</span>
-      </div>
-      <p className="admin-help">{t(locale, 'admin.promoteHelp')}</p>
-      {loading ? (
-        <TableSkeleton label={t(locale, 'admin.loading')} />
-      ) : (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>{t(locale, 'admin.user')}</th>
-                <th>{t(locale, 'admin.role')}</th>
-                <th>{t(locale, 'admin.accountStatus')}</th>
-                <th><span className="sr-only">{t(locale, 'admin.actions')}</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((entry) => (
-                <tr key={entry.id}>
-                  <td>
-                    <div className="admin-user-cell">
-                      <span>{entry.email.charAt(0).toUpperCase()}</span>
-                      <strong>{entry.email}</strong>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="admin-role">
-                      {entry.role === 'admin' ? t(locale, 'admin.administrator') : t(locale, 'admin.user')}
-                    </span>
-                  </td>
-                  <td><StatusBadge status={entry.status} locale={locale} /></td>
-                  <td className="admin-actions">
-                    {entry.status === 'pending' ? (
-                      <>
-                        <button type="button" className="admin-action accept" disabled={busy} onClick={() => void onApprove(entry.id)}>
-                          <UserCheck aria-hidden="true" size={16} />
-                          {t(locale, 'admin.approve')}
-                        </button>
-                        <button type="button" className="admin-action reject" disabled={busy} onClick={() => void onReject(entry.id)}>
-                          {t(locale, 'admin.reject')}
-                        </button>
-                      </>
-                    ) : null}
-                    {entry.status === 'approved' && entry.role !== 'admin' ? (
-                      <button type="button" className="admin-action promote" disabled={busy} onClick={() => void onPromote(entry.id, entry.email)}>
-                        <ShieldPlus aria-hidden="true" size={16} />
-                        {t(locale, 'admin.promote')}
-                      </button>
-                    ) : null}
-                    {entry.id !== currentUser.id && entry.role !== 'admin' ? (
-                      <button type="button" className="admin-action delete" disabled={busy} onClick={() => void onDelete(entry.id, entry.email)}>
-                        <Trash2 aria-hidden="true" size={16} />
-                        {t(locale, 'admin.delete')}
-                      </button>
-                    ) : null}
-                  </td>
+        <p className="admin-help">{t(locale, 'admin.promoteHelp')}</p>
+        {loading ? (
+          <TableSkeleton label={t(locale, 'admin.loading')} />
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>{t(locale, 'admin.user')}</th>
+                  <th>{t(locale, 'admin.role')}</th>
+                  <th>{t(locale, 'admin.accountStatus')}</th>
+                  <th><span className="sr-only">{t(locale, 'admin.actions')}</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <div className="admin-user-cell">
+                        <span>{entry.email.charAt(0).toUpperCase()}</span>
+                        <strong>{entry.email}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="admin-role">
+                        {entry.role === 'admin' ? t(locale, 'admin.administrator') : t(locale, 'admin.user')}
+                      </span>
+                    </td>
+                    <td><StatusBadge status={entry.status} locale={locale} /></td>
+                    <td className="admin-actions">
+                      {entry.status === 'pending' ? (
+                        <>
+                          <button type="button" className="admin-action accept" disabled={busy} onClick={() => void onApprove(entry.id)}>
+                            <UserCheck aria-hidden="true" size={16} />
+                            {t(locale, 'admin.approve')}
+                          </button>
+                          <button type="button" className="admin-action reject" disabled={busy} onClick={() => void onReject(entry.id)}>
+                            {t(locale, 'admin.reject')}
+                          </button>
+                        </>
+                      ) : null}
+                      {entry.status === 'approved' && entry.role !== 'admin' ? (
+                        <button type="button" className="admin-action promote" disabled={busy} onClick={() => void onPromote(entry.id, entry.email)}>
+                          <ShieldPlus aria-hidden="true" size={16} />
+                          {t(locale, 'admin.promote')}
+                        </button>
+                      ) : null}
+                      {entry.id !== currentUser.id && entry.role !== 'admin' ? (
+                        <button type="button" className="admin-action delete" disabled={busy} onClick={() => void onDelete(entry.id, entry.email)}>
+                          <Trash2 aria-hidden="true" size={16} />
+                          {t(locale, 'admin.delete')}
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="admin-panel admin-token-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <p>{t(locale, 'admin.tokenUsage')}</p>
+            <h2>{t(locale, 'admin.tokenQuotaTitle')}</h2>
+          </div>
         </div>
-      )}
-    </section>
+        <p className="admin-help">{t(locale, 'admin.tokenQuotaHelp')}</p>
+        {loading ? (
+          <TableSkeleton label={t(locale, 'admin.loading')} />
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>{t(locale, 'admin.user')}</th>
+                  <th>{t(locale, 'admin.tokensGroq')}</th>
+                  <th>{t(locale, 'admin.tokensEmbed')}</th>
+                  <th>{t(locale, 'admin.tokensRerank')}</th>
+                  <th>{t(locale, 'admin.tokensUsed')}</th>
+                  <th>{t(locale, 'admin.tokenLimit')}</th>
+                  <th>{t(locale, 'admin.tokensRemaining')}</th>
+                  <th>{t(locale, 'admin.estimatedSpend')}</th>
+                  <th><span className="sr-only">{t(locale, 'admin.actions')}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((entry) => {
+                  const limit = entry.token_limit ?? 0;
+                  const used = entry.tokens_used ?? 0;
+                  const remaining = limit <= 0 ? null : Math.max(0, limit - used);
+                  return (
+                    <tr key={`tokens-${entry.id}`}>
+                      <td><strong>{entry.email}</strong></td>
+                      <td>{formatTokens(entry.tokens_llm ?? 0)}</td>
+                      <td>{formatTokens(entry.tokens_embed ?? 0)}</td>
+                      <td>{formatTokens(entry.tokens_rerank ?? 0)}</td>
+                      <td>{formatTokens(used)}</td>
+                      <td>
+                        <input
+                          className="admin-token-input"
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={draftLimits[entry.id] ?? String(limit)}
+                          disabled={busy}
+                          aria-label={t(locale, 'admin.tokenLimit')}
+                          onChange={(event) => setDraftLimits((current) => ({ ...current, [entry.id]: event.target.value }))}
+                        />
+                      </td>
+                      <td>{remaining === null ? t(locale, 'admin.unlimited') : formatTokens(remaining)}</td>
+                      <td>{formatUsd(entry.estimated_spend_usd)}</td>
+                      <td className="admin-actions">
+                        <button
+                          type="button"
+                          className="admin-action accept"
+                          disabled={busy}
+                          onClick={() => {
+                            const parsed = Number(draftLimits[entry.id] ?? limit);
+                            if (!Number.isFinite(parsed) || parsed < 0) return;
+                            void onTokenLimit(entry.id, Math.floor(parsed));
+                          }}
+                        >
+                          {t(locale, 'admin.saveTokenLimit')}
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-action reject"
+                          disabled={busy || used === 0}
+                          onClick={() => void onResetTokens(entry.id, entry.email)}
+                        >
+                          {t(locale, 'admin.resetTokens')}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 

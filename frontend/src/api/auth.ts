@@ -8,6 +8,13 @@ export interface AuthUser {
   status: UserStatus;
   created_at: number;
   updated_at: number;
+  token_limit?: number;
+  tokens_used?: number;
+  tokens_llm?: number;
+  tokens_embed?: number;
+  tokens_rerank?: number;
+  tokens_remaining?: number | null;
+  estimated_spend_usd?: number;
 }
 
 async function readError(response: Response): Promise<string> {

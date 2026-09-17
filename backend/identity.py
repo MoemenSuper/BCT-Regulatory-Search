@@ -65,8 +65,20 @@ class UserRecord:
     status: Status
     created_at: float
     updated_at: float
+    token_limit: int = 0
+    tokens_used: int = 0
+    tokens_llm: int = 0
+    tokens_embed: int = 0
+    tokens_rerank: int = 0
 
     def public_dict(self) -> dict:
+        limit = max(0, int(self.token_limit))
+        llm = max(0, int(self.tokens_llm))
+        embed = max(0, int(self.tokens_embed))
+        rerank = max(0, int(self.tokens_rerank))
+        used = max(0, int(self.tokens_used), llm + embed + rerank)
+        remaining = None if limit <= 0 else max(0, limit - used)
+        usd_per_million = float(os.environ.get("BCT_TOKEN_USD_PER_MILLION", "0.5"))
         return {
             "id": self.id,
             "email": self.email,
@@ -74,6 +86,13 @@ class UserRecord:
             "status": self.status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "token_limit": limit,
+            "tokens_used": used,
+            "tokens_llm": llm,
+            "tokens_embed": embed,
+            "tokens_rerank": rerank,
+            "tokens_remaining": remaining,
+            "estimated_spend_usd": round(used / 1_000_000 * usd_per_million, 4),
         }
 
 
@@ -111,6 +130,37 @@ class AuthStore:
             CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
             """
         )
+        columns = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(users)").fetchall()
+        }
+        if "token_limit" not in columns:
+            default_limit = int(os.environ.get("BCT_DEFAULT_TOKEN_LIMIT", "500000"))
+            self._conn.execute(
+                f"ALTER TABLE users ADD COLUMN token_limit INTEGER NOT NULL DEFAULT {default_limit}"
+            )
+        if "tokens_used" not in columns:
+            self._conn.execute(
+                "ALTER TABLE users ADD COLUMN tokens_used INTEGER NOT NULL DEFAULT 0"
+            )
+            columns.add("tokens_used")
+        for column in ("tokens_llm", "tokens_embed", "tokens_rerank"):
+            if column not in columns:
+                self._conn.execute(
+                    f"ALTER TABLE users ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
+                )
+                columns.add(column)
+        # One-time: treat legacy flat usage as Groq until the next reset.
+        self._conn.execute(
+            """
+            UPDATE users
+            SET tokens_llm = tokens_used
+            WHERE tokens_used > 0
+              AND tokens_llm = 0
+              AND tokens_embed = 0
+              AND tokens_rerank = 0
+            """
+        )
         self._conn.commit()
 
     def bootstrap_admin(self) -> UserRecord | None:
@@ -138,13 +188,27 @@ class AuthStore:
             raise ValueError("Password must be between 8 and 128 characters.")
         now = time.time()
         user_id = secrets.token_urlsafe(16)
+        default_limit = int(os.environ.get("BCT_DEFAULT_TOKEN_LIMIT", "500000"))
         try:
             self._conn.execute(
                 """
-                INSERT INTO users (id, email, password_hash, role, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (
+                    id, email, password_hash, role, status,
+                    created_at, updated_at, token_limit, tokens_used,
+                    tokens_llm, tokens_embed, tokens_rerank
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
                 """,
-                (user_id, cleaned, hash_password(password), role, status, now, now),
+                (
+                    user_id,
+                    cleaned,
+                    hash_password(password),
+                    role,
+                    status,
+                    now,
+                    now,
+                    0 if role == "admin" else default_limit,
+                ),
             )
             self._conn.commit()
         except sqlite3.IntegrityError as error:
@@ -214,6 +278,93 @@ class AuthStore:
         assert promoted is not None
         return promoted
 
+    def set_token_limit(self, user_id: str, token_limit: int) -> UserRecord:
+        if token_limit < 0:
+            raise ValueError("Token limit must be zero or positive.")
+        now = time.time()
+        cur = self._conn.execute(
+            "UPDATE users SET token_limit = ?, updated_at = ? WHERE id = ?",
+            (int(token_limit), now, user_id),
+        )
+        self._conn.commit()
+        if cur.rowcount == 0:
+            raise KeyError(user_id)
+        user = self.get_by_id(user_id)
+        assert user is not None
+        return user
+
+    def reset_token_usage(self, user_id: str) -> UserRecord:
+        now = time.time()
+        cur = self._conn.execute(
+            """
+            UPDATE users
+            SET tokens_used = 0,
+                tokens_llm = 0,
+                tokens_embed = 0,
+                tokens_rerank = 0,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (now, user_id),
+        )
+        self._conn.commit()
+        if cur.rowcount == 0:
+            raise KeyError(user_id)
+        user = self.get_by_id(user_id)
+        assert user is not None
+        return user
+
+    def consume_tokens(self, user_id: str, tokens: int) -> UserRecord:
+        # Legacy helper: treat unspecified usage as LLM (Groq) tokens.
+        return self.consume_cloud_usage(user_id, llm=tokens)
+
+    def consume_cloud_usage(
+        self,
+        user_id: str,
+        *,
+        llm: int = 0,
+        embed: int = 0,
+        rerank: int = 0,
+    ) -> UserRecord:
+        llm_n = max(0, int(llm))
+        embed_n = max(0, int(embed))
+        rerank_n = max(0, int(rerank))
+        total = llm_n + embed_n + rerank_n
+        if total == 0:
+            user = self.get_by_id(user_id)
+            if user is None:
+                raise KeyError(user_id)
+            return user
+        now = time.time()
+        cur = self._conn.execute(
+            """
+            UPDATE users
+            SET tokens_llm = tokens_llm + ?,
+                tokens_embed = tokens_embed + ?,
+                tokens_rerank = tokens_rerank + ?,
+                tokens_used = tokens_used + ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (llm_n, embed_n, rerank_n, total, now, user_id),
+        )
+        self._conn.commit()
+        if cur.rowcount == 0:
+            raise KeyError(user_id)
+        user = self.get_by_id(user_id)
+        assert user is not None
+        return user
+
+    def tokens_remaining(self, user: UserRecord) -> int | None:
+        if user.token_limit <= 0:
+            return None
+        return max(0, user.token_limit - user.tokens_used)
+
+    def ensure_token_budget(self, user: UserRecord) -> None:
+        remaining = self.tokens_remaining(user)
+        if remaining is not None and remaining <= 0:
+            raise PermissionError("Token quota exhausted.")
+
     def delete_user(self, user_id: str) -> None:
         target = self.get_by_id(user_id)
         if target is None:
@@ -261,6 +412,7 @@ class AuthStore:
 
     @staticmethod
     def _row_to_user(row: sqlite3.Row) -> UserRecord:
+        keys = set(row.keys())
         return UserRecord(
             id=row["id"],
             email=row["email"],
@@ -268,6 +420,11 @@ class AuthStore:
             status=row["status"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            token_limit=int(row["token_limit"]) if "token_limit" in keys else 0,
+            tokens_used=int(row["tokens_used"]) if "tokens_used" in keys else 0,
+            tokens_llm=int(row["tokens_llm"]) if "tokens_llm" in keys else 0,
+            tokens_embed=int(row["tokens_embed"]) if "tokens_embed" in keys else 0,
+            tokens_rerank=int(row["tokens_rerank"]) if "tokens_rerank" in keys else 0,
         )
 
 

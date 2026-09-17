@@ -8,6 +8,9 @@ import json
 import logging
 import os
 import tempfile
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
@@ -37,6 +40,45 @@ VOYAGE_KEY_NAMES = (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CloudRetrievalUsage:
+    """Live Voyage API tokens for one chat turn (cache hits are not counted)."""
+
+    embed_tokens: int = 0
+    rerank_tokens: int = 0
+
+
+_cloud_retrieval_usage: ContextVar[CloudRetrievalUsage | None] = ContextVar(
+    "cloud_retrieval_usage", default=None
+)
+
+
+@contextmanager
+def track_cloud_retrieval_usage():
+    bucket = CloudRetrievalUsage()
+    token = _cloud_retrieval_usage.set(bucket)
+    try:
+        yield bucket
+    finally:
+        _cloud_retrieval_usage.reset(token)
+
+
+def _record_voyage_usage(endpoint: str, body: dict) -> None:
+    bucket = _cloud_retrieval_usage.get()
+    if bucket is None or not isinstance(body, dict):
+        return
+    usage = body.get("usage")
+    if not isinstance(usage, dict):
+        return
+    tokens = int(usage.get("total_tokens") or 0)
+    if tokens <= 0:
+        return
+    if "embed" in endpoint:
+        bucket.embed_tokens += tokens
+    elif endpoint == "rerank":
+        bucket.rerank_tokens += tokens
 
 
 def _doc_key(document):
@@ -397,6 +439,7 @@ class VoyageRuntimeClient:
             statuses.append(str(response.status_code))
             if 200 <= response.status_code < 300:
                 body = response.json()
+                _record_voyage_usage(endpoint, body)
                 parsed = parse(body)
                 # Each request owns its temporary file, including concurrent
                 # requests for the same cache key.
