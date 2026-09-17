@@ -215,13 +215,17 @@ def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
 def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monkeypatch):
     import conversation
     def respond(prompt):
-        if "Select evidence for" in prompt.to_messages()[0].content:
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
         return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
     assert result["status"] == "search_results"
-    assert result["diagnostics"] == ["quote_not_found", "quote_not_found"]
+    assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
+    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
@@ -230,8 +234,8 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
             return [(doc, .9)]
     chat_result = conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
     assert "diagnostics" not in chat_result
-    assert chat_result["refusal_reason"] == "quote_not_found"
-    assert chat_result["refusal_diagnostics"] == ["quote_not_found", "quote_not_found"]
+    assert "quote_not_found" in chat_result["refusal_reason"]
+    assert chat_result["refusal_diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
 
 
 def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
@@ -248,6 +252,179 @@ def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
     assert any("quote_not_found" in m[-1].content for m in seen)
 
 
+def test_schema_invalid_gets_structure_only_repair_before_fallback():
+    malformed = json.dumps({
+        "status": "yes",
+        "message": "",
+        "claims": [dict(text="Le plafond est de 320 dinars.",
+                        quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")])],
+    })
+    calls = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        calls.append(messages)
+        system = messages[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
+        if "You repair malformed answer JSON" in system:
+            assert "Le plafond est de 320 dinars." in messages[-1].content
+            assert "Selected evidence" not in messages[-1].content
+            return AIMessage(content=json.dumps(draft()))
+        return AIMessage(content=malformed)
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
+    assert result["status"] == "answered"
+    assert "320 dinars" in result["answer"]
+    assert any("You repair malformed answer JSON" in messages[0].content for messages in calls)
+
+
+def test_quote_failures_do_not_trigger_schema_repair():
+    calls = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        calls.append(messages)
+        system = messages[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+        assert "You repair malformed answer JSON" not in system
+        return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
+    assert result["status"] == "search_results"
+    assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
+    assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
+
+
+def test_abstention_gets_forced_partial_before_top5():
+    calls = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        calls.append(messages)
+        system = messages[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="conditions", reason="scoped", evidence_ids=["E1"])))
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                             quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")])],
+            )))
+        return AIMessage(content=json.dumps(dict(
+            status="insufficient_evidence", message="", claims=[])))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quelles sont les conditions d'un crédit d'investissement ?",
+        [(doc, .9)],
+    )
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
+    assert "Confirmez ces éléments auprès de l’administrateur" in result["answer"]
+    assert "top5_synthesis:presented" in result["diagnostics"]
+    assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
+
+
+def test_forced_partial_multi_page_states_that_answer_spans_pages():
+    from answer_contract import present_top5_synthesis
+
+    pack = [
+        record(eid="E1", source="Note_2024_163_fr.pdf", text="La PME doit déposer une étude de faisabilité."),
+        record(eid="E2", source="Note_2024_163_fr.pdf", text="Le volume d'investissement ne dépasse pas quinze (15) millions de dinars."),
+        record(eid="E3", source="Cir_2020_04_fr.pdf", text="Marge bénéficiaire ne dépasse 3,5%."),
+    ]
+    pack[0]["page"] = 2
+    pack[1]["page"] = 3
+    pack[2]["page"] = 2
+    accepted = {
+        "status": "partial_answer",
+        "answer": (
+            "Selon la note 2024-163, la PME doit déposer une étude de faisabilité. [1]\n\n"
+            "Selon la note 2024-163, le volume d'investissement ne dépasse pas quinze millions de dinars. [2]"
+        ),
+        "sources": [
+            {"file": "Note_2024_163_fr.pdf", "page": 2, "excerpt": "étude de faisabilité"},
+            {"file": "Note_2024_163_fr.pdf", "page": 3, "excerpt": "quinze (15) millions"},
+        ],
+    }
+    result = present_top5_synthesis("Quelles conditions pour une PME ?", accepted, pack)
+    assert result["status"] == "partial_answer"
+    assert "plusieurs pages" in result["answer"]
+    assert "Confirmez ces éléments" in result["answer"]
+    assert result["answer"].index("plusieurs pages") < result["answer"].index("étude")
+    assert "top5_synthesis:multi_page" in result["diagnostics"]
+    assert len(result["sources"]) == 3
+    assert result["sources"][2]["file"] == "Cir_2020_04_fr.pdf"
+    assert "3,5%" in result["sources"][2]["excerpt"]
+
+
+def test_forced_partial_schema_invalid_is_repaired_before_top5():
+    calls = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        calls.append(messages)
+        system = messages[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(decision="partial", reason="", evidence_ids=["E1"])))
+        if "You repair malformed answer JSON" in system:
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(text="Selon la note 2024-163, la PME a un volume d'investissement plafonné.",
+                             quotes=[dict(evidence_id="E1",
+                                          quote="volume d'investissement ne dépasse pas quinze (15) millions de dinars")])],
+            )))
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=' partial: {"status":"yes","claims":[{"text":"x"}]} ')
+        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
+    text = "On entend par PME toute entreprise dont le volume d'investissement ne dépasse pas quinze (15) millions de dinars y compris les investissements d'extension."
+    doc = Document(page_content=text, metadata={"source": "Note_2024_163_fr.pdf", "page": 2, "pages": [2]})
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Une petite entreprise obtient un crédit d'investissement en 2024. Quelles conditions lui sont applicables ?",
+        [(doc, .9)],
+    )
+    assert result["status"] == "partial_answer"
+    assert "15" in result["answer"] or "volume" in result["answer"].casefold()
+    assert any("You repair malformed answer JSON" in messages[0].content for messages in calls)
+
+
+def test_question_year_prefers_matching_instrument_over_older_facility():
+    seen = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        seen.append(messages)
+        system = messages[0].content
+        human = messages[-1].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="conditions", reason="mixed", evidence_ids=["E1", "E2"])))
+        if "You MUST answer" in system or "You answer questions" in system:
+            assert "Note_2024_163_fr.pdf" in human
+            assert "Note_2020_01_fr.pdf" not in human
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(text="Selon la note 2024-163, le volume d'investissement ne dépasse pas 15 millions de dinars.",
+                             quotes=[dict(evidence_id="E2",
+                                          quote="volume d'investissement ne dépasse pas quinze (15) millions de dinars")])],
+            )))
+        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
+    docs = [
+        (Document(page_content="Taux d'intérêt : 6,5% l'an au maximum. Durée de remboursement : 12 ans.",
+                  metadata={"source": "Note_2020_01_fr.pdf", "page": 4, "pages": [4]}), 0.95),
+        (Document(page_content="On entend par PME toute entreprise dont le volume d'investissement ne dépasse pas quinze (15) millions de dinars.",
+                  metadata={"source": "Note_2024_163_fr.pdf", "page": 2, "pages": [2]}), 0.9),
+    ]
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Une petite entreprise obtient un crédit d'investissement en 2024. Quelles conditions lui sont applicables ?",
+        docs,
+    )
+    assert result["status"] == "partial_answer"
+    assert result["sources"][0]["file"] == "Note_2024_163_fr.pdf"
+
+
 def test_unresolved_scope_requests_clarification_without_drafting():
     def respond(prompt):
         assert "Select evidence for" in prompt.to_messages()[0].content
@@ -257,6 +434,47 @@ def test_unresolved_scope_requests_clarification_without_drafting():
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", docs)
     assert result["status"] == "clarification_needed"
     assert "320" not in result["answer"]
+    assert result["sources"] == []
+
+
+def test_mixed_claims_keep_only_literally_supported_parts():
+    value = dict(
+        status="answered",
+        message="",
+        claims=[
+            dict(text="Le plafond est de 320 dinars.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
+            dict(text="Le taux est de 7,5 %.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
+        ],
+    )
+    result = parse(value, [record()])
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
+    assert "7,5" not in result["answer"]
+    assert "partie de la demande" in result["answer"]
+    assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
+
+
+def test_fenced_json_and_extra_fields_still_parse():
+    payload = draft()
+    payload["commentary"] = "ignore me"
+    payload["claims"][0]["notes"] = "also ignore"
+    wrapped = "```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
+    result = parse_answer(wrapped, "Quel est le plafond ?", [record()])
+    assert result["status"] == "answered"
+    assert "320 dinars" in result["answer"]
+
+
+def test_all_unsupported_claims_still_fail_closed():
+    value = dict(
+        status="answered",
+        message="",
+        claims=[
+            dict(text="Le taux est de 7,5 %.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
+            dict(text="La durée est de 12 ans.", quotes=[dict(evidence_id="E1", quote="invented")]),
+        ],
+    )
+    result = parse(value, [record()])
+    assert result["status"] == "insufficient_evidence"
     assert result["sources"] == []
 
 
@@ -323,16 +541,18 @@ def test_draft_cannot_cite_evidence_excluded_by_selection():
     calls = []
     def respond(prompt):
         calls.append(prompt.to_messages())
-        if "Select evidence for" in calls[-1][0].content:
+        system = calls[-1][0].content
+        if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="E2 concerns another operation", evidence_ids=["E1"])))
-        assert '"evidence_id": "E2"' not in calls[-1][-1].content
+        if "You MUST answer this BCT regulatory question" not in system:
+            assert '"evidence_id": "E2"' not in calls[-1][-1].content
         return AIMessage(content=json.dumps(draft("Le plafond est de 640 dinars.", eid="E2")))
     docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", docs)
     assert result["status"] == "search_results"
-    assert len(calls) == 3
-
+    assert len(calls) == 4
+    assert any("forced_partial:" in str(item) for item in result["diagnostics"])
 
 def test_named_document_is_the_only_candidate_for_direct_contents_question():
     def respond(prompt):

@@ -30,9 +30,15 @@ from identity import (
     require_user,
     set_session_cookie,
 )
+from langchain_core.callbacks import get_usage_metadata_callback
+
 from llm import create_llm
 from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile, profile_options
-from runtime_retrieval import LocalRetrievalBackend, create_voyage_backend_from_environment
+from runtime_retrieval import (
+    LocalRetrievalBackend,
+    create_voyage_backend_from_environment,
+    track_cloud_retrieval_usage,
+)
 from source_documents import SourceDocumentResolver, render_page_png, source_info
 
 
@@ -240,6 +246,10 @@ class SecretsUpdateRequest(BaseModel):
     secrets: dict[str, str | None]
 
 
+class TokenLimitRequest(BaseModel):
+    token_limit: int = Field(ge=0, le=100_000_000)
+
+
 @app.post("/auth/register")
 def register(payload: RegisterRequest, request: Request):
     store = request.app.state.auth_store
@@ -415,6 +425,31 @@ def admin_promote_user(user_id: str, request: Request, admin=Depends(require_adm
     return {"user": user.public_dict()}
 
 
+@app.put("/admin/users/{user_id}/token-limit")
+def admin_set_token_limit(
+    user_id: str,
+    payload: TokenLimitRequest,
+    request: Request,
+    _admin=Depends(require_admin),
+):
+    try:
+        user = request.app.state.auth_store.set_token_limit(user_id, payload.token_limit)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"user": user.public_dict()}
+
+
+@app.post("/admin/users/{user_id}/reset-tokens")
+def admin_reset_token_usage(user_id: str, request: Request, _admin=Depends(require_admin)):
+    try:
+        user = request.app.state.auth_store.reset_token_usage(user_id)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    return {"user": user.public_dict()}
+
+
 @app.delete("/admin/users/{user_id}", status_code=204, response_class=Response)
 def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admin)):
     if user_id == admin.id:
@@ -446,6 +481,8 @@ def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, _admin=De
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     request.app.state.profile_manager.reset()
+    # Cached Groq/Ollama clients keep the old API key until cleared.
+    create_llm.cache_clear()
     return config
 
 
@@ -478,12 +515,47 @@ def _conversation_title(question: str, provider: str) -> str:
     return summarize_conversation_title(question, max_length=56)
 
 
+def _estimate_tokens(*parts: str) -> int:
+    # ponytail: Groq-only fallback when usage_metadata is missing
+    total_chars = sum(len(part or "") for part in parts)
+    return max(1, (total_chars + 3) // 4)
+
+
+def _tokens_from_usage(usage_by_model: dict) -> int:
+    """Sum Groq/LangChain total_tokens across every model call in a turn."""
+    total = 0
+    for meta in usage_by_model.values():
+        if not isinstance(meta, dict):
+            continue
+        reported = meta.get("total_tokens")
+        if reported is None:
+            reported = int(meta.get("input_tokens") or 0) + int(meta.get("output_tokens") or 0)
+        total += max(0, int(reported or 0))
+    return total
+
+
+def _billable_llm_tokens(usage_by_model: dict, provider: str, *fallback_parts: str) -> int:
+    """Cloud LLM only. Local Ollama is not metered."""
+    used = _tokens_from_usage(usage_by_model)
+    if used > 0:
+        return used
+    if provider == "groq":
+        return _estimate_tokens(*fallback_parts)
+    return 0
+
+
 @app.post("/chat", response_model=ChatResponse)
 def post_chat(
     payload: ChatRequest,
     request: Request,
     user=Depends(require_approved_user),
 ):
+    auth_store = request.app.state.auth_store
+    try:
+        auth_store.ensure_token_budget(user)
+    except PermissionError as error:
+        raise HTTPException(status_code=402, detail=str(error)) from error
+
     profile = request.app.state.settings_store.active_profile().value
     try:
         runtime = request.app.state.profile_manager.get(profile)
@@ -499,13 +571,23 @@ def post_chat(
 
     for question in _sub_questions(payload.question):
         try:
-            result = chat(
-                question,
-                memory_state,
-                graph_retriever=request.app.state.graph_retriever,
-                retrieval_backend=runtime.retrieval_backend,
-                llm_provider=runtime.answer_provider,
-            )
+            auth_store.ensure_token_budget(user)
+        except PermissionError as error:
+            raise HTTPException(status_code=402, detail=str(error)) from error
+        try:
+            # Groq usage via LangChain callback; Voyage embed/rerank via live API usage.
+            with track_cloud_retrieval_usage() as voyage_usage:
+                with get_usage_metadata_callback() as usage_cb:
+                    result = chat(
+                        question,
+                        memory_state,
+                        graph_retriever=request.app.state.graph_retriever,
+                        retrieval_backend=runtime.retrieval_backend,
+                        llm_provider=runtime.answer_provider,
+                    )
+                    turn_usage = dict(usage_cb.usage_metadata)
+                embed_tokens = int(voyage_usage.embed_tokens)
+                rerank_tokens = int(voyage_usage.rerank_tokens)
         except (OSError, RuntimeError, ValueError):
             logger.exception("Runtime profile is unavailable.")
             raise HTTPException(status_code=503, detail="Selected runtime is unavailable.")
@@ -525,6 +607,18 @@ def post_chat(
             profile=runtime.spec.value.value,
             answer_status=result.get("status"),
         )
+        llm_tokens = _billable_llm_tokens(
+            turn_usage,
+            runtime.answer_provider,
+            question,
+            str(result.get("answer") or ""),
+        )
+        user = auth_store.consume_cloud_usage(
+            user.id,
+            llm=llm_tokens,
+            embed=embed_tokens,
+            rerank=rerank_tokens,
+        )
         if result.get("refusal_reason"):
             store.record_answer_refusal(
                 conversation_id=conversation_id,
@@ -537,7 +631,13 @@ def post_chat(
                 profile=runtime.spec.value.value,
             )
     if payload.conversation_id is None:
-        store.rename(conversation_id, _conversation_title(payload.question, runtime.answer_provider))
+        with get_usage_metadata_callback() as usage_cb:
+            store.rename(conversation_id, _conversation_title(payload.question, runtime.answer_provider))
+            title_tokens = _tokens_from_usage(usage_cb.usage_metadata)
+        if title_tokens <= 0 and runtime.answer_provider == "groq":
+            title_tokens = _estimate_tokens(payload.question)
+        if title_tokens and runtime.answer_provider == "groq":
+            user = auth_store.consume_cloud_usage(user.id, llm=title_tokens)
     return {
         "conversation_id": conversation_id,
         "profile": runtime.spec.value.value,

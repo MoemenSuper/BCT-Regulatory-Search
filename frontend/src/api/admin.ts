@@ -129,6 +129,18 @@ export function deleteUser(userId: string): Promise<void> {
   return request(`/api/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
 }
 
+export function setUserTokenLimit(userId: string, tokenLimit: number): Promise<{ user: AuthUser }> {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/token-limit`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_limit: tokenLimit }),
+  });
+}
+
+export function resetUserTokens(userId: string): Promise<{ user: AuthUser }> {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/reset-tokens`, { method: 'POST' });
+}
+
 export function getConfig(): Promise<AdminConfig> {
   return request('/api/admin/config');
 }

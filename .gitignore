@@ -43,3 +43,4 @@ Thumbs.db
 .vscode/
 frontend/public/bct-logo-white-full.png
 /tmp
+/backend/tmp

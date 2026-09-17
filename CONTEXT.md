@@ -68,7 +68,8 @@ _Avoid_: mode, backend, provider (as the profile name); treating a profile as le
 
 **Answer status**:
 Product outcome of a turn: `answered`, `partial_answer`, `insufficient_evidence`, `clarification_needed`, `out_of_scope`, `search_results`.
-_Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer
+`partial_answer` may also present a grounded synthesis from the top retrieved pages (still with quotations), listing those pages for inspection and asking for admin/PDF confirmation. When that synthesis uses more than one page, the answer states that the useful elements are spread across multiple passages. `search_results` remains the last resort when no quoted claim can be formed.
+_Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer; leading with “couldn’t find” when a multi-page synthesis is available
 
 ## Graph Lite
 

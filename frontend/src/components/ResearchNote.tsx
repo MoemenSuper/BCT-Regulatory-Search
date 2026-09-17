@@ -82,7 +82,7 @@ export function ResearchNote({
                   <span className="source-ref">{note.searchResults ? `${source.id}.` : `[${source.id}]`}</span>
                   <span>{source.citation}</span>
                 </button>
-                {note.searchResults && source.excerpt ? (
+                {source.excerpt ? (
                   <p className="note-body" dir="auto">{source.excerpt}</p>
                 ) : null}
               </li>

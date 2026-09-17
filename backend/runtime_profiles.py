@@ -33,7 +33,8 @@ PROFILE_SPECS = {
         qualification="experimental_rejected",
         description=(
             "Search: local multilingual-e5-small (no cloud API). "
-            "Answer: local Ollama (default qwen3.5:9b-q4_K_M, configurable)."
+            "Answer: local Ollama (default qwen3.5:9b-q4_K_M, configurable). "
+            "PDF ingestion may still use Gemini VLM (GEMINI_API_KEY) on hard photo/scan pages."
         ),
     ),
     RuntimeProfile.LOCAL_HYBRID: ProfileSpec(
@@ -44,7 +45,8 @@ PROFILE_SPECS = {
         qualification="development",
         description=(
             "Search: local multilingual-e5-small (no cloud API). "
-            "Answer: Groq API (model via BCT_GROQ_MODEL)."
+            "Answer: Groq API (model via BCT_GROQ_MODEL). "
+            "PDF ingestion: Gemini VLM (GEMINI_API_KEY) for hard-to-read photo/scan pages."
         ),
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
@@ -55,7 +57,8 @@ PROFILE_SPECS = {
         qualification="development_not_legally_qualified",
         description=(
             "Search: Voyage Context-4 + rerank (VOYAGE_API_KEY). "
-            "Answer: Groq API (GROQ_API_KEY / BCT_GROQ_MODEL)."
+            "Answer: Groq API (GROQ_API_KEY / BCT_GROQ_MODEL). "
+            "PDF ingestion: Gemini VLM (GEMINI_API_KEY) for hard-to-read photo/scan pages."
         ),
     ),
 }
