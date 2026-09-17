@@ -650,8 +650,10 @@ def post_chat(
         raise HTTPException(status_code=503, detail="Selected runtime is unavailable.")
 
     store = request.app.state.conversation_store
-    conversation_id = store.create() if payload.conversation_id is None else payload.conversation_id
-    memory_state = store.load(conversation_id)
+    conversation_id = (
+        store.create(user.id) if payload.conversation_id is None else payload.conversation_id
+    )
+    memory_state = store.load(conversation_id, user_id=user.id)
     if memory_state is None:
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
@@ -685,6 +687,7 @@ def post_chat(
         store.save_with_turn(
             conversation_id,
             memory_state,
+            user_id=user.id,
             question=question,
             standalone_query=(memory_state.get("turns") or [{}])[-1].get("standalone_query", question),
             answer=result["answer"],
@@ -718,7 +721,11 @@ def post_chat(
             )
     if payload.conversation_id is None:
         with get_usage_metadata_callback() as usage_cb:
-            store.rename(conversation_id, _conversation_title(payload.question, runtime.answer_provider))
+            store.rename(
+                conversation_id,
+                _conversation_title(payload.question, runtime.answer_provider),
+                user_id=user.id,
+            )
             title_tokens = _tokens_from_usage(usage_cb.usage_metadata)
         if title_tokens <= 0 and runtime.answer_provider == "groq":
             title_tokens = _estimate_tokens(payload.question)
@@ -740,20 +747,22 @@ def post_chat(
 def list_conversations(
     request: Request,
     limit: int = Query(default=100, ge=1, le=500),
-    _user=Depends(require_approved_user),
+    user=Depends(require_approved_user),
 ):
-    return request.app.state.conversation_store.list_conversations(limit=limit)
+    return request.app.state.conversation_store.list_conversations(user_id=user.id, limit=limit)
 
 
 @app.get("/conversations/{conversation_id}")
 def get_conversation(
     conversation_id: str,
     request: Request,
-    _user=Depends(require_approved_user),
+    user=Depends(require_approved_user),
 ):
     if not conversation_id or len(conversation_id) > 128:
         raise HTTPException(status_code=400, detail="Invalid conversation identifier.")
-    transcript = request.app.state.conversation_store.transcript(conversation_id)
+    transcript = request.app.state.conversation_store.transcript(
+        conversation_id, user_id=user.id
+    )
     if transcript is None:
         raise HTTPException(status_code=404, detail="Conversation not found.")
     return transcript
@@ -768,13 +777,15 @@ def rename_conversation(
     conversation_id: str,
     payload: RenameRequest,
     request: Request,
-    _user=Depends(require_approved_user),
+    user=Depends(require_approved_user),
 ):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Title must not be blank.")
     try:
-        request.app.state.conversation_store.rename(conversation_id, title)
+        request.app.state.conversation_store.rename(
+            conversation_id, title, user_id=user.id
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail="Conversation not found.")
     return {"conversation_id": conversation_id, "title": title}
@@ -784,10 +795,10 @@ def rename_conversation(
 def delete_conversation(
     conversation_id: str,
     request: Request,
-    _user=Depends(require_approved_user),
+    user=Depends(require_approved_user),
 ):
     try:
-        request.app.state.conversation_store.delete(conversation_id)
+        request.app.state.conversation_store.delete(conversation_id, user_id=user.id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
