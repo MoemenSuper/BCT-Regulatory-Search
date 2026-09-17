@@ -2,7 +2,7 @@
   <img src="docs/bct-crest.png" alt="Banque Centrale de Tunisie crest" width="296" />
 </p>
 
-<h1 align="center">🏦 BCT Regulatory Search</h1>
+<h1 align="center"> BCT Regulatory Search </h1>
 
 <p align="center">
   <strong>Ask a BCT regulation question. Get a grounded answer you can open on the cited PDF page.</strong>
@@ -17,7 +17,7 @@
 
 ---
 
-## 🎯 What this is
+##  What this is
 
 A research prototype for **Banque Centrale de Tunisie** circulars and notes.
 
@@ -29,7 +29,7 @@ This package is the consolidated build: FastAPI runtime, Graph Lite, React UI, a
 
 ---
 
-## ✨ What you get
+##  What you get
 
 | | Capability |
 | :--- | :--- |
@@ -44,7 +44,7 @@ This package is the consolidated build: FastAPI runtime, Graph Lite, React UI, a
 
 ---
 
-## 🗂️ Layout
+##  Layout
 
 ```text
 backend/     FastAPI · RAG · Graph Lite · PDF viewer · ingestion
@@ -56,7 +56,7 @@ This package does **not** ship API keys, BCT PDFs, vector assets, Neo4j data, Ch
 
 ---
 
-## 🚀 Quick start
+##  Quick start
 
 ### 1️⃣ Backend
 
@@ -185,7 +185,7 @@ Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` / `BCT_GOOGLE_RUNTIME_CACHE`
 
 ---
 
-## 🛡️ Safety notes
+##  Safety notes
 
 | Rule | Behavior |
 | --- | --- |
