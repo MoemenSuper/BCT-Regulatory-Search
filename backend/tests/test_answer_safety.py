@@ -538,6 +538,7 @@ def test_broad_question_synthesizes_selected_parts_and_carries_answer_intent():
 
 
 def test_draft_cannot_cite_evidence_excluded_by_selection():
+    """Ordinary drafts only see selected evidence; last-resort top-5 may reopen the pack."""
     calls = []
     def respond(prompt):
         calls.append(prompt.to_messages())
@@ -546,13 +547,21 @@ def test_draft_cannot_cite_evidence_excluded_by_selection():
             return AIMessage(content=json.dumps(dict(decision="answer", reason="E2 concerns another operation", evidence_ids=["E1"])))
         if "You MUST answer this BCT regulatory question" not in system:
             assert '"evidence_id": "E2"' not in calls[-1][-1].content
-        return AIMessage(content=json.dumps(draft("Le plafond est de 640 dinars.", eid="E2")))
+            return AIMessage(content=json.dumps(draft("Le plafond est de 640 dinars.", eid="E2")))
+        # Forced partial / top-5: only the expanded pack can literally support E2.
+        return AIMessage(content=json.dumps(dict(
+            status="partial_answer", message="",
+            claims=[dict(text="Selon la circulaire 2024-52, le plafond est de 640 dinars.",
+                         quotes=[dict(evidence_id="E2", quote="Le plafond est de 640 dinars.")])],
+        )))
     docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", docs)
-    assert result["status"] == "search_results"
-    assert len(calls) == 4
+    assert result["status"] == "partial_answer"
+    assert "640" in result["answer"]
     assert any("forced_partial:" in str(item) for item in result["diagnostics"])
+    assert any("forced_partial_top5:accepted" in str(item) for item in result["diagnostics"])
+    assert len(calls) == 5
 
 def test_named_document_is_the_only_candidate_for_direct_contents_question():
     def respond(prompt):
