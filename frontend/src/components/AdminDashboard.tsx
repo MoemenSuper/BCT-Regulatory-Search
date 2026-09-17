@@ -1,16 +1,23 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, LogOut, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage } from '../api/admin';
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
+import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
 
 type AdminTab = 'overview' | 'users' | 'documents' | 'refusals' | 'configuration';
 type UploadField = 'file' | 'title' | 'publication_date' | 'document_type' | 'category' | 'document_number';
 type UploadDraft = { file: File | null; title: string; publication_date: string; document_type: string; category: string; document_number: string };
 
-interface AdminDashboardProps { user: AuthUser; onLogout: () => void; locale: UiLocale; onLocaleChange: (locale: UiLocale) => void; }
+interface AdminDashboardProps {
+  user: AuthUser;
+  onUserChange: (user: AuthUser) => void;
+  onLogout: () => void;
+  locale: UiLocale;
+  onLocaleChange: (locale: UiLocale) => void;
+}
 
 const emptyUpload: UploadDraft = { file: null, title: '', publication_date: '', document_type: '', category: '', document_number: '' };
 
@@ -32,12 +39,13 @@ function validateUpload(draft: UploadDraft, locale: UiLocale): Partial<Record<Up
   return errors;
 }
 
-export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: AdminDashboardProps) {
+export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleChange }: AdminDashboardProps) {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [documents, setDocuments] = useState<unknown[]>([]);
   const [refusals, setRefusals] = useState<AnswerRefusalsPage | null>(null);
+  const [refusalBuckets, setRefusalBuckets] = useState<string[]>([]);
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,14 +71,14 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
         if (tab === 'overview') { const data = await getOverview(); if (!cancelled) setOverview(data); }
         else if (tab === 'users') { const data = await listUsers(); if (!cancelled) setUsers(data); }
         else if (tab === 'documents') { const data = await listDocuments(); if (!cancelled) setDocuments(data); }
-        else if (tab === 'refusals') { const data = await listAnswerRefusals(5000); if (!cancelled) setRefusals(data); }
+        else if (tab === 'refusals') { const data = await listAnswerRefusals(5000, refusalBuckets); if (!cancelled) setRefusals(data); }
         else { const data = await getConfig(); if (!cancelled) setConfig(data); }
       } catch (err) { if (!cancelled) setError(err instanceof Error && err.message ? err.message : t(locale, 'admin.loadFailed')); }
       finally { if (!cancelled) setLoading(false); }
     }
     void load();
     return () => { cancelled = true; };
-  }, [tab, locale]);
+  }, [tab, locale, refusalBuckets]);
 
   async function refresh() {
     setError(null); setLoading(true);
@@ -78,7 +86,7 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
       if (tab === 'overview') setOverview(await getOverview());
       if (tab === 'users') setUsers(await listUsers());
       if (tab === 'documents') setDocuments(await listDocuments());
-      if (tab === 'refusals') setRefusals(await listAnswerRefusals(5000));
+      if (tab === 'refusals') setRefusals(await listAnswerRefusals(5000, refusalBuckets));
       if (tab === 'configuration') setConfig(await getConfig());
     } catch { setError(t(locale, 'admin.refreshFailed')); }
     finally { setLoading(false); }
@@ -181,7 +189,7 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
     setBusy(true);
     setError(null);
     try {
-      await downloadAnswerRefusalsExport();
+      await downloadAnswerRefusalsExport(refusalBuckets);
       setMessage(t(locale, 'admin.refusalsExported'));
     } catch {
       setError(t(locale, 'admin.refusalsExportFailed'));
@@ -230,7 +238,15 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
     <aside className="admin-sidebar" aria-label={t(locale, 'admin.configuration')}>
       <div className="admin-brand"><img src="/bct-logo-white.png" alt="Banque Centrale de Tunisie" /><span>{t(locale, 'admin.brand')}</span></div>
       <nav className="admin-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => selectTab(id)}><Icon aria-hidden="true" size={19} strokeWidth={1.8} /><span>{label}</span></button>)}</nav>
-      <div className="admin-sidebar-foot"><div className="admin-account-mark" aria-hidden="true">{user.email.charAt(0).toUpperCase()}</div><div><strong>{user.email}</strong><span>{t(locale, 'admin.administrator')}</span></div><button type="button" className="admin-icon-button" aria-label={t(locale, 'auth.signOut')} onClick={() => void handleLogout()}><LogOut aria-hidden="true" size={18} /></button></div>
+      <div className="admin-sidebar-foot">
+        <ProfileMenu
+          user={user}
+          locale={locale}
+          onUserChange={onUserChange}
+          onLogout={() => void handleLogout()}
+          variant="admin"
+        />
+      </div>
     </aside>
     <div className="admin-workspace">
       <header className="admin-header"><div><p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p><h1>{currentPage}</h1></div><div className="admin-header-actions"><LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" /><button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}><RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} /><span>{t(locale, 'admin.refresh')}</span></button></div></header>
@@ -262,6 +278,8 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
             loading={loading}
             busy={busy}
             locale={locale}
+            selectedBuckets={refusalBuckets}
+            onBucketsChange={setRefusalBuckets}
             onExport={() => void handleExportRefusals()}
           />
         ) : null}
@@ -283,16 +301,39 @@ function RefusalsPage({
   loading,
   busy,
   locale,
+  selectedBuckets,
+  onBucketsChange,
   onExport,
 }: {
   page: AnswerRefusalsPage | null;
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
+  selectedBuckets: string[];
+  onBucketsChange: (buckets: string[]) => void;
   onExport: () => void;
 }) {
+  const [filterOpen, setFilterOpen] = useState(false);
   const items = page?.items ?? [];
   const total = page?.total ?? 0;
+  const totalAll = page?.total_all ?? total;
+  const options: AnswerRefusalOption[] = page?.reason_options?.length
+    ? page.reason_options.map((option) => ({
+        bucket: option.bucket || option.reason || '',
+        title: option.title || option.bucket || option.reason || '',
+        count: option.count,
+      }))
+    : [];
+
+  function toggleBucket(bucket: string) {
+    if (selectedBuckets.includes(bucket)) {
+      onBucketsChange(selectedBuckets.filter((item) => item !== bucket));
+      return;
+    }
+    if (selectedBuckets.length >= 3) return;
+    onBucketsChange([...selectedBuckets, bucket]);
+  }
+
   return (
     <section className="admin-panel admin-table-panel admin-refusals-page">
       <div className="admin-panel-heading">
@@ -301,7 +342,50 @@ function RefusalsPage({
           <h2>{t(locale, 'admin.refusalsTitle')}</h2>
         </div>
         <div className="admin-refusals-actions">
-          <span className="admin-count">{total}</span>
+          <span className="admin-count">{selectedBuckets.length ? `${total} / ${totalAll}` : total}</span>
+          <div className="admin-refusal-filter">
+            <button
+              type="button"
+              className={`admin-refresh${selectedBuckets.length ? ' is-active' : ''}`}
+              disabled={busy || loading || options.length === 0}
+              aria-expanded={filterOpen}
+              aria-haspopup="true"
+              onClick={() => setFilterOpen((open) => !open)}
+            >
+              <ListFilter aria-hidden="true" size={17} />
+              <span>{t(locale, 'admin.refusalFilter')}</span>
+              {selectedBuckets.length ? <em>{selectedBuckets.length}</em> : null}
+            </button>
+            {filterOpen ? (
+              <div className="admin-refusal-filter-menu" role="menu">
+                <p>{t(locale, 'admin.refusalFilterHelp')}</p>
+                <ul>
+                  {options.map((option) => {
+                    const checked = selectedBuckets.includes(option.bucket);
+                    return (
+                      <li key={option.bucket}>
+                        <label className={checked ? 'is-selected' : undefined}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={busy || loading || (!checked && selectedBuckets.length >= 3)}
+                            onChange={() => toggleBucket(option.bucket)}
+                          />
+                          <span>{option.title}</span>
+                          <em>{option.count}</em>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {selectedBuckets.length ? (
+                  <button type="button" className="admin-action" disabled={busy || loading} onClick={() => onBucketsChange([])}>
+                    {t(locale, 'admin.refusalFilterClear')}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <button type="button" className="admin-refresh" disabled={busy || loading || total === 0} onClick={onExport}>
             <Download aria-hidden="true" size={17} />
             <span>{t(locale, 'admin.exportRefusals')}</span>
@@ -322,10 +406,8 @@ function RefusalsPage({
                 <th>{t(locale, 'admin.refusalUser')}</th>
                 <th>{t(locale, 'admin.refusalStatus')}</th>
                 <th>{t(locale, 'admin.refusalProfile')}</th>
-                <th>{t(locale, 'admin.refusalQuestion')}</th>
                 <th>{t(locale, 'admin.refusalReason')}</th>
-                <th>{t(locale, 'admin.refusalDiagnostics')}</th>
-                <th>{t(locale, 'admin.refusalConversation')}</th>
+                <th>{t(locale, 'admin.refusalQuestion')}</th>
               </tr>
             </thead>
             <tbody>
@@ -335,10 +417,12 @@ function RefusalsPage({
                   <td>{item.user_email || '—'}</td>
                   <td><code>{item.answer_status}</code></td>
                   <td>{item.profile || '—'}</td>
+                  <td>
+                    <span className="admin-refusal-reason" title={item.reason}>
+                      {item.reason_title || item.reason}
+                    </span>
+                  </td>
                   <td className="admin-refusal-question">{item.question}</td>
-                  <td className="admin-refusal-reason"><code>{item.reason}</code></td>
-                  <td className="admin-refusal-diagnostics"><code>{(item.diagnostics || []).join(' | ') || '—'}</code></td>
-                  <td className="admin-refusal-conversation"><code>{item.conversation_id || '—'}</code></td>
                 </tr>
               ))}
             </tbody>
@@ -407,8 +491,11 @@ function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPro
                   <tr key={entry.id}>
                     <td>
                       <div className="admin-user-cell">
-                        <span>{entry.email.charAt(0).toUpperCase()}</span>
-                        <strong>{entry.email}</strong>
+                        <AvatarMark user={entry} size={32} className="admin-account-mark" />
+                        <div>
+                          <strong>{displayLabel(entry)}</strong>
+                          {entry.display_name?.trim() ? <span className="admin-role">{entry.email}</span> : null}
+                        </div>
                       </div>
                     </td>
                     <td>

@@ -20,6 +20,41 @@ Status = Literal["pending", "approved", "rejected"]
 SESSION_COOKIE = "bct_session"
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
 _HASH_PREFIX = "scrypt"
+# Avatar: empty = letter mark; otherwise a JPEG/PNG data URL.
+MAX_AVATAR_DATA_URL_CHARS = 180_000
+_LEGACY_AVATAR_ICONS = frozenset({"initial", "scale", "book", "landmark", "compass", "shield"})
+
+
+def normalize_avatar(value: str | None) -> str:
+    """Accept '', letter fallback, or data:image/(jpeg|png);base64,..."""
+    if value is None:
+        return ""
+    cleaned = value.strip()
+    if not cleaned or cleaned.casefold() in _LEGACY_AVATAR_ICONS:
+        return ""
+    lower = cleaned.casefold()
+    if not (
+        lower.startswith("data:image/jpeg;base64,")
+        or lower.startswith("data:image/png;base64,")
+    ):
+        raise ValueError("Avatar must be a JPEG or PNG image.")
+    if len(cleaned) > MAX_AVATAR_DATA_URL_CHARS:
+        raise ValueError("Avatar image is too large (max about 128 KB).")
+    try:
+        import base64
+
+        payload = cleaned.split(",", 1)[1]
+        raw = base64.b64decode(payload, validate=True)
+    except Exception as error:
+        raise ValueError("Avatar image data is invalid.") from error
+    if len(raw) < 24:
+        raise ValueError("Avatar image data is invalid.")
+    if lower.startswith("data:image/jpeg"):
+        if raw[:3] != b"\xff\xd8\xff":
+            raise ValueError("Avatar must be a JPEG or PNG image.")
+    elif raw[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("Avatar must be a JPEG or PNG image.")
+    return cleaned
 
 
 def default_auth_database_path() -> Path:
@@ -65,6 +100,8 @@ class UserRecord:
     status: Status
     created_at: float
     updated_at: float
+    display_name: str = ""
+    avatar_icon: str = ""
     token_limit: int = 0
     tokens_used: int = 0
     tokens_llm: int = 0
@@ -79,9 +116,15 @@ class UserRecord:
         used = max(0, int(self.tokens_used), llm + embed + rerank)
         remaining = None if limit <= 0 else max(0, limit - used)
         usd_per_million = float(os.environ.get("BCT_TOKEN_USD_PER_MILLION", "0.5"))
+        try:
+            avatar = normalize_avatar(self.avatar_icon)
+        except ValueError:
+            avatar = ""
         return {
             "id": self.id,
             "email": self.email,
+            "display_name": self.display_name,
+            "avatar_icon": avatar,
             "role": self.role,
             "status": self.status,
             "created_at": self.created_at,
@@ -150,6 +193,16 @@ class AuthStore:
                     f"ALTER TABLE users ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
                 )
                 columns.add(column)
+        if "display_name" not in columns:
+            self._conn.execute(
+                "ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''"
+            )
+            columns.add("display_name")
+        if "avatar_icon" not in columns:
+            self._conn.execute(
+                "ALTER TABLE users ADD COLUMN avatar_icon TEXT NOT NULL DEFAULT ''"
+            )
+            columns.add("avatar_icon")
         # One-time: treat legacy flat usage as Groq until the next reset.
         self._conn.execute(
             """
@@ -376,6 +429,54 @@ class AuthStore:
         if cur.rowcount == 0:
             raise KeyError(user_id)
 
+    def update_profile(
+        self,
+        user_id: str,
+        *,
+        display_name: str | None = None,
+        avatar_icon: str | None = None,
+    ) -> UserRecord:
+        user = self.get_by_id(user_id)
+        if user is None:
+            raise KeyError(user_id)
+        name = user.display_name if display_name is None else " ".join(display_name.split())
+        if len(name) > 80:
+            raise ValueError("Display name must be at most 80 characters.")
+        icon = user.avatar_icon if avatar_icon is None else normalize_avatar(avatar_icon)
+        now = time.time()
+        self._conn.execute(
+            """
+            UPDATE users
+            SET display_name = ?, avatar_icon = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (name, icon, now, user_id),
+        )
+        self._conn.commit()
+        updated = self.get_by_id(user_id)
+        assert updated is not None
+        return updated
+
+    def change_password(self, user_id: str, *, current_password: str, new_password: str) -> None:
+        row = self._conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(user_id)
+        if not verify_password(current_password, row["password_hash"]):
+            raise PermissionError("Current password is incorrect.")
+        if len(new_password) < 8 or len(new_password) > 128:
+            raise ValueError("Password must be between 8 and 128 characters.")
+        if current_password == new_password:
+            raise ValueError("New password must be different from the current password.")
+        now = time.time()
+        self._conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+            (hash_password(new_password), now, user_id),
+        )
+        self._conn.commit()
+
     def create_session(self, user_id: str) -> str:
         token = secrets.token_urlsafe(32)
         now = time.time()
@@ -413,6 +514,11 @@ class AuthStore:
     @staticmethod
     def _row_to_user(row: sqlite3.Row) -> UserRecord:
         keys = set(row.keys())
+        raw_avatar = str(row["avatar_icon"]) if "avatar_icon" in keys else ""
+        try:
+            avatar = normalize_avatar(raw_avatar)
+        except ValueError:
+            avatar = ""
         return UserRecord(
             id=row["id"],
             email=row["email"],
@@ -420,6 +526,8 @@ class AuthStore:
             status=row["status"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            display_name=str(row["display_name"]) if "display_name" in keys else "",
+            avatar_icon=avatar,
             token_limit=int(row["token_limit"]) if "token_limit" in keys else 0,
             tokens_used=int(row["tokens_used"]) if "tokens_used" in keys else 0,
             tokens_llm=int(row["tokens_llm"]) if "tokens_llm" in keys else 0,

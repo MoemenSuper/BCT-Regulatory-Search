@@ -143,6 +143,66 @@ def format_refusal_reason(status, diagnostics=None):
     }.get(status, f"{status}:no_specific_diagnostic")
 
 
+# Admin filter groups raw diagnostic strings into short buckets.
+_REFUSAL_BUCKET_TITLES = {
+    "rate_limit": "Rate limit",
+    "quote_not_found": "Quote not found",
+    "named_instrument_absent": "Named instrument missing",
+    "no_supported_claims": "No supported claims",
+    "schema_invalid": "Invalid answer format",
+    "forced_partial": "Partial answer failed",
+    "draft_abstained": "Model abstained",
+    "selection_error": "Evidence selection failed",
+    "selection": "Evidence selection",
+    "provider_error": "Provider error",
+    "insufficient_evidence": "Insufficient evidence",
+    "clarification_needed": "Clarification needed",
+    "out_of_scope": "Out of scope",
+    "search_fallback": "Search fallback",
+    "general_chat": "General chat",
+    "other": "Other",
+}
+_REFUSAL_BUCKET_RULES = (
+    ("rate_limit", ("ratelimit", "rate limit", "error code: 429", "'code': 429", '"code": 429')),
+    ("quote_not_found", ("quote_not_found",)),
+    ("named_instrument_absent", ("named_instrument_absent",)),
+    ("no_supported_claims", ("no_supported_claims",)),
+    ("schema_invalid", ("schema_invalid", "schema_repair")),
+    ("forced_partial", ("forced_partial",)),
+    ("draft_abstained", ("draft_abstained",)),
+    ("selection_error", ("selection_error",)),
+    ("selection", ("selection:",)),
+    ("provider_error", ("provider:",)),
+    ("insufficient_evidence", ("insufficient_evidence",)),
+    ("clarification_needed", ("clarification_needed",)),
+    ("out_of_scope", ("out_of_scope",)),
+    ("search_fallback", ("search_fallback", "search_results")),
+    ("general_chat", ("general_chat",)),
+)
+
+
+def refusal_reason_bucket(reason):
+    """Map a stored refusal reason string to a stable admin filter bucket."""
+    text = str(reason or "").strip()
+    if not text:
+        return "other"
+    low = text.lower()
+    for bucket, needles in _REFUSAL_BUCKET_RULES:
+        if any(needle in low for needle in needles):
+            return bucket
+    head = low.split("|", 1)[0].strip()
+    token = head.split(":", 1)[0].strip().replace(" ", "_")
+    return token or "other"
+
+
+def refusal_reason_title(reason=None, *, bucket=None):
+    """Short admin-facing title for a refusal reason or bucket id."""
+    key = bucket or refusal_reason_bucket(reason)
+    if key in _REFUSAL_BUCKET_TITLES:
+        return _REFUSAL_BUCKET_TITLES[key]
+    return key.replace("_", " ").strip().title() or "Other"
+
+
 def search_response(question, evidence):
     """Retrieved passages for inspection, never citations for a legal answer."""
     sources = _inspection_sources([], evidence)

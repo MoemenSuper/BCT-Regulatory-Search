@@ -51,13 +51,26 @@ export interface AnswerRefusal {
   question: string;
   answer_status: string;
   reason: string;
+  reason_bucket?: string;
+  reason_title?: string;
   diagnostics: string[];
   profile: string | null;
   created_at: string;
 }
 
+export interface AnswerRefusalOption {
+  bucket: string;
+  reason?: string;
+  title: string;
+  count: number;
+}
+
 export interface AnswerRefusalsPage {
   total: number;
+  total_all?: number;
+  buckets?: string[];
+  reasons?: string[];
+  reason_options?: AnswerRefusalOption[];
   items: AnswerRefusal[];
 }
 
@@ -93,12 +106,22 @@ export function getOverview(): Promise<AdminOverview> {
   return request('/api/admin/overview');
 }
 
-export function listAnswerRefusals(limit = 500): Promise<AnswerRefusalsPage> {
-  return request(`/api/admin/answer-refusals?limit=${Math.max(1, Math.min(limit, 5000))}`);
+export function listAnswerRefusals(limit = 500, buckets: string[] = []): Promise<AnswerRefusalsPage> {
+  const params = new URLSearchParams();
+  params.set('limit', String(Math.max(1, Math.min(limit, 5000))));
+  for (const bucket of buckets.slice(0, 3)) {
+    if (bucket.trim()) params.append('bucket', bucket);
+  }
+  return request(`/api/admin/answer-refusals?${params}`);
 }
 
-export async function downloadAnswerRefusalsExport(): Promise<void> {
-  const response = await fetch('/api/admin/answer-refusals/export', {
+export async function downloadAnswerRefusalsExport(buckets: string[] = []): Promise<void> {
+  const params = new URLSearchParams();
+  for (const bucket of buckets.slice(0, 3)) {
+    if (bucket.trim()) params.append('bucket', bucket);
+  }
+  const query = params.toString();
+  const response = await fetch(`/api/admin/answer-refusals/export${query ? `?${query}` : ''}`, {
     credentials: 'include',
     headers: { Accept: 'text/csv' },
   });

@@ -19,3 +19,19 @@
 .admin-choice strong{display:block;color:var(--admin-navy);font-size:13px}
 .admin-choice small{display:block;margin-top:3px;color:var(--admin-muted);font-size:11px;font-weight:500}
 .admin-configuration-layout{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.admin-sidebar-foot{display:block;padding-top:16px}
+.admin-sidebar-foot .profile-menu{width:100%}
+.admin-user-cell>div{display:grid;min-width:0}
+.admin-user-cell .avatar-mark,.admin-user-cell .admin-account-mark{width:32px;height:32px}
+.admin-refusals-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.admin-refusal-filter{position:relative}
+.admin-refusal-filter .admin-refresh.is-active{border-color:#9eb8db;color:var(--admin-blue);background:#eef5ff}
+.admin-refusal-filter .admin-refresh em{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:999px;padding:0 5px;color:#fff;background:var(--admin-blue);font-size:10px;font-style:normal;font-weight:800}
+.admin-refusal-filter-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:20;width:min(320px,80vw);display:grid;gap:10px;border:1px solid #d5e0ee;border-radius:12px;padding:12px;background:#fff;box-shadow:0 16px 40px rgba(7,31,77,.14)}
+.admin-refusal-filter-menu>p{margin:0;color:var(--admin-muted);font-size:12px;font-weight:500;line-height:1.4}
+.admin-refusal-filter-menu ul{display:grid;gap:4px;max-height:260px;margin:0;padding:0;overflow:auto;list-style:none}
+.admin-refusal-filter-menu label{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;border:1px solid transparent;border-radius:8px;padding:8px 9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--admin-ink)}
+.admin-refusal-filter-menu label:hover,.admin-refusal-filter-menu label.is-selected{border-color:#d5e0ee;background:#f7fbff}
+.admin-refusal-filter-menu label input{margin:0;accent-color:var(--admin-blue)}
+.admin-refusal-filter-menu label em{color:var(--admin-muted);font-size:11px;font-style:normal;font-weight:700}
+.admin-refusal-filter-menu .admin-action{justify-self:start}

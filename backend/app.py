@@ -233,6 +233,16 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class ProfileSelfUpdateRequest(BaseModel):
+    display_name: str | None = Field(default=None, max_length=80)
+    avatar_icon: str | None = Field(default=None, max_length=200_000)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class ProfileUpdateRequest(BaseModel):
     profile: str
 
@@ -298,6 +308,40 @@ def me(user=Depends(require_user)):
     return {"user": user.public_dict()}
 
 
+@app.post("/auth/profile")
+@app.patch("/auth/me")
+def update_me(payload: ProfileSelfUpdateRequest, request: Request, user=Depends(require_user)):
+    if payload.display_name is None and payload.avatar_icon is None:
+        raise HTTPException(status_code=400, detail="No profile fields to update.")
+    try:
+        updated = request.app.state.auth_store.update_profile(
+            user.id,
+            display_name=payload.display_name,
+            avatar_icon=payload.avatar_icon,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    return {"user": updated.public_dict()}
+
+
+@app.post("/auth/password")
+def change_password(payload: PasswordChangeRequest, request: Request, user=Depends(require_user)):
+    try:
+        request.app.state.auth_store.change_password(
+            user.id,
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+        )
+    except PermissionError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="User not found.") from error
+    return {"ok": True}
+
 @app.get("/profiles")
 def profiles(_user=Depends(require_approved_user)):
     return profile_options()
@@ -344,20 +388,35 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
 def admin_answer_refusals(
     request: Request,
     limit: int = Query(default=500, ge=1, le=5000),
+    bucket: list[str] | None = Query(default=None),
+    reason: list[str] | None = Query(default=None),
     _admin=Depends(require_admin),
 ):
     store = request.app.state.conversation_store
+    buckets = [item for item in (bucket or []) if str(item).strip()][:3]
+    reasons = [item for item in (reason or []) if str(item).strip()][:3]
     return {
-        "total": store.count_answer_refusals(),
-        "items": store.list_answer_refusals(limit=limit),
+        "total": store.count_answer_refusals(reasons=reasons, buckets=buckets),
+        "total_all": store.count_answer_refusals(),
+        "buckets": buckets,
+        "reasons": reasons,
+        "reason_options": store.distinct_answer_refusal_reasons(),
+        "items": store.list_answer_refusals(limit=limit, reasons=reasons, buckets=buckets),
     }
 
 
 @app.get("/admin/answer-refusals/export")
-def admin_export_answer_refusals(request: Request, _admin=Depends(require_admin)):
-    """Download the full refusal log as CSV (all rows, not the UI page)."""
+def admin_export_answer_refusals(
+    request: Request,
+    bucket: list[str] | None = Query(default=None),
+    reason: list[str] | None = Query(default=None),
+    _admin=Depends(require_admin),
+):
+    """Download refusal log as CSV (honours optional reason filters)."""
     store = request.app.state.conversation_store
-    items = store.list_answer_refusals(limit=100_000)
+    buckets = [item for item in (bucket or []) if str(item).strip()][:3]
+    reasons = [item for item in (reason or []) if str(item).strip()][:3]
+    items = store.list_answer_refusals(limit=100_000, reasons=reasons, buckets=buckets)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow([
@@ -367,6 +426,7 @@ def admin_export_answer_refusals(request: Request, _admin=Depends(require_admin)
         "answer_status",
         "profile",
         "question",
+        "reason_title",
         "reason",
         "diagnostics",
         "conversation_id",
@@ -380,6 +440,7 @@ def admin_export_answer_refusals(request: Request, _admin=Depends(require_admin)
             item.get("answer_status") or "",
             item.get("profile") or "",
             item.get("question") or "",
+            item.get("reason_title") or "",
             item.get("reason") or "",
             " | ".join(str(part) for part in (item.get("diagnostics") or [])),
             item.get("conversation_id") or "",

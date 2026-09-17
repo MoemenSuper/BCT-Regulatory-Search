@@ -188,7 +188,62 @@ def test_admin_can_switch_cloud_retrieval_provider(auth_client, monkeypatch):
     assert rejected.status_code == 422
 
 
-def test_admin_can_promote_approved_user_but_not_demote_or_delete_admins(auth_client):
+def test_user_can_update_profile_and_password(auth_client):
+    registered = auth_client.post(
+        "/auth/register",
+        json={"email": "named.user@bct.tn", "password": "Password123"},
+    ).json()["user"]
+    auth_client.post(
+        "/auth/login",
+        json={"email": "admin@bct.tn", "password": "AdminPass123"},
+    )
+    auth_client.post(f"/admin/users/{registered['id']}/approve")
+    auth_client.post("/auth/logout")
+    auth_client.post(
+        "/auth/login",
+        json={"email": "named.user@bct.tn", "password": "Password123"},
+    )
+
+    updated = auth_client.post(
+        "/auth/profile",
+        json={"display_name": "  Moemen  Ben  ", "avatar_icon": ""},
+    )
+    assert updated.status_code == 200
+    body = updated.json()["user"]
+    assert body["display_name"] == "Moemen Ben"
+    assert body["avatar_icon"] == ""
+
+    tiny_png = (
+        "data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    with_avatar = auth_client.post("/auth/profile", json={"avatar_icon": tiny_png})
+    assert with_avatar.status_code == 200
+    assert with_avatar.json()["user"]["avatar_icon"].startswith("data:image/png;base64,")
+
+    bad_icon = auth_client.post("/auth/profile", json={"avatar_icon": "dragon"})
+    assert bad_icon.status_code == 400
+
+    bad_pw = auth_client.post(
+        "/auth/password",
+        json={"current_password": "wrong", "new_password": "Password456"},
+    )
+    assert bad_pw.status_code == 400
+
+    ok_pw = auth_client.post(
+        "/auth/password",
+        json={"current_password": "Password123", "new_password": "Password456"},
+    )
+    assert ok_pw.status_code == 200
+    auth_client.post("/auth/logout")
+    assert (
+        auth_client.post(
+            "/auth/login",
+            json={"email": "named.user@bct.tn", "password": "Password456"},
+        ).status_code
+        == 200
+    )
+
     registered = auth_client.post(
         "/auth/register",
         json={"email": "future.admin@bct.tn", "password": "Password123"},
@@ -230,18 +285,45 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
             diagnostics=[f"quote_not_found:{index}"],
             profile="cloud",
         )
+    store.record_answer_refusal(
+        conversation_id="c-rate",
+        user_id="u1",
+        user_email="analyst@bct.gov.tn",
+        question="Rate limited ?",
+        answer_status="search_results",
+        reason="provider:RateLimitError",
+        diagnostics=["provider:RateLimitError"],
+        profile="cloud",
+    )
 
-    response = auth_client.get("/admin/answer-refusals/export")
+    filtered = auth_client.get(
+        "/admin/answer-refusals",
+        params=[("bucket", "quote_not_found"), ("limit", "5000")],
+    )
+    assert filtered.status_code == 200
+    body = filtered.json()
+    assert body["total"] == 3
+    assert body["total_all"] == 4
+    assert {item["reason_bucket"] for item in body["items"]} == {"quote_not_found"}
+    assert {item["reason_title"] for item in body["items"]} == {"Quote not found"}
+    titles = {option["title"]: option["count"] for option in body["reason_options"]}
+    assert titles["Quote not found"] == 3
+    assert titles["Rate limit"] == 1
+
+    response = auth_client.get(
+        "/admin/answer-refusals/export",
+        params=[("bucket", "rate_limit")],
+    )
     assert response.status_code == 200
     assert "text/csv" in response.headers["content-type"]
     assert "attachment" in response.headers["content-disposition"]
-    body = response.text
-    assert "created_at,user_email,user_id,answer_status" in body
-    assert "Question 0 ?" in body
-    assert "Question 2 ?" in body
-    assert "quote_not_found:1" in body
+    body_csv = response.text
+    assert "created_at,user_email,user_id,answer_status" in body_csv
+    assert "Rate limited ?" in body_csv
+    assert "Question 0 ?" not in body_csv
+    assert "Rate limit" in body_csv
 
     listed = auth_client.get("/admin/answer-refusals?limit=5000")
     assert listed.status_code == 200
-    assert listed.json()["total"] == 3
-    assert len(listed.json()["items"]) == 3
+    assert listed.json()["total"] == 4
+    assert len(listed.json()["items"]) == 4
