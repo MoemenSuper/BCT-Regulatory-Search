@@ -10,3 +10,12 @@
 .admin-token-panel{margin-top:18px}
 .admin-token-input{width:140px;height:38px;border:1px solid var(--admin-line);border-radius:8px;padding:0 10px;font:inherit;color:var(--admin-ink);background:#fff}
 .admin-users-stack{display:grid;gap:18px}
+.admin-secret-hint{margin-top:-2px;color:var(--admin-muted);font-size:12px;font-weight:500;line-height:1.4}
+.admin-cloud-provider{margin:0;border:1px solid #e4ebf4;border-radius:12px;padding:14px;background:#f8fbff}
+.admin-cloud-provider legend{padding:0 6px;color:var(--admin-blue);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.admin-choice{display:grid!important;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid #e4ebf4;border-radius:10px;background:#fff;cursor:pointer}
+.admin-choice:has(input:checked){border-color:#9eb8db;background:#eef5ff;box-shadow:inset 3px 0 0 var(--admin-blue)}
+.admin-choice input{width:16px;min-height:16px;margin-top:3px;accent-color:var(--admin-blue)}
+.admin-choice strong{display:block;color:var(--admin-navy);font-size:13px}
+.admin-choice small{display:block;margin-top:3px;color:var(--admin-muted);font-size:11px;font-weight:500}
+.admin-configuration-layout{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}

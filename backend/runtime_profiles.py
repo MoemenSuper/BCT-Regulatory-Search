@@ -51,14 +51,14 @@ PROFILE_SPECS = {
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
         value=RuntimeProfile.CLOUD,
-        label="Cloud (Voyage + Groq)",
-        retrieval="voyage_context_4_rerank_2_5",
+        label="Cloud (Voyage|Google + Groq)",
+        retrieval="cloud_embed_rerank",
         answer="groq",
         qualification="development_not_legally_qualified",
         description=(
-            "Search: Voyage Context-4 + rerank (VOYAGE_API_KEY). "
-            "Answer: Groq API (GROQ_API_KEY / BCT_GROQ_MODEL). "
-            "PDF ingestion: Gemini VLM (GEMINI_API_KEY) for hard-to-read photo/scan pages."
+            "Search: BCT_CLOUD_RETRIEVAL_PROVIDER=voyage (Context-4 + Voyage rerank) "
+            "or google (Gemini embed + Vertex Ranking). Indexes are separate; do not mix. "
+            "Answer: Groq. PDF ingestion: Gemini VLM for hard photo/scan pages."
         ),
     ),
 }

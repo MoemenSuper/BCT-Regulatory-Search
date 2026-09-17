@@ -41,6 +41,8 @@ def main() -> None:
     os.environ.setdefault("BCT_SETTINGS_DB", str(data / "app_settings.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DATA_DIR", str(data / "ingestion"))
     os.environ.setdefault("BCT_VOYAGE_RUNTIME_CACHE", str(data / "voyage-cache"))
+    os.environ.setdefault("BCT_GOOGLE_RUNTIME_CACHE", str(data / "google-cache"))
+    os.environ.setdefault("BCT_CLOUD_RETRIEVAL_PROVIDER", "voyage")
     if args.documents is not None:
         os.environ["BCT_DOCUMENTS_DIR"] = str(args.documents.resolve(strict=True))
     print(f"BCT runtime assets: {active}")

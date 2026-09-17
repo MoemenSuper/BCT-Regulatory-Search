@@ -13,9 +13,10 @@ import numpy as np
 from langchain_core.documents import Document
 
 from runtime_retrieval import (
-    VoyageRuntimeClient,
     _load_bound_index,
     _read_chunks,
+    cloud_embed_spec,
+    create_cloud_runtime_client,
     document_binding,
 )
 
@@ -84,9 +85,10 @@ def _array_bytes(vectors: np.ndarray) -> bytes:
     return buffer.getvalue()
 
 
-def _write_bound_index(root: Path, representation: str, documents: list[Document], vectors: np.ndarray) -> None:
+def _write_bound_index(root: Path, representation: str, documents: list[Document], vectors: np.ndarray, *, spec=None) -> None:
+    spec = spec or cloud_embed_spec()
     vectors = np.asarray(vectors, dtype=np.float32)
-    if vectors.shape != (len(documents), 1024):
+    if vectors.shape != (len(documents), spec.dimension):
         raise ValueError(f"Invalid {representation} vector shape: {vectors.shape}")
     if not np.isfinite(vectors).all() or (len(vectors) and np.any(np.linalg.norm(vectors, axis=1) <= 0)):
         raise ValueError(f"Invalid {representation} vectors")
@@ -95,39 +97,48 @@ def _write_bound_index(root: Path, representation: str, documents: list[Document
     array = _array_bytes(vectors)
     index_dir = root / "indexes"
     index_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"voyage-context-4-{representation}-{binding[:16]}"
+    stem = f"{spec.model}-{representation}-{binding[:16]}"
     npy_path = index_dir / f"{stem}.npy"
     json_path = index_dir / f"{stem}.json"
     npy_path.write_bytes(array)
     manifest = {
-        "provider": "voyage",
-        "model": "voyage-context-4",
+        "provider": spec.provider,
+        "model": spec.model,
         "task": "document",
         "representation": representation,
-        "contextual": True,
+        "contextual": spec.contextual,
         "texts": texts,
         "documents_sha256": binding,
         "array_sha256": hashlib.sha256(array).hexdigest().upper(),
-        "dimension": 1024,
-        "shape": [len(documents), 1024],
+        "dimension": spec.dimension,
+        "shape": [len(documents), spec.dimension],
         "dtype": "float32",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     json_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _load_old(active: Path, representation: str, filename: str) -> tuple[list[Document], np.ndarray]:
+def _load_old(active: Path, representation: str, filename: str, *, spec=None):
+    """Load chunks + matching provider vectors. Missing provider index ⇒ vectors None (re-embed)."""
+    spec = spec or cloud_embed_spec()
     path = active / filename
     if not path.exists():
-        return [], np.empty((0, 1024), dtype=np.float32)
+        return [], np.empty((0, spec.dimension), dtype=np.float32)
     documents = _read_chunks(path)
-    vectors = _load_bound_index(active, representation, documents)
+    try:
+        vectors = _load_bound_index(active, representation, documents, spec)
+    except ValueError as error:
+        if "No bound" in str(error) and "not interchangeable" in str(error):
+            # First build for this provider (or wrong provider indexes only).
+            return documents, None
+        raise
     return documents, vectors
 
 
-def _embed_new(client: VoyageRuntimeClient, documents: list[Document]) -> np.ndarray:
+def _embed_new(client, documents: list[Document]) -> np.ndarray:
+    dimension = int(getattr(client, "dimension", cloud_embed_spec().dimension))
     if not documents:
-        return np.empty((0, 1024), dtype=np.float32)
+        return np.empty((0, dimension), dtype=np.float32)
     return client.embed_document_chunks([document.page_content for document in documents])
 
 
@@ -139,12 +150,19 @@ def stage_cloud_assets(
     content_sha256: str,
     source_filename: str,
 ) -> tuple[Path, dict]:
-    """Build a complete new cloud asset version while embedding only new chunks."""
+    """Build a complete new cloud asset version while embedding only new chunks.
+
+    Voyage and Google indexes are separate files; they are never mixed. Switching
+    provider on an existing corpus re-embeds kept chunks for that provider only.
+    """
     root = Path(asset_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     active = resolve_active_assets(root)
-    old_primary, old_primary_vectors = _load_old(active, "native", "native.jsonl")
-    old_visual, old_visual_vectors = _load_old(active, "arabic_ocr_secondary", "arabic_ocr_secondary.jsonl")
+    spec = cloud_embed_spec()
+    old_primary, old_primary_vectors = _load_old(active, "native", "native.jsonl", spec=spec)
+    old_visual, old_visual_vectors = _load_old(
+        active, "arabic_ocr_secondary", "arabic_ocr_secondary.jsonl", spec=spec
+    )
     source_key = Path(source_filename).name.casefold()
 
     def without_replaced_source(documents, vectors):
@@ -155,18 +173,30 @@ def stage_cloud_assets(
         ]
         if len(keep) == len(documents):
             return documents, vectors
-        return [documents[index] for index in keep], vectors[keep] if keep else np.empty((0, 1024), dtype=np.float32)
+        if vectors is None:
+            return [documents[index] for index in keep], None
+        return (
+            [documents[index] for index in keep],
+            vectors[keep] if keep else np.empty((0, spec.dimension), dtype=np.float32),
+        )
 
     old_primary, old_primary_vectors = without_replaced_source(old_primary, old_primary_vectors)
     old_visual, old_visual_vectors = without_replaced_source(old_visual, old_visual_vectors)
 
-    client = VoyageRuntimeClient(os.environ.get("BCT_VOYAGE_RUNTIME_CACHE", str(root / "voyage-cache")))
-    new_primary_vectors = _embed_new(client, new_primary)
-    new_visual_vectors = _embed_new(client, new_visual)
-    all_primary = old_primary + list(new_primary)
-    all_visual = old_visual + list(new_visual)
-    all_primary_vectors = np.vstack([old_primary_vectors, new_primary_vectors]) if len(old_primary_vectors) else new_primary_vectors
-    all_visual_vectors = np.vstack([old_visual_vectors, new_visual_vectors]) if len(old_visual_vectors) else new_visual_vectors
+    client = create_cloud_runtime_client(root, spec)
+
+    def merge(old_docs, old_vectors, new_docs):
+        if old_vectors is None:
+            combined = list(old_docs) + list(new_docs)
+            return combined, _embed_new(client, combined)
+        new_vectors = _embed_new(client, new_docs)
+        combined = list(old_docs) + list(new_docs)
+        if len(old_vectors):
+            return combined, np.vstack([old_vectors, new_vectors])
+        return combined, new_vectors
+
+    all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
+    all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
 
     if not all_visual:
         raise ValueError("The current BCT runtime requires a non-empty Arabic visual/OCR secondary representation")
@@ -179,12 +209,35 @@ def stage_cloud_assets(
     try:
         _jsonl(staging / "native.jsonl", all_primary)
         _jsonl(staging / "arabic_ocr_secondary.jsonl", all_visual)
-        _write_bound_index(staging, "native", all_primary, all_primary_vectors)
-        _write_bound_index(staging, "arabic_ocr_secondary", all_visual, all_visual_vectors)
+        _write_bound_index(staging, "native", all_primary, all_primary_vectors, spec=spec)
+        _write_bound_index(
+            staging, "arabic_ocr_secondary", all_visual, all_visual_vectors, spec=spec
+        )
+        # Preserve the other provider's indexes so switching back does not wipe them.
+        other = "google" if spec.key == "voyage" else "voyage"
+        other_spec = cloud_embed_spec(other)
+        indexes_src = active / "indexes"
+        if indexes_src.is_dir():
+            indexes_dst = staging / "indexes"
+            indexes_dst.mkdir(parents=True, exist_ok=True)
+            for manifest_path in indexes_src.glob("*.json"):
+                try:
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if (
+                    manifest.get("provider") == other_spec.provider
+                    and manifest.get("model") == other_spec.model
+                ):
+                    npy_path = manifest_path.with_suffix(".npy")
+                    if npy_path.is_file():
+                        shutil.copy2(manifest_path, indexes_dst / manifest_path.name)
+                        shutil.copy2(npy_path, indexes_dst / npy_path.name)
         snapshot = {
             "version": version_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "parent": str(active.relative_to(root)) if active != root else "legacy-root",
+            "cloud_retrieval_provider": spec.key,
             "native_chunks": len(all_primary),
             "arabic_visual_chunks": len(all_visual),
             "added_document_sha256": content_sha256,

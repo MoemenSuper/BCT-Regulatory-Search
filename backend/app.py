@@ -242,6 +242,17 @@ class ProfileUpdateRequest(BaseModel):
         return parse_profile(value).value
 
 
+class CloudRetrievalProviderUpdateRequest(BaseModel):
+    provider: str
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        from runtime_retrieval import cloud_embed_spec
+
+        return cloud_embed_spec(value).key
+
+
 class SecretsUpdateRequest(BaseModel):
     secrets: dict[str, str | None]
 
@@ -472,6 +483,20 @@ def admin_set_profile(payload: ProfileUpdateRequest, request: Request, _admin=De
     profile = request.app.state.settings_store.set_active_profile(payload.profile)
     request.app.state.profile_manager.reset()
     return {"active_profile": profile.value}
+
+
+@app.put("/admin/config/cloud-retrieval-provider")
+def admin_set_cloud_retrieval_provider(
+    payload: CloudRetrievalProviderUpdateRequest,
+    request: Request,
+    _admin=Depends(require_admin),
+):
+    provider = request.app.state.settings_store.set_cloud_retrieval_provider(payload.provider)
+    request.app.state.profile_manager.reset()
+    return {
+        "cloud_retrieval_provider": provider,
+        "config": request.app.state.settings_store.public_configuration(),
+    }
 
 
 @app.put("/admin/config/secrets")

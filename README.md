@@ -181,7 +181,7 @@ python reingest_unreliable.py --assets "C:\path\to\runtime-assets-candidate" --s
 python run_api.py --assets "C:\path\to\runtime-assets-candidate" ...
 ```
 
-Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Cloud (Voyage) indexes only; rebuild the local Chroma collections separately if you use the `local` profiles.
+Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` / `BCT_GOOGLE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Cloud indexes are provider-specific (`voyage` vs `google`); do not mix. Rebuild local Chroma separately for the `local` profiles.
 
 ---
 
@@ -202,7 +202,7 @@ Set `BCT_DEFAULT_PROFILE` before startup:
 
 | Profile | Retrieval | Answer |
 | --- | --- | --- |
-| `cloud` | Voyage Context-4 + rerank | Groq |
+| `cloud` | `BCT_CLOUD_RETRIEVAL_PROVIDER=voyage` (Context-4 + Voyage rerank) or `google` (Gemini embed + Vertex Ranking); indexes are separate | Groq |
 | `local_hybrid` | Local E5/BGE | Groq |
 | `local` | Local E5/BGE | Ollama (experimental) |
 

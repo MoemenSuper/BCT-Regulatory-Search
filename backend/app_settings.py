@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from runtime_profiles import RuntimeProfile, parse_profile, profile_options
+from runtime_retrieval import CLOUD_EMBED_SPECS, cloud_embed_spec
 
 # Keys administrators may set. Values are applied into os.environ for the process.
 MANAGED_SECRET_KEYS = (
@@ -18,9 +19,12 @@ MANAGED_SECRET_KEYS = (
     "BCT_LOCAL_LLM_URL",
     "BCT_LOCAL_LLM_MODEL",
     "BCT_NEO4J_PASSWORD",
+    "BCT_GCP_PROJECT",
 )
 
 ACTIVE_PROFILE_KEY = "active_profile"
+CLOUD_RETRIEVAL_PROVIDER_KEY = "cloud_retrieval_provider"
+CLOUD_RETRIEVAL_ENV = "BCT_CLOUD_RETRIEVAL_PROVIDER"
 
 
 def default_settings_database_path() -> Path:
@@ -89,10 +93,25 @@ class AppSettingsStore:
         os.environ["BCT_DEFAULT_PROFILE"] = resolved.value
         return resolved
 
+    def cloud_retrieval_provider(self) -> str:
+        stored = self.get(CLOUD_RETRIEVAL_PROVIDER_KEY)
+        if stored:
+            return cloud_embed_spec(stored).key
+        return cloud_embed_spec(os.environ.get(CLOUD_RETRIEVAL_ENV)).key
+
+    def set_cloud_retrieval_provider(self, provider: str) -> str:
+        resolved = cloud_embed_spec(provider).key
+        self.set(CLOUD_RETRIEVAL_PROVIDER_KEY, resolved)
+        os.environ[CLOUD_RETRIEVAL_ENV] = resolved
+        return resolved
+
     def apply_to_environment(self) -> None:
         profile = self.get(ACTIVE_PROFILE_KEY)
         if profile:
             os.environ["BCT_DEFAULT_PROFILE"] = profile
+        cloud_provider = self.get(CLOUD_RETRIEVAL_PROVIDER_KEY)
+        if cloud_provider:
+            os.environ[CLOUD_RETRIEVAL_ENV] = cloud_embed_spec(cloud_provider).key
         for key in MANAGED_SECRET_KEYS:
             value = self.get(key)
             if value is not None:
@@ -112,8 +131,24 @@ class AppSettingsStore:
                     "source": "store" if stored is not None else ("environment" if env_value else "unset"),
                 }
             )
+        active_cloud = self.cloud_retrieval_provider()
         return {
             "active_profile": self.active_profile().value,
+            "cloud_retrieval_provider": active_cloud,
+            "cloud_retrieval_providers": [
+                {
+                    "value": spec.key,
+                    "label": (
+                        "Voyage (Context-4 + rerank)"
+                        if spec.key == "voyage"
+                        else "Google (Gemini embed + Vertex Ranking)"
+                    ),
+                    "provider": spec.provider,
+                    "model": spec.model,
+                    "dimension": spec.dimension,
+                }
+                for spec in CLOUD_EMBED_SPECS.values()
+            ],
             "profiles": profile_options(),
             "secrets": secrets,
         }
