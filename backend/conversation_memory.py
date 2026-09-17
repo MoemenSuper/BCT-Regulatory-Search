@@ -263,40 +263,96 @@ class ConversationStore:
             )
         return refusal_id
 
-    def list_answer_refusals(self, *, limit=100):
+    def list_answer_refusals(self, *, limit=100, reasons=None, buckets=None):
+        from answer_contract import refusal_reason_bucket, refusal_reason_title
+
         limit = max(1, min(int(limit), 100_000))
+        selected_reasons = [str(item) for item in (reasons or []) if str(item)][:3]
+        selected_buckets = [str(item) for item in (buckets or []) if str(item)][:3]
+        query = """
+            SELECT refusal_id, conversation_id, user_id, user_email, question,
+                   answer_status, reason, diagnostics_json, profile, created_at
+            FROM answer_refusals
+        """
+        params: list = []
+        if selected_reasons:
+            placeholders = ", ".join("?" for _ in selected_reasons)
+            query += f" WHERE reason IN ({placeholders})"
+            params.extend(selected_reasons)
+        query += " ORDER BY created_at DESC, rowid DESC"
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
+            # ponytail: bucket filter in Python; admin log stays small enough
+            rows = connection.execute(query, params).fetchall()
+        items = []
+        for row in rows:
+            reason = row["reason"]
+            bucket = refusal_reason_bucket(reason)
+            if selected_buckets and bucket not in selected_buckets:
+                continue
+            items.append(
+                {
+                    "refusal_id": row["refusal_id"],
+                    "conversation_id": row["conversation_id"],
+                    "user_id": row["user_id"],
+                    "user_email": row["user_email"],
+                    "question": row["question"],
+                    "answer_status": row["answer_status"],
+                    "reason": reason,
+                    "reason_bucket": bucket,
+                    "reason_title": refusal_reason_title(bucket=bucket),
+                    "diagnostics": json.loads(row["diagnostics_json"] or "[]"),
+                    "profile": row["profile"],
+                    "created_at": row["created_at"],
+                }
+            )
+            if len(items) >= limit:
+                break
+        return items
+
+    def count_answer_refusals(self, *, reasons=None, buckets=None):
+        selected_reasons = [str(item) for item in (reasons or []) if str(item)][:3]
+        selected_buckets = [str(item) for item in (buckets or []) if str(item)][:3]
+        if not selected_buckets:
+            with self._connect() as connection:
+                if not selected_reasons:
+                    row = connection.execute("SELECT COUNT(*) FROM answer_refusals").fetchone()
+                else:
+                    placeholders = ", ".join("?" for _ in selected_reasons)
+                    row = connection.execute(
+                        f"SELECT COUNT(*) FROM answer_refusals WHERE reason IN ({placeholders})",
+                        selected_reasons,
+                    ).fetchone()
+            return int(row[0] if row else 0)
+        return len(self.list_answer_refusals(limit=100_000, reasons=selected_reasons, buckets=selected_buckets))
+
+    def distinct_answer_refusal_reasons(self, *, limit=200):
+        from answer_contract import refusal_reason_bucket, refusal_reason_title
+
+        limit = max(1, min(int(limit), 500))
+        with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT refusal_id, conversation_id, user_id, user_email, question,
-                       answer_status, reason, diagnostics_json, profile, created_at
+                SELECT reason, COUNT(*) AS n
                 FROM answer_refusals
-                ORDER BY created_at DESC, rowid DESC
-                LIMIT ?
-                """,
-                (limit,),
+                WHERE reason IS NOT NULL AND TRIM(reason) != ''
+                GROUP BY reason
+                """
             ).fetchall()
+        totals: dict[str, int] = {}
+        for reason, count in rows:
+            bucket = refusal_reason_bucket(reason)
+            totals[bucket] = totals.get(bucket, 0) + int(count)
+        ordered = sorted(totals.items(), key=lambda item: (-item[1], item[0]))[:limit]
         return [
             {
-                "refusal_id": row["refusal_id"],
-                "conversation_id": row["conversation_id"],
-                "user_id": row["user_id"],
-                "user_email": row["user_email"],
-                "question": row["question"],
-                "answer_status": row["answer_status"],
-                "reason": row["reason"],
-                "diagnostics": json.loads(row["diagnostics_json"] or "[]"),
-                "profile": row["profile"],
-                "created_at": row["created_at"],
+                "bucket": bucket,
+                "reason": bucket,
+                "title": refusal_reason_title(bucket=bucket),
+                "count": count,
             }
-            for row in rows
+            for bucket, count in ordered
         ]
-
-    def count_answer_refusals(self):
-        with self._connect() as connection:
-            row = connection.execute("SELECT COUNT(*) FROM answer_refusals").fetchone()
-        return int(row[0] if row else 0)
 
     def rename(self, conversation_id, title):
         with self._connect() as connection:

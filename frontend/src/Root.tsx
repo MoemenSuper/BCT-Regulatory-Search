@@ -81,7 +81,22 @@ export default function Root() {
     return <AccountStatusPage user={user} onLogout={() => void handleLogout()} locale={locale} onLocaleChange={handleLocaleChange} />;
   }
   if (user.role === 'admin') {
-    return <AdminDashboard user={user} onLogout={() => void handleLogout()} locale={locale} onLocaleChange={handleLocaleChange} />;
+    return (
+      <AdminDashboard
+        user={user}
+        onUserChange={(next) => setGate({ kind: 'session', user: next })}
+        onLogout={() => void handleLogout()}
+        locale={locale}
+        onLocaleChange={handleLocaleChange}
+      />
+    );
   }
-  return <App onLogout={() => void handleLogout()} />;
+  return (
+    <App
+      user={user}
+      locale={locale}
+      onUserChange={(next) => setGate({ kind: 'session', user: next })}
+      onLogout={() => void handleLogout()}
+    />
+  );
 }

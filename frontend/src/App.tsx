@@ -7,6 +7,7 @@ import {
   postChat,
   renameConversation,
 } from './api/chat';
+import type { AuthUser } from './api/auth';
 import { Composer } from './components/Composer';
 import { EvidencePanel } from './components/EvidencePanel';
 import { Header } from './components/Header';
@@ -21,6 +22,7 @@ import {
   noteFromConversationTurn,
 } from './data/presentation';
 import { useWorkspacePanels } from './hooks/useWorkspacePanels';
+import type { UiLocale } from './uiLocale';
 import type {
   ChatSource,
   ConversationDetail,
@@ -31,10 +33,13 @@ import type {
 import './styles.css';
 
 interface AppProps {
+  user: AuthUser;
+  locale: UiLocale;
+  onUserChange: (user: AuthUser) => void;
   onLogout?: () => void;
 }
 
-export default function App({ onLogout }: AppProps) {
+export default function App({ user, locale, onUserChange, onLogout }: AppProps) {
   const [activeTab, setActiveTab] = useState<EvidenceTab>('preuve');
   const [zoom, setZoom] = useState(100);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
@@ -173,7 +178,7 @@ export default function App({ onLogout }: AppProps) {
 
   return (
     <div className="app-shell">
-      <Header onLogout={onLogout} />
+      <Header user={user} locale={locale} onUserChange={onUserChange} onLogout={onLogout} />
       <div
         ref={workspaceRef}
         className={`workspace${resizing ? ' is-resizing' : ''}`}

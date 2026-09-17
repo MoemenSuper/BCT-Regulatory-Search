@@ -4,6 +4,8 @@ export type UserStatus = 'pending' | 'approved' | 'rejected';
 export interface AuthUser {
   id: string;
   email: string;
+  display_name?: string;
+  avatar_icon?: string;
   role: UserRole;
   status: UserStatus;
   created_at: number;
@@ -64,4 +66,26 @@ export function register(email: string, password: string): Promise<{ user: AuthU
 
 export function logout(): Promise<{ ok: boolean }> {
   return request('/api/auth/logout', { method: 'POST' });
+}
+
+export function updateProfile(payload: {
+  display_name?: string;
+  avatar_icon?: string;
+}): Promise<{ user: AuthUser }> {
+  return request('/api/auth/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean }> {
+  return request('/api/auth/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 }
