@@ -99,7 +99,8 @@ class ConversationStore:
                     conversation_id TEXT PRIMARY KEY,
                     state_json TEXT NOT NULL,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    title TEXT
+                    title TEXT,
+                    user_id TEXT
                 )
                 """
             )
@@ -143,35 +144,39 @@ class ConversationStore:
                 "CREATE INDEX IF NOT EXISTS idx_answer_refusals_time "
                 "ON answer_refusals(created_at DESC, refusal_id)"
             )
-            self._ensure_session_title_column(connection)
+            self._ensure_session_columns(connection)
 
-    def create(self):
+    def create(self, user_id: str):
+        owner = self._require_user_id(user_id)
         conversation_id = str(uuid4())
         state = new_memory_state()
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO conversation_sessions (conversation_id, state_json) "
-                "VALUES (?, ?)",
-                (conversation_id, self._serialize(state)),
+                "INSERT INTO conversation_sessions (conversation_id, state_json, user_id) "
+                "VALUES (?, ?, ?)",
+                (conversation_id, self._serialize(state), owner),
             )
         return conversation_id
 
-    def load(self, conversation_id):
+    def load(self, conversation_id, *, user_id: str):
+        owner = self._require_user_id(user_id)
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT state_json FROM conversation_sessions "
-                "WHERE conversation_id = ?",
-                (conversation_id,),
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
             ).fetchone()
         return json.loads(row[0]) if row else None
 
-    def save(self, conversation_id, state):
+    def save(self, conversation_id, state, *, user_id: str):
+        owner = self._require_user_id(user_id)
         value = self._bounded_state(state)
         with self._connect() as connection:
             cursor = connection.execute(
                 "UPDATE conversation_sessions SET state_json = ?, "
-                "updated_at = CURRENT_TIMESTAMP WHERE conversation_id = ?",
-                (self._serialize(value), conversation_id),
+                "updated_at = CURRENT_TIMESTAMP "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (self._serialize(value), conversation_id, owner),
             )
         if cursor.rowcount != 1:
             raise KeyError(f"Unknown conversation: {conversation_id}")
@@ -181,6 +186,7 @@ class ConversationStore:
         conversation_id,
         state,
         *,
+        user_id: str,
         question,
         standalone_query=None,
         answer="",
@@ -189,20 +195,23 @@ class ConversationStore:
         profile=None,
         answer_status=None,
     ):
+        owner = self._require_user_id(user_id)
         value = self._bounded_state(state)
         turn_id = str(uuid4())
         with self._connect() as connection:
             existing = connection.execute(
-                "SELECT title FROM conversation_sessions WHERE conversation_id = ?",
-                (conversation_id,),
+                "SELECT title FROM conversation_sessions "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
             ).fetchone()
             if existing is None:
                 raise KeyError(f"Unknown conversation: {conversation_id}")
             title = existing[0] or summarize_conversation_title(question)
             cursor = connection.execute(
                 "UPDATE conversation_sessions SET state_json = ?, title = ?, "
-                "updated_at = CURRENT_TIMESTAMP WHERE conversation_id = ?",
-                (self._serialize(value), title, conversation_id),
+                "updated_at = CURRENT_TIMESTAMP "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (self._serialize(value), title, conversation_id, owner),
             )
             if cursor.rowcount != 1:
                 raise KeyError(f"Unknown conversation: {conversation_id}")
@@ -354,27 +363,40 @@ class ConversationStore:
             for bucket, count in ordered
         ]
 
-    def rename(self, conversation_id, title):
+    def rename(self, conversation_id, title, *, user_id: str):
+        owner = self._require_user_id(user_id)
         with self._connect() as connection:
             cursor = connection.execute(
-                "UPDATE conversation_sessions SET title = ? WHERE conversation_id = ?",
-                (str(title).strip()[:120], conversation_id),
+                "UPDATE conversation_sessions SET title = ? "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (str(title).strip()[:120], conversation_id, owner),
             )
         if cursor.rowcount != 1:
             raise KeyError(f"Unknown conversation: {conversation_id}")
 
-    def delete(self, conversation_id):
+    def delete(self, conversation_id, *, user_id: str):
+        owner = self._require_user_id(user_id)
         with self._connect() as connection:
+            owned = connection.execute(
+                "SELECT 1 FROM conversation_sessions "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
+            ).fetchone()
+            if owned is None:
+                raise KeyError(f"Unknown conversation: {conversation_id}")
             connection.execute(
                 "DELETE FROM conversation_turns WHERE conversation_id = ?", (conversation_id,)
             )
             cursor = connection.execute(
-                "DELETE FROM conversation_sessions WHERE conversation_id = ?", (conversation_id,)
+                "DELETE FROM conversation_sessions "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
             )
         if cursor.rowcount != 1:
             raise KeyError(f"Unknown conversation: {conversation_id}")
 
-    def list_conversations(self, *, limit=100):
+    def list_conversations(self, *, user_id: str, limit=100):
+        owner = self._require_user_id(user_id)
         limit = max(1, min(int(limit), 500))
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
@@ -411,11 +433,12 @@ class ConversationStore:
                     a.last_turn_at
                 FROM conversation_sessions s
                 LEFT JOIN agg a ON a.conversation_id = s.conversation_id
-                WHERE a.first_question IS NOT NULL OR a.last_question IS NOT NULL
+                WHERE s.user_id = ?
+                  AND (a.first_question IS NOT NULL OR a.last_question IS NOT NULL)
                 ORDER BY COALESCE(a.last_turn_at, s.updated_at) DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (owner, limit),
             ).fetchall()
 
         result = []
@@ -436,15 +459,17 @@ class ConversationStore:
             )
         return result
 
-    def transcript(self, conversation_id):
-        state = self.load(conversation_id)
+    def transcript(self, conversation_id, *, user_id: str):
+        owner = self._require_user_id(user_id)
+        state = self.load(conversation_id, user_id=owner)
         if state is None:
             return None
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
             title_row = connection.execute(
-                "SELECT title FROM conversation_sessions WHERE conversation_id = ?",
-                (conversation_id,),
+                "SELECT title FROM conversation_sessions "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
             ).fetchone()
             rows = connection.execute(
                 """
@@ -486,8 +511,15 @@ class ConversationStore:
         return sqlite3.connect(self.path, timeout=30)
 
     @staticmethod
-    def _ensure_session_title_column(connection):
-        # Older DBs were created before title existed; CREATE TABLE IF NOT EXISTS
+    def _require_user_id(user_id: str) -> str:
+        owner = str(user_id or "").strip()
+        if not owner:
+            raise ValueError("user_id is required")
+        return owner
+
+    @staticmethod
+    def _ensure_session_columns(connection):
+        # Older DBs were created before title/user_id existed; CREATE TABLE IF NOT EXISTS
         # does not add new columns to an already-present table.
         columns = {
             row[1]
@@ -497,6 +529,14 @@ class ConversationStore:
             connection.execute(
                 "ALTER TABLE conversation_sessions ADD COLUMN title TEXT"
             )
+        if "user_id" not in columns:
+            connection.execute(
+                "ALTER TABLE conversation_sessions ADD COLUMN user_id TEXT"
+            )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_conversation_sessions_user "
+            "ON conversation_sessions(user_id)"
+        )
 
     def _bounded_state(self, state):
         value = dict(state)

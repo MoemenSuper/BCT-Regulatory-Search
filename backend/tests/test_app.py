@@ -316,7 +316,7 @@ def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_pat
     )
     assert received_states[0]["turns"] == []
     assert received_states[1]["turns"][0]["user_message"] == "First question"
-    assert store.load(conversation_id)["turns"][-1]["user_message"] == (
+    assert store.load(conversation_id, user_id="test-user")["turns"][-1]["user_message"] == (
         "What about its deadline?"
     )
 
@@ -436,8 +436,14 @@ def test_conversation_rename_and_delete_endpoints(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
     monkeypatch.setattr(app_module, "create_runtime_profile_manager", lambda: None)
     monkeypatch.setattr(app_module, "_graph_enabled", lambda: False)
-    conversation_id = store.create()
-    store.save_with_turn(conversation_id, new_memory_state(), question="Question ?", answer="A")
+    conversation_id = store.create("test-user")
+    store.save_with_turn(
+        conversation_id,
+        new_memory_state(),
+        user_id="test-user",
+        question="Question ?",
+        answer="A",
+    )
 
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
@@ -483,8 +489,8 @@ def test_new_conversation_title_comes_from_the_llm(monkeypatch, tmp_path):
         first = live_client.post("/chat", json={"question": question}).json()
         live_client.post("/chat", json={"question": "Et pour une banque ?", "conversation_id": first["conversation_id"]})
 
-    assert store.transcript(first["conversation_id"])["title"] == "Dépôt à distance d’une demande de change."
-    assert store.list_conversations()[0]["title"] != question
+    assert store.transcript(first["conversation_id"], user_id="test-user")["title"] == "Dépôt à distance d’une demande de change."
+    assert store.list_conversations(user_id="test-user")[0]["title"] != question
 
 
 def test_conversation_title_falls_back_when_llm_fails(monkeypatch, tmp_path):
@@ -496,4 +502,4 @@ def test_conversation_title_falls_back_when_llm_fails(monkeypatch, tmp_path):
     with TestClient(app_module.app) as live_client:
         first = live_client.post("/chat", json={"question": "Quelles sont les heures d'ouverture des guichets ?"}).json()
 
-    assert store.transcript(first["conversation_id"])["title"] == "Heures d'ouverture des guichets"
+    assert store.transcript(first["conversation_id"], user_id="test-user")["title"] == "Heures d'ouverture des guichets"

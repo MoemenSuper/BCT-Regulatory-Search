@@ -88,6 +88,63 @@ def test_admin_approves_user_and_user_can_list_conversations(auth_client):
     assert conversations.json() == []
 
 
+def test_conversations_are_isolated_between_users(auth_client, monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "chat",
+        lambda message, memory_state, *_args, **_kwargs: {
+            "answer": f"answer for {message}",
+            "sources": [],
+            "status": "answered",
+            "memory_state": {
+                **memory_state,
+                "turns": [
+                    *memory_state.get("turns", []),
+                    {
+                        "user_message": message,
+                        "standalone_query": message,
+                        "answer": "a",
+                        "sources": [],
+                    },
+                ],
+            },
+            "graph_trace": {},
+        },
+    )
+
+    first = auth_client.post(
+        "/auth/register",
+        json={"email": "alice@bct.tn", "password": "Password123"},
+    ).json()["user"]
+    second = auth_client.post(
+        "/auth/register",
+        json={"email": "bob@bct.tn", "password": "Password123"},
+    ).json()["user"]
+    auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+    auth_client.post(f"/admin/users/{first['id']}/approve")
+    auth_client.post(f"/admin/users/{second['id']}/approve")
+
+    auth_client.post("/auth/logout")
+    auth_client.post("/auth/login", json={"email": "alice@bct.tn", "password": "Password123"})
+    created = auth_client.post("/chat", json={"question": "Alice secret question about plafond?"})
+    assert created.status_code == 200
+    conversation_id = created.json()["conversation_id"]
+    assert auth_client.get("/conversations").json()[0]["conversation_id"] == conversation_id
+
+    auth_client.post("/auth/logout")
+    auth_client.post("/auth/login", json={"email": "bob@bct.tn", "password": "Password123"})
+    assert auth_client.get("/conversations").json() == []
+    assert auth_client.get(f"/conversations/{conversation_id}").status_code == 404
+    assert auth_client.patch(
+        f"/conversations/{conversation_id}", json={"title": "Stolen"}
+    ).status_code == 404
+    assert auth_client.delete(f"/conversations/{conversation_id}").status_code == 404
+    assert auth_client.post(
+        "/chat",
+        json={"question": "Can Bob continue?", "conversation_id": conversation_id},
+    ).status_code == 404
+
+
 def test_normal_user_cannot_call_admin_endpoints(auth_client):
     registered = auth_client.post(
         "/auth/register",
