@@ -56,7 +56,58 @@ This package does **not** ship API keys, BCT PDFs, vector assets, Neo4j data, Ch
 
 ---
 
-##  Quick start
+##  Docker pilot (recommended for administrators)
+
+One command starts the **UI + API + Graph Lite (Neo4j)**.
+
+### What Docker does for you
+- Installs dependencies
+- Builds the React UI into the API image
+- Starts Neo4j / Graph Lite
+- Serves the app at **http://localhost:8080**
+- Creates empty search assets so the app can boot before any PDF is ingested
+
+### What you must do
+
+1. Install **Docker Desktop** (or Docker Engine + Compose).
+2. Get the project (clone or unzip).
+3. Copy the env template and fill **required** values:
+
+```powershell
+copy .env.example .env
+```
+
+Edit `.env` and set at least:
+
+| Variable | Meaning |
+| --- | --- |
+| `BCT_DOCUMENTS_HOST` | Folder on your PC that contains the BCT PDF corpus |
+| `BCT_BOOTSTRAP_ADMIN_EMAIL` | First admin login email |
+| `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Strong password for that admin |
+| `BCT_NEO4J_PASSWORD` | Password for Graph Lite / Neo4j |
+| `GROQ_API_KEY` | Answer model |
+| `VOYAGE_API_KEY` | Cloud search / rerank |
+| `GEMINI_API_KEY` | Hard / Arabic page repair during ingest |
+
+4. Start everything:
+
+```powershell
+docker compose up -d --build
+```
+
+5. Open **http://localhost:8080**, sign in with the bootstrap admin account.
+6. In the **admin** UI, **upload / ingest the PDFs** (this builds the search indexes). Until this step, the app runs but has nothing to search.
+7. Approve other user accounts when they register.
+
+You do **not** need a pre-built “runtime assets” folder if you ingest the PDFs yourself.
+
+### Optional later
+- Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.
+- Neo4j browser (debug): http://127.0.0.1:7474
+
+---
+
+##  Quick start (developers, without Docker)
 
 ### 1️⃣ Backend
 

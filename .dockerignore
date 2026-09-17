@@ -1,0 +1,14 @@
+.git
+.github
+**/__pycache__
+**/*.pyc
+**/.venv
+**/node_modules
+frontend/dist
+backend/.env
+backend/.demo-data
+backend/.neo4j-data
+.env
+*.pdf
+docs
+output
