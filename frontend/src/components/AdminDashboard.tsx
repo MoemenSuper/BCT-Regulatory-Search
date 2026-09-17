@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, LogOut, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage } from '../api/admin';
+import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
@@ -140,6 +140,22 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
   }
 
   async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); setMessage(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
+  async function handleCloudProvider(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const provider = String(new FormData(event.currentTarget).get('cloud_retrieval_provider') || '');
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await setCloudRetrievalProvider(provider);
+      setConfig(result.config);
+      setMessage(t(locale, 'admin.cloudProviderSaved', { provider: result.cloud_retrieval_provider }));
+    } catch {
+      setError(t(locale, 'admin.configFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function handleSecrets(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -249,7 +265,7 @@ export function AdminDashboard({ user, onLogout, locale, onLocaleChange }: Admin
             onExport={() => void handleExportRefusals()}
           />
         ) : null}
-        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} /> : null}
+        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onCloudProvider={handleCloudProvider} onSecrets={handleSecrets} /> : null}
       </main>
     </div>
   </div>;
@@ -654,12 +670,13 @@ function DocumentsList({ documents, loading, locale }: { documents: unknown[]; l
 }
 
 
-function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets }: {
+function ConfigurationPage({ config, loading, busy, locale, onProfile, onCloudProvider, onSecrets }: {
   config: AdminConfig | null;
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
   onProfile: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onCloudProvider: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onSecrets: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }) {
   if (loading || !config) return <ConfigurationSkeleton label={t(locale, 'admin.loading')} />;
@@ -668,6 +685,10 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets
     { value: 'local_hybrid', title: t(locale, 'admin.profileHybridTitle'), body: t(locale, 'admin.profileHybridBody') },
     { value: 'local', title: t(locale, 'admin.profileLocalTitle'), body: t(locale, 'admin.profileLocalBody') },
   ];
+  const cloudProviderLabels: Record<string, string> = {
+    voyage: t(locale, 'admin.cloudProviderVoyage'),
+    google: t(locale, 'admin.cloudProviderGoogle'),
+  };
   return (
     <section className="admin-configuration-layout">
       <form className="admin-form admin-panel" onSubmit={(event) => void onProfile(event)}>
@@ -681,7 +702,7 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets
         <p className="admin-help">{t(locale, 'admin.profileHelp')}</p>
         <label>
           {t(locale, 'admin.activeProfile')}
-          <select name="profile" defaultValue={config.active_profile}>
+          <select name="profile" defaultValue={config.active_profile} key={config.active_profile}>
             {config.profiles.map((profile) => (
               <option key={profile.value} value={profile.value}>{profile.label}</option>
             ))}
@@ -702,6 +723,38 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets
             ))}
           </ul>
         </div>
+      </form>
+      <form className="admin-form admin-panel" onSubmit={(event) => void onCloudProvider(event)}>
+        <div className="admin-panel-heading">
+          <div>
+            <p>{t(locale, 'admin.runtimeControl')}</p>
+            <h2>{t(locale, 'admin.cloudProvider')}</h2>
+          </div>
+          <Network aria-hidden="true" size={22} />
+        </div>
+        <p className="admin-help">{t(locale, 'admin.cloudProviderHelp')}</p>
+        <fieldset className="admin-cloud-provider" disabled={busy}>
+          <legend>{t(locale, 'admin.cloudProvider')}</legend>
+          {(config.cloud_retrieval_providers || []).map((option) => (
+            <label key={option.value} className="admin-choice">
+              <input
+                type="radio"
+                name="cloud_retrieval_provider"
+                value={option.value}
+                defaultChecked={config.cloud_retrieval_provider === option.value}
+                key={`${option.value}-${config.cloud_retrieval_provider}`}
+              />
+              <span>
+                <strong>{cloudProviderLabels[option.value] || option.label}</strong>
+                <small>{option.model} · dim {option.dimension}</small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <button type="submit" className="admin-primary-button" disabled={busy}>
+          <CheckCircle2 aria-hidden="true" size={18} />
+          {t(locale, 'admin.saveCloudProvider')}
+        </button>
       </form>
       <form className="admin-form admin-panel" onSubmit={(event) => void onSecrets(event)}>
         <div className="admin-panel-heading">
@@ -726,6 +779,7 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets
               autoComplete="off"
               placeholder={secret.configured ? t(locale, 'admin.replaceValue') : t(locale, 'admin.enterValue')}
             />
+            <span className="admin-secret-hint">{t(locale, `admin.secretHint.${secret.key}`)}</span>
           </label>
         ))}
         <button type="submit" className="admin-primary-button" disabled={busy}>
@@ -741,4 +795,4 @@ function StatusBadge({ status, locale }: { status: string; locale: UiLocale }) {
 function OverviewSkeleton({ label }: { label: string }) { return <section className="admin-overview-grid" aria-label={label}><div className="admin-skeleton stat" /><div className="admin-skeleton stat" /><div className="admin-skeleton stat" /><div className="admin-skeleton stat" /></section>; }
 function TableSkeleton({ label }: { label: string }) { return <div className="admin-skeleton table" aria-label={label} />; }
 function DocumentSkeleton({ label }: { label: string }) { return <div className="admin-skeleton document" aria-label={label} />; }
-function ConfigurationSkeleton({ label }: { label: string }) { return <section className="admin-configuration-layout" aria-label={label}><div className="admin-skeleton form" /><div className="admin-skeleton form" /></section>; }
+function ConfigurationSkeleton({ label }: { label: string }) { return <section className="admin-configuration-layout" aria-label={label}><div className="admin-skeleton form" /><div className="admin-skeleton form" /><div className="admin-skeleton form" /></section>; }

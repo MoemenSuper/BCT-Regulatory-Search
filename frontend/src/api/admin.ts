@@ -70,6 +70,14 @@ export interface SecretInfo {
 
 export interface AdminConfig {
   active_profile: string;
+  cloud_retrieval_provider: string;
+  cloud_retrieval_providers: Array<{
+    value: string;
+    label: string;
+    provider: string;
+    model: string;
+    dimension: number;
+  }>;
   profiles: Array<{
     value: string;
     label: string;
@@ -150,6 +158,17 @@ export function setProfile(profile: string): Promise<{ active_profile: string }>
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile }),
+  });
+}
+
+export function setCloudRetrievalProvider(provider: string): Promise<{
+  cloud_retrieval_provider: string;
+  config: AdminConfig;
+}> {
+  return request('/api/admin/config/cloud-retrieval-provider', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
   });
 }
 

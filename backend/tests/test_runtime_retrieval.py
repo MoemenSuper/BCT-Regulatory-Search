@@ -300,7 +300,7 @@ def test_voyage_backend_rejects_an_index_bound_to_different_chunk_text(tmp_path)
         np.asarray([[1.0, 0.0]], dtype=np.float32),
     )
 
-    with pytest.raises(ValueError, match="No bound Voyage index"):
+    with pytest.raises(ValueError, match="No bound voyage index"):
         load_voyage_backend(
             provider_root=tmp_path,
             native_chunks=native_chunks,
@@ -328,6 +328,64 @@ def test_index_rejects_legacy_manifest_without_metadata_binding(tmp_path):
     path.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="metadata binding mismatch"):
         runtime_retrieval._load_bound_index(tmp_path, "native", documents)
+
+
+def test_google_provider_cannot_load_voyage_indexes(tmp_path):
+    documents = [_doc("shared text", "Cir_2020_03_fr.pdf", 0)]
+    _write_bound_index(
+        tmp_path,
+        "native",
+        documents,
+        np.asarray([[1.0, 0.0]], dtype=np.float32),
+    )
+    google = runtime_retrieval.CLOUD_EMBED_SPECS["google"]
+    with pytest.raises(ValueError, match="not interchangeable"):
+        runtime_retrieval._load_bound_index(tmp_path, "native", documents, google)
+
+
+def test_cloud_embed_spec_defaults_to_voyage(monkeypatch):
+    monkeypatch.delenv("BCT_CLOUD_RETRIEVAL_PROVIDER", raising=False)
+    assert runtime_retrieval.cloud_embed_spec().key == "voyage"
+    monkeypatch.setenv("BCT_CLOUD_RETRIEVAL_PROVIDER", "google")
+    assert runtime_retrieval.cloud_embed_spec().provider == "google"
+    monkeypatch.setenv("BCT_CLOUD_RETRIEVAL_PROVIDER", "nope")
+    with pytest.raises(ValueError, match="Unknown BCT_CLOUD_RETRIEVAL_PROVIDER"):
+        runtime_retrieval.cloud_embed_spec()
+
+
+def test_google_runtime_client_rerank_uses_vertex_payload(monkeypatch, tmp_path):
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {
+                "records": [
+                    {"id": "1", "score": 0.2},
+                    {"id": "0", "score": 0.9},
+                ]
+            }
+
+        @property
+        def text(self):
+            return ""
+
+    def post(url, *, headers, json, **_kwargs):
+        calls.append((url, headers["Authorization"], json))
+        return Response()
+
+    monkeypatch.setenv("BCT_GCP_PROJECT", "demo-project")
+    client = runtime_retrieval.GoogleRuntimeClient(tmp_path, request_post=post)
+    monkeypatch.setattr(client, "_rank_access_token", lambda: "token-xyz")
+
+    assert client.rerank("q", ["a", "b"]) == [0.9, 0.2]
+    assert "demo-project" in calls[0][0]
+    assert calls[0][1] == "Bearer token-xyz"
+    assert calls[0][2]["records"][0]["content"] == "a"
+    # cache hit
+    assert client.rerank("q", ["a", "b"]) == [0.9, 0.2]
+    assert len(calls) == 1
 
 
 def test_voyage_runtime_client_rotates_once_and_reuses_its_exact_cache(

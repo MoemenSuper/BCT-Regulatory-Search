@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import os
 import pytest
 
 import app as app_module
@@ -157,6 +158,34 @@ def test_settings_store_masks_and_applies(tmp_path, monkeypatch):
     assert secret["masked"] != "abcd1234secret"
     assert store.get("GROQ_API_KEY") == "abcd1234secret"
     store.close()
+
+
+def test_admin_can_switch_cloud_retrieval_provider(auth_client, monkeypatch):
+    monkeypatch.delenv("BCT_CLOUD_RETRIEVAL_PROVIDER", raising=False)
+    auth_client.post(
+        "/auth/login",
+        json={"email": "admin@bct.tn", "password": "AdminPass123"},
+    )
+    config = auth_client.get("/admin/config")
+    assert config.status_code == 200
+    body = config.json()
+    assert body["cloud_retrieval_provider"] == "voyage"
+    assert {item["value"] for item in body["cloud_retrieval_providers"]} == {"voyage", "google"}
+
+    switched = auth_client.put(
+        "/admin/config/cloud-retrieval-provider",
+        json={"provider": "google"},
+    )
+    assert switched.status_code == 200
+    assert switched.json()["cloud_retrieval_provider"] == "google"
+    assert switched.json()["config"]["cloud_retrieval_provider"] == "google"
+    assert os.environ["BCT_CLOUD_RETRIEVAL_PROVIDER"] == "google"
+
+    rejected = auth_client.put(
+        "/admin/config/cloud-retrieval-provider",
+        json={"provider": "nope"},
+    )
+    assert rejected.status_code == 422
 
 
 def test_admin_can_promote_approved_user_but_not_demote_or_delete_admins(auth_client):

@@ -18,7 +18,7 @@ def test_profile_options_describe_the_three_coherent_deployment_choices():
     assert options["local"]["qualification"] == "experimental_rejected"
     assert options["local_hybrid"]["retrieval"] == "local_e5_bge"
     assert options["local_hybrid"]["answer"] == "groq"
-    assert options["cloud"]["retrieval"] == "voyage_context_4_rerank_2_5"
+    assert options["cloud"]["retrieval"] == "cloud_embed_rerank"
     assert options["cloud"]["answer"] == "groq"
 
 
