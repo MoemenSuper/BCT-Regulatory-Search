@@ -219,15 +219,20 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
         if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(
+                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
+                )],
+            )))
         return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    # LLM quotes fail, but usable page text still yields a code-side literal partial.
+    # Ordinary drafts fail quotes; forced partial formulates a natural claim with a real quote.
     assert result["status"] == "partial_answer"
     assert "320 dinars" in result["answer"]
     assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
-    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
@@ -289,7 +294,13 @@ def test_quote_failures_do_not_trigger_schema_repair():
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
         if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(
+                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
+                )],
+            )))
         assert "You repair malformed answer JSON" not in system
         return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
@@ -298,7 +309,7 @@ def test_quote_failures_do_not_trigger_schema_repair():
     assert "320 dinars" in result["answer"]
     assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
     assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
-    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
+    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
 
 
 def test_broad_summary_first_pass_multi_page_partial_skips_forced_fallback():
@@ -466,87 +477,35 @@ def test_selection_keeps_valid_ids_when_model_adds_junk():
     assert "320 dinars" in result["answer"]
 
 
-def test_literal_partial_without_further_llm_when_drafts_and_forced_fail():
-    """Usable evidence must not fall through to search_results after LLM quote failures."""
-    llm_calls = []
-
-    def respond(prompt):
-        llm_calls.append(prompt.to_messages()[0].content[:48])
-        system = prompt.to_messages()[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(
-                decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
-            )))
-        return AIMessage(content=json.dumps(draft(quote="invented quote that is absent")))
-
-    doc = Document(
-        page_content="Les Intermédiaires Agréés peuvent effectuer librement des transactions de change au comptant.",
-        metadata={"source": "Cir_2016_01_fr.pdf", "page": 3, "pages": [3]},
-    )
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Quelles sont les règles du marché des changes ?",
-        [(doc, 0.9)],
-    )
-    assert result["status"] == "partial_answer"
-    assert "transactions de change" in result["answer"]
-    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
-    assert not any("You repair malformed answer JSON" in head for head in llm_calls)
-
-
-def test_provider_error_after_selection_still_forms_literal_partial():
-    """Rate limits must not skip usable pages into search_results when quotes can be formed in code."""
-    from groq import APIError
-
-    class Boom(APIError):
-        def __init__(self):
-            Exception.__init__(self, "rate limit")
-
-    calls = []
+def test_forced_partial_formulates_natural_claim_not_page_paste():
+    """Forced partial must answer in plain language; quotes carry the page wording."""
+    seen = []
 
     def respond(prompt):
         system = prompt.to_messages()[0].content
-        calls.append(system[:40])
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(
-                decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
-            )))
-        raise Boom()
-
-    doc = Document(
-        page_content="Les Intermédiaires Agréés peuvent effectuer librement des transactions de change au comptant.",
-        metadata={"source": "Cir_2016_01_fr.pdf", "page": 3, "pages": [3]},
-    )
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Quelles sont les règles du marché des changes ?",
-        [(doc, 0.9)],
-    )
-    assert result["status"] == "partial_answer"
-    assert "transactions de change" in result["answer"]
-    assert any(str(item).startswith("provider:") for item in result["diagnostics"])
-    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
-    assert len(calls) == 2  # select + one failed draft; no forced/repair
-
-
-def test_literal_partial_skips_off_topic_page_openings():
-    """Code-side partial must not dump unrelated table rows when the LLM path fails."""
-    from groq import APIError
-
-    class Boom(APIError):
-        def __init__(self):
-            Exception.__init__(self, "rate limit")
-
-    def respond(prompt):
-        system = prompt.to_messages()[0].content
+        human = prompt.to_messages()[-1].content
+        seen.append(system[:80])
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(
                 decision="partial", answer_intent="other", reason="ok", evidence_ids=["E1"],
             )))
-        raise Boom()
+        if "You MUST answer this BCT regulatory question" in system:
+            assert "natural answer sentence" in system
+            assert "Or monétaire" in human or "encaisse-or" in human
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(
+                    text="Oui, la circulaire 2022-12 prévoit des achats et ventes d'or monétaire pour l'encaisse-or.",
+                    quotes=[dict(
+                        evidence_id="E1",
+                        quote="Or monétaire : achats et ventes d'or pour l'encaisse-or.",
+                    )],
+                )],
+            )))
+        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
 
     doc = Document(
-        page_content="| | | 1422 | Tirages sur/Amortissement de prêts ou crédits commerciaux à long terme accordés par le secteur privé non-résident au gouvernement tunisien.",
+        page_content="| Or monétaire : achats et ventes d'or pour l'encaisse-or. Autre ligne hors sujet.",
         metadata={"source": "Cir_2022_12_fr.pdf", "page": 14, "pages": [14]},
     )
     result = generate_grounded_answer(
@@ -554,10 +513,10 @@ def test_literal_partial_skips_off_topic_page_openings():
         "Est-ce que les circulaires et les notes mentionnent le prix d'or ?",
         [(doc, 0.9)],
     )
-    assert result["status"] == "search_results"
-    assert any(str(item).startswith("provider:") for item in result["diagnostics"])
-    assert not any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
-    assert "1422" not in result["answer"]
+    assert result["status"] == "partial_answer"
+    assert "prévoit des achats et ventes d'or monétaire" in result["answer"]
+    assert not result["answer"].lstrip().startswith("|")
+    assert any("forced_partial" in str(item) for item in result["diagnostics"])
 
 
 def test_question_anchors_keep_arabic_content_tokens():
