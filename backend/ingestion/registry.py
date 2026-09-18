@@ -126,9 +126,11 @@ class IngestionRegistry:
                 except json.JSONDecodeError:
                     report = {}
             title = ""
+            admin_meta = {}
             if isinstance(report, dict):
-                admin_meta = report.get("administrator_metadata")
-                if isinstance(admin_meta, dict):
+                raw_meta = report.get("administrator_metadata")
+                if isinstance(raw_meta, dict):
+                    admin_meta = raw_meta
                     title = str(admin_meta.get("title") or "")
                 if not title:
                     title = str(report.get("title") or "")
@@ -141,6 +143,12 @@ class IngestionRegistry:
                     "asset_version": item["asset_version"],
                     "activated_at": item["activated_at"],
                     "pages": report.get("pages") if isinstance(report, dict) else None,
+                    "publication_date": str(admin_meta.get("publication_date") or ""),
+                    "document_type": str(
+                        admin_meta.get("document_type") or admin_meta.get("type") or ""
+                    ),
+                    "category": str(admin_meta.get("category") or ""),
+                    "document_number": str(admin_meta.get("document_number") or ""),
                 }
             )
         return documents
