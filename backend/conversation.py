@@ -127,16 +127,21 @@ def route_message(llm, message, memory_state):
         - If the user refers to the first circular, previous circular, that circular, these ones, etc., use FOLLOW_UP.
         - If the user changes to a different circular/topic, use NEW_TOPIC.
         - If a reference could point to more than one discussed topic and cannot be resolved safely, use AMBIGUOUS.
-        - If the message is a greeting or identity question, use GENERAL_CHAT.
+        - Use GENERAL_CHAT for greetings, thanks, identity ("who are you"), how-you-work / what-can-you-do,
+          requests to summarise or recall this conversation, and light off-topic chat that is not a BCT
+          regulatory fact lookup. Do NOT send those to NEW_TOPIC.
         - A request explaining how you can help, without a specific regulatory fact to look up, is GENERAL_CHAT.
         - Keep rewrite_query in the language of the current user message.
         - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query.
         - For NEW_TOPIC, rewrite only the current user message. Do not import facts, document names,
           provisions, dates, or topics from memory. For FOLLOW_UP, resolve references from memory when available.
+        - For GENERAL_CHAT and AMBIGUOUS, rewrite_query, new_topic and current_topic must be null.
         - current_topic should be the topic the message refers to now.
         - new_topic and current_topic must be short topic strings, never booleans.
         - Example NEW_TOPIC JSON:
           {{"intent":"NEW_TOPIC","rewrite_query":"heures d'ouverture du marche des changes selon circulaire 2016-01","new_topic":"Horaires marche des changes 2016-01","current_topic":null}}
+        - Example GENERAL_CHAT JSON:
+          {{"intent":"GENERAL_CHAT","rewrite_query":null,"new_topic":null,"current_topic":null}}
                 """),
         ("human",
          "Current memory:\n{memory_text}\n\n"
@@ -261,6 +266,35 @@ def _answer_results(
     return list(graph_results[:graph_limit]) + ordinary
 
 
+def general_chat_reply(llm, message, memory_state):
+    """No-retrieval assistant reply for greetings, help, and conversation summary."""
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are the assistant for BCT Regulatory Search at the Banque Centrale de Tunisie
+(Central Bank of Tunisia). Never invent another country or institution.
+Answer in the same language as the user message. Be brief (a few sentences).
+You may use conversation memory below. You have NO access to PDF text in this mode.
+Allowed: greet the user; explain that you search Tunisian BCT circulars and notes with grounded
+citations; summarise what was already discussed in this conversation from memory; politely decline
+off-topic requests and invite a specific regulatory question.
+Forbidden: invent circular numbers, pages, quotes, rates, or legal conclusions not present in memory.
+Do not pretend you retrieved documents. Plain text only — no JSON, no markdown headings."""),
+        ("human", "Conversation memory:\n{memory}\n\nUser message:\n{message}"),
+    ])
+    try:
+        raw = (prompt | llm).invoke({
+            "memory": render_memory_state(memory_state) or "(empty)",
+            "message": message,
+        }).content
+    except Exception:
+        return safe_response(message, "out_of_scope")
+    answer = (raw or "").strip()
+    if answer.startswith("```"):
+        answer = answer.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    if not answer:
+        return safe_response(message, "out_of_scope")
+    return {"status": "answered", "answer": answer, "sources": []}
+
+
 def chat(
     message,
     memory_state,
@@ -275,20 +309,18 @@ def chat(
 
     if route["intent"] in {"GENERAL_CHAT", "AMBIGUOUS"}:
         if route["intent"] == "GENERAL_CHAT":
-            refusal = safe_response(message, "out_of_scope")
+            # ponytail: replace out_of_scope dead-end; no retrieval for assistant-style turns.
+            reply = general_chat_reply(llm, message, memory_state)
             return {
-                "answer": refusal["answer"],
-                "sources": refusal["sources"],
-                "status": refusal["status"],
+                "answer": reply["answer"],
+                "sources": reply["sources"],
+                "status": reply["status"],
                 "memory_state": memory_state,
                 "graph_trace": GraphRetrievalTrace(
                     status=GraphRetrievalStatus.NOT_REQUESTED
                 ).as_dict(),
-                "refusal_reason": format_refusal_reason(
-                    "out_of_scope",
-                    ["route:GENERAL_CHAT:question_not_about_BCT_regulations"],
-                ),
-                "refusal_diagnostics": ["route:GENERAL_CHAT:question_not_about_BCT_regulations"],
+                "refusal_reason": None,
+                "refusal_diagnostics": [],
             }
         clarification = safe_response(message, "clarification_needed")
         return {

@@ -70,6 +70,66 @@ class AnswerDraft(BaseModel):
     claims: list[Claim] = Field(default_factory=list, max_length=8)
 
 
+def _extract_complete_json_dicts(text, *, require_keys=()):
+    """Pull complete {...} objects from possibly truncated model output."""
+    found = []
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth, j, in_str, esc = 0, i, False, False
+        while j < n:
+            ch = text[j]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+            elif ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    chunk = text[i : j + 1]
+                    try:
+                        obj = json.loads(chunk)
+                    except json.JSONDecodeError:
+                        obj = None
+                    if isinstance(obj, dict) and all(key in obj for key in require_keys):
+                        found.append(obj)
+                    i = j + 1
+                    break
+            j += 1
+        else:
+            break
+    return found
+
+
+def _salvage_answer_payload(text):
+    """Recover status + complete claims from truncated answer JSON (no LLM)."""
+    status_match = re.search(
+        r'"status"\s*:\s*"(answered|partial_answer|insufficient_evidence|clarification_needed|out_of_scope)"',
+        text,
+    )
+    if not status_match:
+        return None
+    status = status_match.group(1)
+    claims_at = text.find('"claims"')
+    if claims_at < 0:
+        return None
+    claims = _extract_complete_json_dicts(text[claims_at:], require_keys=("text", "quotes"))
+    if not claims:
+        return None
+    if status not in {"answered", "partial_answer"}:
+        status = "partial_answer"
+    return {"status": status, "message": "", "claims": claims[:8]}
+
+
 def _load_answer_payload(content):
     """Accept raw JSON or common chat wrappers; never invent claim fields."""
     text = str(content or "").strip()
@@ -82,11 +142,23 @@ def _load_answer_payload(content):
         payload = json.loads(text)
     except json.JSONDecodeError:
         start, end = text.find("{"), text.rfind("}")
-        if start < 0 or end <= start:
+        payload = None
+        if start >= 0 and end > start:
+            try:
+                payload = json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                payload = None
+        if not isinstance(payload, dict):
+            payload = _salvage_answer_payload(text)
+        if not isinstance(payload, dict):
             raise
-        payload = json.loads(text[start : end + 1])
     if not isinstance(payload, dict):
         raise ValueError("schema_invalid")
+    # Repair sometimes echoes the full JSON Schema beside the answer fields.
+    if "status" not in payload and "claims" not in payload:
+        salvaged = _salvage_answer_payload(text)
+        if salvaged is not None:
+            return salvaged
     return payload
 
 
@@ -477,6 +549,12 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
 
 
 ANSWER_SCHEMA = json.dumps(AnswerDraft.model_json_schema(), ensure_ascii=False)
+# Full pydantic schema in the system prompt burns tokens and, with reasoning models,
+# correlates with empty drafts. Prompts use this compact shape; validation still uses AnswerDraft.
+ANSWER_SCHEMA_FOR_PROMPT = (
+    '{"status":"answered|partial_answer|insufficient_evidence|clarification_needed|out_of_scope",'
+    '"message":"","claims":[{"text":"string","quotes":[{"evidence_id":"E1","quote":"exact substring"}]}]}'
+)
 
 _HISTORICAL = re.compile(r"\b(?:as\s+of|before|after|au\s+\d{1,2}(?:er)?|avant|après|en\s+\d{4})\b|قبل|بعد", re.I)
 _HISTORICAL_LIMITS = {
@@ -499,6 +577,25 @@ class EvidenceSelection(BaseModel):
     evidence_ids: list[str] = Field(default_factory=list, max_length=20)
 
 
+def _normalize_selection_ids(raw_ids, by_id):
+    """Map model ID variants (1, e1, E01) onto supplied evidence IDs; drop unknowns/dupes."""
+    out = []
+    for raw in raw_ids or []:
+        token = str(raw or "").strip()
+        if not token:
+            continue
+        candidates = [token]
+        if token.casefold().startswith("e") and token[1:].isdigit():
+            candidates.append(f"E{int(token[1:])}")
+        elif token.isdigit():
+            candidates.append(f"E{int(token)}")
+        for cand in candidates:
+            if cand in by_id and cand not in out:
+                out.append(cand)
+                break
+    return out
+
+
 def select_evidence(llm, question, evidence, reference_context):
     """Choose support before drafting, without an answer to anchor the choice."""
     prompt = ChatPromptTemplate.from_messages([
@@ -519,6 +616,15 @@ not insufficient merely because the supplied evidence cannot answer every part. 
 least one requested part is supported, select it and use partial; use answer only when all
 requested parts are supported. Use insufficient_evidence only when no useful requested
 part is supported.
+
+When answer_intent is summary, or the question is a broad topic briefing (e.g. "rules for
+credit", "what about gold", "réglementation des changes" without one named fact), select
+up to four complementary answer-bearing passages across different pages/instruments that
+each state a concrete supported fact (conditions, rates, procedures, eligibility,
+definitions). Prefer several evidence IDs over a single page, but do not select every
+weakly related page. Decision must be partial (or answer if the corpus truly covers the
+whole briefing). Do not use insufficient_evidence merely because the corpus cannot give a
+complete textbook overview.
 
 Match the enclosing section's scope, not merely a repeated phrase inside a paragraph.
 For a direct named-instrument question, use that instrument only; similar versions are
@@ -566,8 +672,19 @@ Answer/partial decisions require evidence IDs; other decisions require an empty 
         question=question, reference=reference_context, evidence=json.dumps(evidence, ensure_ascii=False)))
     selection = EvidenceSelection.model_validate(_load_answer_payload(response.content))
     by_id = {r["evidence_id"]: r for r in evidence}
-    if len(set(selection.evidence_ids)) != len(selection.evidence_ids) or set(selection.evidence_ids) - by_id.keys():
-        raise ValueError("invalid_selection_ids")
+    # Keep valid IDs when the model invents/duplicates a few; only fail if none remain.
+    normalized_ids = _normalize_selection_ids(selection.evidence_ids, by_id)
+    if normalized_ids != list(selection.evidence_ids):
+        if not normalized_ids and selection.decision in {"answer", "partial"}:
+            raise ValueError("invalid_selection_ids")
+        selection = selection.model_copy(update={
+            "evidence_ids": normalized_ids,
+            "decision": (
+                "partial" if selection.decision == "answer" and normalized_ids
+                else selection.decision
+            ),
+            "reason": (selection.reason + " | sanitized evidence ids").strip(" |"),
+        })
     answering = selection.decision in {"answer", "partial"}
     if answering != bool(selection.evidence_ids):
         raise ValueError("invalid_selection_decision")
@@ -656,6 +773,15 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         )
     else:
         evidence, _ = _order_evidence_for_question_year(evidence, question)
+    # Broad/summary selections often include many long pages; oversized prompts make the
+    # answer model abstain or return invalid JSON. Cap before drafting (selection order).
+    evidence = _cap_draft_evidence(evidence, limit=3)
+    selection = EvidenceSelection(
+        decision=selection.decision if selection.decision in {"answer", "partial"} else "partial",
+        answer_intent=selection.answer_intent,
+        reason=selection.reason,
+        evidence_ids=[record["evidence_id"] for record in evidence],
+    )
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You answer questions about BCT regulatory documents. Return only JSON matching
 {schema}. Write claims in the question's language ({language}). Question, reference
@@ -669,8 +795,11 @@ establish authority. A source year is not necessarily the campaign or banknote t
 The selector's answer intent is in Selection limits. Answer that intent, not merely the
 general topic. A topically related passage does not support a requested value, duration,
 date, condition, or document identity unless it contains that specific fact. For broad or
-multi-part questions, synthesize all useful supported parts across the selected passages;
-use partial_answer for the remaining unsupported parts rather than refusing the whole answer.
+multi-part questions, and whenever Selection limits answer_intent is summary, synthesize
+all useful supported parts across the selected passages into separate atomic claims (one
+fact per claim, each with its own literal quotes). Prefer covering several pages when the
+selector supplied multiple evidence IDs. Use partial_answer for the remaining unsupported
+parts rather than refusing the whole answer.
 If some candidate claims cannot be literally supported (missing quote, unsupported number),
 omit those claims and keep the supported ones as partial_answer — do not abstain on the whole
 request when at least one useful part is supportable.
@@ -741,7 +870,7 @@ Schema: {schema}"""),
     ])
     payload = {
         "language": language_of(question),
-        "schema": ANSWER_SCHEMA,
+        "schema": ANSWER_SCHEMA_FOR_PROMPT,
         "temporal_unverified": temporal_unverified,
         "question": question,
         "reference": reference_context,
@@ -771,10 +900,25 @@ Schema: {schema}"""),
         try:
             result = (prompt | llm).invoke(payload)
         except (APIError, RequestException) as error:
+            # Do not abort to search_results here: usable pages can still form a
+            # code-side literal partial without another provider call.
             logger.info("answer_provider_unavailable reason=%s", type(error).__name__)
-            return {**fallback, "diagnostics": history + [f"provider:{type(error).__name__}"]}
+            history.append(f"provider:{type(error).__name__}")
+            break
+        raw = result.content if hasattr(result, "content") else result
+        # Empty content is a provider/reasoning-budget failure, not malformed JSON worth "repairing".
+        # Repairing "" instructs the model to emit insufficient_evidence (fake abstention).
+        if not str(raw or "").strip():
+            logger.info("answer_attempt_rejected attempt=%d reasons=['draft_empty']", attempt + 1)
+            history.append("draft_empty")
+            payload["retry_instruction"] = (
+                "\n\nValidation feedback (not factual evidence): [\"draft_empty\"]\n"
+                "Your previous reply was empty. Return ONLY the JSON object with status and claims; "
+                "each claim needs a literal quote copied from an evidence text field."
+            )
+            continue
         diagnostics = []
-        parsed = parse_answer(result.content, question, evidence,
+        parsed = parse_answer(raw, question, evidence,
             temporal_unverified=temporal_unverified, diagnostics=diagnostics)
         accepted = None if diagnostics else _accept(parsed)
         if accepted is not None:
@@ -783,7 +927,7 @@ Schema: {schema}"""),
             diagnostics.append(f"draft_abstained:{parsed['status']}")
         logger.info("answer_attempt_rejected attempt=%d reasons=%s", attempt + 1, diagnostics)
         if "schema_invalid" in diagnostics:
-            last_schema_invalid_output = result.content
+            last_schema_invalid_output = raw
         history.extend(diagnostics)
         payload["retry_instruction"] = (
             "\n\nValidation feedback (not factual evidence): " + json.dumps(diagnostics, ensure_ascii=False)
@@ -792,7 +936,12 @@ Schema: {schema}"""),
             + "Return partial_answer with every useful supported part, scoped to its instrument. "
             + "Do not abstain when the passages state conditions, rates, durations, eligibility, or procedures."
         )
-    if last_schema_invalid_output is not None and history and history[-1] == "schema_invalid":
+    if (
+        last_schema_invalid_output is not None
+        and history
+        and history[-1] == "schema_invalid"
+        and not any(str(item).startswith("provider:") for item in history)
+    ):
         repaired = _repair_answer_schema(llm, last_schema_invalid_output)
         if repaired is not None:
             diagnostics = []
@@ -812,7 +961,8 @@ Schema: {schema}"""),
 
     # Last resort before bare Top-5 listing: force a scoped partial, then present it
     # as the answer while still attaching the top retrieved pages for inspection.
-    pack = _top_usable_pack(candidate_evidence) or list(evidence)
+    pack = _cap_draft_evidence(_top_usable_pack(candidate_evidence) or list(evidence), limit=3)
+    provider_failed = any(str(item).startswith("provider:") for item in history)
 
     def _try_forced(pack_evidence, tag):
         nonlocal history
@@ -823,6 +973,9 @@ Schema: {schema}"""),
         if forced is None:
             history.append(f"{tag}:provider_error")
             return None
+        if not str(forced or "").strip():
+            history.append(f"{tag}:draft_empty")
+            return None
         diagnostics = []
         parsed = parse_answer(
             forced, question, pack_evidence,
@@ -832,7 +985,7 @@ Schema: {schema}"""),
             history.append(f"{tag}:schema_invalid")
             repaired = _repair_answer_schema(llm, forced)
             if repaired is None:
-                history.append(f"{tag}_repair:provider_error")
+                history.append(f"{tag}_repair:skipped_or_unavailable")
                 return None
             diagnostics = []
             parsed = parse_answer(
@@ -859,16 +1012,120 @@ Schema: {schema}"""),
                         if f"{tag}:{item}" not in history])
         return None
 
-    presented = _try_forced(evidence, "forced_partial")
-    if presented is not None:
-        return presented
-    pack_ids = {record["evidence_id"] for record in pack}
-    evidence_ids = {record["evidence_id"] for record in evidence}
-    if pack and pack_ids != evidence_ids:
-        presented = _try_forced(pack, "forced_partial_top5")
+    if not provider_failed:
+        presented = _try_forced(evidence, "forced_partial")
         if presented is not None:
             return presented
+        pack_ids = {record["evidence_id"] for record in pack}
+        evidence_ids = {record["evidence_id"] for record in evidence}
+        if pack and pack_ids != evidence_ids:
+            presented = _try_forced(pack, "forced_partial_top5")
+            if presented is not None:
+                return presented
+    # No more LLM calls: when usable pages remain, form a quoted partial from
+    # verbatim excerpts. search_results only when even that cannot pass gates.
+    for pack_evidence, tag in ((evidence, "literal_partial"), (pack, "literal_partial_top5")):
+        if not pack_evidence:
+            continue
+        if tag == "literal_partial_top5":
+            if {r["evidence_id"] for r in pack_evidence} == {r["evidence_id"] for r in evidence}:
+                continue
+        accepted = _literal_partial_from_evidence(question, pack_evidence, temporal_unverified)
+        if accepted is not None:
+            return present_top5_synthesis(
+                question, accepted, pack_evidence,
+                diagnostics=history + [f"{tag}:accepted"],
+            )
     return {**fallback, "diagnostics": history}
+
+
+def _cap_draft_evidence(evidence, *, limit=3):
+    """Keep selection order but bound how many long pages enter the answer prompt."""
+    if not evidence or limit < 1:
+        return list(evidence or [])
+    return list(evidence)[: max(1, int(limit))]
+
+
+def _instrument_scope_prefix(source, lang):
+    identity = parse_source_identity(source)
+    if not identity:
+        return ""
+    year, number = identity["year"], identity["number"]
+    kind = identity["kind"]
+    if lang == "ar":
+        if kind == "cir":
+            return f"حسب المنشور {year}-{number}، "
+        if kind == "note":
+            return f"حسب المذكرة {year}-{number}، "
+        return f"حسب الوثيقة {year}-{number}، "
+    if lang == "en":
+        label = "circular" if kind == "cir" else ("note" if kind == "note" else "document")
+        return f"According to {label} {year}-{number}, "
+    label = "circulaire" if kind == "cir" else ("note" if kind == "note" else "document")
+    return f"Selon la {label} {year}-{number}, "
+
+
+def _verbatim_excerpt(text, *, max_len=350, min_len=20):
+    """Contiguous page substring suitable as a literal quote (no rewriting)."""
+    raw = text or ""
+    match = re.search(r"\S", raw)
+    if not match:
+        return ""
+    start = match.start()
+    if len(raw) - start < min_len:
+        return raw[start:].strip()
+    chunk = raw[start : start + max_len]
+    for sep in (". ", ".\n", "! ", "? ", "。", "؟ ", "؛ "):
+        idx = chunk.rfind(sep)
+        if idx >= min_len - 1:
+            return chunk[: idx + 1].strip()
+    if len(chunk) >= max_len:
+        cut = chunk.rfind(" ")
+        if cut >= min_len:
+            chunk = chunk[:cut]
+    return chunk.strip()
+
+
+def _literal_partial_from_evidence(question, evidence, temporal_unverified):
+    """Build a scoped partial from verbatim page excerpts — no LLM call."""
+    lang = language_of(question)
+    claims = []
+    for record in evidence or []:
+        if record.get("unusable_reason") or record.get("evidence_warning"):
+            continue
+        quote = _verbatim_excerpt(record.get("text") or "")
+        if not quote:
+            continue
+        prefix = _instrument_scope_prefix(record["source"], lang)
+        claim_text = f"{prefix}{quote}".strip()
+        if len(claim_text) > 1600:
+            quote = _verbatim_excerpt(record["text"], max_len=max(40, 1600 - len(prefix)))
+            claim_text = f"{prefix}{quote}".strip()[:1600]
+        claims.append({
+            "text": claim_text,
+            "quotes": [{"evidence_id": record["evidence_id"], "quote": quote}],
+        })
+        if len(claims) >= 3:
+            break
+    if not claims:
+        return None
+    diagnostics = []
+    parsed = parse_answer(
+        json.dumps({"status": "partial_answer", "message": "", "claims": claims}, ensure_ascii=False),
+        question,
+        evidence,
+        temporal_unverified=temporal_unverified,
+        diagnostics=diagnostics,
+    )
+    if diagnostics or parsed.get("status") not in {"answered", "partial_answer"}:
+        return None
+    if parsed["status"] == "answered":
+        parsed = dict(parsed)
+        parsed["status"] = "partial_answer"
+        limit = _PARTIAL_LIMITS[lang]
+        if limit not in parsed["answer"]:
+            parsed["answer"] += "\n\n" + limit
+    return parsed
 
 
 def _force_partial_from_evidence(
@@ -910,7 +1167,7 @@ Schema: {schema}"""),
     try:
         result = (prompt | llm).invoke({
             "language": language_of(question),
-            "schema": ANSWER_SCHEMA,
+            "schema": ANSWER_SCHEMA_FOR_PROMPT,
             "temporal_unverified": temporal_unverified,
             "question": question,
             "reference": reference_context,
@@ -930,6 +1187,10 @@ Schema: {schema}"""),
 
 def _repair_answer_schema(llm, previous_output):
     """Convert a malformed draft into AnswerDraft JSON without adding facts."""
+    # Empty drafts must not be "repaired": the repair prompt allows insufficient_evidence
+    # when there is no factual content, which turns a blank completion into a fake abstention.
+    if not str(previous_output or "").strip():
+        return None
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You repair malformed answer JSON for a BCT regulatory assistant.
 Return only JSON matching {schema}.
@@ -944,7 +1205,7 @@ Only use insufficient_evidence with empty claims when the previous output has no
     ])
     try:
         result = (prompt | llm).invoke({
-            "schema": ANSWER_SCHEMA,
+            "schema": ANSWER_SCHEMA_FOR_PROMPT,
             "previous_output": previous_output,
         })
     except (APIError, RequestException) as error:

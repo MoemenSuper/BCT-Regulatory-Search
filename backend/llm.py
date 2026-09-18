@@ -88,7 +88,9 @@ def create_llm(provider="groq"):
         model=os.environ.get("BCT_GROQ_MODEL", "openai/gpt-oss-120b"),
         groq_api_key=_groq_api_key(),
         temperature=0,
-        reasoning_effort=os.environ.get("BCT_GROQ_REASONING_EFFORT", "medium"),
+        # Medium reasoning + a tight max_tokens often yields empty message.content
+        # (tokens spent on hidden reasoning). Prefer low effort and a larger budget.
+        reasoning_effort=os.environ.get("BCT_GROQ_REASONING_EFFORT", "low"),
         reasoning_format="hidden",
-        max_tokens=int(os.environ.get("BCT_GROQ_MAX_TOKENS", "2048")),
+        max_tokens=int(os.environ.get("BCT_GROQ_MAX_TOKENS", "8192")),
     )

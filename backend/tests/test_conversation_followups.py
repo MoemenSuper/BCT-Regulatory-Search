@@ -292,7 +292,74 @@ def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatc
     assert result["memory_state"]["turns"] == _previous_state()["turns"]
 
 
-def test_general_chat_refusal_reports_out_of_scope_status(monkeypatch):
+def test_general_chat_reply_uses_memory_without_json_wrapper():
+    llm = FakeListChatModel(
+        responses=[
+            "D'après notre échange, nous avons parlé de la circulaire 2019-07. "
+            "Je peux chercher d'autres notes BCT si vous précisez la question."
+        ]
+    )
+    result = conversation.general_chat_reply(
+        llm,
+        "Peux-tu résumer notre conversation ?",
+        _previous_state(),
+    )
+    assert result["status"] == "answered"
+    assert result["sources"] == []
+    assert "2019-07" in result["answer"]
+
+
+def test_general_chat_replies_without_retrieval(monkeypatch):
+    class Backend:
+        def retrieve(self, _query):
+            raise AssertionError("retrieval must not run")
+
+    class FakeLLM:
+        def invoke(self, _payload):
+            class Msg:
+                content = (
+                    "Je suis l'assistant de recherche réglementaire BCT. "
+                    "Posez une question précise sur une circulaire ou une note."
+                )
+            return Msg()
+
+        def __or__(self, _other):
+            return self
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: FakeLLM())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "GENERAL_CHAT",
+            "rewrite_query": None,
+            "new_topic": None,
+            "current_topic": None,
+        },
+    )
+    monkeypatch.setattr(
+        conversation,
+        "general_chat_reply",
+        lambda _llm, message, _memory: {
+            "status": "answered",
+            "answer": "Bonjour — je recherche dans les circulaires et notes BCT.",
+            "sources": [],
+        },
+    )
+
+    result = conversation.chat(
+        "Bonjour, comment peux-tu m'aider ?",
+        {"topics": [], "turns": []},
+        retrieval_backend=Backend(),
+    )
+
+    assert result["status"] == "answered"
+    assert result["sources"] == []
+    assert result["refusal_reason"] is None
+    assert "circulaires" in result["answer"].casefold() or "bct" in result["answer"].casefold()
+
+
+def test_general_chat_off_topic_still_skips_retrieval(monkeypatch):
     class Backend:
         def retrieve(self, _query):
             raise AssertionError("retrieval must not run")
@@ -308,6 +375,15 @@ def test_general_chat_refusal_reports_out_of_scope_status(monkeypatch):
             "current_topic": None,
         },
     )
+    monkeypatch.setattr(
+        conversation,
+        "general_chat_reply",
+        lambda *_: {
+            "status": "answered",
+            "answer": "يمكنني مساعدتك في الوثائق التنظيمية للبنك المركزي، وليس في وصفات الطبخ.",
+            "sources": [],
+        },
+    )
 
     result = conversation.chat(
         "كيف أعد طبق كسكسي تونسي في المنزل ؟",
@@ -315,7 +391,6 @@ def test_general_chat_refusal_reports_out_of_scope_status(monkeypatch):
         retrieval_backend=Backend(),
     )
 
-    assert result["status"] == "out_of_scope"
+    assert result["status"] == "answered"
     assert result["sources"] == []
-    assert "GENERAL_CHAT" in result["refusal_reason"]
-    assert result["answer"].startswith("يمكنني")
+    assert result.get("refusal_reason") in (None, "")

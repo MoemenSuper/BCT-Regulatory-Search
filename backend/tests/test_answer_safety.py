@@ -223,9 +223,11 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
         return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "search_results"
-    assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
+    # LLM quotes fail, but usable page text still yields a code-side literal partial.
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
     assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
+    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
@@ -234,8 +236,8 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
             return [(doc, .9)]
     chat_result = conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
     assert "diagnostics" not in chat_result
-    assert "quote_not_found" in chat_result["refusal_reason"]
-    assert chat_result["refusal_diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
+    assert chat_result["status"] == "partial_answer"
+    assert "320 dinars" in chat_result["answer"]
 
 
 def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
@@ -292,39 +294,239 @@ def test_quote_failures_do_not_trigger_schema_repair():
         return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "search_results"
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
     assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
     assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
+    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
 
 
-def test_abstention_gets_forced_partial_before_top5():
+def test_broad_summary_first_pass_multi_page_partial_skips_forced_fallback():
+    """B: broad/summary asks can accept a multi-page quoted partial on the first draft."""
     calls = []
+
+    def respond(prompt):
+        messages = prompt.to_messages()
+        calls.append(messages)
+        system = messages[0].content
+        if "Select evidence for" in system:
+            assert "answer_intent is summary" in system or "broad topic briefing" in system
+            return AIMessage(content=json.dumps(dict(
+                decision="partial",
+                answer_intent="summary",
+                reason="complementary facts across pages",
+                evidence_ids=["E1", "E2"],
+            )))
+        # First writer draft succeeds — must not reach forced partial.
+        assert "You MUST answer this BCT regulatory question" not in system
+        return AIMessage(content=json.dumps(dict(
+            status="partial_answer",
+            message="",
+            claims=[
+                dict(
+                    text="Selon la circulaire 2016-01, les cours au comptant doivent être affichés.",
+                    quotes=[dict(evidence_id="E1", quote="Les cours au comptant acheteur et vendeur des devises contre dinar tunisien doivent être portés à la connaissance du marché")],
+                ),
+                dict(
+                    text="Selon la circulaire 2021-03, les intermédiaires agréés peuvent négocier devises/dinar au comptant.",
+                    quotes=[dict(evidence_id="E2", quote="Les Intermédiaires Agréés peuvent effectuer librement sur le marché des changes interbancaires des transactions de change devises/dinar au comptant")],
+                ),
+            ],
+        )))
+
+    docs = [
+        Document(
+            page_content="Les cours au comptant acheteur et vendeur des devises contre dinar tunisien doivent être portés à la connaissance du marché, de façon continue, par affichage électronique.",
+            metadata={"source": "Cir_2016_01_fr.pdf", "page": 3, "pages": [3]},
+        ),
+        Document(
+            page_content="Les Intermédiaires Agréés peuvent effectuer librement sur le marché des changes interbancaires des transactions de change devises/dinar au comptant, dans le respect des règles prévues.",
+            metadata={"source": "Cir_2021_03_fr.pdf", "page": 3, "pages": [3]},
+        ),
+    ]
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quelles sont les règles du marché des changes ?",
+        [(docs[0], 0.9), (docs[1], 0.8)],
+    )
+    assert result["status"] == "partial_answer"
+    assert "2016-01" in result["answer"]
+    assert "2021-03" in result["answer"]
+    assert not any(str(item).startswith("forced_partial") for item in result.get("diagnostics") or [])
+    assert len(calls) == 2  # select + one draft
+
+
+def test_specific_value_question_still_uses_forced_partial_when_drafts_abstain():
+    """Regression: specific hard asks keep the forced-partial safety net."""
+    calls = []
+
     def respond(prompt):
         messages = prompt.to_messages()
         calls.append(messages)
         system = messages[0].content
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(
-                decision="partial", answer_intent="conditions", reason="scoped", evidence_ids=["E1"])))
+                decision="answer", answer_intent="value", reason="plafond", evidence_ids=["E1"],
+            )))
         if "You MUST answer this BCT regulatory question" in system:
             return AIMessage(content=json.dumps(dict(
                 status="partial_answer", message="",
-                claims=[dict(text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                             quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")])],
+                claims=[dict(
+                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
+                )],
             )))
-        return AIMessage(content=json.dumps(dict(
-            status="insufficient_evidence", message="", claims=[])))
-    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
+
+    doc = Document(
+        page_content=record()["text"],
+        metadata={"source": record()["source"], "page": 2, "pages": [2]},
+    )
     result = generate_grounded_answer(
         RunnableLambda(respond),
-        "Quelles sont les conditions d'un crédit d'investissement ?",
-        [(doc, .9)],
+        "Quel est le plafond selon la circulaire 2022-41 ?",
+        [(doc, 0.9)],
     )
     assert result["status"] == "partial_answer"
     assert "320 dinars" in result["answer"]
-    assert "Confirmez ces éléments auprès de l’administrateur" in result["answer"]
-    assert "top5_synthesis:presented" in result["diagnostics"]
-    assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
+    assert any("forced_partial" in str(item) for item in result["diagnostics"])
+
+
+def test_empty_schema_repair_is_skipped():
+    """Repairing an empty draft would invent insufficient_evidence; skip instead."""
+    from answer_contract import _repair_answer_schema
+
+    assert _repair_answer_schema(object(), "") is None
+    assert _repair_answer_schema(object(), "   ") is None
+
+
+def test_empty_draft_does_not_become_fake_abstention_via_repair():
+    """Blank model content must not be schema-repaired into insufficient_evidence."""
+    def respond(prompt):
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
+            )))
+        if "You repair malformed answer JSON" in system:
+            raise AssertionError("empty draft must not be sent to schema repair")
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=json.dumps(dict(
+                status="partial_answer", message="",
+                claims=[dict(
+                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
+                )],
+            )))
+        return AIMessage(content="")
+
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quelles sont les règles du plafond ?",
+        [(doc, 0.9)],
+    )
+    assert "draft_empty" in (result.get("diagnostics") or [])
+    assert not any("schema_repair:draft_abstained" in str(item) for item in result.get("diagnostics") or [])
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
+
+
+def test_truncated_answer_json_salvages_complete_claims():
+    """Broad drafts often hit the token wall mid-claim; keep finished claims without another LLM call."""
+    from answer_contract import _load_answer_payload
+
+    truncated = (
+        '{"status":"partial_answer","message":"","claims":['
+        '{"text":"Selon la circulaire 2022-41, le plafond est de 320 dinars.",'
+        '"quotes":[{"evidence_id":"E1","quote":"Le plafond est de 320 dinars."}]},'
+        '{"text":"Selon la circulaire 2022-41, la marge est plafonn'
+    )
+    payload = _load_answer_payload(truncated)
+    assert payload["status"] == "partial_answer"
+    assert len(payload["claims"]) == 1
+    result = parse_answer(truncated, "Quel est le plafond ?", [record()])
+    assert result["status"] == "partial_answer"
+    assert "320 dinars" in result["answer"]
+
+
+def test_selection_keeps_valid_ids_when_model_adds_junk():
+    """One invented evidence ID must not discard an otherwise usable selection."""
+    def respond(prompt):
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="answer", reason="ok", evidence_ids=["E1", "E99", "e1"],
+            )))
+        return AIMessage(content=json.dumps(draft()))
+
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, 0.9)])
+    assert result["status"] == "partial_answer"  # sanitized from answer → partial
+    assert "320 dinars" in result["answer"]
+
+
+def test_literal_partial_without_further_llm_when_drafts_and_forced_fail():
+    """Usable evidence must not fall through to search_results after LLM quote failures."""
+    llm_calls = []
+
+    def respond(prompt):
+        llm_calls.append(prompt.to_messages()[0].content[:48])
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
+            )))
+        return AIMessage(content=json.dumps(draft(quote="invented quote that is absent")))
+
+    doc = Document(
+        page_content="Les Intermédiaires Agréés peuvent effectuer librement des transactions de change au comptant.",
+        metadata={"source": "Cir_2016_01_fr.pdf", "page": 3, "pages": [3]},
+    )
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quelles sont les règles du marché des changes ?",
+        [(doc, 0.9)],
+    )
+    assert result["status"] == "partial_answer"
+    assert "transactions de change" in result["answer"]
+    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
+    assert not any("You repair malformed answer JSON" in head for head in llm_calls)
+
+
+def test_provider_error_after_selection_still_forms_literal_partial():
+    """Rate limits must not skip usable pages into search_results when quotes can be formed in code."""
+    from groq import APIError
+
+    class Boom(APIError):
+        def __init__(self):
+            Exception.__init__(self, "rate limit")
+
+    calls = []
+
+    def respond(prompt):
+        system = prompt.to_messages()[0].content
+        calls.append(system[:40])
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
+            )))
+        raise Boom()
+
+    doc = Document(
+        page_content="Les Intermédiaires Agréés peuvent effectuer librement des transactions de change au comptant.",
+        metadata={"source": "Cir_2016_01_fr.pdf", "page": 3, "pages": [3]},
+    )
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quelles sont les règles du marché des changes ?",
+        [(doc, 0.9)],
+    )
+    assert result["status"] == "partial_answer"
+    assert "transactions de change" in result["answer"]
+    assert any(str(item).startswith("provider:") for item in result["diagnostics"])
+    assert any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
+    assert len(calls) == 2  # select + one failed draft; no forced/repair
 
 
 def test_forced_partial_multi_page_states_that_answer_spans_pages():
