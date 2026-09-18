@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date
 import logging
 import os
 import re
@@ -9,7 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
@@ -867,79 +866,21 @@ def _refresh_runtime_asset_environment() -> None:
     configure_runtime_assets(root_value)
 
 
-def _validate_upload_metadata(
-    *,
-    title: str | None,
-    publication_date: str | None,
-    document_type: str | None,
-    category: str | None,
-    document_number: str | None,
-) -> dict[str, str]:
-    """Require compact, parseable metadata before an immutable ingest begins."""
-    fields = {
-        "title": (title, 300),
-        "publication_date": (publication_date, 64),
-        "document_type": (document_type, 120),
-        "category": (category, 120),
-        "document_number": (document_number, 120),
-    }
-    cleaned: dict[str, str] = {}
-    for name, (raw, limit) in fields.items():
-        value = (raw or "").strip()
-        if not value:
-            raise HTTPException(status_code=422, detail=f"{name} is required.")
-        if len(value) > limit or any(ord(character) < 32 for character in value):
-            raise HTTPException(status_code=422, detail=f"Invalid {name}.")
-        cleaned[name] = value
-
-    if len(cleaned["title"]) < 3:
-        raise HTTPException(status_code=422, detail="title must contain at least 3 characters.")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", cleaned["publication_date"]):
-        raise HTTPException(status_code=422, detail="publication_date must use YYYY-MM-DD.")
-    try:
-        date.fromisoformat(cleaned["publication_date"])
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail="publication_date is invalid.") from error
-    if cleaned["document_type"].casefold() not in {"circulaire", "note"}:
-        raise HTTPException(status_code=422, detail="document_type must be circulaire or note.")
-    if len(cleaned["category"]) < 2:
-        raise HTTPException(status_code=422, detail="category must contain at least 2 characters.")
-    if not any(character.isdigit() for character in cleaned["document_number"]):
-        raise HTTPException(status_code=422, detail="document_number must contain a digit.")
-    return {
-        "title": cleaned["title"],
-        "publication_date": cleaned["publication_date"],
-        "type": cleaned["document_type"].casefold(),
-        "category": cleaned["category"],
-        "document_number": cleaned["document_number"],
-    }
-
-
 def _install_ingestion_routes(target: FastAPI) -> None:
     @target.post("/documents")
     async def ingest_document(
         request: Request,
         file: UploadFile = File(...),
-        title: str | None = Form(default=None),
-        publication_date: str | None = Form(default=None),
-        document_type: str | None = Form(default=None),
-        category: str | None = Form(default=None),
-        document_number: str | None = Form(default=None),
         _admin=Depends(require_admin),
     ):
-        metadata = _validate_upload_metadata(
-            title=title,
-            publication_date=publication_date,
-            document_type=document_type,
-            category=category,
-            document_number=document_number,
-        )
+        # ponytail: admin catalog fields were form theater; filename is enough for listing.
         filename = (file.filename or "").strip()
         if not filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
         content_type = (file.content_type or "").lower()
         if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
             raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
+        metadata = {"title": Path(filename).stem or filename or "document"}
 
         max_bytes = int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024)))
         temporary_path = None
