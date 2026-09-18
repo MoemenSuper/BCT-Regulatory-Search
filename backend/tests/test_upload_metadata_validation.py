@@ -1,41 +1,19 @@
-import pytest
-from fastapi import HTTPException
+"""Upload no longer requires administrator catalog fields."""
 
-from app import _validate_upload_metadata
+from inspect import signature
 
-
-def test_upload_metadata_requires_all_five_fields_and_normalizes_type():
-    metadata = _validate_upload_metadata(
-        title="Circulaire relative aux banques",
-        publication_date="2024-03-01",
-        document_type="Circulaire",
-        category="Réglementation bancaire",
-        document_number="2024-03",
-    )
-
-    assert metadata["type"] == "circulaire"
-    assert metadata["document_number"] == "2024-03"
+from app import _install_ingestion_routes
+from fastapi import FastAPI
 
 
-@pytest.mark.parametrize(
-    ("field", "value", "detail"),
-    [
-        ("title", "  ", "title is required."),
-        ("publication_date", "2024-02-30", "publication_date is invalid."),
-        ("document_type", "decision", "document_type must be circulaire or note."),
-        ("category", "x", "category must contain at least 2 characters."),
-        ("document_number", "reference", "document_number must contain a digit."),
-    ],
-)
-def test_upload_metadata_rejects_invalid_required_values(field, value, detail):
-    values = {
-        "title": "Titre réglementaire",
-        "publication_date": "2024-03-01",
-        "document_type": "note",
-        "category": "Prudential",
-        "document_number": "2024-03",
-    }
-    values[field] = value
-
-    with pytest.raises(HTTPException, match=detail):
-        _validate_upload_metadata(**values)
+def test_documents_upload_accepts_file_only():
+    app = FastAPI()
+    _install_ingestion_routes(app)
+    route = next(route for route in app.routes if getattr(route, "path", None) == "/documents" and "POST" in getattr(route, "methods", set()))
+    params = signature(route.endpoint).parameters
+    assert "file" in params
+    assert "title" not in params
+    assert "publication_date" not in params
+    assert "document_type" not in params
+    assert "category" not in params
+    assert "document_number" not in params

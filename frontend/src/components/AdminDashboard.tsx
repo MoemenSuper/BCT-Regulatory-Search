@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
 import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
@@ -8,8 +8,6 @@ import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
 
 type AdminTab = 'overview' | 'users' | 'documents' | 'refusals' | 'configuration';
-type UploadField = 'file' | 'title' | 'publication_date' | 'document_type' | 'category' | 'document_number';
-type UploadDraft = { file: File | null; title: string; publication_date: string; document_type: string; category: string; document_number: string };
 
 interface AdminDashboardProps {
   user: AuthUser;
@@ -19,24 +17,8 @@ interface AdminDashboardProps {
   onLocaleChange: (locale: UiLocale) => void;
 }
 
-const emptyUpload: UploadDraft = { file: null, title: '', publication_date: '', document_type: '', category: '', document_number: '' };
-
-function validDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-function validateUpload(draft: UploadDraft, locale: UiLocale): Partial<Record<UploadField, string>> {
-  const errors: Partial<Record<UploadField, string>> = {};
-  if (!draft.file) errors.file = t(locale, 'admin.fileRequired');
-  else if (!draft.file.name.toLowerCase().endsWith('.pdf') || draft.file.size > 50 * 1024 * 1024) errors.file = t(locale, 'admin.fileInvalid');
-  if (draft.title.trim().length < 3) errors.title = t(locale, 'admin.titleInvalid');
-  if (!validDate(draft.publication_date)) errors.publication_date = t(locale, 'admin.dateInvalid');
-  if (draft.document_type !== 'circulaire' && draft.document_type !== 'note') errors.document_type = t(locale, 'admin.typeInvalid');
-  if (draft.category.trim().length < 2) errors.category = t(locale, 'admin.categoryInvalid');
-  if (!/\p{N}/u.test(draft.document_number) || draft.document_number.trim().length > 120) errors.document_number = t(locale, 'admin.numberInvalid');
-  return errors;
+function isPdfFile(file: File) {
+  return file.name.toLowerCase().endsWith('.pdf') && file.size > 0 && file.size <= 50 * 1024 * 1024;
 }
 
 export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleChange }: AdminDashboardProps) {
@@ -51,10 +33,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState<UploadDraft>(emptyUpload);
-  const [touched, setTouched] = useState<Partial<Record<UploadField, boolean>>>({});
+  const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
-  const metadataErrors = validateUpload(draft, locale);
   const navigation = [
     { id: 'overview' as const, label: t(locale, 'admin.overview'), icon: Gauge },
     { id: 'users' as const, label: t(locale, 'admin.users'), icon: UsersRound },
@@ -93,10 +73,6 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
 
   function selectTab(next: AdminTab) { setMessage(null); setError(null); setTab(next); }
-  function markTouched(field: UploadField) { setTouched((current) => ({ ...current, [field]: true })); }
-  function updateDraft(field: Exclude<UploadField, 'file'>, value: string) { setDraft((current) => ({ ...current, [field]: value })); markTouched(field); setError(null); }
-  function fieldError(field: UploadField) { return touched[field] ? metadataErrors[field] : undefined; }
-  function labelError(field: UploadField, id: string) { const errorText = fieldError(field); return errorText ? <p className="admin-field-error" id={id} role="alert">{errorText}</p> : null; }
 
   async function handleLogout() { await logout(); onLogout(); }
   async function handleApprove(id: string) { setBusy(true); try { await approveUser(id); setMessage(t(locale, 'admin.approved')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
@@ -200,33 +176,53 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
-    setTouched({ file: true, title: true, publication_date: true, document_type: true, category: true, document_number: true });
-    const errors = validateUpload(draft, locale);
-    if (Object.keys(errors).length > 0 || !draft.file) {
-      setError(t(locale, 'admin.fixFields'));
+    const selected = files;
+    if (!selected.length) {
+      setError(t(locale, 'admin.fileRequired'));
       return;
     }
-    const form = new FormData();
-    form.append('file', draft.file);
-    form.append('title', draft.title.trim());
-    form.append('publication_date', draft.publication_date);
-    form.append('document_type', draft.document_type);
-    form.append('category', draft.category.trim());
-    form.append('document_number', draft.document_number.trim());
+    if (selected.some((file) => !isPdfFile(file))) {
+      setError(t(locale, 'admin.fileInvalid'));
+      return;
+    }
     flushSync(() => {
       setBusy(true);
       setError(null);
       setMessage(null);
     });
+    let ok = 0;
+    let duplicates = 0;
+    const failures: string[] = [];
     try {
-      const report = await uploadDocument(form) as { duplicate?: boolean };
-      setMessage(report.duplicate ? t(locale, 'admin.duplicate') : t(locale, 'admin.uploadSuccess'));
-      setDraft(emptyUpload);
-      setTouched({});
+      for (let index = 0; index < selected.length; index += 1) {
+        const file = selected[index];
+        setMessage(t(locale, 'admin.uploadBatchProgress', { current: index + 1, total: selected.length }));
+        const form = new FormData();
+        form.append('file', file);
+        try {
+          const report = await uploadDocument(form) as { duplicate?: boolean };
+          if (report.duplicate) duplicates += 1;
+          else ok += 1;
+        } catch (err) {
+          failures.push(`${file.name}: ${err instanceof Error && err.message ? err.message : t(locale, 'admin.uploadFailed')}`);
+        }
+      }
+      setFiles([]);
       setFileKey((value) => value + 1);
       await refresh();
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t(locale, 'admin.uploadFailed'));
+      if (failures.length && !ok && !duplicates) {
+        setMessage(null);
+        setError(failures[0]);
+      } else if (failures.length) {
+        setMessage(t(locale, 'admin.uploadBatchPartial', { ok: ok + duplicates, failed: failures.length }));
+        setError(failures[0]);
+      } else if (selected.length === 1 && duplicates === 1) {
+        setMessage(t(locale, 'admin.duplicate'));
+      } else if (selected.length === 1) {
+        setMessage(t(locale, 'admin.uploadSuccess'));
+      } else {
+        setMessage(t(locale, 'admin.uploadBatchDone', { count: ok + duplicates }));
+      }
     } finally {
       setBusy(false);
     }
@@ -271,15 +267,10 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             loading={loading}
             busy={busy}
             locale={locale}
-            draft={draft}
+            files={files}
             fileKey={fileKey}
-            fieldError={fieldError}
-            labelError={labelError}
             onUpload={(event) => void handleUpload(event)}
-            onFileChange={(file) => { setDraft((current) => ({ ...current, file })); markTouched('file'); setError(null); }}
-            onFileBlur={() => markTouched('file')}
-            onDraftChange={updateDraft}
-            onFieldBlur={markTouched}
+            onFilesChange={(next) => { setFiles(next); setError(null); }}
           />
         ) : null}
         {tab === 'refusals' ? (
@@ -635,22 +626,20 @@ function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPro
 
 
 function DocumentsPage({
-  documents, loading, busy, locale, draft, fileKey, fieldError, labelError, onUpload, onFileChange, onFileBlur, onDraftChange, onFieldBlur,
+  documents, loading, busy, locale, files, fileKey, onUpload, onFilesChange,
 }: {
   documents: unknown[];
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
-  draft: UploadDraft;
+  files: File[];
   fileKey: number;
-  fieldError: (field: UploadField) => string | undefined;
-  labelError: (field: UploadField, id: string) => ReactNode;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
-  onFileChange: (file: File | null) => void;
-  onFileBlur: () => void;
-  onDraftChange: (field: Exclude<UploadField, 'file'>, value: string) => void;
-  onFieldBlur: (field: UploadField) => void;
+  onFilesChange: (files: File[]) => void;
 }) {
+  const label = files.length
+    ? (files.length === 1 ? files[0].name : t(locale, 'admin.filesSelected', { count: files.length }))
+    : t(locale, 'admin.choosePdf');
   return (
     <>
       {busy ? (
@@ -672,56 +661,21 @@ function DocumentsPage({
             <FileUp aria-hidden="true" size={23} />
           </div>
           <p className="admin-help">{t(locale, 'admin.uploadHelp')}</p>
-          <p className="admin-required-note">{t(locale, 'admin.requiredNote')}</p>
           <div className="admin-field admin-file-field">
-            {labelError('file', 'file-error')}
-            <label className={`admin-file-input ${fieldError('file') ? 'invalid' : ''}`}>
-              <span>{t(locale, 'admin.pdfFile')} <b>*</b></span>
+            <label className="admin-file-input">
+              <span>{t(locale, 'admin.pdfFile')}</span>
               <input
                 key={fileKey}
                 name="file"
                 type="file"
                 accept="application/pdf,.pdf"
-                onChange={(event) => onFileChange(event.currentTarget.files?.[0] || null)}
-                onBlur={onFileBlur}
-                aria-invalid={Boolean(fieldError('file'))}
-                aria-describedby={fieldError('file') ? 'file-error' : undefined}
+                multiple
+                onChange={(event) => onFilesChange(Array.from(event.currentTarget.files || []))}
               />
-              <em>{draft.file ? draft.file.name : t(locale, 'admin.choosePdf')}</em>
+              <em>{label}</em>
             </label>
           </div>
-          <div className="admin-form-grid">
-            <label className="admin-field">
-              {t(locale, 'admin.title')} <b>*</b>
-              {labelError('title', 'title-error')}
-              <input name="title" maxLength={300} value={draft.title} onChange={(event) => onDraftChange('title', event.target.value)} onBlur={() => onFieldBlur('title')} placeholder={t(locale, 'admin.titlePlaceholder')} aria-invalid={Boolean(fieldError('title'))} aria-describedby={fieldError('title') ? 'title-error' : undefined} />
-            </label>
-            <label className="admin-field">
-              {t(locale, 'admin.publicationDate')} <b>*</b>
-              {labelError('publication_date', 'date-error')}
-              <input name="publication_date" type="date" value={draft.publication_date} onChange={(event) => onDraftChange('publication_date', event.target.value)} onBlur={() => onFieldBlur('publication_date')} aria-invalid={Boolean(fieldError('publication_date'))} aria-describedby={fieldError('publication_date') ? 'date-error' : undefined} />
-            </label>
-            <label className="admin-field">
-              {t(locale, 'admin.type')} <b>*</b>
-              {labelError('document_type', 'type-error')}
-              <select name="document_type" value={draft.document_type} onChange={(event) => onDraftChange('document_type', event.target.value)} onBlur={() => onFieldBlur('document_type')} aria-invalid={Boolean(fieldError('document_type'))} aria-describedby={fieldError('document_type') ? 'type-error' : undefined}>
-                <option value="">{t(locale, 'admin.selectType')}</option>
-                <option value="circulaire">{t(locale, 'admin.circular')}</option>
-                <option value="note">{t(locale, 'admin.note')}</option>
-              </select>
-            </label>
-            <label className="admin-field">
-              {t(locale, 'admin.category')} <b>*</b>
-              {labelError('category', 'category-error')}
-              <input name="category" maxLength={120} value={draft.category} onChange={(event) => onDraftChange('category', event.target.value)} onBlur={() => onFieldBlur('category')} placeholder={t(locale, 'admin.categoryPlaceholder')} aria-invalid={Boolean(fieldError('category'))} aria-describedby={fieldError('category') ? 'category-error' : undefined} />
-            </label>
-          </div>
-          <label className="admin-field">
-            {t(locale, 'admin.documentNumber')} <b>*</b>
-            {labelError('document_number', 'number-error')}
-            <input name="document_number" maxLength={120} value={draft.document_number} onChange={(event) => onDraftChange('document_number', event.target.value)} onBlur={() => onFieldBlur('document_number')} placeholder={t(locale, 'admin.numberPlaceholder')} aria-invalid={Boolean(fieldError('document_number'))} aria-describedby={fieldError('document_number') ? 'number-error' : undefined} />
-          </label>
-          <button type="submit" className="admin-primary-button" disabled={busy}>
+          <button type="submit" className="admin-primary-button" disabled={busy || !files.length}>
             <FileUp aria-hidden="true" size={18} />
             {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
           </button>
@@ -731,6 +685,7 @@ function DocumentsPage({
     </>
   );
 }
+
 
 function DocumentsList({ documents, loading, locale }: { documents: unknown[]; loading: boolean; locale: UiLocale }) {
   const rows = Array.isArray(documents) ? documents : [];
@@ -752,23 +707,10 @@ function DocumentsList({ documents, loading, locale }: { documents: unknown[]; l
               filename?: string;
               title?: string;
               document_id?: string;
-              publication_date?: string;
-              document_type?: string;
-              category?: string;
-              document_number?: string;
               pages?: number | null;
             };
             const filename = item.filename || '';
-            const typeLabel = item.document_type === 'note'
-              ? t(locale, 'admin.note')
-              : item.document_type === 'circulaire'
-                ? t(locale, 'admin.circular')
-                : item.document_type || '';
             const meta = [
-              typeLabel,
-              item.document_number,
-              item.publication_date,
-              item.category,
               item.pages != null ? t(locale, 'admin.pageCount', { count: item.pages }) : '',
             ].filter(Boolean);
             const openLabel = t(locale, 'admin.openPdf');
