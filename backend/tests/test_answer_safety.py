@@ -529,6 +529,47 @@ def test_provider_error_after_selection_still_forms_literal_partial():
     assert len(calls) == 2  # select + one failed draft; no forced/repair
 
 
+def test_literal_partial_skips_off_topic_page_openings():
+    """Code-side partial must not dump unrelated table rows when the LLM path fails."""
+    from groq import APIError
+
+    class Boom(APIError):
+        def __init__(self):
+            Exception.__init__(self, "rate limit")
+
+    def respond(prompt):
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="partial", answer_intent="other", reason="ok", evidence_ids=["E1"],
+            )))
+        raise Boom()
+
+    doc = Document(
+        page_content="| | | 1422 | Tirages sur/Amortissement de prêts ou crédits commerciaux à long terme accordés par le secteur privé non-résident au gouvernement tunisien.",
+        metadata={"source": "Cir_2022_12_fr.pdf", "page": 14, "pages": [14]},
+    )
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Est-ce que les circulaires et les notes mentionnent le prix d'or ?",
+        [(doc, 0.9)],
+    )
+    assert result["status"] == "search_results"
+    assert any(str(item).startswith("provider:") for item in result["diagnostics"])
+    assert not any(str(item).startswith("literal_partial:") for item in result["diagnostics"])
+    assert "1422" not in result["answer"]
+
+
+def test_question_anchors_keep_arabic_content_tokens():
+    from answer_contract import _question_anchors
+
+    anchors = _question_anchors("هل تذكر المنشورات سعر الذهب؟")
+    assert "سعر" in anchors
+    assert "الذهب" in anchors or "ذهب" in anchors
+    assert "هل" not in anchors
+    assert "المنشورات" not in anchors
+
+
 def test_forced_partial_multi_page_states_that_answer_spans_pages():
     from answer_contract import present_top5_synthesis
 

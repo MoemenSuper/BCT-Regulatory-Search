@@ -1046,6 +1046,64 @@ def _cap_draft_evidence(evidence, *, limit=3):
     return list(evidence)[: max(1, int(limit))]
 
 
+def _question_anchors(question):
+    """Content tokens from the question used to keep literal excerpts on-topic."""
+    stop = {
+        "est", "ce", "que", "qui", "quoi", "dont", "les", "des", "une", "un", "le", "la",
+        "du", "de", "d", "et", "ou", "au", "aux", "en", "y", "a", "à", "pour", "par", "sur",
+        "dans", "avec", "sans", "sous", "chez", "vers", "plus", "moins", "très", "tres",
+        "sont", "été", "ete", "être", "etre", "avoir", "fait", "faire", "peut",
+        "peuvent", "doit", "doivent", "quel", "quelle", "quels", "quelles", "comment",
+        "pourquoi", "quand", "où", "si", "ne", "pas", "tout", "tous", "toute",
+        "toutes", "cette", "cet", "ces", "son", "sa", "ses", "leur", "leurs", "mon", "ma",
+        "mes", "ton", "ta", "tes", "nos", "votre", "vos", "the", "an", "of", "to",
+        "in", "on", "for", "is", "are", "was", "were", "be", "do", "does", "did", "what",
+        "which", "who", "when", "where", "why", "how", "can", "could", "would", "should",
+        "please", "tell", "me", "about", "from", "with", "without", "into", "over",
+        "circulaires", "circulaire", "notes", "note", "documents", "document",
+        "mentionnent", "mentionne", "mentionner", "parlent", "parle", "exister", "existe",
+        "il", "elle", "nous", "vous", "ils", "elles",
+        # Arabic function words / document labels (Arabic questions are first-class).
+        "هل", "ما", "ماذا", "من", "في", "على", "إلى", "الى", "عن", "مع", "هذا", "هذه",
+        "ذلك", "تلك", "التي", "الذي", "اللذان", "اللتان", "الذين", "اللواتي", "كان",
+        "كانت", "يكون", "تكون", "أن", "ان", "إن", "لا", "لم", "لن", "قد", "كل", "بعض",
+        "أي", "او", "أو", "و", "ف", "ب", "ك", "ل", "ال", "هو", "هي", "هم", "هن", "نحن",
+        "أنتم", "أنتن", "كيف", "متى", "أين", "اين", "لماذا", "كم", "هناك", "هنا",
+        "المنشور", "المنشورات", "المذكرة", "المذكرات", "الوثيقة", "الوثائق",
+        "تذكر", "يذكر", "تذكرون", "يذكرون", "توجد", "يوجد", "بشأن", "حول",
+    }
+    # Latin + Arabic letters (same Arabic ranges as retrieval_selection).
+    token_re = re.compile(
+        r"[0-9A-Za-zÀ-ÖØ-öø-ÿ’']+|[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]+"
+    )
+    tokens = token_re.findall(_plain(question).casefold())
+    anchors = []
+    for token in tokens:
+        token = token.replace("’", "'").strip("'")
+        token = token.strip("؟?!.،,;؛:\"'«»…")
+        if len(token) < 2 or token in stop:
+            continue
+        if token not in anchors:
+            anchors.append(token)
+        # French plural → singular so "changes" still matches "change".
+        if len(token) > 3 and token.endswith("s") and not ARABIC.search(token):
+            stem = token[:-1]
+            if stem not in stop and stem not in anchors:
+                anchors.append(stem)
+        # Drop Arabic definite article so "الذهب" also matches bare "ذهب" on the page.
+        if ARABIC.search(token) and token.startswith("ال") and len(token) > 3:
+            bare = token[2:]
+            if bare not in stop and bare not in anchors:
+                anchors.append(bare)
+    return anchors
+
+
+def _anchor_in_text(anchor, text):
+    if len(anchor) <= 3:
+        return re.search(rf"(?<!\w){re.escape(anchor)}(?!\w)", text, re.I) is not None
+    return re.search(re.escape(anchor), text, re.I) is not None
+
+
 def _instrument_scope_prefix(source, lang):
     identity = parse_source_identity(source)
     if not identity:
@@ -1065,13 +1123,33 @@ def _instrument_scope_prefix(source, lang):
     return f"Selon la {label} {year}-{number}, "
 
 
-def _verbatim_excerpt(text, *, max_len=350, min_len=20):
-    """Contiguous page substring suitable as a literal quote (no rewriting)."""
+def _verbatim_excerpt(text, *, anchors=(), max_len=350, min_len=20):
+    """Contiguous page substring suitable as a literal quote (no rewriting).
+
+    When anchors are supplied, prefer a window that actually contains one of them
+    so a code-side partial cannot dump unrelated page openings.
+    """
     raw = text or ""
-    match = re.search(r"\S", raw)
-    if not match:
-        return ""
-    start = match.start()
+    start = None
+    if anchors:
+        for anchor in anchors:
+            match = None
+            if len(anchor) <= 3:
+                match = re.search(rf"(?<!\w){re.escape(anchor)}(?!\w)", raw, re.I)
+            else:
+                match = re.search(re.escape(anchor), raw, re.I)
+            if match:
+                start = max(0, match.start() - 80)
+                while start > 0 and not raw[start - 1].isspace():
+                    start -= 1
+                break
+        if start is None:
+            return ""
+    else:
+        match = re.search(r"\S", raw)
+        if not match:
+            return ""
+        start = match.start()
     if len(raw) - start < min_len:
         return raw[start:].strip()
     chunk = raw[start : start + max_len]
@@ -1089,17 +1167,24 @@ def _verbatim_excerpt(text, *, max_len=350, min_len=20):
 def _literal_partial_from_evidence(question, evidence, temporal_unverified):
     """Build a scoped partial from verbatim page excerpts — no LLM call."""
     lang = language_of(question)
+    anchors = _question_anchors(question)
+    if not anchors:
+        return None
     claims = []
     for record in evidence or []:
         if record.get("unusable_reason") or record.get("evidence_warning"):
             continue
-        quote = _verbatim_excerpt(record.get("text") or "")
-        if not quote:
+        quote = _verbatim_excerpt(record.get("text") or "", anchors=anchors)
+        if not quote or not any(_anchor_in_text(a, quote) for a in anchors):
             continue
         prefix = _instrument_scope_prefix(record["source"], lang)
         claim_text = f"{prefix}{quote}".strip()
         if len(claim_text) > 1600:
-            quote = _verbatim_excerpt(record["text"], max_len=max(40, 1600 - len(prefix)))
+            quote = _verbatim_excerpt(
+                record["text"], anchors=anchors, max_len=max(40, 1600 - len(prefix)),
+            )
+            if not quote:
+                continue
             claim_text = f"{prefix}{quote}".strip()[:1600]
         claims.append({
             "text": claim_text,
