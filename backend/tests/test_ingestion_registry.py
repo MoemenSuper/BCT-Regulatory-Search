@@ -19,3 +19,33 @@ def test_new_ready_version_supersedes_previous_same_filename(tmp_path: Path):
         assert ready[0]["title"] == "Cir_2026_01_fr.pdf"
     finally:
         registry.close()
+
+
+def test_list_ready_exposes_administrator_metadata(tmp_path: Path):
+    registry = IngestionRegistry(tmp_path / "ingestion.sqlite3")
+    try:
+        registry.start("hash-meta", "Note_2024_03_fr.pdf", "/note.pdf")
+        registry.ready(
+            "hash-meta",
+            stored_path="/note.pdf",
+            asset_version="v1",
+            report={
+                "pages": 12,
+                "administrator_metadata": {
+                    "title": "Note prudentielle 2024-03",
+                    "publication_date": "2024-03-01",
+                    "type": "note",
+                    "category": "Prudential",
+                    "document_number": "2024-03",
+                },
+            },
+        )
+        ready = registry.list_ready()
+        assert ready[0]["title"] == "Note prudentielle 2024-03"
+        assert ready[0]["publication_date"] == "2024-03-01"
+        assert ready[0]["document_type"] == "note"
+        assert ready[0]["category"] == "Prudential"
+        assert ready[0]["document_number"] == "2024-03"
+        assert ready[0]["pages"] == 12
+    finally:
+        registry.close()

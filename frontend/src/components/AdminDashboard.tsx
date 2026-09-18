@@ -238,18 +238,28 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     <aside className="admin-sidebar" aria-label={t(locale, 'admin.configuration')}>
       <div className="admin-brand"><img src="/bct-logo-white.png" alt="Banque Centrale de Tunisie" /><span>{t(locale, 'admin.brand')}</span></div>
       <nav className="admin-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => selectTab(id)}><Icon aria-hidden="true" size={19} strokeWidth={1.8} /><span>{label}</span></button>)}</nav>
-      <div className="admin-sidebar-foot">
-        <ProfileMenu
-          user={user}
-          locale={locale}
-          onUserChange={onUserChange}
-          onLogout={() => void handleLogout()}
-          variant="admin"
-        />
-      </div>
     </aside>
     <div className="admin-workspace">
-      <header className="admin-header"><div><p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p><h1>{currentPage}</h1></div><div className="admin-header-actions"><LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" /><button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}><RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} /><span>{t(locale, 'admin.refresh')}</span></button></div></header>
+      <header className="admin-header">
+        <div>
+          <p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p>
+          <h1>{currentPage}</h1>
+        </div>
+        <div className="admin-header-actions">
+          <LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" />
+          <button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}>
+            <RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} />
+            <span>{t(locale, 'admin.refresh')}</span>
+          </button>
+          <ProfileMenu
+            user={user}
+            locale={locale}
+            onUserChange={onUserChange}
+            onLogout={() => void handleLogout()}
+            variant="header"
+          />
+        </div>
+      </header>
       <main id="admin-content" className="admin-main">
         {error ? <div className="admin-banner error" role="alert"><XCircle aria-hidden="true" size={19} />{error}</div> : null}
         {message ? <div className="admin-banner ok" role="status"><CheckCircle2 aria-hidden="true" size={19} />{message}</div> : null}
@@ -738,15 +748,57 @@ function DocumentsList({ documents, loading, locale }: { documents: unknown[]; l
       ) : (
         <ul className="admin-doc-list">
           {rows.map((doc, index) => {
-            const item = doc as { filename?: string; title?: string; document_id?: string };
-            return (
-              <li key={item.document_id || item.filename || String(index)}>
+            const item = doc as {
+              filename?: string;
+              title?: string;
+              document_id?: string;
+              publication_date?: string;
+              document_type?: string;
+              category?: string;
+              document_number?: string;
+              pages?: number | null;
+            };
+            const filename = item.filename || '';
+            const typeLabel = item.document_type === 'note'
+              ? t(locale, 'admin.note')
+              : item.document_type === 'circulaire'
+                ? t(locale, 'admin.circular')
+                : item.document_type || '';
+            const meta = [
+              typeLabel,
+              item.document_number,
+              item.publication_date,
+              item.category,
+              item.pages != null ? t(locale, 'admin.pageCount', { count: item.pages }) : '',
+            ].filter(Boolean);
+            const openLabel = t(locale, 'admin.openPdf');
+            const body = (
+              <>
                 <span className="admin-document-icon"><FileText aria-hidden="true" size={18} /></span>
                 <div>
-                  <strong>{item.title || item.filename || t(locale, 'admin.pdfDocument')}</strong>
-                  {item.filename ? <span>{item.filename}</span> : null}
+                  <strong>{item.title || filename || t(locale, 'admin.pdfDocument')}</strong>
+                  {filename ? <span className="admin-doc-filename">{filename}</span> : null}
+                  {meta.length ? <span className="admin-doc-meta">{meta.join(' · ')}</span> : null}
                 </div>
                 <ArrowUpRight aria-hidden="true" size={17} />
+              </>
+            );
+            return (
+              <li key={item.document_id || filename || String(index)}>
+                {filename ? (
+                  <a
+                    className="admin-doc-link"
+                    href={`/api/sources/${encodeURIComponent(filename)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${openLabel}: ${item.title || filename}`}
+                    title={openLabel}
+                  >
+                    {body}
+                  </a>
+                ) : (
+                  <div className="admin-doc-link is-disabled">{body}</div>
+                )}
               </li>
             );
           })}
