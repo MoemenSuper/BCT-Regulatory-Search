@@ -77,6 +77,25 @@ def test_route_message_fails_closed_when_multiple_topics_have_no_current_topic()
     assert route["intent"] == "AMBIGUOUS"
 
 
+def test_route_message_treats_standalone_deictic_as_ambiguous_not_general_chat():
+    response = {
+        "intent": "GENERAL_CHAT",
+        "rewrite_query": None,
+        "new_topic": None,
+        "current_topic": None,
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+
+    route = conversation.route_message(
+        llm,
+        "Est-ce que les banques peuvent faire cette opération ?",
+        {"turns": []},
+    )
+
+    assert route["intent"] == "AMBIGUOUS"
+    assert route["rewrite_query"] is None
+
+
 def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
     rewritten = "relationship between Circular 2019-07 and Circular 2018-07"
     ordinary = _document()

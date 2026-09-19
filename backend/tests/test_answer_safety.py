@@ -555,7 +555,7 @@ def test_forced_partial_multi_page_states_that_answer_spans_pages():
     assert result["status"] == "partial_answer"
     assert "plusieurs pages" in result["answer"]
     assert "Confirmez ces éléments" in result["answer"]
-    assert result["answer"].index("plusieurs pages") < result["answer"].index("étude")
+    assert result["answer"].index("étude") < result["answer"].index("plusieurs pages")
     assert "top5_synthesis:multi_page" in result["diagnostics"]
     assert len(result["sources"]) == 3
     assert result["sources"][2]["file"] == "Cir_2020_04_fr.pdf"
@@ -654,6 +654,36 @@ def test_mixed_claims_keep_only_literally_supported_parts():
     assert "7,5" not in result["answer"]
     assert "partie de la demande" in result["answer"]
     assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
+
+
+def test_claim_cannot_remap_question_actor_onto_a_different_regime_page():
+    """Reject claims that restate a question actor absent from the cited page."""
+    page = (
+        "Les prix des ventes peuvent être réglés par n'importe quel moyen de règlement, "
+        "lorsque les contrats y afférents prévoient des délais de règlement allant jusqu'à "
+        "60 jours à compter de la date d'expédition des marchandises."
+    )
+    value = dict(
+        status="answered",
+        message="",
+        claims=[
+            dict(
+                text=(
+                    "Une entreprise peut régler un fournisseur étranger par n'importe quel "
+                    "moyen de paiement lorsque le contrat prévoit un délai de 60 jours."
+                ),
+                quotes=[dict(evidence_id="E1", quote=page[:120])],
+            ),
+        ],
+    )
+    evidence = [record(source="Cir_2020_02_fr.pdf", text=page, eid="E1")]
+    result = parse(
+        value,
+        evidence,
+        question="Est-ce qu’une entreprise peut payer un fournisseur à l’étranger ?",
+    )
+    assert result["status"] == "insufficient_evidence"
+    assert "fournisseur" not in result["answer"].casefold()
 
 
 def test_fenced_json_and_extra_fields_still_parse():

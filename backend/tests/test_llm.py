@@ -47,19 +47,58 @@ def test_local_answer_provider_rejects_a_remote_endpoint_by_default(monkeypatch)
 
 
 def test_groq_provider_accepts_the_numbered_key_configuration(monkeypatch):
-    captured = {}
+    captured = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured.append(kwargs)
+            self.kwargs = kwargs
+
+        def invoke(self, *_args, **_kwargs):
+            return "ok"
+
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    for index in range(3, 8):
+        monkeypatch.delenv(f"GROQ_API_KEY_{index}", raising=False)
     monkeypatch.setenv("GROQ_API_KEY_2", "configured-key")
-    monkeypatch.setattr(
-        llm,
-        "ChatGroq",
-        lambda **kwargs: captured.update(kwargs) or object(),
-    )
+    monkeypatch.setattr(llm, "ChatGroq", FakeClient)
     llm.create_llm.cache_clear()
 
     try:
-        llm.create_llm("groq")
+        model = llm.create_llm("groq")
     finally:
         llm.create_llm.cache_clear()
 
-    assert captured["groq_api_key"] == "configured-key"
+    assert len(captured) == 1
+    assert captured[0]["groq_api_key"] == "configured-key"
+    assert model.invoke([HumanMessage(content="hi")]) == "ok"
+
+
+def test_groq_provider_rotates_across_keys_on_rate_limit(monkeypatch):
+    calls = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.key = kwargs["groq_api_key"]
+
+        def invoke(self, *_args, **_kwargs):
+            calls.append(self.key)
+            if self.key == "key-a":
+                raise RuntimeError("Error code: 429 - rate limit exceeded")
+            return f"from-{self.key}"
+
+    monkeypatch.setenv("GROQ_API_KEY", "key-a")
+    monkeypatch.setenv("GROQ_API_KEY_2", "key-b")
+    for index in range(3, 8):
+        monkeypatch.delenv(f"GROQ_API_KEY_{index}", raising=False)
+    monkeypatch.setattr(llm, "ChatGroq", FakeClient)
+    llm.create_llm.cache_clear()
+
+    try:
+        model = llm.create_llm("groq")
+        result = model.invoke([HumanMessage(content="hi")])
+    finally:
+        llm.create_llm.cache_clear()
+
+    assert result == "from-key-b"
+    assert calls == ["key-a", "key-b"]

@@ -97,6 +97,40 @@ def test_graph_relationship_note_is_surfaced_for_drafting():
     assert "not proof" in records[0]["relationship_note"]
 
 
+def test_graph_supersession_keeps_both_sides_and_marks_roles():
+    from langchain_core.documents import Document
+    from answer_contract import evidence_records, _annotate_graph_supersession
+
+    docs = [
+        (
+            Document(
+                page_content="Horaire: 7h00 a 13h00 pendant la seance unique.",
+                metadata={"source": "Cir_2016_01_fr.pdf", "page": 2},
+            ),
+            0.9,
+        ),
+        (
+            Document(
+                page_content="Horaire: 8h00 a 14h00 pendant la seance unique.",
+                metadata={
+                    "source": "Cir_2021_03_fr.pdf",
+                    "page": 2,
+                    "temporal_relation": "ABROGATES",
+                    "temporal_source_id": "cir:2021:3",
+                    "temporal_target_id": "cir:2016:1",
+                },
+            ),
+            0.85,
+        ),
+    ]
+    records = _annotate_graph_supersession(evidence_records(docs))
+    by_source = {r["source"]: r for r in records}
+    assert by_source["Cir_2021_03_fr.pdf"]["graph_role"] == "successor"
+    assert by_source["Cir_2016_01_fr.pdf"]["graph_role"] == "superseded"
+    assert "SUPERSEDED" in by_source["Cir_2016_01_fr.pdf"]["graph_guidance"]
+    assert records[0]["source"] == "Cir_2021_03_fr.pdf"
+
+
 def test_unverified_temporal_scope_cannot_be_presented_as_a_complete_answer():
     result = parse_answer(json.dumps(draft()), "What does this say and is it still in force?",
                           EVIDENCE, temporal_unverified=True)

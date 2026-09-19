@@ -424,3 +424,48 @@ def test_voyage_runtime_client_rotates_once_and_reuses_its_exact_cache(
     assert client.rerank("query", ["one", "two"]) == [0.8, 0.3]
     assert client.rerank("query", ["one", "two"]) == [0.8, 0.3]
     assert calls == ["Bearer first", "Bearer second"]
+
+
+def test_voyage_runtime_client_cools_down_and_retries_after_all_keys_rate_limit(
+    monkeypatch, tmp_path
+):
+    calls = []
+    sleeps = []
+
+    class Response:
+        def __init__(self, status_code, body=None):
+            self.status_code = status_code
+            self._body = body or {}
+
+        def json(self):
+            return self._body
+
+    def post(_url, *, headers, **_kwargs):
+        calls.append(headers["Authorization"])
+        if len(calls) <= 2:
+            return Response(429)
+        return Response(
+            200,
+            {
+                "data": [
+                    {"index": 0, "relevance_score": 0.7},
+                    {"index": 1, "relevance_score": 0.2},
+                ]
+            },
+        )
+
+    monkeypatch.setenv("VOYAGE_API_KEY_TERTIARY", "first")
+    monkeypatch.setenv("VOYAGE_API_KEY_QUATERNARY", "second")
+    monkeypatch.delenv("VOYAGE_API_KEY_SECONDARY", raising=False)
+    monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
+    monkeypatch.setenv("BCT_VOYAGE_RETRY_SLEEP_SECONDS", "0")
+    monkeypatch.setattr(
+        "runtime_retrieval.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+    client = VoyageRuntimeClient(tmp_path, request_post=post)
+
+    assert client.rerank("query", ["one", "two"]) == [0.7, 0.2]
+    assert sleeps == [0.0]
+    # First sweep burns both keys; second sweep resumes from the next cursor.
+    assert calls == ["Bearer first", "Bearer second", "Bearer second"]
