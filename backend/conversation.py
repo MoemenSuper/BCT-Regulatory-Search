@@ -51,6 +51,32 @@ def _ambiguous_route():
     return MessageRoute(intent=RouteIntent.AMBIGUOUS).model_dump(mode="json")
 
 
+_DEICTIC_MARKERS = (
+    "cette opération",
+    "cette operation",
+    "cette activité",
+    "cette activite",
+    "pour ça",
+    "pour ca",
+    "pour cela",
+    "cette-là",
+    "celle-là",
+    "celle-ci",
+    "this operation",
+    "for that",
+    "هذه العملية",
+    "هذه العملية؟",
+)
+
+
+def _looks_like_unresolved_deictic(message: str) -> bool:
+    """Standalone messages that point at 'this/that' without naming the operation."""
+    text = " ".join(str(message or "").casefold().split())
+    if not text:
+        return False
+    return any(marker in text for marker in _DEICTIC_MARKERS)
+
+
 def _normalize_route_payload(payload: dict, message: str) -> dict:
     """Repair common local-LLM type mistakes before schema validation."""
     data = dict(payload)
@@ -131,6 +157,9 @@ def route_message(llm, message, memory_state):
           requests to summarise or recall this conversation, and light off-topic chat that is not a BCT
           regulatory fact lookup. Do NOT send those to NEW_TOPIC.
         - A request explaining how you can help, without a specific regulatory fact to look up, is GENERAL_CHAT.
+        - If the message refers to "this/that operation", "pour ça", "cette opération", or similar
+          without a resolvable antecedent in memory, use AMBIGUOUS — never GENERAL_CHAT and never invent
+          a topic. Do not greet the user as if they only said hello.
         - Keep rewrite_query in the language of the current user message.
         - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query.
         - For NEW_TOPIC, rewrite only the current user message. Do not import facts, document names,
@@ -173,6 +202,13 @@ def route_message(llm, message, memory_state):
         route.intent == RouteIntent.FOLLOW_UP
         and len(memory_state.get("topics", [])) > 1
         and not memory_state.get("current_topic")
+    ):
+        return _ambiguous_route()
+    # Deictic regulatory asks with no prior turn must clarify, not greet.
+    if (
+        route.intent == RouteIntent.GENERAL_CHAT
+        and _looks_like_unresolved_deictic(message)
+        and not (memory_state.get("turns") or memory_state.get("current_topic"))
     ):
         return _ambiguous_route()
     return route.model_dump(mode="json")

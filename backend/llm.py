@@ -1,11 +1,14 @@
 from langchain_groq import ChatGroq
 from langchain_core.messages import AIMessage
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import Runnable, RunnableLambda
 from dotenv import load_dotenv
 from functools import lru_cache
 import os
+import threading
 import requests
 from urllib.parse import urlparse
+from typing import Any, Optional
+
 
 load_dotenv()
 def _ollama_messages(value):
@@ -71,11 +74,78 @@ def _create_ollama_llm():
     return RunnableLambda(invoke)
 
 
-def _groq_api_key():
+def _groq_api_keys():
+    keys = []
     for name in ("GROQ_API_KEY", *(f"GROQ_API_KEY_{index}" for index in range(2, 8))):
-        if os.environ.get(name):
-            return os.environ[name]
-    return None
+        value = (os.environ.get(name) or "").strip()
+        if value and value not in keys:
+            keys.append(value)
+    return keys
+
+
+def _groq_api_key():
+    keys = _groq_api_keys()
+    return keys[0] if keys else None
+
+
+def _groq_rate_limited(error: BaseException) -> bool:
+    text = str(error).casefold()
+    return any(
+        token in text
+        for token in (
+            "429",
+            "rate limit",
+            "ratelimit",
+            "too_many_requests",
+            "quota",
+        )
+    )
+
+
+def _chat_groq(api_key: str) -> ChatGroq:
+    return ChatGroq(
+        model=os.environ.get("BCT_GROQ_MODEL", "openai/gpt-oss-120b"),
+        groq_api_key=api_key,
+        temperature=0,
+        # Medium reasoning + a tight max_tokens often yields empty message.content
+        # (tokens spent on hidden reasoning). Prefer low effort and a larger budget.
+        reasoning_effort=os.environ.get("BCT_GROQ_REASONING_EFFORT", "low"),
+        reasoning_format="hidden",
+        max_tokens=int(os.environ.get("BCT_GROQ_MAX_TOKENS", "8192")),
+    )
+
+
+class _RotatingGroqLLM(Runnable):
+    """ChatGroq wrapper that advances through GROQ_API_KEY[_N] on rate limits."""
+
+    def __init__(self):
+        keys = _groq_api_keys()
+        if not keys:
+            raise RuntimeError("GROQ_API_KEY is required for the cloud answer provider")
+        self._keys = keys
+        self._lock = threading.Lock()
+        self._cursor = 0
+        self._clients = {key: _chat_groq(key) for key in keys}
+
+    def _next_start(self) -> int:
+        with self._lock:
+            start = self._cursor % len(self._keys)
+            self._cursor += 1
+            return start
+
+    def invoke(self, input: Any, config: Optional[dict] = None, **kwargs: Any) -> Any:
+        start = self._next_start()
+        last_error: Exception | None = None
+        for offset in range(len(self._keys)):
+            key = self._keys[(start + offset) % len(self._keys)]
+            try:
+                return self._clients[key].invoke(input, config=config, **kwargs)
+            except Exception as error:  # noqa: BLE001 - rotate only on quota
+                last_error = error
+                if _groq_rate_limited(error) and offset + 1 < len(self._keys):
+                    continue
+                raise
+        raise RuntimeError(f"Groq unavailable after trying configured keys: {last_error}")
 
 
 @lru_cache(maxsize=3)
@@ -84,13 +154,4 @@ def create_llm(provider="groq"):
         return _create_ollama_llm()
     if provider != "groq":
         raise ValueError(f"Unsupported answer provider: {provider}")
-    return ChatGroq(
-        model=os.environ.get("BCT_GROQ_MODEL", "openai/gpt-oss-120b"),
-        groq_api_key=_groq_api_key(),
-        temperature=0,
-        # Medium reasoning + a tight max_tokens often yields empty message.content
-        # (tokens spent on hidden reasoning). Prefer low effort and a larger budget.
-        reasoning_effort=os.environ.get("BCT_GROQ_REASONING_EFFORT", "low"),
-        reasoning_format="hidden",
-        max_tokens=int(os.environ.get("BCT_GROQ_MAX_TOKENS", "8192")),
-    )
+    return _RotatingGroqLLM()

@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import tempfile
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -470,56 +471,63 @@ class VoyageRuntimeClient:
             return parse(json.loads(cache_path.read_text(encoding="utf-8")))
 
         credentials = self._credentials()
-        with self._lock:
-            start = self._credential_cursor % len(credentials)
-            self._credential_cursor += 1
-        statuses = []
-        for offset in range(len(credentials)):
-            secret = credentials[(start + offset) % len(credentials)]
-            try:
-                response = self.request_post(
-                    f"https://api.voyageai.com/v1/{endpoint}",
-                    headers={
-                        "Authorization": f"Bearer {secret}",
-                        "Content-Type": "application/json",
-                        "Connection": "close",
-                    },
-                    json=payload,
-                    timeout=(10, 30),
-                )
-            except requests.RequestException as error:
-                statuses.append(type(error).__name__)
-                continue
-            statuses.append(str(response.status_code))
-            if 200 <= response.status_code < 300:
-                body = response.json()
-                _record_voyage_usage(endpoint, body)
-                parsed = parse(body)
-                # Each request owns its temporary file, including concurrent
-                # requests for the same cache key.
-                temporary = None
+        last_statuses: list[str] = []
+        # One cool-down + full key sweep when every key is rate-limited.
+        for sweep in range(2):
+            with self._lock:
+                start = self._credential_cursor % len(credentials)
+                self._credential_cursor += 1
+            statuses: list[str] = []
+            for offset in range(len(credentials)):
+                secret = credentials[(start + offset) % len(credentials)]
                 try:
-                    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
-                            dir=self.cache_dir, suffix=".tmp", delete=False) as handle:
-                        temporary = Path(handle.name)
-                        json.dump(body, handle, ensure_ascii=False, sort_keys=True, allow_nan=False)
-                    os.replace(temporary, cache_path)
-                except OSError:
-                    # The cache is optional. Windows may deny replacement while
-                    # another request holds the same destination; the validated
-                    # network response is still usable.
-                    logger.warning("Could not persist Voyage response cache.")
-                finally:
-                    if temporary is not None:
-                        temporary.unlink(missing_ok=True)
-                return parsed
-            if response.status_code not in {429, 500, 502, 503, 504}:
-                raise RuntimeError(
-                    f"Voyage {endpoint} failed with HTTP {response.status_code}"
-                )
+                    response = self.request_post(
+                        f"https://api.voyageai.com/v1/{endpoint}",
+                        headers={
+                            "Authorization": f"Bearer {secret}",
+                            "Content-Type": "application/json",
+                            "Connection": "close",
+                        },
+                        json=payload,
+                        timeout=(10, 30),
+                    )
+                except requests.RequestException as error:
+                    statuses.append(type(error).__name__)
+                    continue
+                statuses.append(str(response.status_code))
+                if 200 <= response.status_code < 300:
+                    body = response.json()
+                    _record_voyage_usage(endpoint, body)
+                    parsed = parse(body)
+                    temporary = None
+                    try:
+                        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                                dir=self.cache_dir, suffix=".tmp", delete=False) as handle:
+                            temporary = Path(handle.name)
+                            json.dump(body, handle, ensure_ascii=False, sort_keys=True, allow_nan=False)
+                        os.replace(temporary, cache_path)
+                    except OSError:
+                        logger.warning("Could not persist Voyage response cache.")
+                    finally:
+                        if temporary is not None:
+                            temporary.unlink(missing_ok=True)
+                    return parsed
+                if response.status_code not in {429, 500, 502, 503, 504}:
+                    raise RuntimeError(
+                        f"Voyage {endpoint} failed with HTTP {response.status_code}"
+                    )
+            last_statuses = statuses
+            retryable = statuses and all(
+                status in {"429", "500", "502", "503", "504"} or status.endswith("Error")
+                for status in statuses
+            )
+            if sweep == 0 and retryable:
+                time.sleep(float(os.environ.get("BCT_VOYAGE_RETRY_SLEEP_SECONDS", "8")))
+                continue
+            break
         raise RuntimeError(
             f"Voyage {endpoint} is unavailable after trying configured keys "
-            f"(statuses: {', '.join(statuses)})"
+            f"(statuses: {', '.join(last_statuses)})"
         )
 
     def embed_query(self, query):
