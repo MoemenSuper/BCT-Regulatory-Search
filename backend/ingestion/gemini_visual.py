@@ -77,6 +77,10 @@ def _quota_exhausted(error: BaseException) -> bool:
     return any(token in text for token in ("429", "RESOURCE_EXHAUSTED", "quota", "rate-limit", "too_many_requests"))
 
 
+# Spread load across GEMINI_API_KEY[_N] instead of always burning slot 1 first.
+_key_cursor = 0
+
+
 def gemini_json_from_image(
     image_png: bytes,
     *,
@@ -89,50 +93,81 @@ def gemini_json_from_image(
     """Run one Gemini Interactions JSON call against a page image.
 
     Returns ``(output_text, response_id)``. Rotates through GEMINI_API_KEY[_N]
-    when a key hits quota.
+    when a key hits quota; after a full key sweep still rate-limited, cools down
+    and retries once.
     """
+    global _key_cursor
     try:
         from google import genai
     except ImportError as error:
         raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
-    keys = _gemini_keys() if client is None else [None]
-    if client is None and not keys:
-        raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
-    key_index = 0
-    if client is None:
-        client = genai.Client(api_key=keys[0])
-    for attempt in range(max(4, len(keys) * 2)):
-        try:
-            interaction = client.interactions.create(
-                model=model,
-                input=[
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "image",
-                        "data": base64.b64encode(image_png).decode("ascii"),
-                        "mime_type": "image/png",
+    injected = client is not None
+    if injected:
+        keys: list[str | None] = [None]
+        start = 0
+    else:
+        keys = _gemini_keys()
+        if not keys:
+            raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
+        start = _key_cursor % len(keys)
+        _key_cursor = start + 1
+
+    clients: dict[int, object] = {}
+    if injected:
+        clients[0] = client
+
+    last_error: BaseException | None = None
+    retry_sleep = float(os.environ.get("BCT_GEMINI_RETRY_SLEEP_SECONDS", "8"))
+    sweeps = 1 if injected else 2
+    for sweep in range(sweeps):
+        for offset in range(len(keys)):
+            index = (start + offset) % len(keys)
+            try:
+                if index not in clients:
+                    clients[index] = genai.Client(api_key=keys[index])
+                active = clients[index]
+                interaction = active.interactions.create(
+                    model=model,
+                    input=[
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image",
+                            "data": base64.b64encode(image_png).decode("ascii"),
+                            "mime_type": "image/png",
+                        },
+                    ],
+                    generation_config={"thinking_level": "low"},
+                    response_format={
+                        "type": "text",
+                        "mime_type": "application/json",
+                        "schema": schema,
                     },
-                ],
-                generation_config={"thinking_level": "low"},
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": schema,
-                },
-            )
-            return interaction.output_text, getattr(interaction, "id", None)
-        except Exception as error:
-            if client is not None and keys[0] is not None and _quota_exhausted(error) and key_index + 1 < len(keys):
-                key_index += 1
-                client = genai.Client(api_key=keys[key_index])
-                if on_rotate is not None:
-                    on_rotate(client, key_index)
-                continue
-            transient = getattr(error, "code", None) in {429, 500, 503} or any(
-                token in str(error) for token in ("429", "500", "503", "high demand", "RESOURCE_EXHAUSTED"))
-            if not transient or attempt >= 3:
+                )
+                if not injected and on_rotate is not None:
+                    on_rotate(active, index)
+                return interaction.output_text, getattr(interaction, "id", None)
+            except Exception as error:
+                last_error = error
+                if injected:
+                    raise
+                if _quota_exhausted(error) and offset + 1 < len(keys):
+                    continue
+                transient = getattr(error, "code", None) in {500, 503} or any(
+                    token in str(error) for token in ("500", "503", "high demand")
+                )
+                if transient and sweep + 1 < sweeps:
+                    break
                 raise
-            time.sleep(15 * (attempt + 1))
+        if (
+            sweep + 1 < sweeps
+            and last_error is not None
+            and (_quota_exhausted(last_error) or getattr(last_error, "code", None) in {500, 503})
+        ):
+            time.sleep(retry_sleep)
+            continue
+        break
+    if last_error is not None:
+        raise last_error
     raise RuntimeError("Gemini visual extraction exhausted all API keys")
 
 
