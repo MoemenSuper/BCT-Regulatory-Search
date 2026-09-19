@@ -218,7 +218,7 @@ class AuthStore:
 
     def bootstrap_admin(self) -> UserRecord | None:
         email = (os.environ.get("BCT_BOOTSTRAP_ADMIN_EMAIL") or "").strip().casefold()
-        password = os.environ.get("BCT_BOOTSTRAP_ADMIN_PASSWORD") or ""
+        password = (os.environ.get("BCT_BOOTSTRAP_ADMIN_PASSWORD") or "").strip()
         if not email or not password:
             return None
         existing = self.get_by_email(email)
