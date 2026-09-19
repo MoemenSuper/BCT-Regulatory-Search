@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -37,7 +38,14 @@ def ensure_empty_assets(asset_root: Path) -> None:
 def build_gateway(static_dir: Path) -> FastAPI:
     from app import app as api_app
 
-    gateway = FastAPI(title="BCT Regulatory Search")
+    # Mounted sub-apps do not run their own lifespan unless the parent wires it.
+    # Without this, bootstrap_admin never runs and login always fails.
+    @asynccontextmanager
+    async def lifespan(_gateway: FastAPI):
+        async with api_app.router.lifespan_context(api_app):
+            yield
+
+    gateway = FastAPI(title="BCT Regulatory Search", lifespan=lifespan)
     gateway.mount("/api", api_app)
     gateway.mount("/", StaticFiles(directory=str(static_dir), html=True), name="ui")
     return gateway
