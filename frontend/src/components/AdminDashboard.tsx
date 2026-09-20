@@ -336,6 +336,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             uploadProgress={uploadProgress}
             onUpload={(event) => void handleUpload(event)}
             onFilesChange={(next) => { setFiles(next); setError(null); }}
+            onInvalidFiles={() => setError(t(locale, 'admin.fileInvalid'))}
           />
         ) : null}
         {tab === 'refusals' ? (
@@ -699,7 +700,7 @@ function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
 }
 
 function DocumentsPage({
-  documents, loading, busy, locale, files, fileKey, uploadProgress, onUpload, onFilesChange,
+  documents, loading, busy, locale, files, fileKey, uploadProgress, onUpload, onFilesChange, onInvalidFiles,
 }: {
   documents: unknown[];
   loading: boolean;
@@ -710,14 +711,25 @@ function DocumentsPage({
   uploadProgress: UploadProgress | null;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
+  onInvalidFiles: () => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   useEffect(() => {
     if (!uploadProgress) setDetailsOpen(false);
   }, [uploadProgress]);
   const label = files.length
     ? (files.length === 1 ? files[0].name : t(locale, 'admin.filesSelected', { count: files.length }))
     : t(locale, 'admin.choosePdf');
+
+  function acceptFiles(raw: File[]) {
+    const pdfs = raw.filter(isPdfFile);
+    if (raw.length > 0 && pdfs.length === 0) {
+      onInvalidFiles();
+      return;
+    }
+    onFilesChange(pdfs);
+  }
   const entries = uploadProgress?.entries || [];
   const total = uploadProgress?.total || 0;
   const imported = entries.filter((entry) => entry.status === 'imported').length;
@@ -782,7 +794,31 @@ function DocumentsPage({
           </div>
           <p className="admin-help">{t(locale, 'admin.uploadHelp')}</p>
           <div className="admin-field admin-file-field">
-            <label className="admin-file-input">
+            <label
+              className={`admin-file-input${dragActive ? ' is-dragover' : ''}${busy ? ' is-disabled' : ''}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!busy) setDragActive(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!busy) setDragActive(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDragActive(false);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDragActive(false);
+                if (busy) return;
+                acceptFiles(Array.from(event.dataTransfer.files || []));
+              }}
+            >
               <span>{t(locale, 'admin.pdfFile')}</span>
               <input
                 key={fileKey}
@@ -790,9 +826,10 @@ function DocumentsPage({
                 type="file"
                 accept="application/pdf,.pdf"
                 multiple
-                onChange={(event) => onFilesChange(Array.from(event.currentTarget.files || []))}
+                disabled={busy}
+                onChange={(event) => acceptFiles(Array.from(event.currentTarget.files || []))}
               />
-              <em>{label}</em>
+              <em>{dragActive ? t(locale, 'admin.dropPdf') : label}</em>
             </label>
           </div>
           <button type="submit" className="admin-primary-button" disabled={busy || !files.length}>

@@ -37,3 +37,6 @@
 .admin-refusal-filter-menu .admin-action{justify-self:start}
 
 .admin-header-actions .profile-menu{flex:0 0 auto}.admin-header-actions .profile-menu-trigger{max-width:220px;min-height:42px;border:1px solid var(--admin-line);border-radius:8px;padding:4px 10px 4px 4px;background:#fff;color:var(--admin-ink)}.admin-header-actions .profile-menu-trigger:hover{background:#f5f8fc}.admin-header-actions .profile-menu-trigger-copy small{color:var(--admin-muted)}.admin-sidebar-foot{display:none}
+
+.admin-file-input.is-dragover{border-color:var(--admin-blue);background:rgba(13,79,156,.06);box-shadow:0 0 0 3px rgba(13,79,156,.12)}
+.admin-file-input.is-disabled{opacity:.65;pointer-events:none}
