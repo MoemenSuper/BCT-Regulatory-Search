@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Pilot image: FastAPI + React UI. Mount PDFs; ingest builds search indexes.
+# Pilot image: FastAPI + React UI + PDF corpus. Ingest still builds search indexes at runtime.
 
 FROM node:22-bookworm AS ui
 WORKDIR /ui
@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY backend/ ./
 COPY --from=ui /ui/dist /app/static
+# Bake the local documents/ tree into the image (~100MB). Requires documents/ at build time
+# (gitignored — present on the builder machine). Recipients get PDFs from the image, no host mount.
+COPY documents/ /data/documents/
 
 ENV BCT_STATIC_DIR=/app/static \
     BCT_ASSETS_DIR=/data/assets \

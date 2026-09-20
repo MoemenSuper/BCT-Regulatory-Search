@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Network, RefreshCw, Settings2, ShieldCheck, ShieldPlus, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Database, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Moon, Network, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
 import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -8,6 +8,19 @@ import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
 
 type AdminTab = 'overview' | 'users' | 'documents' | 'refusals' | 'configuration';
+type AdminTheme = 'light' | 'dark';
+
+const ADMIN_THEME_KEY = 'bct-admin-theme';
+
+function readAdminTheme(): AdminTheme {
+  try {
+    const stored = localStorage.getItem(ADMIN_THEME_KEY);
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch {
+    /* ignore */
+  }
+  return 'light';
+}
 
 interface AdminDashboardProps {
   user: AuthUser;
@@ -51,6 +64,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [theme, setTheme] = useState<AdminTheme>(readAdminTheme);
   const navigation = [
     { id: 'overview' as const, label: t(locale, 'admin.overview'), icon: Gauge },
     { id: 'users' as const, label: t(locale, 'admin.users'), icon: UsersRound },
@@ -75,6 +89,14 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     void load();
     return () => { cancelled = true; };
   }, [tab, locale, refusalBuckets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ADMIN_THEME_KEY, theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
 
   async function refresh() {
     setError(null); setLoading(true);
@@ -293,7 +315,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
 
   const currentPage = navigation.find((item) => item.id === tab)?.label || t(locale, 'admin.overview');
-  return <div className="admin-shell" lang={locale} dir={languageDirection(locale)}>
+  return <div className="admin-shell" data-theme={theme} lang={locale} dir={languageDirection(locale)}>
     <a className="admin-skip-link" href="#admin-content">{t(locale, 'admin.skip')}</a>
     <aside className="admin-sidebar" aria-label={t(locale, 'admin.configuration')}>
       <div className="admin-brand"><img src="/bct-logo-white.png" alt="Banque Centrale de Tunisie" /><span>{t(locale, 'admin.brand')}</span></div>
@@ -306,11 +328,17 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
           <h1>{currentPage}</h1>
         </div>
         <div className="admin-header-actions">
-          <LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" />
-          <button type="button" className="admin-refresh" aria-label={t(locale, 'admin.refresh')} onClick={() => void refresh()} disabled={loading || busy}>
-            <RefreshCw aria-hidden="true" size={17} className={loading ? 'is-spinning' : ''} />
-            <span>{t(locale, 'admin.refresh')}</span>
+          <button
+            type="button"
+            className="admin-refresh admin-theme-toggle"
+            aria-label={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
+            title={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+          >
+            {theme === 'dark' ? <Sun aria-hidden="true" size={17} /> : <Moon aria-hidden="true" size={17} />}
+            <span>{theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}</span>
           </button>
+          <LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" />
           <ProfileMenu
             user={user}
             locale={locale}

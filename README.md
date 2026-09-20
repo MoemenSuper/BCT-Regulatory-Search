@@ -62,13 +62,14 @@ One command starts the **UI + API**.
 ### What Docker does for you
 - Installs dependencies
 - Builds the React UI into the API image
+- Bakes the local `documents/` PDF corpus into the image (~100 MB)
 - Serves the app at **http://localhost:8080**
 - Creates empty search assets so the app can boot before any PDF is ingested
 
 ### What you must do
 
 1. Install **Docker Desktop** (or Docker Engine + Compose).
-2. Get the project (clone or unzip).
+2. Get the project (clone or unzip) **with the `documents/` folder present on the machine that builds the image** (`documents/` is gitignored; it must sit next to `Dockerfile` at build time).
 3. Copy the env template and fill **required** values:
 
 ```powershell
@@ -79,12 +80,13 @@ Edit `.env` and set at least:
 
 | Variable | Meaning |
 | --- | --- |
-| `BCT_DOCUMENTS_HOST` | Folder on your PC that contains the BCT PDF corpus |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` | First admin login email |
 | `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Strong password for that admin |
 | `GROQ_API_KEY` | Answer model |
 | `VOYAGE_API_KEY` | Cloud search / rerank |
 | `GEMINI_API_KEY` | Hard / Arabic page repair during ingest |
+
+Recipients who only pull/run a pre-built image do **not** need a separate PDF folder — the corpus is already inside the image at `/data/documents`.
 
 4. Start everything:
 
@@ -93,10 +95,10 @@ docker compose up -d --build
 ```
 
 5. Open **http://localhost:8080**, sign in with the bootstrap admin account.
-6. In the **admin** UI, **upload / ingest the PDFs** (this builds the search indexes). Until this step, the app runs but has nothing to search.
+6. In the **admin** UI, **ingest the PDFs** (this builds the search indexes). Until this step, the app runs but has nothing to search — the PDFs are present, indexes are not.
 7. Approve other user accounts when they register.
 
-You do **not** need a pre-built “runtime assets” folder if you ingest the PDFs yourself.
+You do **not** need a pre-built “runtime assets” folder if you ingest the PDFs yourself. To override the baked-in corpus with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
 
 ### Optional later
 - Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.
