@@ -127,14 +127,14 @@ def _visual_plan(*, language: str, native_text: str, requires_fallback: bool) ->
         return True, True
     if language != "ar":
         return False, False
-    mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "all").strip().casefold()
+    mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "risk").strip().casefold()
     if mode == "off":
         return False, False
     if mode == "risk":
         return contains_sensitive_literals(native_text), False
-    if mode != "all":
-        raise ValueError("BCT_GEMINI_ARABIC_MODE must be one of: all, risk, off")
-    return True, True
+    if mode == "all":
+        return True, True
+    raise ValueError("BCT_GEMINI_ARABIC_MODE must be one of: all, risk, off")
 
 
 class PdfExtractor:

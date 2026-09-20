@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field
 
 
 PROMPT_VERSION = "bct-faithful-page-transcription-v2"
-DEFAULT_MODEL = "gemini-3.7-flash"
+DEFAULT_MODEL = "gemini-3.8-flash"
+FALLBACK_MODEL = "gemini-3.6-flash"
 
 
 class SensitiveLiteral(BaseModel):
@@ -78,6 +79,35 @@ def _quota_exhausted(error: BaseException) -> bool:
     return any(token in text for token in ("429", "RESOURCE_EXHAUSTED", "quota", "rate-limit", "too_many_requests"))
 
 
+def _transient_network(error: BaseException) -> bool:
+    text = str(error).casefold()
+    return any(
+        token in text
+        for token in (
+            "apiconnectionerror",
+            "connection",
+            "timed out",
+            "timeout",
+            "name or service not known",
+            "no address associated with hostname",
+            "getaddrinfo",
+            "temporary failure in name resolution",
+            "errno -5",
+            "errno 11001",
+            "errno 8",
+        )
+    )
+
+
+def _model_chain(primary: str) -> list[str]:
+    """Primary model, then quota fallback (separate rate pool for bulk ingest)."""
+    fallback = (os.environ.get("BCT_GEMINI_FALLBACK_MODEL") or FALLBACK_MODEL).strip()
+    models = [primary]
+    if fallback and fallback.casefold() != primary.casefold():
+        models.append(fallback)
+    return models
+
+
 # Spread load across GEMINI_API_KEY[_N] instead of always burning slot 1 first.
 _key_cursor = 0
 
@@ -94,8 +124,8 @@ def gemini_json_from_image(
     """Run one Gemini Interactions JSON call against a page image.
 
     Returns ``(output_text, response_id)``. Rotates through GEMINI_API_KEY[_N]
-    when a key hits quota; after a full key sweep still rate-limited, cools down
-    and retries once.
+    when a key hits quota; after keys are exhausted on the primary model, retries
+    the same keys on the fallback model (default gemini-3.6-flash).
     """
     global _key_cursor
     injected = client is not None
@@ -103,6 +133,7 @@ def gemini_json_from_image(
         keys: list[str | None] = [None]
         start = 0
         genai = None
+        models = [model]
     else:
         try:
             from google import genai
@@ -113,6 +144,7 @@ def gemini_json_from_image(
             raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
         start = _key_cursor % len(keys)
         _key_cursor = start + 1
+        models = _model_chain(model)
 
     clients: dict[int, object] = {}
     if injected:
@@ -120,68 +152,86 @@ def gemini_json_from_image(
 
     last_error: BaseException | None = None
     retry_sleep = float(os.environ.get("BCT_GEMINI_RETRY_SLEEP_SECONDS", "8"))
-    sweeps = 1 if injected else 2
-    for sweep in range(sweeps):
-        for offset in range(len(keys)):
-            index = (start + offset) % len(keys)
-            try:
-                if index not in clients:
-                    clients[index] = genai.Client(api_key=keys[index])
-                active = clients[index]
+    timeout = float(os.environ.get("BCT_GEMINI_TIMEOUT_SECONDS", "120"))
 
-                def _create():
-                    return active.interactions.create(
-                        model=model,
-                        input=[
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image",
-                                "data": base64.b64encode(image_png).decode("ascii"),
-                                "mime_type": "image/png",
+    def _try_model(active_model: str) -> tuple[str, object] | None:
+        nonlocal last_error
+        sweeps = 1 if injected else 2
+        for sweep in range(sweeps):
+            for offset in range(len(keys)):
+                index = (start + offset) % len(keys)
+                try:
+                    if index not in clients:
+                        clients[index] = genai.Client(api_key=keys[index])
+                    active = clients[index]
+
+                    def _create(current_model=active_model, current_client=active):
+                        return current_client.interactions.create(
+                            model=current_model,
+                            input=[
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image",
+                                    "data": base64.b64encode(image_png).decode("ascii"),
+                                    "mime_type": "image/png",
+                                },
+                            ],
+                            generation_config={"thinking_level": "low"},
+                            response_format={
+                                "type": "text",
+                                "mime_type": "application/json",
+                                "schema": schema,
                             },
-                        ],
-                        generation_config={"thinking_level": "low"},
-                        response_format={
-                            "type": "text",
-                            "mime_type": "application/json",
-                            "schema": schema,
-                        },
-                    )
+                        )
 
-                # Hard deadline so one hung Gemini page cannot block a whole batch forever.
-                timeout = float(os.environ.get("BCT_GEMINI_TIMEOUT_SECONDS", "120"))
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    interaction = pool.submit(_create).result(timeout=timeout)
-                if not injected and on_rotate is not None:
-                    on_rotate(active, index)
-                return interaction.output_text, getattr(interaction, "id", None)
-            except concurrent.futures.TimeoutError as error:
-                last_error = TimeoutError(
-                    f"Gemini visual extraction timed out after {os.environ.get('BCT_GEMINI_TIMEOUT_SECONDS', '120')}s"
-                )
-                if injected:
-                    raise last_error from error
-                raise last_error from error
-            except Exception as error:
-                last_error = error
-                if injected:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        interaction = pool.submit(_create).result(timeout=timeout)
+                    if not injected and on_rotate is not None:
+                        on_rotate(active, index)
+                    return interaction.output_text, getattr(interaction, "id", None)
+                except concurrent.futures.TimeoutError as error:
+                    last_error = TimeoutError(
+                        f"Gemini visual extraction timed out after {int(timeout)}s"
+                        f" (model={active_model})"
+                    )
+                    if injected:
+                        raise last_error from error
+                    return None  # try next model
+                except Exception as error:
+                    last_error = error
+                    if injected:
+                        raise
+                    if _quota_exhausted(error) or _transient_network(error):
+                        if offset + 1 < len(keys):
+                            continue
+                        if sweep + 1 < sweeps:
+                            time.sleep(retry_sleep)
+                            break
+                        return None  # keys exhausted for this model
+                    transient = getattr(error, "code", None) in {500, 503} or any(
+                        token in str(error) for token in ("500", "503", "high demand")
+                    )
+                    if transient and sweep + 1 < sweeps:
+                        time.sleep(retry_sleep)
+                        break
                     raise
-                if _quota_exhausted(error) and offset + 1 < len(keys):
-                    continue
-                transient = getattr(error, "code", None) in {500, 503} or any(
-                    token in str(error) for token in ("500", "503", "high demand")
-                )
-                if transient and sweep + 1 < sweeps:
-                    break
-                raise
-        if (
-            sweep + 1 < sweeps
-            and last_error is not None
-            and (_quota_exhausted(last_error) or getattr(last_error, "code", None) in {500, 503})
-        ):
-            time.sleep(retry_sleep)
-            continue
-        break
+            else:
+                continue
+        return None
+
+    for model_index, active_model in enumerate(models):
+        if model_index > 0:
+            print(
+                f"gemini falling back from {models[model_index - 1]} to {active_model}",
+                flush=True,
+            )
+            clients.clear()
+        result = _try_model(active_model)
+        if result is not None:
+            if model_index > 0:
+                print(f"gemini using fallback model {active_model}", flush=True)
+            return result
+
     if last_error is not None:
         raise last_error
     raise RuntimeError("Gemini visual extraction exhausted all API keys")
@@ -190,8 +240,8 @@ def gemini_json_from_image(
 class GeminiVisualTranscriber:
     """Small current-SDK adapter around Gemini's Interactions API.
 
-    The model is configurable, but defaults to Gemini 3.7 Flash because that is
-    the provider/model combination actually tested on the BCT Arabic failure set.
+    Defaults to Gemini 3.8 Flash; on quota/timeout falls back to 3.6 Flash so
+    bulk ingest can keep moving across separate rate pools.
     """
 
     def __init__(self, cache_dir: str | Path, *, client=None, model: str | None = None) -> None:

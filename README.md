@@ -196,7 +196,7 @@ cd backend
 # list affected PDFs/pages in the live corpus
 python reingest_unreliable.py --assets "C:\path\to\runtime-assets" --dry-run
 # copy the live root, then re-ingest every affected PDF through Gemini
-$env:BCT_GEMINI_MODEL = "gemini-3.5-flash-lite"   # free tier: 500 req/day; gemini-3.7-flash is 20/day
+$env:BCT_GEMINI_MODEL = "gemini-3.5-flash-lite"   # free tier: 500 req/day; default ingest model is gemini-3.8-flash (falls back to 3.6 on quota)
 python reingest_unreliable.py --assets "C:\path\to\runtime-assets-candidate" --seed-from "C:\path\to\runtime-assets" --documents "C:\path\to\documents"
 # compare, then serve from the candidate root
 python run_api.py --assets "C:\path\to\runtime-assets-candidate" ...
