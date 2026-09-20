@@ -5,8 +5,9 @@ Pins successor declaring pages when:
   2. classic top hits include an instrument that is itself a SUPERSEDES target
      (topical currentness — e.g. work hours lands on an old circular).
 
-On PDF ingest, amendment language is extracted from the new pages and merged
-into supersession_edges.jsonl inside the staged asset version (before activate).
+On PDF ingest, operative amendment language is extracted from the new pages and
+merged into supersession_edges.jsonl inside the staged asset version (before
+activate). Vu / "telle que modifiée par" citations are not SUPERSEDES edges.
 
 Edges path (first hit wins):
   1. BCT_SUPERSESSION_EDGES
@@ -52,18 +53,36 @@ FORCEISH = re.compile(
     re.I,
 )
 ACTION_RE = re.compile(
-    r"(abroge\s+et\s+remplace|annule\s+et\s+substitue|"
-    r"abroge|abrogées?|abrogés?|remplace|remplacent|remplacées?|"
+    r"(abroge\s+et\s+remplace|annule\s+et\s+remplace|annule\s+et\s+substitue|"
+    r"abroge|abrogées?|abrogés?|remplace|remplacent|remplacée?s?|"
     r"modifie|modifiées?|modifiés?|"
     r"تلغي|تعوض|يلغى|يعوض|تلغى|تستبدل)",
     re.I,
 )
 TARGET_CIR = re.compile(
-    r"(?:circulaire|note|منشور)\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})",
+    r"(?:circulaire|note|منشور)"
+    r"(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’-]{1,30}){0,8}"
+    r"\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})",
     re.I,
 )
-# Skip Vu/preamble citation noise without an operative verb nearby
-VU_ONLY = re.compile(r"^\s*(?:vu|vu\s+la|نظرا|بناء\s+على)\b", re.I)
+# Historical citation: "X telle que modifiée par Y" — Y amended X; the citing PDF is not the actor.
+CITATION_AS_MODIFIED_BY = re.compile(
+    r"tel(?:le|s|les)?\s+que\s+"
+    r"(?:modifi[ée]e?s?|compl[ée]t[ée]e?s?)"
+    r"(?:\s+et\s+(?:modifi[ée]e?s?|compl[ée]t[ée]e?s?))?\s+par",
+    re.I,
+)
+# Operative body starts after the enacting formula, not mid-Vu "l'article 42".
+DECIDE_START = re.compile(r"\bD[ée]cide\s*:", re.I)
+# Allow PDF line breaks between "Article" and "premier" / "1".
+ARTICLE_LINE_START = re.compile(
+    r"(?mi)^\s*Articles?(?:\s|\n)+(?:premier|premi[eè]re|unique|\d+)\b",
+)
+PRESENT_CIRCULAR_ACTOR = re.compile(
+    r"\bla\s+pr[ée]sente\s+circulaire\s+"
+    r"(?:annule\s+et\s+remplace|abroge(?:\s+et\s+remplace)?|remplace|modifie)",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -202,7 +221,6 @@ def merge_edge_lists(*groups: Iterable[SupersessionEdge]) -> list[SupersessionEd
 
 
 def _classify_action(snippet: str) -> str:
-    low = snippet.casefold()
     if re.search(r"remplac|substit|تعوض|يعوض|تستبدل", snippet, re.I):
         return "REPLACE"
     if re.search(r"abroge|abrog|تلغي|يلغى|تلغى|إلغاء|الغاء", snippet, re.I):
@@ -212,60 +230,123 @@ def _classify_action(snippet: str) -> str:
     return "ABROGATE"
 
 
+def _operative_body(text: str) -> tuple[str, int]:
+    """Return (operative text, offset). Prefer post-Décide; else line-start Article."""
+    raw = text or ""
+    decide = DECIDE_START.search(raw)
+    if decide:
+        return raw[decide.start() :], decide.start()
+    article = ARTICLE_LINE_START.search(raw)
+    if article:
+        return raw[article.start() :], article.start()
+    return raw, 0
+
+
+def _action_is_citation_history(text: str, action_start: int, action_end: int) -> bool:
+    """True for 'tel(le) que modifié(e) par …' — citation of prior amendments, not our act."""
+    window = text[max(0, action_start - 100) : min(len(text), action_end + 20)]
+    return bool(CITATION_AS_MODIFIED_BY.search(window))
+
+
+def _exact_quote_span(text: str, start: int, end: int, *, limit: int = 700) -> str | None:
+    """Contiguous evidence span from the page; must be recoverable from page text."""
+    raw = (text or "")[start:end]
+    quote = " ".join(raw.split())
+    if len(quote) < 40:
+        return None
+    quote = quote[:limit]
+    collapsed_page = " ".join((text or "").split())
+    if quote not in collapsed_page:
+        return None
+    return quote
+
+
+def _targets_acted_upon(snippet: str, source: str, *, action_verb: str) -> list[str]:
+    """Instruments the current circular acts on — not prior amenders in citation grammar."""
+    scrubbed = CITATION_AS_MODIFIED_BY.sub(" ", snippet)
+    present = PRESENT_CIRCULAR_ACTOR.search(scrubbed)
+    if present:
+        search_regions = [scrubbed[present.end() :]]
+    else:
+        rel = None
+        for cand in ACTION_RE.finditer(scrubbed):
+            if cand.group(0).casefold() == action_verb.casefold():
+                rel = cand
+        if rel is None:
+            rel = ACTION_RE.search(scrubbed)
+        search_regions = [scrubbed[: rel.start()], scrubbed] if rel else [scrubbed]
+    targets: list[str] = []
+    for region in search_regions:
+        for tgt in TARGET_CIR.finditer(region):
+            kind = "note" if "note" in tgt.group(0).casefold() else "cir"
+            instrument = _instrument(kind, int(tgt.group("y")), int(tgt.group("n")))
+            if instrument != source and instrument not in targets:
+                targets.append(instrument)
+        if targets:
+            return targets
+    return targets
+
+
+def _target_article(snippet: str, source: str) -> str | None:
+    for tgt in TARGET_CIR.finditer(snippet):
+        kind = "note" if "note" in tgt.group(0).casefold() else "cir"
+        instrument = _instrument(kind, int(tgt.group("y")), int(tgt.group("n")))
+        if instrument == source:
+            continue
+        window = snippet[max(0, tgt.start() - 40) : tgt.end() + 40]
+        near = ARTICLE.search(window)
+        if near:
+            return near.group("a")
+    before_cir = re.search(
+        r"(?:articles?|art\.?)\s*(?P<a>\d+)\s+de\s+la\s+circulaire",
+        snippet,
+        re.I,
+    )
+    return before_cir.group("a") if before_cir else None
+
+
 def extract_edges_from_page_text(
     *,
     filename: str,
     page_number: int,
     text: str,
 ) -> list[SupersessionEdge]:
-    """Deterministic SUPERSEDES edges from one page of amendment language."""
+    """Direction-aware SUPERSEDES edges from operative amendment language only.
+
+    Vu / preamble citations such as "circulaire 94-14 … telle que modifiée par …
+    notamment la circulaire 2025-13" are not edges from the citing PDF. Source is
+    always the ingesting instrument; targets are instruments it amends/replaces/
+    abrogates. Every edge carries an exact evidence span from the page text.
+    """
     source = instrument_from_filename(filename)
     if source is None:
         return []
-    body = (text or "").strip()
+    full = (text or "").strip()
+    if len(full) < 40 or not ACTION_RE.search(full):
+        return []
+    body, _body_offset = _operative_body(full)
     if len(body) < 40 or not ACTION_RE.search(body):
         return []
+
     edges: list[SupersessionEdge] = []
     for match in ACTION_RE.finditer(body):
-        start = max(0, match.start() - 100)
+        if _action_is_citation_history(body, match.start(), match.end()):
+            continue
+        start = max(0, match.start() - 220)
         end = min(len(body), match.end() + 280)
         snippet = " ".join(body[start:end].split())
         if len(snippet) < 40:
             continue
-        if VU_ONLY.search(snippet) and not re.search(
-            r"abroge|remplac|substit|تلغي|تعوض", snippet, re.I
-        ):
-            continue
-        targets: list[str] = []
-        for tgt in TARGET_CIR.finditer(snippet):
-            kind = "note" if "note" in tgt.group(0).casefold() else "cir"
-            instrument = _instrument(kind, int(tgt.group("y")), int(tgt.group("n")))
-            if instrument != source and instrument not in targets:
-                targets.append(instrument)
+        targets = _targets_acted_upon(snippet, source, action_verb=match.group(0))
         if not targets:
             continue
-        action = _classify_action(snippet)
-        # Prefer article attached to the target mention, not "Article N" of the amending PDF.
-        art = None
-        for tgt in TARGET_CIR.finditer(snippet):
-            kind = "note" if "note" in tgt.group(0).casefold() else "cir"
-            instrument = _instrument(kind, int(tgt.group("y")), int(tgt.group("n")))
-            if instrument == source:
-                continue
-            window = snippet[max(0, tgt.start() - 40) : tgt.end() + 40]
-            near = ARTICLE.search(window)
-            if near:
-                art = near.group("a")
-                break
-        if art is None:
-            # Fall back: article immediately before "de la circulaire"
-            before_cir = re.search(
-                r"(?:articles?|art\.?)\s*(?P<a>\d+)\s+de\s+la\s+circulaire",
-                snippet,
-                re.I,
-            )
-            if before_cir:
-                art = before_cir.group("a")
+        # Classify from the matched verb (+ short tail), not citation noise in lookbehind.
+        verb_tail = body[match.start() : min(len(body), match.end() + 40)]
+        action = _classify_action(verb_tail)
+        art = _target_article(snippet, source)
+        quote = _exact_quote_span(body, start, end)
+        if not quote:
+            continue
         for target in targets[:3]:
             edges.append(
                 SupersessionEdge(
@@ -275,7 +356,7 @@ def extract_edges_from_page_text(
                     action=action,
                     target_instrument=target,
                     target_article=art,
-                    quote=snippet[:700],
+                    quote=quote,
                 )
             )
     return merge_edge_lists(edges)
@@ -300,6 +381,73 @@ def extract_edges_from_pages(filename: str, pages: Iterable) -> list[Supersessio
             )
         )
     return merge_edge_lists(found)
+
+
+def _pdf_page_texts(pdf_path: Path) -> list[tuple[int, str]]:
+    """Best-effort page text for offline rebuild (PyMuPDF, else pypdf)."""
+    try:
+        import pymupdf
+    except ImportError:
+        pymupdf = None
+    if pymupdf is not None:
+        doc = pymupdf.open(pdf_path)
+        try:
+            return [
+                (i + 1, (doc.load_page(i).get_text("text") or ""))
+                for i in range(doc.page_count)
+            ]
+        finally:
+            doc.close()
+    from pypdf import PdfReader
+
+    reader = PdfReader(str(pdf_path))
+    out: list[tuple[int, str]] = []
+    for i, page in enumerate(reader.pages):
+        out.append((i + 1, page.extract_text() or ""))
+    return out
+
+
+def rebuild_supersession_edges_from_documents(
+    documents_dir: str | Path,
+    output_path: str | Path,
+) -> dict[str, int]:
+    """Scan a PDF corpus and write a fresh supersession_edges.jsonl.
+
+    Fail-closed: pages without explicit operative amendment language contribute
+    no edges. Clears the in-process pin cache so the next resolve/load sees the
+    new file.
+    """
+    root = Path(documents_dir)
+    output = Path(output_path)
+    if not root.is_dir():
+        raise FileNotFoundError(f"Documents directory not found: {root}")
+
+    class _Page:
+        def __init__(self, page_number: int, raw_text: str):
+            self.page_number = page_number
+            self.raw_text = raw_text
+            self.metadata = {}
+
+    edges: list[SupersessionEdge] = []
+    pdf_count = 0
+    for pdf in sorted(root.rglob("*.pdf")):
+        if instrument_from_filename(pdf.name) is None:
+            continue
+        pdf_count += 1
+        try:
+            pages = [_Page(n, text) for n, text in _pdf_page_texts(pdf)]
+        except Exception as error:
+            logger.warning("Supersession rebuild skipped %s: %s", pdf.name, error)
+            continue
+        edges.extend(extract_edges_from_pages(pdf.name, pages))
+    merged = merge_edge_lists(edges)
+    write_edges(output, merged)
+    clear_supersession_cache()
+    return {
+        "pdfs": pdf_count,
+        "edges": len(merged),
+        "output": str(output.resolve()),
+    }
 
 
 def load_prior_edges(active_before: Path, asset_root: Path | None = None) -> list[SupersessionEdge]:

@@ -223,6 +223,29 @@ def trusted_years(question, records):
     return years
 
 
+_SCENARIO_DATE = re.compile(
+    r"\b(\d{1,2})\s+"
+    r"(?:janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|"
+    r"septembre|octobre|novembre|décembre|decembre)\s+"
+    r"(\d{4})\b",
+    re.I,
+)
+
+
+def question_scenario_numbers(question: str) -> set[str]:
+    """Calendar/scenario numbers from the user question.
+
+    These frame the hypothetical (e.g. 'avant le 26 mars 2026') and may be
+    restated in a claim without appearing in the supporting quotation. Regulatory
+    quanta that are not in the question still require quote support.
+    """
+    found: set[str] = set()
+    for match in _SCENARIO_DATE.finditer(plain(question or "")):
+        found.add(str(int(match.group(1))))
+        found.add(match.group(2))
+    return found
+
+
 def _cited_instrument_year_numbers(records):
     """(year, number) pairs trusted from cited filenames and temporal_* ids."""
     pairs: list[tuple[int, int]] = []

@@ -173,6 +173,7 @@ def test_extract_edges_from_abrogation_page():
     assert edges[0].target_instrument == "cir:2018:7"
     assert edges[0].action == "REPLACE"
     assert edges[0].target_article == "2"
+    assert "abrogées et remplacées" in edges[0].quote
 
 
 def test_extract_amends_action():
@@ -187,6 +188,237 @@ def test_extract_amends_action():
     assert edges[0].action == "AMEND"
     assert edges[0].target_instrument == "cir:2016:8"
     assert edges[0].target_article == "5"
+
+
+def test_vu_citation_modifiee_par_never_creates_amends_edge():
+    """Cir_2026_04 p.1 cites 94-14 as modified by 2025-13 — not 2026-04 AMENDS 2025-13."""
+    text = (
+        "Vu la circulaire aux intermédiaires agréés n°94-14 du 14 septembre 1994, "
+        "relative au règlement financier des importations et des exportations de "
+        "marchandises, telle que modifiée par les textes subséquents et notamment la "
+        "circulaire n° 2025-13 du 27 octobre 2025, "
+        "Vu la correspondance du Ministère du Commerce."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2026_04_fr.pdf", page_number=1, text=text
+    )
+    assert edges == []
+
+
+def test_real_cir_2026_04_page1_vu_block_produces_no_supersession_edge():
+    """Regression on the live PDF recital that previously false-fired AMENDS."""
+    text = (
+        "Tunis, le 26 mars 2026\n"
+        "CIRCULAIRE AUX INTERMEDIAIRES AGREES N° 2026-4\n"
+        "Objet : Conditions de financement de l'importation de produits non prioritaires.\n"
+        "Le Gouverneur de la Banque Centrale de Tunisie,\n"
+        "Vu le code des changes et du commerce extérieur promulgué par la loi n°76-18 "
+        "du 21 janvier 1976, tel que modifié par les textes subséquents et notamment "
+        "le décret-loi n°2011-98 du 24 octobre 2011,\n"
+        "Vu la circulaire aux intermédiaires agréés n°94-14 du 14 septembre 1994, "
+        "relative au règlement financier des importations et des exportations de "
+        "marchandises, telle que modifiée par les textes subséquents et notamment la "
+        "circulaire n° 2025-13 du 27 octobre 2025,\n"
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2026_04_fr.pdf", page_number=1, text=text
+    )
+    assert edges == []
+    assert not any(
+        e.target_instrument == "cir:2025:13" and e.action in {"AMEND", "ABROGATE", "REPLACE"}
+        for e in edges
+    )
+
+
+def test_present_circular_annule_et_remplace_names_target():
+    text = (
+        "Décide :\n"
+        "Article 2- La présente circulaire annule et remplace toutes dispositions "
+        "antérieures contraires, notamment la circulaire aux établissements de crédit "
+        "n° 2007-18 du 5 juillet 2007 et entre en vigueur à partir de la date de sa "
+        "publication."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2024_14_fr.pdf", page_number=1, text=text
+    )
+    assert len(edges) == 1
+    assert edges[0].source_instrument == "cir:2024:14"
+    assert edges[0].target_instrument == "cir:2007:18"
+    assert edges[0].action == "REPLACE"
+    assert "annule et remplace" in edges[0].quote.casefold()
+
+
+def test_vu_preamble_ignored_when_operative_article_follows():
+    text = (
+        "Vu la circulaire n°2007-18 du 5 juillet 2007, telle que modifiée par les "
+        "textes subséquents et notamment la circulaire n°2014-04,\n"
+        "Décide :\n"
+        "Article premier : Les dispositions de l'article 2 de la circulaire n°2018-07 "
+        "du 14 octobre 2018 sont abrogées et remplacées comme suit."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2019_07_fr.pdf", page_number=2, text=text
+    )
+    assert edges
+    assert all(e.target_instrument == "cir:2018:7" for e in edges)
+    assert not any(e.target_instrument in {"cir:2007:18", "cir:2014:4"} for e in edges)
+
+
+def test_annex_est_modifiee_par_ajout_is_amend_not_citation():
+    text = (
+        "Article 7\n"
+        "L'annexe I à la circulaire n°2017-06 relative au reporting comptable, "
+        "prudentiel et statistique à la Banque Centrale de Tunisie est modifiée par "
+        "l'ajout de deux déclarations au domaine 4."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2023_05_fr.pdf", page_number=5, text=text
+    )
+    assert edges
+    assert edges[0].source_instrument == "cir:2023:5"
+    assert edges[0].target_instrument == "cir:2017:6"
+    assert edges[0].action == "AMEND"
+
+
+def test_article_premier_marker_without_decide():
+    text = (
+        "Article premier : Les dispositions de l'article 2 de la circulaire n°2018-07 "
+        "sont abrogées."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2019_07_fr.pdf", page_number=2, text=text
+    )
+    assert edges
+    assert edges[0].action == "ABROGATE"
+    assert edges[0].target_instrument == "cir:2018:7"
+
+
+def test_article_1_marker_without_decide():
+    text = (
+        "Article 1\n"
+        "Les dispositions de la circulaire n°2016-08 du 1er janvier 2016 sont abrogées."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2017_01_fr.pdf", page_number=1, text=text
+    )
+    assert edges
+    assert edges[0].target_instrument == "cir:2016:8"
+    assert edges[0].action == "ABROGATE"
+
+
+def test_est_remplacee_passive_operative():
+    text = (
+        "Article 3 : La circulaire n°2015-02 du 10 mars 2015 est remplacée par les "
+        "dispositions de la présente circulaire."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2020_01_fr.pdf", page_number=2, text=text
+    )
+    assert edges
+    assert edges[0].source_instrument == "cir:2020:1"
+    assert edges[0].target_instrument == "cir:2015:2"
+    assert edges[0].action == "REPLACE"
+
+
+def test_sont_abrogees_passive_operative():
+    text = (
+        "Décide :\n"
+        "Article 4 : Les dispositions de l'article 9 de la circulaire n°2011-05 "
+        "sont abrogées."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2018_03_fr.pdf", page_number=3, text=text
+    )
+    assert edges
+    assert edges[0].action == "ABROGATE"
+    assert edges[0].target_instrument == "cir:2011:5"
+    assert edges[0].target_article == "9"
+
+
+def test_pdf_line_break_between_article_and_premier():
+    """PDF extraction often splits 'Article' / 'premier' across lines."""
+    text = (
+        "Vu la circulaire n°2001-01 telle que modifiée par la circulaire n°2002-02,\n"
+        "Article\n"
+        "premier : Les dispositions de la circulaire n°2010-11 sont abrogées."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2012_01_fr.pdf", page_number=1, text=text
+    )
+    assert edges
+    assert all(e.target_instrument == "cir:2010:11" for e in edges)
+    assert not any(e.target_instrument in {"cir:2001:1", "cir:2002:2"} for e in edges)
+
+
+def test_pdf_line_breaks_inside_annule_et_remplace_clause():
+    text = (
+        "Décide :\n"
+        "Article 2-\n"
+        "La présente circulaire annule et\n"
+        "remplace toutes dispositions antérieures contraires, notamment la\n"
+        "circulaire aux banques n°\n"
+        "72-56 du 7 août 1972."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2025_12_fr.pdf", page_number=4, text=text
+    )
+    assert edges
+    assert edges[0].action == "REPLACE"
+    assert edges[0].target_instrument == "cir:1972:56"
+
+
+def test_no_operative_amendment_means_no_edge():
+    text = (
+        "Décide :\n"
+        "Article premier : Les intermédiaires agréés constituent des dépôts "
+        "couvrant la totalité de la valeur des importations envisagées."
+    )
+    edges = extract_edges_from_page_text(
+        filename="Cir_2026_04_fr.pdf", page_number=2, text=text
+    )
+    assert edges == []
+
+
+def test_rebuild_writes_edges_and_resolve_path_uses_them(tmp_path: Path):
+    from jsonl_supersession import (
+        rebuild_supersession_edges_from_documents,
+        resolve_edges_path,
+        load_edges,
+        clear_supersession_cache,
+    )
+
+    docs = tmp_path / "documents"
+    docs.mkdir()
+    # Minimal stand-in PDF is heavy; drive rebuild via monkeypatched page reader.
+    pdf = docs / "Cir_2024_14_fr.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+
+    text = (
+        "Décide :\n"
+        "Article 2- La présente circulaire annule et remplace toutes dispositions "
+        "antérieures contraires, notamment la circulaire n°2007-18 du 5 juillet 2007."
+    )
+
+    import jsonl_supersession as mod
+
+    original = mod._pdf_page_texts
+    mod._pdf_page_texts = lambda _path: [(1, text)]
+    try:
+        active = tmp_path / "versions" / "v1"
+        active.mkdir(parents=True)
+        out = active / "supersession_edges.jsonl"
+        report = rebuild_supersession_edges_from_documents(docs, out)
+        clear_supersession_cache()
+        assert report["edges"] >= 1
+        resolved = resolve_edges_path(active)
+        assert resolved == out
+        edges = load_edges(resolved)
+        assert any(
+            e.source_instrument == "cir:2024:14" and e.target_instrument == "cir:2007:18"
+            for e in edges
+        )
+    finally:
+        mod._pdf_page_texts = original
 
 
 def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):

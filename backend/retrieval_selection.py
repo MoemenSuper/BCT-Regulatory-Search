@@ -1,6 +1,7 @@
 """Document identity and page diversity shared by retrieval backends."""
 import re
 import unicodedata
+from pathlib import Path
 from typing import Any
 from langchain_core.documents import Document
 
@@ -309,3 +310,91 @@ def expand_ranked_pages(
         metadata = {**document.metadata, "expanded_from_chunk": document.metadata.get("chunk_id")}
         expanded.append((Document(page_content=text, metadata=metadata), score))
     return expanded
+
+
+def _page_document_from_index(
+    pages: dict,
+    source: str,
+    page_number: int,
+    *,
+    max_chars: int = 8000,
+    template: Document | None = None,
+) -> Document | None:
+    """Rebuild one physical page from the index (same source only)."""
+    key = (str(source).casefold(), int(page_number))
+    candidates = [chunks for (page_key, _repr), chunks in pages.items() if page_key == key]
+    if not candidates:
+        return None
+    chunks = candidates[0]
+    for group in candidates:
+        if group and group[0].metadata.get("representation") == "native":
+            chunks = group
+            break
+    if not chunks:
+        return None
+    text = chunks[0].page_content
+    for piece in chunks[1:]:
+        if len(text) + len(piece.page_content) > max_chars:
+            break
+        text = _join(text, piece.page_content)
+    meta = {**(template.metadata if template is not None else chunks[0].metadata)}
+    meta.update({
+        "source": Path(str(meta.get("source") or source)).name,
+        "page": page_number,
+        "pages": [page_number],
+        "page_label": page_number,
+        "adjacent_page_expand": True,
+    })
+    return Document(page_content=text, metadata=meta)
+
+
+def expand_adjacent_instrument_pages(
+    ranked: list[tuple[Document, float]],
+    pages: dict,
+    *,
+    max_extra_per_hit: int = 1,
+    max_total_extras: int = 3,
+    max_chars: int = 8000,
+) -> list[tuple[Document, float]]:
+    """Attach same-PDF neighbour pages (±1) when missing from the pack.
+
+    Structural continuation only (same instrument, adjacent physical page). Prefer
+    the forward page (article lists often continue). Does not fetch other PDFs.
+    """
+    if not ranked or not pages:
+        return list(ranked or [])
+    present = {_page_key(document) for document, _score in ranked}
+    extras: list[tuple[Document, float]] = []
+    for document, score in ranked:
+        if len(extras) >= max_total_extras:
+            break
+        source, page_number = _page_key(document)
+        if page_number < 1 or not source:
+            continue
+        added = 0
+        # Forward first: exceptions often follow the general rule on the next page.
+        for neighbor in (page_number + 1, page_number - 1):
+            if added >= max_extra_per_hit or len(extras) >= max_total_extras:
+                break
+            if neighbor < 1 or (source, neighbor) in present:
+                continue
+            neighbor_doc = _page_document_from_index(
+                pages, source, neighbor, max_chars=max_chars, template=document,
+            )
+            if neighbor_doc is None:
+                continue
+            extras.append((neighbor_doc, float(score) * 0.99))
+            present.add((source, neighbor))
+            added += 1
+    return list(ranked) + extras
+
+
+def expand_answer_pages(
+    ranked: list[tuple[Document, float]],
+    pages: dict,
+    *,
+    max_chars: int = 8000,
+) -> list[tuple[Document, float]]:
+    """Same-page chunk rebuild, then bounded same-instrument adjacent pages."""
+    expanded = expand_ranked_pages(ranked, pages, max_chars=max_chars)
+    return expand_adjacent_instrument_pages(expanded, pages, max_chars=max_chars)
