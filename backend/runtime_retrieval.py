@@ -22,6 +22,7 @@ from bm25 import create_bm25, retrieve_bm25
 from retrieval_selection import (
     diversify_ranked_pages,
     build_identity_reranker_documents,
+    expand_answer_pages,
     expand_ranked_pages,
     page_chunks,
     parse_query_identity,
@@ -175,8 +176,8 @@ class LocalRetrievalBackend:
         self._pages = page_chunks([*bm25_documents, *self.ocr_documents])
 
     def expand_pages(self, ranked):
-        """Full retrieved page text for the answer layer; ranking is untouched."""
-        return expand_ranked_pages(ranked, self._pages)
+        """Full retrieved page text, plus bounded same-PDF neighbour pages."""
+        return expand_answer_pages(ranked, self._pages)
 
     def retrieve(self, query):
         dense = retrieve_relevant_chunks(query, self.vector_store)
@@ -245,8 +246,8 @@ class VoyageRetrievalBackend:
         self._pages = page_chunks([*self.native_documents, *self.ocr_documents])
 
     def expand_pages(self, ranked):
-        """Full retrieved page text for the answer layer; ranking is untouched."""
-        return expand_ranked_pages(ranked, self._pages)
+        """Full retrieved page text, plus bounded same-PDF neighbour pages."""
+        return expand_answer_pages(ranked, self._pages)
 
     def retrieve(self, query):
         query_vector = np.asarray(self.client.embed_query(query), dtype=np.float32)

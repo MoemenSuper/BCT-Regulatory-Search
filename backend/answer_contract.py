@@ -19,7 +19,7 @@ from graph_contract import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, source_quote, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
-    claim_asserts_unverified_applicability,
+    claim_asserts_unverified_applicability, question_scenario_numbers,
 )
 
 logger = logging.getLogger(__name__)
@@ -468,11 +468,15 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     # supporting quote is only the answering sentence. Numbers absent from
     # the page, or not asked about, must be in the quote.
     echoed = numeric_literals(question) & set().union(*(numeric_literals(record["text"]) for record in cited))
+    # Scenario framing from the question (e.g. "26 mars 2026") may be restated
+    # without appearing in the quotation; the legal consequence still needs quotes.
+    scenario = question_scenario_numbers(question)
     claim_literals = strip_instrument_references(claim_literals, cited)
     claim_numbers = (
         numeric_literals(claim_literals)
         - trusted_years(question, cited)
         - echoed
+        - scenario
     )
     if claim_numbers - supported:
         raise ValueError("unsupported_claim_number")
@@ -519,14 +523,23 @@ def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_qu
     Actor presence is checked on the full page (tables often omit the topic word
     from the numeric quote). Alternate-regime detection uses the quotes only, so
     a same-page but wrong excerpt cannot launder a remapped claim.
+
+    Restating question-scenario framing words is allowed when the cited page
+    already shares substantive anchors with the question (on-topic evidence).
     """
     page_plain = _plain(" ".join(record["text"] for record in cited)).casefold()
     quote_plain = _plain(" ".join(supporting_quotes)).casefold()
     claim_plain = claim_literals.casefold()
     question_plain = _plain(question).casefold()
+    anchors = [anchor for anchor in _question_anchors(question) if len(anchor) >= 5]
+    # On-topic page: shared scenario anchors mean other question-only framing
+    # words in the claim are not evidence of regime remapping.
+    # ponytail: one shared token ≥5 chars; tighten if remapping false-negatives appear.
+    if any(_anchor_on_page(anchor, page_plain) for anchor in anchors):
+        return
     missing = []
-    for anchor in _question_anchors(question):
-        if len(anchor) < 5 or anchor not in claim_plain:
+    for anchor in anchors:
+        if anchor not in claim_plain:
             continue
         if not _anchor_on_page(anchor, page_plain):
             missing.append(anchor)

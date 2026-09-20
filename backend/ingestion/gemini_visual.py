@@ -15,6 +15,13 @@ from pydantic import BaseModel, Field
 PROMPT_VERSION = "bct-faithful-page-transcription-v2"
 DEFAULT_MODEL = "gemini-3.8-flash"
 FALLBACK_MODEL = "gemini-3.6-flash"
+# Tried in order on quota/timeout/transient failure. Extraction quality, not model bake-off.
+DEFAULT_MODEL_CHAIN = (
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+)
 
 
 class SensitiveLiteral(BaseModel):
@@ -79,6 +86,24 @@ def _quota_exhausted(error: BaseException) -> bool:
     return any(token in text for token in ("429", "RESOURCE_EXHAUSTED", "quota", "rate-limit", "too_many_requests"))
 
 
+def _key_unusable(error: BaseException) -> bool:
+    """Dead/revoked project keys should rotate just like quota, not abort the PDF."""
+    text = str(error).casefold()
+    return any(
+        token in text
+        for token in (
+            "permission_denied",
+            "permission denied",
+            "403",
+            "api key not valid",
+            "invalid api key",
+            "api_key_invalid",
+            "consumer_invalid",
+            "billing",
+        )
+    )
+
+
 def _transient_network(error: BaseException) -> bool:
     text = str(error).casefold()
     return any(
@@ -100,11 +125,20 @@ def _transient_network(error: BaseException) -> bool:
 
 
 def _model_chain(primary: str) -> list[str]:
-    """Primary model, then quota fallback (separate rate pool for bulk ingest)."""
-    fallback = (os.environ.get("BCT_GEMINI_FALLBACK_MODEL") or FALLBACK_MODEL).strip()
-    models = [primary]
-    if fallback and fallback.casefold() != primary.casefold():
-        models.append(fallback)
+    """Primary first, then further models when keys/quota/timeouts are exhausted."""
+    configured = (os.environ.get("BCT_GEMINI_MODEL_CHAIN") or "").strip()
+    if configured:
+        models = [part.strip() for part in configured.split(",") if part.strip()]
+    else:
+        fallback = (os.environ.get("BCT_GEMINI_FALLBACK_MODEL") or FALLBACK_MODEL).strip()
+        models = [primary]
+        for candidate in (fallback, *DEFAULT_MODEL_CHAIN):
+            if candidate and candidate.casefold() not in {item.casefold() for item in models}:
+                models.append(candidate)
+    if primary and primary.casefold() not in {item.casefold() for item in models}:
+        models.insert(0, primary)
+    elif primary and models and models[0].casefold() != primary.casefold():
+        models = [primary, *[item for item in models if item.casefold() != primary.casefold()]]
     return models
 
 
@@ -125,7 +159,8 @@ def gemini_json_from_image(
 
     Returns ``(output_text, response_id)``. Rotates through GEMINI_API_KEY[_N]
     when a key hits quota; after keys are exhausted on the primary model, retries
-    the same keys on the fallback model (default gemini-3.6-flash).
+    the same keys on further models (3.7 / 3.6 / 3.5 by default) so bulk repair can keep
+    moving across separate rate pools.
     """
     global _key_cursor
     injected = client is not None
@@ -201,7 +236,7 @@ def gemini_json_from_image(
                     last_error = error
                     if injected:
                         raise
-                    if _quota_exhausted(error) or _transient_network(error):
+                    if _quota_exhausted(error) or _key_unusable(error) or _transient_network(error):
                         if offset + 1 < len(keys):
                             continue
                         if sweep + 1 < sweeps:
@@ -240,7 +275,7 @@ def gemini_json_from_image(
 class GeminiVisualTranscriber:
     """Small current-SDK adapter around Gemini's Interactions API.
 
-    Defaults to Gemini 3.8 Flash; on quota/timeout falls back to 3.6 Flash so
+    Defaults to Gemini 3.8 Flash; on quota/timeout walks 3.7 → 3.6 → 3.5 Flash so
     bulk ingest can keep moving across separate rate pools.
     """
 
