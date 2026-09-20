@@ -1,8 +1,12 @@
 # One-command pilot: web app + API.
 #
 # 1. cp .env.example .env   and fill the required values
-# 2. docker compose up -d --build
-# 3. open http://localhost:8080
+# 2. Ensure ./documents exists (PDF corpus) before the first build
+# 3. docker compose up -d --build
+# 4. open http://localhost:8080
+#
+# PDFs are copied into the image at /data/documents. No host mount needed.
+# Optional override: set BCT_DOCUMENTS_HOST and uncomment the bind mount below.
 
 services:
   app:
@@ -23,7 +27,7 @@ services:
       BCT_DEFAULT_PROFILE: cloud
     volumes:
       - bct-assets:/data/assets
-      - ${BCT_DOCUMENTS_HOST:?Set BCT_DOCUMENTS_HOST in .env to your PDF folder}:/data/documents:ro
+      # - ${BCT_DOCUMENTS_HOST}:/data/documents:ro
       - bct-app-data:/data/state
 
 volumes:

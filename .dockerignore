@@ -9,6 +9,9 @@ backend/.env
 backend/.demo-data
 backend/.neo4j-data
 .env
+# Keep stray PDFs out of the build context, but allow the corpus baked into the image.
 *.pdf
+!documents/
+!documents/**/*.pdf
 docs
 output
