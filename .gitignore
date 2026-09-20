@@ -34,6 +34,10 @@ chroma_db/
 **/.neo4j-data/
 **/.neo4j-plugins/
 
+# Parallel / legacy trees (product lives at repo root)
+Final output/
+**/BCT-Regulatory-Search-FINAL/
+
 # Frontend install
 **/node_modules/
 frontend/dist/

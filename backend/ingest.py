@@ -1,4 +1,4 @@
-"""Ingest one BCT PDF into the active cloud/local/Graph-Lite runtime assets."""
+"""Ingest one BCT PDF into the active cloud/local runtime assets."""
 
 from __future__ import annotations
 
@@ -24,17 +24,12 @@ def main() -> int:
     parser.add_argument("--type")
     parser.add_argument("--category")
     parser.add_argument("--skip-local", action="store_true")
-    parser.add_argument("--skip-graph", action="store_true")
     args = parser.parse_args()
     load_dotenv(args.env_file, override=False)
 
     config = IngestionConfig.from_environment(asset_root=args.assets)
-    if args.skip_local or args.skip_graph:
-        config = replace(
-            config,
-            build_local=False if args.skip_local else config.build_local,
-            build_graph=False if args.skip_graph else config.build_graph,
-        )
+    if args.skip_local:
+        config = replace(config, build_local=False)
     metadata = {
         key: value
         for key, value in {
@@ -48,10 +43,10 @@ def main() -> int:
     }
     pipeline = IngestionPipeline(config)
     try:
-        report = pipeline.ingest(args.pdf, metadata=metadata)
+        report = pipeline.ingest(args.pdf, metadata=metadata or None)
     finally:
         pipeline.close()
-    print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 

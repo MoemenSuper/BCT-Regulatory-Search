@@ -12,7 +12,6 @@
   <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
   <img alt="React" src="https://img.shields.io/badge/React-UI-61DAFB?style=for-the-badge&logo=react&logoColor=0B1526" />
-  <img alt="Neo4j" src="https://img.shields.io/badge/Neo4j-Graph%20Lite-008CC1?style=for-the-badge&logo=neo4j&logoColor=white" />
 </p>
 
 ---
@@ -23,7 +22,7 @@ A research prototype for **Banque Centrale de Tunisie** circulars and notes.
 
 You type a question in French or Arabic. The stack retrieves passages from the PDF corpus, drafts an answer that may only cite retrieved evidence, then opens the real source page in the right panel with the quotation highlighted when the locator finds it.
 
-This package is the consolidated build: FastAPI runtime, Graph Lite, React UI, and incremental PDF ingestion.
+This package is the consolidated build: FastAPI runtime, React UI, incremental PDF ingestion, and JSONL supersession edges.
 
 > ⚠️ **Not legal advice.** Treat every answer as a research aid. Open the cited page and decide for yourself.
 
@@ -35,7 +34,7 @@ This package is the consolidated build: FastAPI runtime, Graph Lite, React UI, a
 | :--- | :--- |
 | <img src="docs/icon-search.svg" width="36" alt="" /> | **Grounded search** across `cloud`, `local_hybrid`, and `local` profiles |
 | <img src="docs/icon-evidence.svg" width="36" alt="" /> | **Evidence panel** with the real PDF, physical page, and quote highlight |
-| <img src="docs/icon-graph.svg" width="36" alt="" /> | **Graph Lite** Neo4j edges for `CITES`, `AMENDS`, `REPLACES`, `ABROGATES` |
+| <img src="docs/icon-graph.svg" width="36" alt="" /> | **JSONL supersession** pins successor pages via `supersession_edges.jsonl` |
 | <img src="docs/icon-ingest.svg" width="36" alt="" /> | **Incremental ingest** for a new PDF without rebuilding the whole corpus |
 
 - 💬 Conversation history in SQLite (reopen from the left sidebar)
@@ -47,23 +46,22 @@ This package is the consolidated build: FastAPI runtime, Graph Lite, React UI, a
 ##  Layout
 
 ```text
-backend/     FastAPI · RAG · Graph Lite · PDF viewer · ingestion
+backend/     FastAPI · RAG · JSONL supersession · PDF viewer · ingestion
 frontend/    React + TypeScript UI (Vite)
 docs/        README icons and crest
 ```
 
-This package does **not** ship API keys, BCT PDFs, vector assets, Neo4j data, Chroma data, or `node_modules`. You bring those.
+This package does **not** ship API keys, BCT PDFs, vector assets, Chroma data, or `node_modules`. You bring those.
 
 ---
 
 ##  Docker pilot (recommended for administrators)
 
-One command starts the **UI + API + Graph Lite (Neo4j)**.
+One command starts the **UI + API**.
 
 ### What Docker does for you
 - Installs dependencies
 - Builds the React UI into the API image
-- Starts Neo4j / Graph Lite
 - Serves the app at **http://localhost:8080**
 - Creates empty search assets so the app can boot before any PDF is ingested
 
@@ -84,7 +82,6 @@ Edit `.env` and set at least:
 | `BCT_DOCUMENTS_HOST` | Folder on your PC that contains the BCT PDF corpus |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` | First admin login email |
 | `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Strong password for that admin |
-| `BCT_NEO4J_PASSWORD` | Password for Graph Lite / Neo4j |
 | `GROQ_API_KEY` | Answer model |
 | `VOYAGE_API_KEY` | Cloud search / rerank |
 | `GEMINI_API_KEY` | Hard / Arabic page repair during ingest |
@@ -103,7 +100,6 @@ You do **not** need a pre-built “runtime assets” folder if you ingest the PD
 
 ### Optional later
 - Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.
-- Neo4j browser (debug): http://127.0.0.1:7474
 
 ---
 
@@ -135,48 +131,22 @@ BCT_BOOTSTRAP_ADMIN_PASSWORD=change-me-now
 
 | Key | Used for |
 | --- | --- |
-| `GROQ_API_KEY` | Answer model (+ Graph Lite extraction) |
+| `GROQ_API_KEY` | Answer model |
 | `VOYAGE_API_KEY` | Cloud retrieval / rerank |
 | `GEMINI_API_KEY` | Visual repair on hard / Arabic pages |
 | `BCT_DOCUMENTS_DIR` | Root of original public BCT PDFs |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` / `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Creates the first approved administrator on API startup |
 
----
-
-### 2️⃣ Graph Lite (optional, recommended) 🕸️
-
-```powershell
-$env:BCT_NEO4J_PASSWORD = "choose-a-password"
-docker compose -f docker-compose.graph.yml up -d
-```
-
-Add to `.env`:
-
-```text
-BCT_ENABLE_GRAPH=1
-BCT_INGEST_GRAPH=1
-BCT_NEO4J_PASSWORD=choose-a-password
-```
-
-Bootstrap once from existing runtime chunks:
-
-```powershell
-python graph_lite.py bootstrap-assets `
-  --native-chunks "C:\path\to\runtime-assets\native.jsonl" `
-  --catalog-dir "C:\path\to\your\BCT-PDF-corpus"
-```
-
-Trust rules live in [`backend/GRAPH_LITE.md`](backend/GRAPH_LITE.md).
+Ingest also merges amendment language into `supersession_edges.jsonl` inside the staged asset version (optional pin at retrieve time).
 
 ---
 
-### 3️⃣ Start the API 🔌
+### 2️⃣ Start the API 🔌
 
 ```powershell
 python run_api.py `
   --assets "C:\path\to\runtime-assets" `
-  --documents "C:\path\to\your\BCT-PDF-corpus" `
-  --enable-graph
+  --documents "C:\path\to\your\BCT-PDF-corpus"
 ```
 
 API default: `http://127.0.0.1:8000`
@@ -185,7 +155,7 @@ Authentication uses httpOnly session cookies. New registrations start as `role=u
 
 ---
 
-### 4️⃣ Start the UI 🖥️
+### 3️⃣ Start the UI 🖥️
 
 ```powershell
 cd ..\frontend
@@ -210,7 +180,7 @@ Flow:
 PDF → validate → PyMuPDF extract → StructuredDocument
    → Gemini on Arabic / bad visual pages
    → page-local chunks → Voyage + Chroma + BM25
-   → Graph Lite → activate new asset version
+   → merge supersession_edges.jsonl → activate new asset version
 ```
 
 - HTTP upload: the API reloads retrieval backends after success.
@@ -243,7 +213,7 @@ Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` / `BCT_GOOGLE_RUNTIME_CACHE`
 | 🚫 Path escape | Browser cannot request arbitrary local files |
 | 📎 Citations | Built from retrieval metadata, not free-form model filenames |
 | 🧪 Staging | New asset versions stage first; a failed activation keeps the old corpus |
-| ✅ Graph edges | Stored only after deterministic quote + instrument checks |
+| ✅ Supersession | `supersession_edges.jsonl` pins successor pages; does not prove “in force” |
 
 ---
 
@@ -262,7 +232,7 @@ Set `BCT_DEFAULT_PROFILE` before startup:
 ## 📎 More
 
 - Frontend details: [`frontend/README.md`](frontend/README.md)
-- Graph Lite policy: [`backend/GRAPH_LITE.md`](backend/GRAPH_LITE.md)
+- Domain wording: [`CONTEXT.md`](CONTEXT.md)
 - CI: GitHub Actions runs backend `pytest` and frontend lint/build on `main` and pull requests (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 Built as an internship / research prototype. Use it to find and inspect sources, not to replace expert review.

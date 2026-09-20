@@ -21,6 +21,21 @@ function isPdfFile(file: File) {
   return file.name.toLowerCase().endsWith('.pdf') && file.size > 0 && file.size <= 50 * 1024 * 1024;
 }
 
+type UploadEntryStatus = 'pending' | 'running' | 'imported' | 'duplicate' | 'failed';
+
+interface UploadEntry {
+  name: string;
+  status: UploadEntryStatus;
+  detail?: string;
+}
+
+interface UploadProgress {
+  total: number;
+  currentIndex: number;
+  currentName: string;
+  entries: UploadEntry[];
+}
+
 export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleChange }: AdminDashboardProps) {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [overview, setOverview] = useState<AdminOverview | null>(null);
@@ -35,6 +50,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const navigation = [
     { id: 'overview' as const, label: t(locale, 'admin.overview'), icon: Gauge },
     { id: 'users' as const, label: t(locale, 'admin.users'), icon: UsersRound },
@@ -185,10 +201,17 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
       setError(t(locale, 'admin.fileInvalid'));
       return;
     }
+    const initial: UploadProgress = {
+      total: selected.length,
+      currentIndex: 0,
+      currentName: selected[0]?.name || '',
+      entries: selected.map((file) => ({ name: file.name, status: 'pending' })),
+    };
     flushSync(() => {
       setBusy(true);
       setError(null);
       setMessage(null);
+      setUploadProgress(initial);
     });
     let ok = 0;
     let duplicates = 0;
@@ -196,15 +219,55 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     try {
       for (let index = 0; index < selected.length; index += 1) {
         const file = selected[index];
-        setMessage(t(locale, 'admin.uploadBatchProgress', { current: index + 1, total: selected.length }));
+        flushSync(() => {
+          setUploadProgress((prev) => {
+            if (!prev) return prev;
+            const entries = prev.entries.map((entry, i) => (
+              i === index ? { ...entry, status: 'running' as const, detail: undefined } : entry
+            ));
+            return {
+              ...prev,
+              currentIndex: index,
+              currentName: file.name,
+              entries,
+            };
+          });
+          setMessage(t(locale, 'admin.uploadBatchProgress', { current: index + 1, total: selected.length }));
+        });
         const form = new FormData();
         form.append('file', file);
         try {
           const report = await uploadDocument(form) as { duplicate?: boolean };
+          const status: UploadEntryStatus = report.duplicate ? 'duplicate' : 'imported';
           if (report.duplicate) duplicates += 1;
           else ok += 1;
+          flushSync(() => {
+            setUploadProgress((prev) => {
+              if (!prev) return prev;
+              const entries = prev.entries.map((entry, i) => (
+                i === index
+                  ? {
+                      ...entry,
+                      status,
+                      detail: report.duplicate ? t(locale, 'admin.duplicate') : undefined,
+                    }
+                  : entry
+              ));
+              return { ...prev, entries };
+            });
+          });
         } catch (err) {
-          failures.push(`${file.name}: ${err instanceof Error && err.message ? err.message : t(locale, 'admin.uploadFailed')}`);
+          const detail = err instanceof Error && err.message ? err.message : t(locale, 'admin.uploadFailed');
+          failures.push(`${file.name}: ${detail}`);
+          flushSync(() => {
+            setUploadProgress((prev) => {
+              if (!prev) return prev;
+              const entries = prev.entries.map((entry, i) => (
+                i === index ? { ...entry, status: 'failed' as const, detail } : entry
+              ));
+              return { ...prev, entries };
+            });
+          });
         }
       }
       setFiles([]);
@@ -225,6 +288,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
       }
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
   }
 
@@ -269,6 +333,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             locale={locale}
             files={files}
             fileKey={fileKey}
+            uploadProgress={uploadProgress}
             onUpload={(event) => void handleUpload(event)}
             onFilesChange={(next) => { setFiles(next); setError(null); }}
           />
@@ -292,8 +357,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
 
 function OverviewPage({ overview, loading, locale, onNavigate }: { overview: AdminOverview | null; loading: boolean; locale: UiLocale; onNavigate: (tab: AdminTab) => void }) {
   if (loading || !overview) return <><section className="admin-hero"><div className="admin-hero-copy"><p>{t(locale, 'admin.operations')}</p><h2>{t(locale, 'admin.heroTitle')}</h2></div><img src="/bct-building.jpg" alt="" /></section><OverviewSkeleton label={t(locale, 'admin.loading')} /></>;
-  const cards = [{ label: t(locale, 'admin.approvedUsers'), value: overview.users_approved, detail: t(locale, 'admin.pendingReview', { count: overview.users_pending }), icon: UsersRound, color: 'blue' }, { label: t(locale, 'admin.indexedPdfs'), value: overview.documents_ready, detail: t(locale, 'admin.availableCorpus'), icon: Database, color: 'red' }, { label: t(locale, 'admin.runtimeProfile'), value: overview.active_profile, detail: t(locale, 'admin.activeRetrieval'), icon: Activity, color: 'navy' }, { label: t(locale, 'admin.graphLite'), value: overview.graph.graph_ready ? t(locale, 'admin.ready') : t(locale, 'admin.unavailable'), detail: overview.graph.graph_enabled ? t(locale, 'admin.graphEnabled') : t(locale, 'admin.graphDisabled'), icon: Network, color: overview.graph.graph_ready ? 'green' : 'gray' }];
-  const focus = [{ title: t(locale, 'admin.accessReview'), detail: overview.users_pending ? t(locale, 'admin.pendingRequests', { count: overview.users_pending }) : t(locale, 'admin.noPendingRequests'), action: t(locale, 'admin.reviewUsers'), tab: 'users' as const, icon: UsersRound }, { title: t(locale, 'admin.refusals'), detail: overview.answer_refusals_total ? t(locale, 'admin.refusalsHelp', { count: overview.answer_refusals_total }) : t(locale, 'admin.refusalsEmpty'), action: t(locale, 'admin.reviewRefusals'), tab: 'refusals' as const, icon: CircleAlert }, { title: t(locale, 'admin.corpusReadiness'), detail: overview.documents_ready ? t(locale, 'admin.activePdfCount', { count: overview.documents_ready }) : t(locale, 'admin.noActivePdfs'), action: t(locale, 'admin.inspectDocuments'), tab: 'documents' as const, icon: Database }, { title: t(locale, 'admin.relationshipIndex'), detail: overview.graph.graph_ready ? t(locale, 'admin.graphReady') : overview.graph.graph_enabled ? t(locale, 'admin.graphNotReady') : t(locale, 'admin.graphOff'), action: t(locale, 'admin.openConfiguration'), tab: 'configuration' as const, icon: Network }];
+  const cards = [{ label: t(locale, 'admin.approvedUsers'), value: overview.users_approved, detail: t(locale, 'admin.pendingReview', { count: overview.users_pending }), icon: UsersRound, color: 'blue' }, { label: t(locale, 'admin.indexedPdfs'), value: overview.documents_ready, detail: t(locale, 'admin.availableCorpus'), icon: Database, color: 'red' }, { label: t(locale, 'admin.runtimeProfile'), value: overview.active_profile, detail: t(locale, 'admin.activeRetrieval'), icon: Activity, color: 'navy' }, { label: t(locale, 'admin.supersession'), value: overview.supersession.ready ? t(locale, 'admin.ready') : t(locale, 'admin.unavailable'), detail: t(locale, 'admin.supersessionEdges', { count: overview.supersession.edge_count }), icon: Network, color: overview.supersession.ready ? 'green' : 'gray' }];
+  const focus = [{ title: t(locale, 'admin.accessReview'), detail: overview.users_pending ? t(locale, 'admin.pendingRequests', { count: overview.users_pending }) : t(locale, 'admin.noPendingRequests'), action: t(locale, 'admin.reviewUsers'), tab: 'users' as const, icon: UsersRound }, { title: t(locale, 'admin.refusals'), detail: overview.answer_refusals_total ? t(locale, 'admin.refusalsHelp', { count: overview.answer_refusals_total }) : t(locale, 'admin.refusalsEmpty'), action: t(locale, 'admin.reviewRefusals'), tab: 'refusals' as const, icon: CircleAlert }, { title: t(locale, 'admin.corpusReadiness'), detail: overview.documents_ready ? t(locale, 'admin.activePdfCount', { count: overview.documents_ready }) : t(locale, 'admin.noActivePdfs'), action: t(locale, 'admin.inspectDocuments'), tab: 'documents' as const, icon: Database }, { title: t(locale, 'admin.supersessionIndex'), detail: overview.supersession.ready ? t(locale, 'admin.supersessionReady', { count: overview.supersession.edge_count }) : t(locale, 'admin.supersessionEmpty'), action: t(locale, 'admin.openConfiguration'), tab: 'configuration' as const, icon: Network }];
   return <><section className="admin-hero" aria-labelledby="overview-heading"><div className="admin-hero-copy"><p>{t(locale, 'admin.operations')}</p><h2 id="overview-heading">{t(locale, 'admin.heroTitle')}</h2><span>{t(locale, 'admin.heroText')}</span></div><img src="/bct-building.jpg" alt={t(locale, 'auth.eyebrow')} /></section><section className="admin-overview-grid">{cards.map(({ label, value, detail, icon: Icon, color }) => <article className={`admin-stat-card ${color}`} key={label}><div className="admin-stat-icon"><Icon aria-hidden="true" size={21} /></div><p>{label}</p><strong>{value}</strong><span>{detail}</span></article>)}</section><section className="admin-overview-lower"><article className="admin-focus-panel"><div className="admin-panel-heading"><div><p>{t(locale, 'admin.operationalFocus')}</p><h2>{t(locale, 'admin.needsAttention')}</h2></div><CircleAlert aria-hidden="true" size={21} /></div><div className="admin-focus-list">{focus.map(({ title, detail, action, tab, icon: Icon }) => <div className="admin-focus-item" key={title}><span className="admin-focus-icon"><Icon aria-hidden="true" size={18} /></span><div><strong>{title}</strong><p>{detail}</p></div><button type="button" onClick={() => onNavigate(tab)}>{action}<ArrowUpRight aria-hidden="true" size={16} /></button></div>)}</div></article><aside className="admin-grounding-panel"><div className="admin-grounding-mark"><ShieldCheck aria-hidden="true" size={22} /></div><p>{t(locale, 'admin.safeguards')}</p><h2>{t(locale, 'admin.safeguardTitle')}</h2><span>{t(locale, 'admin.safeguardText')}</span></aside></section></>;
 }
 
@@ -625,8 +690,16 @@ function UsersPage({ users, currentUser, busy, loading, locale, onApprove, onPro
 }
 
 
+function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
+  if (status === 'imported') return t(locale, 'admin.uploadEntryImported');
+  if (status === 'duplicate') return t(locale, 'admin.uploadEntryDuplicate');
+  if (status === 'failed') return t(locale, 'admin.uploadEntryFailed');
+  if (status === 'running') return t(locale, 'admin.uploadEntryRunning');
+  return t(locale, 'admin.uploadEntryPending');
+}
+
 function DocumentsPage({
-  documents, loading, busy, locale, files, fileKey, onUpload, onFilesChange,
+  documents, loading, busy, locale, files, fileKey, uploadProgress, onUpload, onFilesChange,
 }: {
   documents: unknown[];
   loading: boolean;
@@ -634,20 +707,67 @@ function DocumentsPage({
   locale: UiLocale;
   files: File[];
   fileKey: number;
+  uploadProgress: UploadProgress | null;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  useEffect(() => {
+    if (!uploadProgress) setDetailsOpen(false);
+  }, [uploadProgress]);
   const label = files.length
     ? (files.length === 1 ? files[0].name : t(locale, 'admin.filesSelected', { count: files.length }))
     : t(locale, 'admin.choosePdf');
+  const entries = uploadProgress?.entries || [];
+  const total = uploadProgress?.total || 0;
+  const imported = entries.filter((entry) => entry.status === 'imported').length;
+  const duplicates = entries.filter((entry) => entry.status === 'duplicate').length;
+  const failed = entries.filter((entry) => entry.status === 'failed').length;
+  const success = imported + duplicates;
+  const fillPct = total > 0 ? Math.min(100, (success / total) * 100) : 0;
   return (
     <>
-      {busy ? (
-        <div className="admin-upload-overlay" role="status" aria-live="assertive">
+      {busy && uploadProgress ? (
+        <div className="admin-upload-overlay" role="status" aria-live="assertive" aria-busy="true">
           <div className="admin-upload-overlay-card">
             <p className="admin-upload-overlay-kicker">{t(locale, 'admin.uploading')}</p>
-            <h2>{t(locale, 'admin.uploadProgress')}</h2>
-            <div className="admin-upload-progress-track" aria-hidden="true"><span /></div>
+            <h2>{t(locale, 'admin.uploadProgressCount', { done: success, total })}</h2>
+            {uploadProgress.currentName ? (
+              <p className="admin-upload-overlay-file">{uploadProgress.currentName}</p>
+            ) : null}
+            <p className="admin-upload-overlay-help">{t(locale, 'admin.uploadProgress')}</p>
+            <div
+              className="admin-upload-progress-track is-determinate"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={total}
+              aria-valuenow={success}
+              aria-label={t(locale, 'admin.uploadProgressCount', { done: success, total })}
+            >
+              <span style={{ width: `${fillPct}%` }} />
+            </div>
+            <p className="admin-upload-overlay-stats">
+              {t(locale, 'admin.uploadStats', { imported, duplicates, failed })}
+            </p>
+            <button
+              type="button"
+              className="admin-upload-details-toggle"
+              aria-expanded={detailsOpen}
+              onClick={() => setDetailsOpen((open) => !open)}
+            >
+              {detailsOpen ? t(locale, 'admin.uploadHideDetails') : t(locale, 'admin.uploadViewDetails')}
+            </button>
+            {detailsOpen ? (
+              <ul className="admin-upload-details-list">
+                {entries.map((entry, index) => (
+                  <li key={`${entry.name}-${index}`} className={`is-${entry.status}`}>
+                    <strong>{entry.name}</strong>
+                    <span>{uploadEntryLabel(locale, entry.status)}</span>
+                    {entry.detail ? <em>{entry.detail}</em> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         </div>
       ) : null}

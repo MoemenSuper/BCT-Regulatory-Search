@@ -19,6 +19,7 @@ from graph_contract import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, source_quote, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
+    claim_asserts_unverified_applicability,
 )
 
 logger = logging.getLogger(__name__)
@@ -411,8 +412,8 @@ def evidence_records(scored_documents):
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
-        # Graph Lite already verified the edge quote; surface it so the draft can
-        # say "X remplace Y" without inventing a relationship from rank alone.
+        # Surface verified SUPERSEDES metadata so the draft can say "X remplace Y"
+        # without inventing a relationship from rank alone.
         if relation in {"REPLACES", "ABROGATES", "AMENDS"} and newer and older:
             record["relationship_note"] = (
                 f"{newer} {relation} {older}; verified relationship only — "
@@ -432,10 +433,7 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     """Validate one claim. Raises ValueError/KeyError on literal or identity failure."""
     if not claim.text.strip():
         raise ValueError("Empty claim")
-    if temporal_unverified and re.search(
-        r"\b(?:actuel(?:le(?:ment)?)?s?|currently|current|today|now|en\s+vigueur|in\s+force)\b|"
-        r"(?:ساري|سارية|الساري|النافذ|الحالي|حالي)", claim.text, re.I,
-    ):
+    if temporal_unverified and claim_asserts_unverified_applicability(claim.text):
         raise ValueError("unverified_applicability_claim_use_document_scoped_wording")
     numbers = []
     supporting_text = []
@@ -471,7 +469,11 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     # the page, or not asked about, must be in the quote.
     echoed = numeric_literals(question) & set().union(*(numeric_literals(record["text"]) for record in cited))
     claim_literals = strip_instrument_references(claim_literals, cited)
-    claim_numbers = numeric_literals(claim_literals) - trusted_years(question, cited) - echoed
+    claim_numbers = (
+        numeric_literals(claim_literals)
+        - trusted_years(question, cited)
+        - echoed
+    )
     if claim_numbers - supported:
         raise ValueError("unsupported_claim_number")
     # A garbled header (reversed or impossible digits) means this page's
@@ -637,22 +639,46 @@ _PARTIAL_LIMITS = {
 }
 
 _GRAPH_SUPERSEDE = re.compile(
-    r"(cir|note):(\d{4}):(\d+)\s+(REPLACES|ABROGATES)\s+(cir|note):(\d{4}):(\d+)",
+    r"(cir|note):(\d{4}):(\d+)\s+(REPLACES|ABROGATES|AMENDS)\s+(cir|note):(\d{4}):(\d+)",
     re.I,
 )
+_INSTRUMENT_ID = re.compile(r"^(cir|note):(\d{4}):(\d+)$", re.I)
+
+
+def _instrument_id_key(instrument_id: str):
+    match = _INSTRUMENT_ID.match((instrument_id or "").strip())
+    if not match:
+        return None
+    return (match.group(1).casefold(), int(match.group(2)), int(match.group(3)))
 
 
 def _graph_supersession_pairs(evidence):
-    """List (successor_key, relation, older_key) from Graph Lite relationship_note fields."""
+    """List (successor_key, relation, older_key) from relationship_note and temporal_*."""
     pairs = []
+    seen: set[tuple] = set()
     for record in evidence or []:
         note = str(record.get("relationship_note") or "")
         match = _GRAPH_SUPERSEDE.search(note)
-        if not match:
+        if match:
+            newer = (match.group(1).casefold(), int(match.group(2)), int(match.group(3)))
+            older = (match.group(5).casefold(), int(match.group(6)), int(match.group(7)))
+            relation = match.group(4).upper()
+            key = (newer, relation, older)
+            if key not in seen:
+                seen.add(key)
+                pairs.append((newer, relation, older))
+        relation = str(record.get("temporal_relation") or "").upper()
+        if relation not in {"REPLACES", "ABROGATES", "AMENDS"}:
             continue
-        newer = (match.group(1).casefold(), int(match.group(2)), int(match.group(3)))
-        older = (match.group(5).casefold(), int(match.group(6)), int(match.group(7)))
-        pairs.append((newer, match.group(4).upper(), older))
+        newer = _instrument_id_key(str(record.get("temporal_source_id") or ""))
+        older = _instrument_id_key(str(record.get("temporal_target_id") or ""))
+        if not newer or not older:
+            continue
+        key = (newer, relation, older)
+        if key in seen:
+            continue
+        seen.add(key)
+        pairs.append((newer, relation, older))
     return pairs
 
 
@@ -666,7 +692,8 @@ def _instrument_key(source):
 def _annotate_graph_supersession(evidence):
     """Keep superseded pages, but mark/reorder so the writer states the edge and prefers the successor.
 
-    Graph Lite assumed on: relationship_note carries verified REPLACES/ABROGATES.
+    Covers relationship_note and JSONL-pinned temporal_relation metadata
+    (REPLACES / ABROGATES / AMENDS).
     """
     records = [dict(record) for record in (evidence or [])]
     pairs = _graph_supersession_pairs(records)
@@ -689,25 +716,34 @@ def _annotate_graph_supersession(evidence):
         if key in older_to_edge:
             newer, relation = older_to_edge[key]
             record["graph_role"] = "superseded"
-            record["graph_guidance"] = (
-                f"SUPERSEDED: {_label(newer)} {relation} {_label(key)}. "
-                "Do not treat this page as the governing rule for conflicting facts. "
-                "You may cite it only to say it was replaced/abrogated, then give the "
-                "successor's rule."
-            )
+            if relation == "AMENDS":
+                record["graph_guidance"] = (
+                    f"SUPERSEDED (amended): {_label(newer)} AMENDS {_label(key)}. "
+                    "For facts the amendment changes, do not treat this page as the "
+                    "governing rule. State that it was amended, then give the "
+                    "successor's rule from the amending circular."
+                )
+            else:
+                record["graph_guidance"] = (
+                    f"SUPERSEDED: {_label(newer)} {relation} {_label(key)}. "
+                    "Do not treat this page as the governing rule for conflicting facts. "
+                    "You may cite it only to say it was replaced/abrogated, then give the "
+                    "successor's rule."
+                )
         elif key in newer_keys:
             record["graph_role"] = "successor"
             if not record.get("graph_guidance"):
                 record["graph_guidance"] = (
-                    "SUCCESSOR instrument for a Graph Lite REPLACES/ABROGATES edge: "
-                    "prefer its values for conflicted facts and state the relationship."
+                    "SUCCESSOR instrument for a REPLACES/ABROGATES/AMENDS edge: "
+                    "state who replaces/amends whom, then prefer this instrument's "
+                    "values as the rule to follow for the asked fact."
                 )
 
     def _rank(record):
         role = record.get("graph_role")
         if role == "successor":
             return 0
-        if record.get("relationship_note"):
+        if record.get("relationship_note") or record.get("temporal_relation"):
             return 1
         if role == "superseded":
             return 3
@@ -793,22 +829,26 @@ For a direct named-instrument question, use that instrument only; similar versio
 context, not substitutes. For historical, campaign and banknote-type questions match
 the requested period/type, not automatically the document year. For comparisons or
 amendments, select both sides only when their actual relationship/scope is supported.
-When evidence carries relationship_note (REPLACES / ABROGATES / AMENDS), include that
-graph evidence AND both related instruments when useful: the successor's substance for
-what applies, plus enough of the predecessor to state what was replaced/abrogated.
-Evidence marked graph_role=superseded or graph_guidance SUPERSEDED must not supply the
-governing value for a conflicted fact; still select it when needed to narrate the
-replacement. Prefer graph_role=successor for the operative rule.
+When evidence carries relationship_note / temporal_relation / graph_guidance
+(REPLACES / ABROGATES / AMENDS) — including ordinary topical questions that never
+name a circular — include that edge evidence AND both related instruments when useful:
+state that the older rule was replaced/abrogated/amended by the successor, then select
+the successor's substance for what applies. Evidence marked graph_role=superseded or
+graph_guidance SUPERSEDED must not supply the governing value for a conflicted fact;
+still select it when needed to narrate the replacement. Prefer graph_role=successor
+for the operative rule. A relationship_note / graph_guidance edge ALWAYS overrides
+"prefer newest by year" and "no currentness wording in the question" heuristics.
 Rank is not authority. A recital, citation, or isolated amended article does not prove
 current applicability or that every other provision is unchanged.
 
 Compare candidates for conflicting values for the SAME fact and scope. Never merge
 conflicting numbers, hours, rates, delays or conditions from different instruments into
-one claim — state the Graph relationship (or scoped alternatives), then give the
-successor's value as the rule to follow when relationship_note / graph_guidance says
-REPLACES or ABROGATES. A question is a
+one claim — state the Graph/JSONL relationship (or scoped alternatives), then give the
+successor's value as the rule to follow when relationship_note / graph_guidance /
+temporal_relation says REPLACES, ABROGATES, or AMENDS. A question is a
 current/latest request ONLY if it says so (actuel, en vigueur, aujourd'hui, dernier,
-current, latest, in force, الحالي, الساري, آخر, حاليا). Present or past tense alone is
+current, latest, in force, الحالي, الساري, آخر, حاليا) OR when a relationship_note /
+graph_guidance edge identifies a successor for the asked fact. Present or past tense alone is
 not such a request: then do NOT prefer the newest instrument solely by year. When the
 question names no instrument, year or period and several instruments give different
 values for the same fact with no relationship_note between them, select the
@@ -883,6 +923,147 @@ _TEMPORAL_LIMITS = {
 }
 
 
+def _pretty_instrument_id(instrument_id: str) -> str:
+    match = re.match(r"(cir|note):(\d{4}):(\d+)$", (instrument_id or "").strip(), re.I)
+    if not match:
+        return (instrument_id or "").strip()
+    kind = "circulaire" if match.group(1).casefold() == "cir" else "note"
+    number = int(match.group(3))
+    label = f"{match.group(2)}-{number:02d}" if number < 10 else f"{match.group(2)}-{number}"
+    return f"{kind} {label}"
+
+
+def try_supersession_partial_answer(question, evidence, *, diagnostics=None):
+    """Quote-gated partial from pinned SUPERSEDES evidence — no LLM draft required.
+
+    Used when the model ladder fails but a declaring page with temporal_relation
+    metadata is already in evidence. Still runs through parse_answer gates.
+    When a successor substance page is also in evidence, add a second claim so the
+    user hears both the replacement and what the amending circular says.
+    """
+    history = diagnostics if diagnostics is not None else []
+    action_words = {
+        "ABROGATES": "abroge",
+        "REPLACES": "remplace",
+        "AMENDS": "modifie",
+    }
+    abr_re = re.compile(
+        r"(?:abroge\s+et\s+remplace|annule\s+et\s+substitue|"
+        r"abrogées?|abroge|remplacées?|remplace|modifiées?|modifie|"
+        r"تلغي|تعوض|يلغى|يعوض)",
+        re.I,
+    )
+    for record in evidence:
+        relation = str(record.get("temporal_relation") or "")
+        if relation not in action_words or record.get("unusable_reason"):
+            continue
+        text = str(record.get("text") or "")
+        quote = None
+        for match in re.finditer(
+            r".{0,60}" + abr_re.pattern + r".{0,120}",
+            text,
+            re.I | re.S,
+        ):
+            candidate = " ".join(match.group(0).split())
+            if len(candidate) < 40:
+                continue
+            try:
+                quote = source_quote(candidate[:240], text)
+            except ValueError:
+                continue
+            if quote:
+                break
+        if not quote:
+            head = " ".join(text.split()[:45])
+            if len(head) >= 40:
+                try:
+                    quote = source_quote(head[:240], text)
+                except ValueError:
+                    quote = None
+        if not quote:
+            history.append("supersession_partial:quote_not_found")
+            continue
+        source_label = _pretty_instrument_id(str(record.get("temporal_source_id") or ""))
+        target_label = _pretty_instrument_id(str(record.get("temporal_target_id") or ""))
+        if not source_label:
+            source_label = "la circulaire modificative"
+        if not target_label:
+            target_label = "la circulaire antérieure"
+        claims = [
+            {
+                "text": (
+                    f"Selon le passage cité, {source_label} {action_words[relation]} "
+                    f"des dispositions de {target_label}; cette disposition n'est plus "
+                    f"en vigueur telle qu'antérieurement applicable."
+                ),
+                "quotes": [{"evidence_id": record["evidence_id"], "quote": quote}],
+            }
+        ]
+        # Prefer a substance page from the successor (not the declaring edge alone).
+        successor_id = str(record.get("temporal_source_id") or "").strip()
+        for other in evidence:
+            if other.get("evidence_id") == record["evidence_id"]:
+                continue
+            if other.get("unusable_reason"):
+                continue
+            other_key = _instrument_key(other.get("source", ""))
+            succ_key = _instrument_id_key(successor_id)
+            if not other_key or not succ_key or other_key != succ_key:
+                continue
+            other_text = str(other.get("text") or "")
+            if abr_re.search(other_text) and len(other_text) < 280:
+                continue
+            snippet = " ".join(other_text.split()[:40])
+            if len(snippet) < 40:
+                continue
+            try:
+                substance_quote = source_quote(snippet[:240], other_text)
+            except ValueError:
+                continue
+            claims.append(
+                {
+                    "text": (
+                        f"Selon {source_label}, qui porte la règle modificative, "
+                        f"le passage cité énonce la disposition applicable."
+                    ),
+                    "quotes": [
+                        {
+                            "evidence_id": other["evidence_id"],
+                            "quote": substance_quote,
+                        }
+                    ],
+                }
+            )
+            break
+        draft = {
+            "status": "partial_answer",
+            "message": "",
+            "claims": claims,
+        }
+        local: list[str] = []
+        parsed = parse_answer(
+            json.dumps(draft, ensure_ascii=False),
+            question,
+            evidence,
+            temporal_unverified=True,
+            diagnostics=local,
+        )
+        if local or parsed.get("status") not in {"answered", "partial_answer"}:
+            history.append(
+                "supersession_partial:" + ("|".join(local) or str(parsed.get("status")))
+            )
+            continue
+        parsed = dict(parsed)
+        parsed["status"] = "partial_answer"
+        limit = _PARTIAL_LIMITS[language_of(question)]
+        if limit not in parsed["answer"]:
+            parsed["answer"] += "\n\n" + limit
+        history.append("supersession_partial:accepted")
+        parsed["diagnostics"] = list(history)
+        return parsed
+    return None
+
+
 def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None):
     evidence = evidence_records(scored_documents)
     fallback = search_response(question, evidence)
@@ -896,7 +1077,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         return {**fallback, "diagnostics": [f"named_instrument_absent:{label}"]}
     if target:
         evidence = [r for r in evidence if identity_matches(r["source"], target)]
-    # Graph Lite: keep superseded pages but mark/reorder so the writer can say
+    # Keep superseded pages but mark/reorder so the writer can say
     # "X abrogates Y" and still pick the successor as the governing rule.
     evidence = _annotate_graph_supersession(evidence)
     candidate_evidence = evidence
@@ -988,15 +1169,20 @@ If the question lacks a distinguishing period/instrument and same-scope passages
 conflict, answer from the selected evidence only and name its instrument in the claim
 (for example 'Selon la circulaire 2016-01, ...'), so the reader sees the scope.
 Never merge conflicting hours, rates, delays or conditions from different instruments into
-one sentence. When relationship_note or graph_guidance shows REPLACES/ABROGATES, you MUST
-state that relationship in a claim (who replaces/abrogates whom), then give the
-successor's rule as the one to follow for that fact. You may quote the superseded page
-only to describe what was replaced — not as the governing value. Prefer evidence marked
-graph_role=successor for operative facts.
+one sentence. When relationship_note, graph_guidance, or temporal_relation shows
+REPLACES / ABROGATES / AMENDS — even on ordinary topical questions that never ask
+"is it still in force?" — you MUST (1) state that relationship in a claim (who
+replaces/abrogates/amends whom), then (2) give the successor's rule as the one to
+follow for that fact, quoting the successor. You may quote the superseded page only
+to describe what was replaced — not as the governing value. Prefer evidence marked
+graph_role=successor for operative facts. A relationship edge ALWAYS overrides
+"do not prefer newest by year" when the asked fact is conflicted.
 When the question names a year, prefer claims from instruments of that year; do not
 abstain merely because an older different facility also appears in the evidence.
-A question is a current/latest request only when it says so (actuel, en vigueur,
-dernier, current, latest, الحالي, آخر); otherwise do not prefer the newest instrument.
+A question is a current/latest request when it says so (actuel, en vigueur,
+dernier, current, latest, الحالي, آخر) OR when relationship_note / graph_guidance /
+temporal_relation identifies a successor for the asked fact; otherwise do not prefer
+the newest instrument solely by year.
 Do not combine numbers across instruments.
 
 Use concise, complete atomic claims with supporting evidence IDs and literal quotes.
@@ -1025,15 +1211,20 @@ A recital is not proof of applicability. Distinguish a document's header/notific
 publication date, a banknote's printed issue date and a rule's effective date.
 Treat 'nouveau' as replacement wording, not proof the article never existed.
 A change to one provision does not establish current validity of all other provisions.
-Graph CITES proves only a citation; VERIFIED_RELATIONSHIP_ONLY does not resolve
-provision-level applicability. Read the actual amendment/replacement/abrogation text.
-When selected evidence has relationship_note or graph_guidance about REPLACES/ABROGATES,
-state that relationship explicitly in a claim (e.g. 'La circulaire 2021-03 abroge la
-circulaire 2016-01' or Arabic/English equivalent), then state what the successor says
-using quotes from the successor. Do not invent
-a replacement without relationship_note, graph_guidance, or explicit replacement wording in the page text.
-Never upgrade this to 'en vigueur' / 'currently in force' beyond what the graph edge supports
-as a verified relationship.
+A JSONL temporal_relation / CITES-style citation proves only a relationship or
+citation; it does not resolve provision-level applicability. Read the actual
+amendment/replacement/abrogation text.
+When selected evidence has relationship_note, graph_guidance, or temporal_relation about
+REPLACES / ABROGATES / AMENDS, state that relationship explicitly in a claim
+(e.g. 'La circulaire 2021-03 abroge la circulaire 2016-01' or Arabic/English equivalent),
+then state what the successor says about the asked rule using quotes from the successor.
+Do this for ordinary topical questions too (hours, rates, ceilings) — not only for
+"is X still in force?" questions. Do not invent
+a replacement without relationship_note, graph_guidance, temporal_relation, or explicit
+replacement wording in the page text.
+Never upgrade this to 'en vigueur' / 'currently in force' beyond what the edge supports
+as a verified relationship; document-scoped wording is enough
+('selon la circulaire 2021-03, qui remplace …, …').
 
 For current/latest requests, report the latest SUPPORTED value for the SAME scope
 in these passages, explicitly scoped to its source. Prefer explicit later replacement
@@ -1043,9 +1234,12 @@ For historical/as-of requests, answer for that period: never apply a future amen
 retroactively or substitute today's latest value. Report what the cited text supports
 even if its applicability on the requested date cannot be fully established.
 Unverified temporal scope: {temporal_unverified}. When true, use partial_answer with
-supported document-scoped facts ('the cited text sets ...'), not 'the current ceiling',
-'currently applicable', or 'in force'. A disclaimer does not validate those assertions. Missing
-amendment history alone is NOT a reason for insufficient_evidence.
+supported document-scoped facts ('the cited text sets ...', 'the amending circular
+abrogates/replaces/amends ...'). You MAY say "n'est plus en vigueur" / "abrogée" when
+that action is literally quoted. Do NOT say 'the current ceiling', 'currently applicable',
+'est actuellement en vigueur', or 'in force' as a present-force conclusion. A disclaimer
+does not validate those assertions. Missing amendment history alone is NOT a reason for
+insufficient_evidence.
 
 Use answered if the requested facts are supported; partial_answer for useful supported
 parts or qualified/scoped alternatives; clarification_needed for unresolved scope;
@@ -1216,6 +1410,13 @@ Schema: {schema}"""),
         presented = _try_forced(pack, "forced_partial_top5")
         if presented is not None:
             return presented
+    # Last resort before Top-5: deterministic quote-gated partial from pinned SUPERSEDES.
+    for pool in (evidence, pack, candidate_evidence):
+        partial = try_supersession_partial_answer(
+            question, pool, diagnostics=history
+        )
+        if partial is not None:
+            return partial
     return {**fallback, "diagnostics": history}
 
 
@@ -1360,7 +1561,12 @@ Hard rules:
   facility in the pack is not a reason to refuse.
 - If a number cannot appear inside the supporting quote, omit that number from the claim
   text or extend the quote. Never invent digits.
-- Unverified temporal scope: {temporal_unverified}. When true, avoid "en vigueur" / "currently in force".
+- Unverified temporal scope: {temporal_unverified}. When true, avoid affirmative
+  "est en vigueur" / "currently in force"; "n'est plus en vigueur" / "abrogée" is OK
+  when literally supported by the quote.
+- When evidence has relationship_note / temporal_relation / graph_guidance
+  (REPLACES/ABROGATES/AMENDS), state who replaces/amends whom, then give the
+  successor's rule for the asked fact.
 
 Example shape:
 {{"status":"partial_answer","message":"","claims":[{{"text":"Oui, la circulaire 2022-12 prévoit des achats et ventes d'or monétaire pour l'encaisse-or.","quotes":[{{"evidence_id":"E1","quote":"Or monétaire : achats et ventes d'or pour l'encaisse-or."}}]}}]}}

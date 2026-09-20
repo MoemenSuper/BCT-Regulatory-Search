@@ -72,7 +72,7 @@ def main() -> int:
         return 0
 
     pdfs = {path.name.casefold(): path for path in args.documents.resolve(strict=True).rglob("*.pdf")}
-    config = replace(IngestionConfig.from_environment(asset_root=root), build_local=False, build_graph=False)
+    config = replace(IngestionConfig.from_environment(asset_root=root), build_local=False)
     pipeline = IngestionPipeline(config)
     failures: dict[str, str] = {}
     try:

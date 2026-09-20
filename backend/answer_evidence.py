@@ -203,23 +203,74 @@ def strip_instrument_references(text, records):
 
     The identity is trusted filename metadata, so naming it in a claim is not a rule
     number that must be quoted. Only the cited instruments' own identifiers are removed.
+    Counterpart ids from pinned/graph temporal_* metadata are trusted the same way.
+    Bare sequence numbers alone (e.g. '41 dinars') are NOT trusted — only YEAR-NUMBER
+    reference forms are stripped.
     """
-    for record in records:
-        identity = parse_source_identity(record["source"])
-        if not identity:
-            continue
-        year, number = identity["year"], identity["number"]
+    for year, number in _cited_instrument_year_numbers(records):
         text = re.sub(rf"(?<!\d){year}\s*[-/]\s*0*{number}(?!\d)", " ", text)
-        text = re.sub(rf"(?:عدد|رقم)\s*0*{number}\s*لسنة\s*{year}(?!\d)", " ", text)
+        text = re.sub(rf"(?:cir|note)\s*:\s*{year}\s*:\s*0*{number}(?!\d)", " ", text, flags=re.I)
+        text = re.sub(rf"(?:nombre|رقم|عدد)\s*0*{number}\s*لسنة\s*{year}(?!\d)", " ", text)
     return text
 
 
 def trusted_years(question, records):
     """Years the claim may name without quoting: the question's own and the cited
-    instruments' filename years. Trusted metadata, not rule values."""
+    instruments' filename years (plus temporal counterpart years). Trusted metadata."""
     years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", plain(question)))
-    for record in records:
-        identity = parse_source_identity(record["source"])
-        if identity:
-            years.add(str(identity["year"]))
+    for year, _number in _cited_instrument_year_numbers(records):
+        years.add(str(year))
     return years
+
+
+def _cited_instrument_year_numbers(records):
+    """(year, number) pairs trusted from cited filenames and temporal_* ids."""
+    pairs: list[tuple[int, int]] = []
+    seen: set[tuple[int, int]] = set()
+
+    def add(year: int, number: int) -> None:
+        key = (year, number)
+        if key in seen:
+            return
+        seen.add(key)
+        pairs.append(key)
+
+    for record in records:
+        identity = parse_source_identity(record.get("source") or "")
+        if identity:
+            add(int(identity["year"]), int(identity["number"]))
+        for key in ("temporal_source_id", "temporal_target_id"):
+            match = re.match(
+                r"(?:cir|note):(\d{4}):(\d+)$",
+                str(record.get(key) or "").strip(),
+                re.I,
+            )
+            if match:
+                add(int(match.group(1)), int(match.group(2)))
+    return pairs
+
+
+def claim_asserts_unverified_applicability(text: str) -> bool:
+    """True when the claim asserts present force/currentness under unverified scope.
+
+    Negative / document-scoped wording ("n'est plus en vigueur", "abrogée") is allowed
+    when backed by a locating quote; affirmative "est en vigueur" / "currently" is not.
+    """
+    cleaned = re.sub(
+        r"\b(?:n['’]est\s+plus|n['’]est\s+pas|plus|no\s+longer|not)\s+"
+        r"(?:en\s+vigueur|in\s+force|applicable)\b|"
+        r"\b(?:abrogée?s?|remplacée?s?|modifiée?s?|repealed|superseded)\b|"
+        r"(?:لم\s+تعد|ليست\s+سارية|ملغاة|معوضة)",
+        " ",
+        text or "",
+        flags=re.I,
+    )
+    return bool(
+        re.search(
+            r"\b(?:actuel(?:le(?:ment)?)?s?|currently|current|today|now|"
+            r"en\s+vigueur|in\s+force)\b|"
+            r"(?:ساري|سارية|الساري|النافذ|الحالي|حالي)",
+            cleaned,
+            re.I,
+        )
+    )

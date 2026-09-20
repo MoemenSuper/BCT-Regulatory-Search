@@ -131,6 +131,40 @@ def test_graph_supersession_keeps_both_sides_and_marks_roles():
     assert records[0]["source"] == "Cir_2021_03_fr.pdf"
 
 
+def test_jsonl_amends_edge_marks_successor_for_topical_drafting():
+    from langchain_core.documents import Document
+    from answer_contract import evidence_records, _annotate_graph_supersession
+
+    docs = [
+        (
+            Document(
+                page_content="La duree du travail est fixee a sept heures.",
+                metadata={"source": "Cir_2016_08_fr.pdf", "page": 5},
+            ),
+            0.9,
+        ),
+        (
+            Document(
+                page_content="Les dispositions de l'article 5 de la circulaire 2016-08 sont modifiees.",
+                metadata={
+                    "source": "Cir_2020_03_fr.pdf",
+                    "page": 2,
+                    "temporal_relation": "AMENDS",
+                    "temporal_source_id": "cir:2020:3",
+                    "temporal_target_id": "cir:2016:8",
+                },
+            ),
+            0.8,
+        ),
+    ]
+    records = _annotate_graph_supersession(evidence_records(docs))
+    by_source = {r["source"]: r for r in records}
+    assert by_source["Cir_2020_03_fr.pdf"]["graph_role"] == "successor"
+    assert by_source["Cir_2016_08_fr.pdf"]["graph_role"] == "superseded"
+    assert "AMENDS" in by_source["Cir_2016_08_fr.pdf"]["graph_guidance"]
+    assert "successor" in by_source["Cir_2020_03_fr.pdf"]["graph_guidance"].casefold()
+
+
 def test_unverified_temporal_scope_cannot_be_presented_as_a_complete_answer():
     result = parse_answer(json.dumps(draft()), "What does this say and is it still in force?",
                           EVIDENCE, temporal_unverified=True)

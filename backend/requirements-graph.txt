@@ -1,3 +1,0 @@
-# Core runtime + optional Graph Lite sidecar.
--r requirements.txt
-neo4j>=5.28,<7

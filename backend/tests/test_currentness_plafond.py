@@ -4,14 +4,7 @@ from langchain_core.documents import Document
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 import conversation
-from graph_contract import (
-    GraphRetrievalResult,
-    GraphRetrievalStatus,
-    GraphRetrievalTrace,
-    TemporalFailureReason,
-    TemporalRetrievalStatus,
-    is_temporal_rule_query,
-)
+from graph_contract import is_temporal_rule_query
 
 
 PLAFOND_QUESTION = (
@@ -78,24 +71,6 @@ def test_business_travel_plafond_gives_latest_supported_value_without_claiming_i
             captured["retrieval_query"] = query
             return [(older, 0.96), (later, 0.91)]
 
-    class GraphRetriever:
-        def retrieve(self, query, seed_documents):
-            captured["graph_query"] = query
-            captured["graph_seeds"] = [
-                document.metadata["source"] for document in seed_documents
-            ]
-            return GraphRetrievalResult(
-                documents=(),
-                trace=GraphRetrievalTrace(
-                    status=GraphRetrievalStatus.NO_EVIDENCE,
-                    seed_filenames=("cir:2016:1", "cir:2020:3"),
-                    temporal_status=TemporalRetrievalStatus.INCOMPLETE,
-                    temporal_reason=(
-                        TemporalFailureReason.RELATIONSHIP_ONLY_NOT_PROVISION_RESOLVED
-                    ),
-                ),
-            )
-
     abstain = {
         "status": "insufficient_evidence",
         "message": "",
@@ -120,12 +95,10 @@ def test_business_travel_plafond_gives_latest_supported_value_without_claiming_i
         PLAFOND_QUESTION,
         {"topics": [], "turns": []},
         retrieval_backend=Backend(),
-        graph_retriever=GraphRetriever(),
     )
 
     answer = result["answer"]
-    assert captured["graph_query"] == PLAFOND_QUESTION
-    assert result["graph_trace"]["temporal_status"] == "INCOMPLETE"
+    assert captured["retrieval_query"] == "plafond allocation voyage affaires"
     assert result["status"] == "partial_answer"
     assert "500 000" in answer
     assert "50 000" in answer

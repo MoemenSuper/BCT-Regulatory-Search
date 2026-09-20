@@ -8,7 +8,7 @@ __pycache__/
 *.sqlite3-shm
 *.sqlite3-wal
 
-# Local Neo4j Graph Lite state
+# Leftover Graph Lite / Neo4j volumes (do not commit)
 .neo4j-data/
 .neo4j-plugins/
 

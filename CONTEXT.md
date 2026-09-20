@@ -72,22 +72,22 @@ Product outcome of a turn: `answered`, `partial_answer`, `insufficient_evidence`
 Greetings, help, and conversation-summary turns use the router’s `GENERAL_CHAT` path: a short reply with **no retrieval** (often `answered` with empty sources). Broad regulatory briefings still retrieve; the selector/writer prefer a multi-page **quoted** `partial_answer` when possible, without weakening quote checks. An empty model completion is treated as a draft failure (`draft_empty`), not repaired into `insufficient_evidence`. Selector evidence IDs are sanitized (keep valid IDs; map `1`/`e1` → `E1`) instead of discarding a whole selection for one bad ID.
 _Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer; leading with “couldn’t find” when a multi-page synthesis is available; treating `GENERAL_CHAT` as a fake out-of-scope refusal; treating a blank LLM completion as a deliberate abstention; pasting raw page/OCR text as the claim body
 
-## Graph Lite
+## JSONL supersession
 
-**Graph Lite**:
-Optional Neo4j sidecar of relationships between instruments (and named provisions). Not a fourth runtime profile.
-_Avoid_: knowledge graph as the main search; “related docs” without a typed edge
+**Supersession edges**:
+File-backed SUPERSEDES / REPLACE / ABROGATE / AMEND links between instruments (`supersession_edges.jsonl` in the active asset version). Merged on ingest; used at retrieve time to pin successor declaring pages. Not a fourth runtime profile.
+_Avoid_: Neo4j / knowledge graph as the main search; “related docs” without a typed edge
 
-**Relation type**:
-One of `CITES`, `AMENDS`, `REPLACES`, `ABROGATES`.
-_Avoid_: related, link, predecessor/successor as stored types
+**Relation / action**:
+Operative actions such as `REPLACE`, `ABROGATE`, `AMEND` (JSONL), surfaced to the answer layer as `temporal_relation` / `graph_guidance`.
+_Avoid_: related, link, predecessor/successor as stored types without an action
 
-**Verified relationship**:
-A live Graph Lite edge that passed deterministic quote and instrument checks (`VERIFIED` / `AUTO_DETERMINISTIC_V1`).
+**Pinned relationship**:
+A JSONL edge that matched the query or top hits and contributed a declaring page with `temporal_relation` metadata.
 _Avoid_: “in force”, “currently applicable”, perfect legal interpretation
 
-**Verified relationship only**:
-Graph proves a relationship edge, not provision-level temporal applicability (`temporal_verification=VERIFIED_RELATIONSHIP_ONLY`). When Graph Lite is enabled and the pack carries `relationship_note` for `REPLACES` / `ABROGATES`, the answer layer keeps both instruments, marks successor vs superseded, and instructs the writer to state the relationship then follow the successor for conflicted facts.
+**Relationship only (not provision-resolved)**:
+An edge or `temporal_relation` proves instrument succession, not provision-level temporal applicability. When evidence carries `temporal_relation` / `relationship_note` for REPLACE / ABROGATE / AMEND, the answer layer keeps both instruments, marks successor vs superseded, and instructs the writer to state the relationship then follow the successor for conflicted facts.
 _Avoid_: verified as synonym for current / en vigueur; silently dropping replaced circulars; merging conflicting values from predecessor and successor
 
 ## Conversation and UI
