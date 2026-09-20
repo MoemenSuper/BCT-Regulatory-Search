@@ -29,7 +29,6 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
             backend/requirements-local.txt
-            backend/requirements-graph.txt
             backend/requirements-ingestion.txt
 
       - name: Install dependencies
@@ -42,7 +41,6 @@ jobs:
       - name: Run pytest
         env:
           # Tests set their own keys via monkeypatch; keep process free of real secrets.
-          BCT_ENABLE_GRAPH: "0"
           BCT_DEFAULT_PROFILE: cloud
         run: python -m pytest -q --tb=short
 

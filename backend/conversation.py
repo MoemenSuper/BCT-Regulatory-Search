@@ -14,8 +14,6 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from graph_contract import (
     GraphRetrievalStatus,
     GraphRetrievalTrace,
-    TemporalFailureReason,
-    TemporalRetrievalStatus,
     is_temporal_rule_query,
 )
 
@@ -290,16 +288,13 @@ def _prefer_later_instrument_evidence(results):
 def _answer_results(
     reranked_results,
     *,
-    graph_results=(),
     ordinary_limit=5,
-    graph_limit=2,
     prefer_later_instruments=False,
 ):
-    """Keep up to 2 graph slots plus the ordinary top-5."""
     ordinary = list(reranked_results[:ordinary_limit])
     if prefer_later_instruments:
         ordinary = _prefer_later_instrument_evidence(ordinary)
-    return list(graph_results[:graph_limit]) + ordinary
+    return ordinary
 
 
 def general_chat_reply(llm, message, memory_state):
@@ -336,7 +331,6 @@ def chat(
     memory_state,
     *,
     retrieval_backend,
-    graph_retriever=None,
     llm_provider="groq",
 ):
     llm = create_llm() if llm_provider == "groq" else create_llm(llm_provider)
@@ -376,45 +370,13 @@ def chat(
 
     route_query = route["rewrite_query"] or message
     query_for_retrieval = route_query
-    temporal_graph_query = (
-        message
-        if is_temporal_rule_query(message)
-        else route_query
-        if is_temporal_rule_query(route_query)
-        else None
+    temporal_unverified = is_temporal_rule_query(message) or is_temporal_rule_query(
+        route_query
     )
-    temporal_unverified = temporal_graph_query is not None
 
     reranked_results = retrieval_backend.retrieve(query_for_retrieval)
-
-    graph_trace = (
-        GraphRetrievalTrace(
-            status=GraphRetrievalStatus.UNAVAILABLE,
-            temporal_status=TemporalRetrievalStatus.UNAVAILABLE,
-            temporal_reason=TemporalFailureReason.TEMPORAL_GRAPH_UNAVAILABLE,
-        )
-        if temporal_unverified and graph_retriever is None
-        else GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
-    )
-    graph_ranked_results = []
-    if graph_retriever is not None:
-        seed_documents = [document for document, _ in reranked_results[:5]]
-        graph_result = graph_retriever.retrieve(
-            temporal_graph_query or route_query,
-            seed_documents,
-        )
-        graph_trace = graph_result.trace
-        # Keep verified relationship evidence in a separate, tiny budget. This
-        # prevents ordinary page-diversity/reranking from discarding the exact
-        # graph evidence that triggered the relationship result.
-        if graph_result.documents:
-            # Verified relationship quotes already passed the evidence gate.
-            # Do not re-rank/diversify them: same-source edges share a page key and
-            # ordinary diversify would collapse distinct AMENDS/CITES quotes to one.
-            graph_ranked_results = [
-                (document, float(len(graph_result.documents) - index))
-                for index, document in enumerate(graph_result.documents)
-            ]
+    # Opaque compatibility field for conversation memory / API clients.
+    graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
 
     # Retrieval is scored per chunk; the answer layer reads the whole retrieved page
     # so a fact in a neighbouring chunk is not lost. Order and citations are unchanged.
@@ -424,7 +386,6 @@ def chat(
         answer_candidates = expand_pages(answer_candidates)
     top_results = _answer_results(
         answer_candidates,
-        graph_results=graph_ranked_results,
         prefer_later_instruments=temporal_unverified,
     )
     memory_text = render_memory_state(_answer_memory(memory_state, route))
@@ -444,8 +405,7 @@ def chat(
         refusal_reason = format_refusal_reason(status, diagnostics)
         if status in {"search_results", "insufficient_evidence"}:
             # Search fallback preserves ordinary retrieval order, even when answer
-            # context was reordered for currentness or prefixed with graph snippets.
-            # Keep refusal_reason from the grounded attempt; do not leak diagnostics to UI.
+            # context was reordered for currentness.
             generated = search_response(message, evidence_records(reranked_results[:5]))
     answer = generated["answer"]
     sources = generated["sources"]

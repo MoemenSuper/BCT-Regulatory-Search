@@ -299,6 +299,7 @@ class VoyageRetrievalBackend:
 
 
 def _read_chunks(path: Path) -> list[Document]:
+    """Load JSONL chunks. An empty file is a valid empty corpus (bootstrap / FR-only OCR)."""
     documents = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -311,8 +312,6 @@ def _read_chunks(path: Path) -> list[Document]:
                     metadata=value["metadata"],
                 )
             )
-    if not documents:
-        raise ValueError(f"Chunk file is empty: {path}")
     return documents
 
 
@@ -334,6 +333,8 @@ def _load_bound_index(
     spec: CloudEmbedSpec | None = None,
 ) -> np.ndarray:
     spec = spec or CLOUD_EMBED_SPECS["voyage"]
+    if not documents:
+        return np.empty((0, spec.dimension), dtype=np.float32)
     text_hashes = [
         hashlib.sha256(document.page_content.encode("utf-8")).hexdigest()
         for document in documents
@@ -957,10 +958,15 @@ def create_voyage_backend_from_environment():
     provider_root = Path(names["BCT_VOYAGE_PROVIDER_ROOT"])
     spec = cloud_embed_spec()
     client = create_cloud_runtime_client(provider_root, spec)
-    return load_voyage_backend(
+    backend = load_voyage_backend(
         provider_root=provider_root,
         native_chunks=names["BCT_NATIVE_CHUNKS_PATH"],
         ocr_chunks=names["BCT_OCR_CHUNKS_PATH"],
         client=client,
         spec=spec,
     )
+    # Optional JSONL SUPERSEDES pin (force/imperfect instrument questions).
+    from jsonl_supersession import maybe_wrap_backend
+
+    assets_root = Path(names["BCT_NATIVE_CHUNKS_PATH"]).resolve().parent
+    return maybe_wrap_backend(backend, assets_root)

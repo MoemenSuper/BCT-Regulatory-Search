@@ -4,11 +4,6 @@ from langchain_core.documents import Document
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 import conversation
-from graph_contract import (
-    GraphRetrievalResult,
-    GraphRetrievalStatus,
-    GraphRetrievalTrace,
-)
 
 
 def _document(filename="Cir_2019_07_fr.pdf", page=2):
@@ -96,19 +91,10 @@ def test_route_message_treats_standalone_deictic_as_ambiguous_not_general_chat()
     assert route["rewrite_query"] is None
 
 
-def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
+def test_follow_up_uses_standalone_query_for_dense_bm25(monkeypatch):
     rewritten = "relationship between Circular 2019-07 and Circular 2018-07"
     ordinary = _document()
     calls = {}
-
-    class GraphRetriever:
-        def retrieve(self, query, seed_documents):
-            calls["graph_query"] = query
-            calls["seeds"] = tuple(seed_documents)
-            return GraphRetrievalResult(
-                documents=(),
-                trace=GraphRetrievalTrace(status=GraphRetrievalStatus.NO_EVIDENCE),
-            )
 
     class Backend:
         def retrieve(self, query):
@@ -138,11 +124,9 @@ def test_follow_up_uses_standalone_query_for_dense_bm25_and_graph(monkeypatch):
         "How is it related to the previous circular?",
         _previous_state(),
         retrieval_backend=Backend(),
-        graph_retriever=GraphRetriever(),
     )
 
     assert calls["retrieval_query"] == rewritten
-    assert calls["graph_query"] == rewritten
     assert calls["answer_query"] == "How is it related to the previous circular?"
     assert rewritten in calls["answer_memory"]
     assert "What did Circular 2019-07 change?" in calls["answer_memory"]
@@ -197,7 +181,7 @@ def test_chat_uses_the_selected_profile_backend_and_answer_provider(monkeypatch)
             return [(ordinary, 0.9)]
 
         def rank(self, _query, _documents):
-            raise AssertionError("graph rerank is not needed")
+            raise AssertionError("extra rerank is not needed")
 
     monkeypatch.setattr(
         conversation,

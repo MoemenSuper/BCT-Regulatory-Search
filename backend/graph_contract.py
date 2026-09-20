@@ -1,4 +1,10 @@
-"""Lightweight query classification and result types for the optional graph adapter."""
+"""Query classification and compatibility result types for currentness / memory.
+
+Classifiers (`is_temporal_rule_query`, `is_relationship_query`) drive retrieval
+ordering and answer prompts. `GraphRetrievalTrace` / `GraphRetrievalResult`
+remain for API and conversation-memory compatibility; currentness pinning uses
+JSONL supersession edges, not a graph database.
+"""
 from dataclasses import dataclass
 from enum import Enum
 import re
@@ -98,7 +104,6 @@ class TemporalRetrievalStatus(str, Enum):
 
 class TemporalFailureReason(str, Enum):
     NO_RETRIEVAL_SEED = "no_retrieval_seed"
-    TEMPORAL_GRAPH_UNAVAILABLE = "temporal_graph_unavailable"
     RELATIONSHIP_ONLY_NOT_PROVISION_RESOLVED = "relationship_only_not_provision_resolved"
 
 

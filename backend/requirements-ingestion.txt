@@ -1,7 +1,5 @@
-# Complete ingestion stack. It includes local indexing and Graph Lite because the
-# final prototype updates all three runtime profiles and the graph in one job.
+# Complete ingestion stack (cloud + local indexing).
 -r requirements-local.txt
--r requirements-graph.txt
 google-genai>=2.20.0,<3
 filelock>=3.18,<4
 python-multipart>=0.0.20,<1

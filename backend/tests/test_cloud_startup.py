@@ -6,7 +6,6 @@ import sys
 
 def test_cloud_startup_and_health_do_not_load_local_models(monkeypatch, tmp_path):
     monkeypatch.setenv("BCT_DEFAULT_PROFILE", "cloud")
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "0")
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
@@ -14,12 +13,9 @@ def test_cloud_startup_and_health_do_not_load_local_models(monkeypatch, tmp_path
         raise AssertionError("Cloud startup must not load local models")
     monkeypatch.setattr(app_module, "create_local_backend", forbidden)
     with TestClient(app_module.app) as client:
-        assert client.get("/health").json() == {
-            "status": "ok",
-            "graph_enabled": False,
-            "neo4j_connected": False,
-            "graph_ready": False,
-        }
+        payload = client.get("/health").json()
+        assert payload["status"] == "ok"
+        assert set(payload["supersession"]) == {"ready", "edge_count"}
 
 
 def test_cloud_import_does_not_require_graph_ocr_or_local_model_packages():

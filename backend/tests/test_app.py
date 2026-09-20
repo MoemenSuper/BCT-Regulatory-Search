@@ -23,33 +23,27 @@ class _FakeTitleLLM:
 def _offline_title_llm(monkeypatch):
     """Conversation titles come from an LLM call; never reach Groq from tests."""
     monkeypatch.setattr(app_module, "create_llm", lambda provider="groq": _FakeTitleLLM())
+
+
 def test_health():
     response = client.get("/health")
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
-    assert set(payload) == {
-        "status",
-        "graph_enabled",
-        "neo4j_connected",
-        "graph_ready",
-    }
-    if payload["graph_ready"]:
-        assert payload["graph_enabled"] is True
-        assert payload["neo4j_connected"] is True
+    assert set(payload) == {"status", "supersession"}
+    assert set(payload["supersession"]) == {"ready", "edge_count"}
+    assert isinstance(payload["supersession"]["ready"], bool)
+    assert isinstance(payload["supersession"]["edge_count"], int)
 
 
-def test_health_reports_graph_lite_not_ready_when_enabled_but_unavailable(
-    monkeypatch, tmp_path, capsys
-):
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
+def test_health_reports_supersession_not_ready_without_edges(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("BCT_RUNTIME_ASSET_ROOT", str(tmp_path / "assets"))
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: None)
     monkeypatch.setattr(
         app_module,
         "open_conversation_store",
@@ -61,43 +55,28 @@ def test_health_reports_graph_lite_not_ready_when_enabled_but_unavailable(
 
     assert payload == {
         "status": "ok",
-        "graph_enabled": True,
-        "neo4j_connected": False,
-        "graph_ready": False,
+        "supersession": {"ready": False, "edge_count": 0},
     }
     announced = capsys.readouterr().out
-    assert "graph_enabled: True" in announced
-    assert "neo4j_connected: False" in announced
-    assert "graph_ready: False" in announced
+    assert "ready: False" in announced
+    assert "edge_count: 0" in announced
 
 
-def test_health_reports_graph_ready_when_runtime_is_attached(
-    monkeypatch, tmp_path, capsys
-):
-    class FakeDriver:
-        def verify_connectivity(self):
-            return None
-
-        def close(self):
-            return None
-
-    class FakeGraphRuntime:
-        def __init__(self):
-            self.retriever = object()
-            self.driver = FakeDriver()
-
-        def close(self):
-            self.driver.close()
-
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
+def test_health_reports_supersession_ready_when_edges_exist(monkeypatch, tmp_path, capsys):
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    (assets / "supersession_edges.jsonl").write_text(
+        '{"action":"REPLACE","quote":"abroge","source_file":"Cir_2021_03_fr.pdf",'
+        '"source_instrument":"cir:2021:3","source_page":1,"target_article":null,'
+        '"target_instrument":"cir:2016:1"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BCT_RUNTIME_ASSET_ROOT", str(assets))
     monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setattr(
-        app_module, "open_relationship_graph_runtime", lambda: FakeGraphRuntime()
-    )
     monkeypatch.setattr(
         app_module,
         "open_conversation_store",
@@ -107,15 +86,11 @@ def test_health_reports_graph_ready_when_runtime_is_attached(
     with TestClient(app_module.app) as live_client:
         payload = live_client.get("/health").json()
 
-    assert payload == {
-        "status": "ok",
-        "graph_enabled": True,
-        "neo4j_connected": True,
-        "graph_ready": True,
-    }
+    assert payload["status"] == "ok"
+    assert payload["supersession"]["ready"] is True
+    assert payload["supersession"]["edge_count"] >= 1
     announced = capsys.readouterr().out
-    assert "graph_enabled: True" in announced
-    assert "graph_ready: True" in announced
+    assert "ready: True" in announced
 
 
 def test_profiles_exposes_the_three_runtime_choices():
@@ -128,80 +103,20 @@ def test_profiles_exposes_the_three_runtime_choices():
         "cloud",
     }
 
+
 def test_chat_rejects_empty_question():
     response = client.post("/chat", json={"question": ""})
 
     assert response.status_code == 422
 
 
-def test_lifespan_passes_relationship_graph_to_chat_and_closes_driver(
-    monkeypatch, tmp_path
-):
-    class FakeGraphRuntime:
-        def __init__(self):
-            self.closed = False
-            self.retriever = object()
-
-        def close(self):
-            self.closed = True
-
-    fake_runtime = FakeGraphRuntime()
-    conversation_store = ConversationStore(tmp_path / "conversations.sqlite3")
-    received = {}
-    monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
-    monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
-    monkeypatch.setattr(
-        app_module,
-        "open_relationship_graph_runtime",
-        lambda: fake_runtime,
-    )
-    monkeypatch.setattr(
-        app_module,
-        "open_conversation_store",
-        lambda: conversation_store,
-    )
-
-    def fake_chat(*_args, graph_retriever=None, **_kwargs):
-        received["graph_retriever"] = graph_retriever
-        return {
-            "answer": "answer",
-            "sources": [],
-            "memory_state": {},
-            "graph_trace": {"status": "NOT_REQUESTED"},
-        }
-
-    monkeypatch.setattr(app_module, "chat", fake_chat)
-
-    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
-    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
-    with TestClient(app_module.app) as live_client:
-        response = live_client.post("/chat", json={"question": "Bonjour"})
-
-    assert response.status_code == 200
-    assert received["graph_retriever"] is fake_runtime.retriever
-    assert fake_runtime.closed is True
-
-
 def test_chat_uses_application_active_runtime_profile(monkeypatch, tmp_path):
-    class FakeGraphRuntime:
-        retriever = None
-
-        def close(self):
-            return None
-
     selected_backend = object()
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
-    monkeypatch.setattr(
-        app_module,
-        "open_relationship_graph_runtime",
-        lambda: FakeGraphRuntime(),
-    )
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
 
     class Manager:
@@ -234,8 +149,6 @@ def test_chat_uses_application_active_runtime_profile(monkeypatch, tmp_path):
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
 
-    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
-    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     with TestClient(app_module.app) as live_client:
         live_client.app.state.settings_store.set_active_profile("local")
         response = live_client.post(
@@ -250,22 +163,10 @@ def test_chat_uses_application_active_runtime_profile(monkeypatch, tmp_path):
 
 
 def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_path):
-    class FakeGraphRuntime:
-        retriever = None
-
-        def close(self):
-            return None
-
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     received_states = []
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
-    monkeypatch.setattr(
-        app_module,
-        "open_relationship_graph_runtime",
-        lambda: FakeGraphRuntime(),
-    )
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
 
     def fake_chat(message, memory_state, *_args, **_kwargs):
@@ -322,21 +223,9 @@ def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_pat
 
 
 def test_chat_rejects_an_unknown_conversation_id(monkeypatch, tmp_path):
-    class FakeGraphRuntime:
-        retriever = None
-
-        def close(self):
-            return None
-
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
-    monkeypatch.setattr(
-        app_module,
-        "open_relationship_graph_runtime",
-        lambda: FakeGraphRuntime(),
-    )
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
     monkeypatch.setattr(
         app_module,
@@ -376,24 +265,21 @@ def test_sub_questions_splits_only_on_question_marks():
 
 
 def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_path):
-    class FakeGraphRuntime:
-        retriever = None
-
-        def close(self):
-            return None
-
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     calls = []
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "1")
-    monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: FakeGraphRuntime())
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
 
     def fake_chat(message, memory_state, *_args, **_kwargs):
         calls.append((message, list(memory_state.get("turns", []))))
-        turn = {"user_message": message, "standalone_query": message, "answer": f"answer {len(calls)}",
-                "sources": [], "graph_trace": {"status": "NOT_REQUESTED"}}
+        turn = {
+            "user_message": message,
+            "standalone_query": message,
+            "answer": f"answer {len(calls)}",
+            "sources": [],
+            "graph_trace": {"status": "NOT_REQUESTED"},
+        }
         return {
             "answer": f"answer {len(calls)}",
             "sources": [{"file": f"Cir_2019_0{len(calls)}_fr.pdf", "page": len(calls), "score": 1.0}],
@@ -429,13 +315,11 @@ def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_pa
 
 
 def test_conversation_rename_and_delete_endpoints(monkeypatch, tmp_path):
-    import app as app_module
-    from conversation_memory import ConversationStore, new_memory_state
+    from conversation_memory import new_memory_state
 
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
     monkeypatch.setattr(app_module, "create_runtime_profile_manager", lambda: None)
-    monkeypatch.setattr(app_module, "_graph_enabled", lambda: False)
     conversation_id = store.create("test-user")
     store.save_with_turn(
         conversation_id,
@@ -468,10 +352,15 @@ def _title_setup(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setattr(app_module, "_graph_enabled", lambda: False)
 
     def fake_chat(message, memory_state, *_args, **_kwargs):
-        state = {**new_memory_state(), "turns": [*memory_state.get("turns", []), {"user_message": message, "standalone_query": message, "answer": "a", "sources": []}]}
+        state = {
+            **new_memory_state(),
+            "turns": [
+                *memory_state.get("turns", []),
+                {"user_message": message, "standalone_query": message, "answer": "a", "sources": []},
+            ],
+        }
         return {"answer": "a", "sources": [], "memory_state": state, "graph_trace": {}}
 
     monkeypatch.setattr(app_module, "chat", fake_chat)

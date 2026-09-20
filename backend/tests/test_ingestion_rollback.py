@@ -78,7 +78,6 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
         registry_path=tmp_path / "ingestion.sqlite3",
         gemini_cache_dir=tmp_path / "gemini-cache",
         build_local=False,
-        build_graph=False,
     )
     ingestion = IngestionPipeline(config)
     original_ready = ingestion.registry.ready

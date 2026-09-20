@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -97,15 +98,16 @@ def gemini_json_from_image(
     and retries once.
     """
     global _key_cursor
-    try:
-        from google import genai
-    except ImportError as error:
-        raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
     injected = client is not None
     if injected:
         keys: list[str | None] = [None]
         start = 0
+        genai = None
     else:
+        try:
+            from google import genai
+        except ImportError as error:
+            raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
         keys = _gemini_keys()
         if not keys:
             raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
@@ -126,26 +128,40 @@ def gemini_json_from_image(
                 if index not in clients:
                     clients[index] = genai.Client(api_key=keys[index])
                 active = clients[index]
-                interaction = active.interactions.create(
-                    model=model,
-                    input=[
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image",
-                            "data": base64.b64encode(image_png).decode("ascii"),
-                            "mime_type": "image/png",
+
+                def _create():
+                    return active.interactions.create(
+                        model=model,
+                        input=[
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image",
+                                "data": base64.b64encode(image_png).decode("ascii"),
+                                "mime_type": "image/png",
+                            },
+                        ],
+                        generation_config={"thinking_level": "low"},
+                        response_format={
+                            "type": "text",
+                            "mime_type": "application/json",
+                            "schema": schema,
                         },
-                    ],
-                    generation_config={"thinking_level": "low"},
-                    response_format={
-                        "type": "text",
-                        "mime_type": "application/json",
-                        "schema": schema,
-                    },
-                )
+                    )
+
+                # Hard deadline so one hung Gemini page cannot block a whole batch forever.
+                timeout = float(os.environ.get("BCT_GEMINI_TIMEOUT_SECONDS", "120"))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    interaction = pool.submit(_create).result(timeout=timeout)
                 if not injected and on_rotate is not None:
                     on_rotate(active, index)
                 return interaction.output_text, getattr(interaction, "id", None)
+            except concurrent.futures.TimeoutError as error:
+                last_error = TimeoutError(
+                    f"Gemini visual extraction timed out after {os.environ.get('BCT_GEMINI_TIMEOUT_SECONDS', '120')}s"
+                )
+                if injected:
+                    raise last_error from error
+                raise last_error from error
             except Exception as error:
                 last_error = error
                 if injected:

@@ -73,12 +73,8 @@ def main() -> None:
         raise SystemExit(f"UI build missing at {static_dir}")
 
     os.environ.setdefault("BCT_DEFAULT_PROFILE", "cloud")
-    os.environ.setdefault("BCT_ENABLE_GRAPH", "1")
-    os.environ.setdefault("BCT_INGEST_GRAPH", "1")
     os.environ.setdefault("BCT_INGEST_LOCAL_INDEX", "0")
     os.environ.setdefault("BCT_ENABLE_INGESTION", "1")
-    os.environ.setdefault("BCT_NEO4J_URI", "bolt://neo4j:7687")
-    os.environ.setdefault("BCT_NEO4J_USERNAME", "neo4j")
     os.environ.setdefault("BCT_CONVERSATION_DB", str(data / "conversations.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DB", str(data / "ingestion.sqlite3"))
     os.environ.setdefault("BCT_AUTH_DB", str(data / "auth.sqlite3"))

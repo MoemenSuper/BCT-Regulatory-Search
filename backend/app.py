@@ -122,56 +122,27 @@ def create_local_backend():
     )
 
 
-def open_relationship_graph_runtime():
-    from regulatory_graph_lite.runtime import open_relationship_graph_runtime as open_runtime
-
-    return open_runtime()
-
-
-def _graph_enabled() -> bool:
-    return os.environ.get("BCT_ENABLE_GRAPH") == "1"
-
-
-def _neo4j_connected(graph_runtime) -> bool:
-    if graph_runtime is None:
-        return False
-    verify = getattr(getattr(graph_runtime, "driver", None), "verify_connectivity", None)
-    if verify is None:
-        return True
+def supersession_status() -> dict[str, object]:
+    """JSONL SUPERSEDES index readiness for health / admin overview."""
     try:
-        verify()
-    except Exception:
-        return False
-    return True
+        from jsonl_supersession import load_edges, resolve_edges_path
+        from ingestion.index import resolve_active_assets
 
-
-def graph_lite_status(graph_runtime=None, graph_retriever=None) -> dict[str, bool]:
-    enabled = _graph_enabled()
-    connected = _neo4j_connected(graph_runtime)
-    return {
-        "graph_enabled": enabled,
-        "neo4j_connected": connected,
-        "graph_ready": bool(enabled and connected and graph_retriever is not None),
-    }
-
-
-def announce_graph_lite_status(status: dict[str, bool]) -> None:
-    banner = (
-        "Graph Lite\n"
-        f"  graph_enabled: {status['graph_enabled']}\n"
-        f"  neo4j_connected: {status['neo4j_connected']}\n"
-        f"  graph_ready: {status['graph_ready']}"
-    )
-    print(banner, flush=True)
-    if status["graph_enabled"] and not status["graph_ready"]:
-        logger.warning("Graph Lite is enabled but not ready; ordinary RAG remains active.")
-    else:
-        logger.info(
-            "Graph Lite ready=%s enabled=%s connected=%s",
-            status["graph_ready"],
-            status["graph_enabled"],
-            status["neo4j_connected"],
+        root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT") or os.environ.get(
+            "BCT_VOYAGE_PROVIDER_ROOT"
         )
+        if not root_value:
+            return {"ready": False, "edge_count": 0}
+        root = Path(root_value)
+        active = resolve_active_assets(root) if (root / "ACTIVE.json").exists() else root
+        path = resolve_edges_path(active)
+        if path is None:
+            return {"ready": False, "edge_count": 0}
+        count = len(load_edges(path))
+        return {"ready": count > 0, "edge_count": count}
+    except Exception:
+        logger.info("Supersession edges unavailable for status.", exc_info=True)
+        return {"ready": False, "edge_count": 0}
 
 
 @asynccontextmanager
@@ -182,22 +153,17 @@ async def lifespan(app: FastAPI):
     app.state.auth_store = auth_store
     app.state.settings_store = settings_store
     app.state.profile_manager = create_runtime_profile_manager()
-    graph_runtime = open_relationship_graph_runtime() if _graph_enabled() else None
     conversation_store = open_conversation_store()
     app.state.conversation_store = conversation_store
-    app.state.graph_runtime = graph_runtime
-    app.state.graph_retriever = (
-        graph_runtime.retriever if graph_runtime is not None else None
-    )
     app.state.source_resolver = SourceDocumentResolver()
-    announce_graph_lite_status(
-        graph_lite_status(graph_runtime, app.state.graph_retriever)
+    status = supersession_status()
+    print(
+        f"Supersession edges\n  ready: {status['ready']}\n  edge_count: {status['edge_count']}",
+        flush=True,
     )
     try:
         yield
     finally:
-        if graph_runtime is not None:
-            graph_runtime.close()
         closer = getattr(conversation_store, "close", None)
         if callable(closer):
             closer()
@@ -217,9 +183,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health(request: Request):
-    runtime = getattr(request.app.state, "graph_runtime", None)
-    retriever = getattr(request.app.state, "graph_retriever", None)
-    return {"status": "ok", **graph_lite_status(runtime, retriever)}
+    return {"status": "ok", "supersession": supersession_status()}
 
 
 class RegisterRequest(BaseModel):
@@ -376,10 +340,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "documents_ready": len(docs),
         "active_profile": settings["active_profile"],
         "answer_refusals_total": refusals_total,
-        "graph": graph_lite_status(
-            getattr(request.app.state, "graph_runtime", None),
-            getattr(request.app.state, "graph_retriever", None),
-        ),
+        "supersession": supersession_status(),
     }
 
 
@@ -668,7 +629,6 @@ def post_chat(
                     result = chat(
                         question,
                         memory_state,
-                        graph_retriever=request.app.state.graph_retriever,
                         retrieval_backend=runtime.retrieval_backend,
                         llm_provider=runtime.answer_provider,
                     )
@@ -859,7 +819,9 @@ def get_source_pdf(filename: str, request: Request, _user=Depends(require_approv
 
 def _refresh_runtime_asset_environment() -> None:
     from ingestion.index import configure_runtime_assets
+    from jsonl_supersession import clear_supersession_cache
 
+    clear_supersession_cache()
     root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
     if not root_value:
         raise RuntimeError("BCT_RUNTIME_ASSET_ROOT is not configured")
@@ -922,9 +884,13 @@ def _install_ingestion_routes(target: FastAPI) -> None:
         except HTTPException:
             raise
         except Exception as error:
-            # Surface unexpected ingest failures (incl. legacy snapshot shape bugs) to the admin UI.
-            logger.exception("Document ingestion failed.")
-            raise HTTPException(status_code=422, detail=str(error) or "Document ingestion failed.") from error
+            # Surface unexpected ingest failures to the admin UI with the PDF name.
+            label = Path(filename).name if filename else "document.pdf"
+            logger.exception("Document ingestion failed for %s.", label)
+            detail = str(error).strip() or "Document ingestion failed."
+            if label not in detail:
+                detail = f"{label}: {detail}"
+            raise HTTPException(status_code=422, detail=detail) from error
         finally:
             await file.close()
             if temporary_path is not None:

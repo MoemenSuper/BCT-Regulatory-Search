@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
 # Pilot image: FastAPI + React UI. Mount PDFs; ingest builds search indexes.
-# Graph Lite Neo4j is started by docker-compose.yml (not this Dockerfile alone).
 
 FROM node:22-bookworm AS ui
 WORKDIR /ui
@@ -16,8 +15,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt backend/requirements-graph.txt ./
-RUN pip install --no-cache-dir -r requirements-graph.txt \
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir "google-genai>=2.20.0,<3" "filelock>=3.18,<4"
 
 COPY backend/ ./
@@ -29,8 +28,6 @@ ENV BCT_STATIC_DIR=/app/static \
     BCT_DATA_DIR=/data/state \
     BCT_BIND_HOST=0.0.0.0 \
     BCT_BIND_PORT=8000 \
-    BCT_ENABLE_GRAPH=1 \
-    BCT_INGEST_GRAPH=1 \
     BCT_INGEST_LOCAL_INDEX=0 \
     BCT_DEFAULT_PROFILE=cloud \
     PYTHONUNBUFFERED=1

@@ -19,8 +19,6 @@ def main() -> None:
     parser.add_argument("--data-dir", type=Path, default=Path(".demo-data"))
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--documents", type=Path, help="Root directory containing the original source PDFs (searched recursively)")
-    parser.add_argument("--enable-graph", action=argparse.BooleanOptionalAction, default=True,
-                        help="Enable Graph Lite (default on). Use --no-enable-graph to disable.")
     parser.add_argument("--enable-ingestion", action="store_true", help="Enable the administrator PDF ingestion endpoints")
     args = parser.parse_args()
 
@@ -30,11 +28,7 @@ def main() -> None:
     data = args.data_dir.resolve()
     data.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("BCT_DEFAULT_PROFILE", "cloud")
-    os.environ["BCT_ENABLE_GRAPH"] = "1" if args.enable_graph else "0"
     os.environ["BCT_ENABLE_INGESTION"] = "1" if args.enable_ingestion else os.environ.get("BCT_ENABLE_INGESTION", "0")
-    os.environ.setdefault("BCT_NEO4J_URI", "bolt://127.0.0.1:7687")
-    os.environ.setdefault("BCT_NEO4J_USERNAME", "neo4j")
-    os.environ.setdefault("BCT_NEO4J_PASSWORD", "bct-graph-lite-verify")
     os.environ.setdefault("BCT_CONVERSATION_DB", str(data / "conversations.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DB", str(data / "ingestion.sqlite3"))
     os.environ.setdefault("BCT_AUTH_DB", str(data / "auth.sqlite3"))

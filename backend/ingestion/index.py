@@ -198,8 +198,13 @@ def stage_cloud_assets(
     all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
     all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
 
-    if not all_visual:
-        raise ValueError("The current BCT runtime requires a non-empty Arabic visual/OCR secondary representation")
+    if not all_primary:
+        raise ValueError(
+            f"Ingestion of {source_filename!r} produced no native searchable chunks "
+            "(and the active corpus has none either)"
+        )
+    # Arabic visual/OCR secondary may stay empty for French-first corpora.
+    # An empty secondary is valid; retrieval simply skips OCR fusion.
 
     version_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{content_sha256[:10]}-{uuid.uuid4().hex[:6]}"
     versions = root / "versions"

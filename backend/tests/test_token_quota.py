@@ -21,7 +21,6 @@ def auth_client(tmp_path, monkeypatch):
     monkeypatch.setenv("BCT_DEFAULT_TOKEN_LIMIT", "1000")
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: None)
     monkeypatch.setattr(
         app_module,
         "open_conversation_store",

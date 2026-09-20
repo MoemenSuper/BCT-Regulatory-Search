@@ -75,7 +75,7 @@ def parse_source_identity(source: str) -> dict[str, Any] | None:
     }
 
 
-# Shared with regulatory_graph_lite.identity (keep aliases in sync).
+# Shared instrument-kind aliases for filename parsing.
 _KIND_ALIASES = {
     "cir": "cir",
     "ci": "cir",

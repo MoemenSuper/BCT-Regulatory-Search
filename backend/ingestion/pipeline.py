@@ -30,7 +30,6 @@ class IngestionConfig:
     gemini_cache_dir: Path
     max_pdf_bytes: int = 50 * 1024 * 1024
     build_local: bool = True
-    build_graph: bool = False
 
     @classmethod
     def from_environment(cls, *, asset_root: str | Path | None = None) -> "IngestionConfig":
@@ -48,7 +47,6 @@ class IngestionConfig:
             gemini_cache_dir=Path(os.environ.get("BCT_GEMINI_CACHE", str(data_root / "gemini-cache"))).resolve(),
             max_pdf_bytes=int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024))),
             build_local=os.environ.get("BCT_INGEST_LOCAL_INDEX", "1") == "1",
-            build_graph=os.environ.get("BCT_INGEST_GRAPH", os.environ.get("BCT_ENABLE_GRAPH", "0")) == "1",
         )
 
 
@@ -158,9 +156,6 @@ class IngestionPipeline:
             self.registry.start(content_hash, filename, str(immutable_pdf))
 
             staged_version: Path | None = None
-            graph_driver = None
-            graph_store = None
-            staged_candidate_ids: list[str] = []
             pointer_path = self.config.asset_root / "ACTIVE.json"
             previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
             activation_committed = False
@@ -207,54 +202,43 @@ class IngestionPipeline:
                     )
                     snapshot_updates.update(local)
 
-                graph_report = {"enabled": self.config.build_graph, "candidate_count": 0, "activated_count": 0}
-                if self.config.build_graph:
-                    try:
-                        from regulatory_graph_lite.builder import create_builder_from_environment
-                        from regulatory_graph_lite.identity import instrument_from_filename
-                        from regulatory_graph_lite.store import Neo4jGraphLiteStore, open_neo4j_driver_from_environment
+                # Flat SUPERSEDES edges for topical/force currentness. Written into
+                # the staged version before activate so a failed activation rolls back.
+                supersession_report: dict[str, object] = {"enabled": True}
+                try:
+                    from jsonl_supersession import merge_supersession_edges_for_ingest
 
-                        if instrument_from_filename(filename) is None:
-                            graph_report["skipped_reason"] = "unparseable_bct_instrument_filename"
-                        else:
-                            graph_driver = open_neo4j_driver_from_environment()
-                            graph_store = Neo4jGraphLiteStore(
-                                graph_driver,
-                                database=os.environ.get("BCT_NEO4J_DATABASE", "neo4j"),
-                            )
-                            graph_store.ensure_schema()
-                            builder = create_builder_from_environment(
-                                driver=graph_driver,
-                                store=graph_store,
-                                documents_dir=self.config.documents_dir,
-                                chunk_files=(staged_version / "native.jsonl",),
-                                activate_immediately=False,
-                            )
-                            for page in structured.pages:
-                                # Prefer the complete Gemini transcription for
-                                # Arabic relationship extraction when available;
-                                # Graph Lite still verifies the exact quotation and
-                                # target identity before accepting an edge.
-                                graph_text = (
-                                    str(page.metadata.get("visual_text") or "").strip()
-                                    if page.metadata.get("visual_complete") is True
-                                    else page.raw_text
-                                )
-                                report = builder.ingest_page(
-                                    source_file=structured.filename,
-                                    page=page.page_number,
-                                    text=graph_text,
-                                )
-                                staged_candidate_ids.extend(candidate.candidate_id for candidate in report.accepted)
-                            graph_report["candidate_count"] = len(staged_candidate_ids)
-                    except Exception as graph_error:
-                        if graph_store is not None and staged_candidate_ids:
-                            try:
-                                graph_store.delete_candidates(staged_candidate_ids)
-                            except Exception:
-                                pass
-                        staged_candidate_ids.clear()
-                        graph_report["warning"] = f"{type(graph_error).__name__}: {graph_error}"
+                    supersession_report.update(
+                        merge_supersession_edges_for_ingest(
+                            active_before=active_before,
+                            staged_version=staged_version,
+                            filename=filename,
+                            pages=structured.pages,
+                            asset_root=self.config.asset_root,
+                        )
+                    )
+                except Exception as supersession_error:
+                    supersession_report["warning"] = (
+                        f"{type(supersession_error).__name__}: {supersession_error}"
+                    )
+                    # Never activate a version that silently drops the prior edge list.
+                    try:
+                        from jsonl_supersession import (
+                            load_prior_edges,
+                            write_edges,
+                        )
+
+                        write_edges(
+                            staged_version / "supersession_edges.jsonl",
+                            load_prior_edges(
+                                active_before, asset_root=self.config.asset_root
+                            ),
+                        )
+                        supersession_report["fallback"] = "copied_prior_edges"
+                    except Exception as copy_error:
+                        supersession_report["fallback_error"] = (
+                            f"{type(copy_error).__name__}: {copy_error}"
+                        )
 
                 pointer = activate_assets(
                     self.config.asset_root,
@@ -262,9 +246,6 @@ class IngestionPipeline:
                     snapshot_updates=snapshot_updates,
                 )
 
-                # Commit searchable assets to the durable local ledger before graph
-                # promotion. Graph Lite is an optional sidecar and must never make a
-                # successfully indexed PDF disappear from the primary RAG runtime.
                 report = {
                     "status": "ready",
                     "duplicate": False,
@@ -282,7 +263,7 @@ class IngestionPipeline:
                     "asset_version": staged_snapshot["version"],
                     "active_pointer": pointer,
                     "local_indexed": bool(snapshot_updates.get("local_collection")),
-                    "graph": graph_report,
+                    "supersession": supersession_report,
                 }
                 try:
                     self.registry.ready(
@@ -295,39 +276,8 @@ class IngestionPipeline:
                     _restore_active_pointer(self.config.asset_root, previous_pointer)
                     raise
                 activation_committed = True
-
-                # Promote staged graph relationships only after the document is
-                # searchable. A graph outage degrades to normal RAG rather than
-                # rolling back a valid ingestion. Activate new edges first so a
-                # cleanup failure cannot temporarily erase all graph evidence.
-                if graph_store is not None:
-                    try:
-                        if staged_candidate_ids:
-                            graph_report["activated_count"] = graph_store.activate_candidates(staged_candidate_ids)
-                        graph_report["deactivated_previous_count"] = graph_store.deactivate_source_relationships(
-                            filename, keep_candidate_ids=staged_candidate_ids
-                        )
-                    except Exception as graph_error:
-                        graph_report["warning"] = f"{type(graph_error).__name__}: {graph_error}"
-
-                # Refresh the stored report with post-activation graph status. If
-                # this cosmetic update fails, the asset/ledger commit remains valid.
-                try:
-                    self.registry.ready(
-                        content_hash,
-                        stored_path=str(immutable_pdf),
-                        asset_version=staged_snapshot["version"],
-                        report=report,
-                    )
-                except Exception:
-                    pass
                 return report
             except Exception as error:
-                if not activation_committed and graph_store is not None and staged_candidate_ids:
-                    try:
-                        graph_store.delete_candidates(staged_candidate_ids)
-                    except Exception:
-                        pass
                 if staged_version is not None and not activation_committed:
                     # A pre-commit failure must not leave the new version selected
                     # or orphan versioned local collections that can never become
@@ -342,6 +292,3 @@ class IngestionPipeline:
                 if not activation_committed:
                     self.registry.fail(content_hash, f"{type(error).__name__}: {error}")
                 raise
-            finally:
-                if graph_driver is not None:
-                    graph_driver.close()

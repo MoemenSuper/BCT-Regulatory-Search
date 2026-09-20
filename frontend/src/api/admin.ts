@@ -36,10 +36,9 @@ export interface AdminOverview {
   documents_ready: number;
   active_profile: string;
   answer_refusals_total: number;
-  graph: {
-    graph_enabled: boolean;
-    neo4j_connected: boolean;
-    graph_ready: boolean;
+  supersession: {
+    ready: boolean;
+    edge_count: number;
   };
 }
 

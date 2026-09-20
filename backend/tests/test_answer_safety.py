@@ -838,6 +838,117 @@ def test_a_disclaimer_does_not_validate_an_unverified_currentness_assertion(clai
     assert not result["sources"]
 
 
+def test_negative_force_wording_is_allowed_when_quote_supports_abrogation():
+    evidence = [{
+        "evidence_id": "E1",
+        "source": "Cir_2019_07_fr.pdf",
+        "page": 2,
+        "text": (
+            "Les dispositions de l'article 2 de la circulaire n°2018-07 "
+            "sont abrogées."
+        ),
+        "score": 1.0,
+        "temporal_relation": "ABROGATES",
+        "temporal_source_id": "cir:2019:7",
+        "temporal_target_id": "cir:2018:7",
+    }]
+    claim = (
+        "L'article 2 de la circulaire 2018-07 n'est plus en vigueur : "
+        "il est abrogé par la circulaire 2019-07."
+    )
+    quote = "Les dispositions de l'article 2 de la circulaire n°2018-07 sont abrogées."
+    result = parse(
+        draft(claim, quote),
+        evidence,
+        "L'article 2 de la circulaire 2018-07 est-il encore en vigueur ?",
+        temporal_unverified=True,
+    )
+    assert result["status"] == "partial_answer"
+    assert result["sources"]
+    assert "abrog" in result["answer"].casefold()
+
+
+def test_temporal_counterpart_ids_are_trusted_like_cited_filenames():
+    from answer_evidence import strip_instrument_references, trusted_years
+
+    records = [{
+        "source": "Cir_2019_07_fr.pdf",
+        "temporal_source_id": "cir:2019:7",
+        "temporal_target_id": "cir:2018:7",
+    }]
+    stripped = strip_instrument_references(
+        "La circulaire 2019-07 abroge la circulaire 2018-07.",
+        records,
+    )
+    assert "2018" not in stripped
+    assert "2019" not in stripped
+    assert "2018" in trusted_years("encore en vigueur ?", records)
+
+
+def test_supersession_partial_from_pinned_evidence_without_llm():
+    from answer_contract import try_supersession_partial_answer
+
+    evidence = [{
+        "evidence_id": "E1",
+        "source": "Cir_2019_07_fr.pdf",
+        "page": 2,
+        "text": (
+            "Les dispositions de l'article 2 de la circulaire n°2018-07 "
+            "sont abrogées."
+        ),
+        "score": 9.0,
+        "temporal_relation": "ABROGATES",
+        "temporal_source_id": "cir:2019:7",
+        "temporal_target_id": "cir:2018:7",
+    }]
+    result = try_supersession_partial_answer(
+        "L'article 2 de la circulaire 2018-07 est-il encore en vigueur ?",
+        evidence,
+    )
+    assert result is not None
+    assert result["status"] == "partial_answer"
+    assert result["sources"]
+    assert "abrog" in result["answer"].casefold() or "2018" in result["answer"]
+
+
+def test_supersession_partial_includes_successor_substance_when_present():
+    from answer_contract import try_supersession_partial_answer
+
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2019_07_fr.pdf",
+            "page": 2,
+            "text": (
+                "Les dispositions de l'article 2 de la circulaire n°2018-07 "
+                "sont abrogées."
+            ),
+            "score": 9.0,
+            "temporal_relation": "ABROGATES",
+            "temporal_source_id": "cir:2019:7",
+            "temporal_target_id": "cir:2018:7",
+        },
+        {
+            "evidence_id": "E2",
+            "source": "Cir_2019_07_fr.pdf",
+            "page": 4,
+            "text": (
+                "La duree quotidienne du travail est fixee a huit heures "
+                "pendant la seance unique des etablissements de credit."
+            ),
+            "score": 8.0,
+        },
+    ]
+    result = try_supersession_partial_answer(
+        "Quels sont les horaires de travail des banques ?",
+        evidence,
+    )
+    assert result is not None
+    assert result["status"] == "partial_answer"
+    assert len(result["sources"]) >= 2
+    assert "huit heures" in result["answer"].casefold() or "2019" in result["answer"]
+
+
 def test_search_fallback_preserves_original_top5_not_currentness_answer_order(monkeypatch):
     import conversation
     docs = [(Document(page_content=f"Passage original {n}", metadata={
@@ -873,12 +984,10 @@ def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_p
     import app as app_module
     from conversation_memory import ConversationStore
     from answer_contract import search_response
-    monkeypatch.setenv("BCT_ENABLE_GRAPH", "0")
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
-    monkeypatch.setattr(app_module, "open_relationship_graph_runtime", lambda: None)
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: ConversationStore(tmp_path / "history.sqlite3"))
     result = search_response("Quel est le plafond ?", [record(eid=f"E{n}", source=f"Cir_2022_{n:02}_fr.pdf") for n in range(1, 6)])
     monkeypatch.setattr(app_module, "chat", lambda *args, **kwargs: {**result, "memory_state": {}, "graph_trace": {}})
