@@ -40,6 +40,7 @@
 
 .admin-file-input.is-dragover{border-color:var(--admin-blue);background:rgba(13,79,156,.06);box-shadow:0 0 0 3px rgba(13,79,156,.12)}
 .admin-file-input.is-disabled{opacity:.65;pointer-events:none}
+.admin-selected-files{display:grid;gap:10px;margin-top:4px}.admin-selected-files-bar{display:flex;align-items:center;justify-content:space-between;gap:10px}.admin-selected-files-bar strong{color:var(--admin-ink);font-size:13px}.admin-selected-files ul{display:grid;gap:6px;max-height:220px;margin:0;padding:0;overflow:auto;list-style:none}.admin-selected-files li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border:1px solid var(--admin-line);border-radius:8px;padding:8px 10px;background:var(--admin-surface)}.admin-selected-files li span{overflow:hidden;color:var(--admin-ink);font-size:12px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}.admin-shell[data-theme="dark"] .admin-selected-files li{border-color:#2a3a52;background:#0f1c2e}
 
 /* Admin dark mode — scoped to the dashboard shell */
 .admin-shell[data-theme="dark"]{

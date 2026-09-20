@@ -363,7 +363,11 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             fileKey={fileKey}
             uploadProgress={uploadProgress}
             onUpload={(event) => void handleUpload(event)}
-            onFilesChange={(next) => { setFiles(next); setError(null); }}
+            onFilesChange={(next) => {
+              setFiles(next);
+              setError(null);
+              if (!next.length) setFileKey((key) => key + 1);
+            }}
             onInvalidFiles={() => setError(t(locale, 'admin.fileInvalid'))}
           />
         ) : null}
@@ -746,9 +750,11 @@ function DocumentsPage({
   useEffect(() => {
     if (!uploadProgress) setDetailsOpen(false);
   }, [uploadProgress]);
-  const label = files.length
-    ? (files.length === 1 ? files[0].name : t(locale, 'admin.filesSelected', { count: files.length }))
-    : t(locale, 'admin.choosePdf');
+  const dropLabel = dragActive
+    ? t(locale, 'admin.dropPdf')
+    : files.length
+      ? t(locale, 'admin.addMorePdf')
+      : t(locale, 'admin.choosePdf');
 
   function acceptFiles(raw: File[]) {
     const pdfs = raw.filter(isPdfFile);
@@ -756,7 +762,16 @@ function DocumentsPage({
       onInvalidFiles();
       return;
     }
-    onFilesChange(pdfs);
+    if (!pdfs.length) return;
+    const seen = new Set(files.map((file) => `${file.name}\0${file.size}\0${file.lastModified}`));
+    const merged = [...files];
+    for (const file of pdfs) {
+      const key = `${file.name}\0${file.size}\0${file.lastModified}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(file);
+    }
+    onFilesChange(merged);
   }
   const entries = uploadProgress?.entries || [];
   const total = uploadProgress?.total || 0;
@@ -855,10 +870,39 @@ function DocumentsPage({
                 accept="application/pdf,.pdf"
                 multiple
                 disabled={busy}
-                onChange={(event) => acceptFiles(Array.from(event.currentTarget.files || []))}
+                onChange={(event) => {
+                  acceptFiles(Array.from(event.currentTarget.files || []));
+                  event.currentTarget.value = '';
+                }}
               />
-              <em>{dragActive ? t(locale, 'admin.dropPdf') : label}</em>
+              <em>{dropLabel}</em>
             </label>
+            {files.length ? (
+              <div className="admin-selected-files">
+                <div className="admin-selected-files-bar">
+                  <strong>{t(locale, 'admin.filesSelected', { count: files.length })}</strong>
+                  <button type="button" className="admin-action" disabled={busy} onClick={() => onFilesChange([])}>
+                    {t(locale, 'admin.clearSelection')}
+                  </button>
+                </div>
+                <ul>
+                  {files.map((file) => (
+                    <li key={`${file.name}-${file.size}-${file.lastModified}`}>
+                      <span title={file.name}>{file.name}</span>
+                      <button
+                        type="button"
+                        className="admin-action"
+                        disabled={busy}
+                        aria-label={t(locale, 'admin.removeFile', { name: file.name })}
+                        onClick={() => onFilesChange(files.filter((entry) => entry !== file))}
+                      >
+                        {t(locale, 'admin.remove')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
           <button type="submit" className="admin-primary-button" disabled={busy || !files.length}>
             <FileUp aria-hidden="true" size={18} />
