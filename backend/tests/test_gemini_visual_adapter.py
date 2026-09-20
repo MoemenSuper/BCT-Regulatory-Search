@@ -77,6 +77,59 @@ def test_gemini_adapter_marks_literal_not_present_in_transcription_uncertain(tmp
     assert page.uncertain_regions == ["unbound_item:١١ أكتوبر ٢٠٢٦"]
 
 
+def test_gemini_json_falls_back_to_36_when_primary_quota_exhausted(monkeypatch):
+    import ingestion.gemini_visual as gv
+
+    models_used = []
+
+    class FakeInteractions:
+        def create(self, **kwargs):
+            models_used.append(kwargs["model"])
+            if kwargs["model"] == "gemini-3.8-flash":
+                raise RuntimeError("429 RESOURCE_EXHAUSTED quota")
+            return SimpleNamespace(
+                output_text=json.dumps(
+                    {
+                        "transcription": "fallback-ok",
+                        "items": [],
+                        "uncertain_regions": [],
+                        "complete": True,
+                    }
+                ),
+                id="fb",
+            )
+
+    class FakeClient:
+        def __init__(self, api_key):
+            self.interactions = FakeInteractions()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "only-key")
+    for index in range(2, 16):
+        monkeypatch.delenv(f"GEMINI_API_KEY_{index}", raising=False)
+    monkeypatch.setenv("BCT_GEMINI_RETRY_SLEEP_SECONDS", "0")
+    monkeypatch.setenv("BCT_GEMINI_FALLBACK_MODEL", "gemini-3.6-flash")
+    monkeypatch.setattr(gv, "_key_cursor", 0)
+    monkeypatch.setattr(gv.time, "sleep", lambda _seconds: None)
+
+    fake_genai = SimpleNamespace(Client=FakeClient)
+    monkeypatch.setitem(__import__("sys").modules, "google.genai", fake_genai)
+    monkeypatch.setitem(__import__("sys").modules, "google", SimpleNamespace(genai=fake_genai))
+    import google
+
+    monkeypatch.setattr(google, "genai", fake_genai, raising=False)
+
+    text, response_id = gv.gemini_json_from_image(
+        b"png",
+        prompt="p",
+        schema={"type": "object"},
+        model="gemini-3.8-flash",
+    )
+    assert "fallback-ok" in text
+    assert response_id == "fb"
+    assert "gemini-3.8-flash" in models_used
+    assert "gemini-3.6-flash" in models_used
+
+
 def test_gemini_json_rotates_to_next_key_on_quota(monkeypatch):
     import ingestion.gemini_visual as gv
 
@@ -127,7 +180,7 @@ def test_gemini_json_rotates_to_next_key_on_quota(monkeypatch):
         b"png",
         prompt="p",
         schema={"type": "object"},
-        model="gemini-3.7-flash",
+        model="gemini-3.8-flash",
     )
     assert "ok" in text
     assert response_id == "ok"

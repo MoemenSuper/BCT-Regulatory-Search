@@ -473,8 +473,10 @@ class VoyageRuntimeClient:
 
         credentials = self._credentials()
         last_statuses: list[str] = []
-        # One cool-down + full key sweep when every key is rate-limited.
-        for sweep in range(2):
+        # Bulk ingest often burns Voyage free/paid RPM; cool down and retry more than once.
+        max_sweeps = int(os.environ.get("BCT_VOYAGE_RETRY_SWEEPS", "4"))
+        base_sleep = float(os.environ.get("BCT_VOYAGE_RETRY_SLEEP_SECONDS", "20"))
+        for sweep in range(max(1, max_sweeps)):
             with self._lock:
                 start = self._credential_cursor % len(credentials)
                 self._credential_cursor += 1
@@ -490,7 +492,7 @@ class VoyageRuntimeClient:
                             "Connection": "close",
                         },
                         json=payload,
-                        timeout=(10, 30),
+                        timeout=(10, 60),
                     )
                 except requests.RequestException as error:
                     statuses.append(type(error).__name__)
@@ -522,8 +524,8 @@ class VoyageRuntimeClient:
                 status in {"429", "500", "502", "503", "504"} or status.endswith("Error")
                 for status in statuses
             )
-            if sweep == 0 and retryable:
-                time.sleep(float(os.environ.get("BCT_VOYAGE_RETRY_SLEEP_SECONDS", "8")))
+            if sweep + 1 < max_sweeps and retryable:
+                time.sleep(base_sleep * (sweep + 1))
                 continue
             break
         raise RuntimeError(

@@ -68,7 +68,7 @@ def _gemini_locate_quote(image_png: bytes, quote: str) -> list[list[int]]:
     if not api_key or not quote.strip():
         return []
 
-    model = os.environ.get("BCT_GEMINI_MODEL", "gemini-3.7-flash")
+    model = os.environ.get("BCT_GEMINI_MODEL", "gemini-3.8-flash")
     quote = " ".join(quote.split())[:1000]
     image_sha = hashlib.sha256(image_png).hexdigest()
     binding = {
