@@ -174,12 +174,21 @@ def safe_response(question, status="insufficient_evidence"):
     return {"status": status, "answer": _MESSAGES[language_of(question)][status], "sources": []}
 
 
-def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sources, source_numbers, source_quotes):
+def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sources, source_numbers, source_quotes, query_class=None):
     """Validate one claim. Raises ValueError/KeyError on literal or identity failure."""
     if not claim.text.strip():
         raise ValueError("Empty claim")
     if temporal_unverified and claim_asserts_unverified_applicability(claim.text):
         raise ValueError("unverified_applicability_claim_use_document_scoped_wording")
+    if query_class is not None:
+        from query_authority import evidence_kind_allowed
+
+        for quote in claim.quotes:
+            record = by_id[quote.evidence_id]
+            if not evidence_kind_allowed(query_class, doc_kind=record.get("doc_kind")):
+                raise ValueError(
+                    f"authority_mismatch:{query_class}:{record.get('doc_kind') or 'regulatory'}"
+                )
     numbers = []
     supporting_text = []
     claim_literals = _plain(claim.text)
@@ -577,7 +586,7 @@ def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_qu
     raise ValueError("unsupported_claim_anchor")
 
 
-def parse_answer(content, question, evidence, *, temporal_unverified=None, diagnostics=None):
+def parse_answer(content, question, evidence, *, temporal_unverified=None, diagnostics=None, query_class=None):
     """Fail closed on malformed output; keep any claims that pass literal gates."""
     try:
         if temporal_unverified is None:
@@ -608,6 +617,7 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
                     sources=sources,
                     source_numbers=source_numbers,
                     source_quotes=source_quotes,
+                    query_class=query_class,
                 ))
             except (ValueError, TypeError, KeyError) as error:
                 sources[:] = snap_sources

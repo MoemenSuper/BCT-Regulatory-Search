@@ -47,11 +47,11 @@ CLOUD_EMBED_SPECS = {
         dimension=1024,
         contextual=True,
     ),
-    # ponytail: gemini-embedding-001 (task_type) over embedding-2 prompt prefixes
+    # gemini-embedding-2: multimodal (text+image+PDF). task_type is 001-only; use prompt prefixes.
     "google": CloudEmbedSpec(
         key="google",
         provider="google",
-        model="gemini-embedding-001",
+        model="gemini-embedding-2",
         dimension=768,
         contextual=False,
     ),
@@ -249,12 +249,13 @@ class VoyageRuntimeClient:
             self._parse_query_vector,
         )
 
-    def embed_document_chunks(self, texts):
+    def embed_document_chunks(self, texts, **_kwargs):
         """Contextualize pre-chunked document text for ingestion.
 
         Requests are bounded so one unusually long circular does not exceed the
         contextual-embedding input limit. Each batch remains page/document-local
         context rather than embedding chunks independently.
+        Voyage ignores Google multimodal kwargs (images/titles).
         """
         texts = [str(text) for text in texts if str(text).strip()]
         if not texts:
@@ -438,22 +439,26 @@ class GoogleRuntimeClient:
             raise ValueError(f"Gemini returned a nonfinite, zero, or malformed {label}")
         return vector / norm
 
-    def _embed_one(self, text: str, *, task_type: str):
+    @staticmethod
+    def _format_query(text: str) -> str:
+        return f"task: question answering | query: {text}"
+
+    @staticmethod
+    def _format_document(text: str, *, title: str = "none") -> str:
+        safe_title = (title or "none").replace("\n", " ").strip() or "none"
+        return f"title: {safe_title} | text: {text}"
+
+    def _embed_contents(self, contents, *, cache_payload: dict):
+        """Embed text and/or interleaved image parts (gemini-embedding-2)."""
         from google.genai import types
 
-        payload = {
-            "provider": "google",
-            "model": self.spec.model,
-            "task_type": task_type,
-            "dimension": self.dimension,
-            "text": text,
-        }
-        cache_path = self._cache_path(payload)
+        cache_path = self._cache_path(cache_payload)
         if cache_path.exists():
             return self._unit(json.loads(cache_path.read_text(encoding="utf-8"))["embedding"])
 
-        client = self._genai()
-        keys = getattr(self, "_keys", _gemini_api_keys())
+        keys = getattr(self, "_keys", None) or _gemini_api_keys()
+        if not keys:
+            raise RuntimeError("GEMINI_API_KEY is required for BCT_CLOUD_RETRIEVAL_PROVIDER=google")
         last_error: Exception | None = None
         with self._lock:
             start = self._key_cursor % len(keys)
@@ -467,9 +472,8 @@ class GoogleRuntimeClient:
                 self._genai_client = client
                 response = client.models.embed_content(
                     model=self.spec.model,
-                    contents=text,
+                    contents=contents,
                     config=types.EmbedContentConfig(
-                        task_type=task_type,
                         output_dimensionality=self.dimension,
                     ),
                 )
@@ -494,23 +498,80 @@ class GoogleRuntimeClient:
                     if temporary is not None:
                         temporary.unlink(missing_ok=True)
                 return vector
-            except Exception as error:  # noqa: BLE001 - rotate on quota / transient
+            except Exception as error:  # noqa: BLE001 - rotate on quota / dead keys
                 last_error = error
                 text_error = str(error).casefold()
-                if any(token in text_error for token in ("429", "resource_exhausted", "quota", "rate")):
+                if any(
+                    token in text_error
+                    for token in (
+                        "429",
+                        "resource_exhausted",
+                        "quota",
+                        "rate",
+                        "403",
+                        "permission_denied",
+                        "permission denied",
+                        "denied access",
+                        "api key not valid",
+                        "invalid api key",
+                        "api_key_invalid",
+                        "consumer_invalid",
+                    )
+                ):
                     continue
                 raise
         raise RuntimeError(f"Gemini embed unavailable after trying configured keys: {last_error}")
 
+    def _embed_one(self, text: str, *, task_type: str, image_png: bytes | None = None, title: str = "none"):
+        # gemini-embedding-2 forbids task_type; prefixes live in the text part.
+        if task_type == "RETRIEVAL_QUERY":
+            text_part = self._format_query(text)
+            role = "query"
+        else:
+            text_part = self._format_document(text, title=title)
+            role = "document"
+        cache_payload = {
+            "provider": "google",
+            "model": self.spec.model,
+            "role": role,
+            "dimension": self.dimension,
+            "text": text_part,
+            "image_sha256": hashlib.sha256(image_png).hexdigest() if image_png else None,
+        }
+        if image_png:
+            from google.genai import types
+
+            contents = [
+                text_part,
+                types.Part.from_bytes(data=image_png, mime_type="image/png"),
+            ]
+        else:
+            contents = text_part
+        return self._embed_contents(contents, cache_payload=cache_payload)
+
     def embed_query(self, query):
         return self._embed_one(str(query), task_type="RETRIEVAL_QUERY")
 
-    def embed_document_chunks(self, texts):
+    def embed_document_chunks(self, texts, *, images=None, titles=None):
         texts = [str(text) for text in texts if str(text).strip()]
         if not texts:
             return np.empty((0, self.dimension), dtype=np.float32)
+        image_list = list(images) if images is not None else [None] * len(texts)
+        title_list = list(titles) if titles is not None else ["none"] * len(texts)
+        if len(image_list) != len(texts):
+            raise ValueError("images length must match texts")
+        if len(title_list) != len(texts):
+            raise ValueError("titles length must match texts")
         return np.asarray(
-            [self._embed_one(text, task_type="RETRIEVAL_DOCUMENT") for text in texts],
+            [
+                self._embed_one(
+                    text,
+                    task_type="RETRIEVAL_DOCUMENT",
+                    image_png=image_list[index],
+                    title=str(title_list[index] or "none"),
+                )
+                for index, text in enumerate(texts)
+            ],
             dtype=np.float32,
         )
 

@@ -12,6 +12,9 @@
 .pytest_cache/
 *.pyc
 
+# Local research / eval scratch (caches, page PNGs, run scripts)
+docs/research/
+
 # Runtime / generated data (keep on machine, not in git)
 documents/
 design-concepts/

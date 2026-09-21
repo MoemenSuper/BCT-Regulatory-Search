@@ -115,3 +115,5 @@
 .admin-shell[data-theme="dark"] .language-switcher button[aria-pressed='true']{color:#fff;background:#2a5a94;box-shadow:none}
 .admin-shell[data-theme="dark"] .admin-form input[aria-invalid='true'],.admin-shell[data-theme="dark"] .admin-form select[aria-invalid='true'],.admin-shell[data-theme="dark"] .admin-file-input.invalid{border-color:#e05a66;background:#2a1518}
 @media(max-width:760px){.admin-shell[data-theme="dark"] .admin-hero:after{background:linear-gradient(90deg,rgba(7,20,40,.96),rgba(7,20,40,.7))}}
+
+.admin-doc-kind-vlm{margin-top:6px;color:#a76a13;font-weight:650}

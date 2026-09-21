@@ -61,6 +61,8 @@ def _clean_metadata(metadata: dict | None) -> dict[str, str]:
         "type": 120,
         "category": 120,
         "document_number": 120,
+        "doc_kind": 32,
+        "related_to": 300,
     }
     cleaned: dict[str, str] = {}
     for key, limit in limits.items():
@@ -73,7 +75,53 @@ def _clean_metadata(metadata: dict | None) -> dict[str, str]:
         if len(value) > limit or any(ord(character) < 32 and character not in "\t\n" for character in value):
             raise ValueError(f"Invalid administrator metadata field: {key}")
         cleaned[key] = value
+    if "doc_kind" in cleaned:
+        from document_authority import normalize_doc_kind
+
+        cleaned["doc_kind"] = normalize_doc_kind(cleaned["doc_kind"])
     return cleaned
+
+
+def _persist_page_images(structured, immutable_dir: Path) -> int:
+    """Write chart-page PNGs beside the immutable PDF; drop in-memory bytes."""
+    images_dir = immutable_dir / "page-images"
+    written = 0
+    for page in structured.pages:
+        png = page.metadata.pop("page_image_png", None)
+        if not png:
+            continue
+        images_dir.mkdir(parents=True, exist_ok=True)
+        path = images_dir / f"page-{page.page_number}.png"
+        path.write_bytes(png)
+        page.metadata["page_image_path"] = str(path)
+        page.metadata["has_chart"] = True
+        written += 1
+    return written
+
+
+def _ensure_secondary_page_images(structured, pdf_path: Path, immutable_dir: Path) -> int:
+    """Persist page PNGs for statistical/internal when chart heuristics did not already."""
+    if str(structured.metadata.get("doc_kind") or "") not in {"statistical", "internal"}:
+        return 0
+    try:
+        import pymupdf
+    except ImportError:
+        return 0
+    images_dir = immutable_dir / "page-images"
+    written = 0
+    with pymupdf.open(pdf_path) as pdf:
+        for page in structured.pages:
+            if page.metadata.get("page_image_path"):
+                continue
+            images_dir.mkdir(parents=True, exist_ok=True)
+            pixmap = pdf.load_page(page.page_number - 1).get_pixmap(
+                matrix=pymupdf.Matrix(2.0, 2.0), alpha=False
+            )
+            path = images_dir / f"page-{page.page_number}.png"
+            path.write_bytes(pixmap.tobytes("png"))
+            page.metadata["page_image_path"] = str(path)
+            written += 1
+    return written
 
 
 def validate_pdf_file(path: str | Path, *, max_bytes: int) -> None:
@@ -164,9 +212,24 @@ class IngestionPipeline:
                 if os.environ.get("BCT_GEMINI_VISUAL", "1") == "1":
                     transcriber = GeminiVisualTranscriber(self.config.gemini_cache_dir)
                 structured = PdfExtractor(visual_transcriber=transcriber).extract(immutable_pdf)
+                from document_authority import authority_for_kind, resolve_doc_kind
+
+                doc_kind = resolve_doc_kind(
+                    explicit=metadata.get("doc_kind") or metadata.get("type"),
+                    filename=filename,
+                )
+                metadata["doc_kind"] = doc_kind
+                metadata["authority"] = authority_for_kind(doc_kind)
                 structured.document_number = metadata.get("document_number")
                 structured.publication_date = metadata.get("publication_date")
                 structured.metadata["administrator_metadata"] = metadata
+                structured.metadata["doc_kind"] = doc_kind
+                structured.metadata["authority"] = metadata["authority"]
+                if metadata.get("related_to"):
+                    structured.metadata["related_to"] = metadata["related_to"]
+                page_images = _persist_page_images(structured, immutable_dir)
+                page_images += _ensure_secondary_page_images(structured, immutable_pdf, immutable_dir)
+                structured.metadata["chart_page_images"] = page_images
                 structured_path = immutable_dir / "structured.json"
                 structured_path.write_text(
                     json.dumps(structured.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),

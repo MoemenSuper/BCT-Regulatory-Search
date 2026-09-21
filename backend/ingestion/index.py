@@ -139,7 +139,20 @@ def _embed_new(client, documents: list[Document]) -> np.ndarray:
     dimension = int(getattr(client, "dimension", cloud_embed_spec().dimension))
     if not documents:
         return np.empty((0, dimension), dtype=np.float32)
-    return client.embed_document_chunks([document.page_content for document in documents])
+    texts = [document.page_content for document in documents]
+    images = []
+    titles = []
+    for document in documents:
+        titles.append(Path(str(document.metadata.get("source", ""))).stem or "none")
+        image_path = str(document.metadata.get("page_image_path") or "").strip()
+        png = None
+        # Google-only multimodal: Voyage embed_document_chunks ignores images.
+        if image_path:
+            path = Path(image_path)
+            if path.is_file():
+                png = path.read_bytes()
+        images.append(png)
+    return client.embed_document_chunks(texts, images=images, titles=titles)
 
 
 def stage_cloud_assets(

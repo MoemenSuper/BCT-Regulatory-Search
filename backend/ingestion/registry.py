@@ -134,6 +134,15 @@ class IngestionRegistry:
                     title = str(admin_meta.get("title") or "")
                 if not title:
                     title = str(report.get("title") or "")
+            from document_authority import resolve_doc_kind
+
+            explicit_kind = admin_meta.get("doc_kind")
+            if not explicit_kind and isinstance(report, dict):
+                explicit_kind = report.get("doc_kind")
+            doc_kind = resolve_doc_kind(
+                explicit=explicit_kind,
+                filename=str(item["original_filename"] or ""),
+            )
             documents.append(
                 {
                     "document_id": item["content_sha256"],
@@ -143,6 +152,7 @@ class IngestionRegistry:
                     "asset_version": item["asset_version"],
                     "activated_at": item["activated_at"],
                     "pages": report.get("pages") if isinstance(report, dict) else None,
+                    "doc_kind": doc_kind,
                     "publication_date": str(admin_meta.get("publication_date") or ""),
                     "document_type": str(
                         admin_meta.get("document_type") or admin_meta.get("type") or ""
