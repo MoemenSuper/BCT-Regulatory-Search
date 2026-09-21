@@ -397,3 +397,18 @@ def test_general_chat_off_topic_still_skips_retrieval(monkeypatch):
     assert result["status"] == "answered"
     assert result["sources"] == []
     assert result.get("refusal_reason") in (None, "")
+
+
+def test_selon_circulaire_2025_13_beats_prefer_later_instruments():
+    """Latest-rule preference must not bury an explicitly named instrument."""
+    from pathlib import Path
+
+    query = "Selon la circulaire 2025-13, quelles sont les règles d'exportation ?"
+    named = _document("Cir_2025_13_fr.pdf", page=2)
+    newer_mention = _document("Cir_2026_04_fr.pdf", page=1)
+    results = conversation._answer_results(
+        [(newer_mention, 0.95), (named, 0.50)],
+        prefer_later_instruments=True,
+        query=query,
+    )
+    assert Path(str(results[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"

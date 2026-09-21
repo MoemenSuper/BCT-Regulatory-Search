@@ -911,6 +911,32 @@ def test_supersession_partial_from_pinned_evidence_without_llm():
     assert "abrog" in result["answer"].casefold() or "2018" in result["answer"]
 
 
+def test_literal_evidence_partial_from_exclusion_page_without_llm():
+    from answer_contract import try_literal_evidence_partial
+
+    evidence = [{
+        "evidence_id": "E1",
+        "source": "Cir_2026_04_fr.pdf",
+        "page": 2,
+        "text": (
+            "Sont exclues du champ d'application de l'article premier les opérations "
+            "suivantes : l'importation de produits dans le cadre de marchés publics "
+            "au profit de l'État, des établissements et entreprises publics et des "
+            "collectivités locales."
+        ),
+        "score": 0.9,
+    }]
+    result = try_literal_evidence_partial(
+        "Importation pour un marche public au profit d'une collectivite locale. "
+        "Le depot de 100% s'applique-t-il ?",
+        evidence,
+    )
+    assert result is not None
+    assert result["status"] == "partial_answer"
+    assert "exclu" in result["answer"].casefold()
+    assert any("2026" in str(s.get("file", "")) for s in result["sources"])
+
+
 def test_supersession_partial_includes_successor_substance_when_present():
     from answer_contract import try_supersession_partial_answer
 

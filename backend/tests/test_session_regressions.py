@@ -4,7 +4,7 @@ from langchain_core.runnables import RunnableLambda
 
 from answer_contract import generate_grounded_answer, safe_response
 from source_metadata import normalize_page
-from runtime_retrieval import parse_query_identity
+from retrieval_selection import parse_query_identity
 from runtime_retrieval import VoyageRetrievalBackend
 import numpy as np
 import conversation
