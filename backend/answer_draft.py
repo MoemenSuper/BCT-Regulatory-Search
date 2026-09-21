@@ -942,21 +942,49 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     else:
         evidence, _ = _order_evidence_for_question_year(evidence, question)
     evidence = _annotate_graph_supersession(evidence)
-    # Current regime questions: draft from newer same-domain instruments first so
-    # older list circulars (2017/2018) do not steal marchés publics / industrial answers.
+    # Current regime questions: draft from the newest same-regime year in the
+    # retrieved pack (not only the selector's pick) so older list circulars
+    # (2017/2018) cannot steal marchés / industrial answers when 2026 is present.
     if not is_historical_cutoff_query(question):
-        from retrieval_selection import query_regulatory_regime
+        from langchain_core.documents import Document
+        from retrieval_selection import _doc_matches_regime, query_regulatory_regime
 
-        if query_regulatory_regime(question):
-            evidence = sorted(
-                evidence,
-                key=lambda record: -(
-                    (parse_source_identity(Path(str(record.get("source") or "")).name) or {}).get(
-                        "year"
+        regime = query_regulatory_regime(question)
+        if regime:
+            def _year(record):
+                identity = parse_source_identity(Path(str(record.get("source") or "")).name)
+                return int(identity["year"]) if identity else 0
+
+            def _regime_hit(record):
+                doc = Document(
+                    page_content=str(record.get("text") or "")[:1500],
+                    metadata={"source": str(record.get("source") or "")},
+                )
+                return _doc_matches_regime(doc, regime)
+
+            pool = [
+                record
+                for record in candidate_evidence
+                if not record.get("unusable_reason") and _regime_hit(record)
+            ]
+            if not pool:
+                pool = [record for record in evidence if not record.get("unusable_reason")]
+            years = [_year(record) for record in pool if _year(record)]
+            if years:
+                newest = max(years)
+                newest_only = [record for record in pool if _year(record) == newest]
+                if newest_only:
+                    evidence = newest_only
+                    selection = EvidenceSelection(
+                        decision=(
+                            selection.decision
+                            if selection.decision in {"answer", "partial"}
+                            else "partial"
+                        ),
+                        answer_intent=selection.answer_intent,
+                        reason=(selection.reason + " | prefer newest regime year").strip(" |"),
+                        evidence_ids=[record["evidence_id"] for record in evidence],
                     )
-                    or 0
-                ),
-            )
     # Broad/summary selections often include many long pages; oversized prompts make the
     # answer model abstain or return invalid JSON. Cap before drafting (selection order).
     evidence = _cap_draft_evidence(evidence, limit=3)
