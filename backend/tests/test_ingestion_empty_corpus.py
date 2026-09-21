@@ -31,7 +31,7 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
     class FakeClient:
         dimension = 4
 
-        def embed_document_chunks(self, texts):
+        def embed_document_chunks(self, texts, **_kwargs):
             return np.ones((len(texts), self.dimension), dtype=np.float32)
 
     from runtime_retrieval import CloudEmbedSpec

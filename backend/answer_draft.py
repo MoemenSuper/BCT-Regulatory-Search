@@ -272,7 +272,7 @@ def evidence_records(scored_documents):
                   "page": page, "text": document.page_content, "score": float(score)}
         record.update({key: value for key, value in document.metadata.items()
                        if key.startswith("temporal_") or key.startswith("valid_")
-                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict"}})
+                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to"}})
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
@@ -887,13 +887,15 @@ def try_literal_evidence_partial(question, evidence, *, diagnostics=None):
     return None
 
 
-def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None):
+def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None, query_class=None):
     evidence = evidence_records(scored_documents)
     fallback = search_response(question, evidence)
     if not evidence:
         return {**safe_response(question), "diagnostics": ["no_retrieval_hits"]}
     if temporal_unverified is None:
         temporal_unverified = is_temporal_rule_query(question)
+    if query_class is None:
+        query_class = "uncertain"
     target = direct_identity(question)
     if target and not any(identity_matches(r["source"], target) and not r.get("unusable_reason") for r in evidence):
         label = f"{target['kind']}:{target['year']}-{target['number']}"
@@ -1195,7 +1197,7 @@ Schema: {schema}"""),
             continue
         diagnostics = []
         parsed = parse_answer(raw, question, evidence,
-            temporal_unverified=temporal_unverified, diagnostics=diagnostics)
+            temporal_unverified=temporal_unverified, diagnostics=diagnostics, query_class=query_class)
         accepted = None if diagnostics else _accept(parsed)
         if accepted is not None:
             return accepted
@@ -1224,6 +1226,7 @@ Schema: {schema}"""),
             parsed = parse_answer(
                 repaired, question, evidence,
                 temporal_unverified=temporal_unverified, diagnostics=diagnostics,
+                query_class=query_class,
             )
             accepted = None if diagnostics else _accept(parsed)
             if accepted is not None:
@@ -1258,6 +1261,7 @@ Schema: {schema}"""),
         parsed = parse_answer(
             forced, question, compact,
             temporal_unverified=temporal_unverified, diagnostics=diagnostics,
+            query_class=query_class,
         )
         if diagnostics == ["schema_invalid"]:
             history.append(f"{tag}:schema_invalid")
@@ -1269,6 +1273,7 @@ Schema: {schema}"""),
             parsed = parse_answer(
                 repaired, question, compact,
                 temporal_unverified=temporal_unverified, diagnostics=diagnostics,
+                query_class=query_class,
             )
             if diagnostics:
                 history.extend([f"{tag}_repair:{item}" for item in diagnostics])

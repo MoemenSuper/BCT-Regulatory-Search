@@ -47,5 +47,35 @@ def test_list_ready_exposes_administrator_metadata(tmp_path: Path):
         assert ready[0]["category"] == "Prudential"
         assert ready[0]["document_number"] == "2024-03"
         assert ready[0]["pages"] == 12
+        assert ready[0]["doc_kind"] == "regulatory"
+    finally:
+        registry.close()
+
+
+def test_list_ready_exposes_doc_kind(tmp_path: Path):
+    registry = IngestionRegistry(tmp_path / "ingestion.sqlite3")
+    try:
+        registry.start("hash-stats", "Bulletin_2024_fr.pdf", "/b.pdf")
+        registry.ready(
+            "hash-stats",
+            stored_path="/b.pdf",
+            asset_version="v1",
+            report={
+                "administrator_metadata": {
+                    "title": "Bulletin",
+                    "doc_kind": "statistical",
+                },
+            },
+        )
+        registry.start("hash-memo", "Memo_interne.pdf", "/m.pdf")
+        registry.ready(
+            "hash-memo",
+            stored_path="/m.pdf",
+            asset_version="v1",
+            report={"administrator_metadata": {"doc_kind": "internal"}},
+        )
+        by_id = {row["document_id"]: row for row in registry.list_ready()}
+        assert by_id["hash-stats"]["doc_kind"] == "statistical"
+        assert by_id["hash-memo"]["doc_kind"] == "internal"
     finally:
         registry.close()

@@ -12,7 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-PROMPT_VERSION = "bct-faithful-page-transcription-v2"
+PROMPT_VERSION = "bct-faithful-page-transcription-v3-charts"
 DEFAULT_MODEL = "gemini-3.8-flash"
 FALLBACK_MODEL = "gemini-3.6-flash"
 # Tried in order on quota/timeout/transient failure. Extraction quality, not model bake-off.
@@ -36,26 +36,39 @@ class VisualPage(BaseModel):
     items: list[SensitiveLiteral] = Field(default_factory=list)
     uncertain_regions: list[str] = Field(default_factory=list)
     complete: bool
+    contains_chart: bool = Field(
+        default=False,
+        description="True when the page shows a chart, graph, plot, or similar figure (image or drawing).",
+    )
+    chart_notes: str = Field(
+        default="",
+        description="Visible chart title, legend, axis labels, and readable data values only; empty if no chart.",
+    )
 
 
-_PROMPT = """You are transcribing one page of a public Tunisian regulatory PDF.
+_PROMPT = """You are transcribing one page of a Tunisian Central Bank PDF (regulatory, statistical, or internal).
 Return only data matching the supplied JSON schema.
 
 Rules for `transcription`:
-- Transcribe ALL visible textual content faithfully and in reading order.
+- Transcribe ALL visible textual content faithfully and in reading order (body, captions, legends, footnotes).
 - Preserve Arabic reading order, visible digit order, punctuation, headings and useful line breaks.
 - Do not summarize, translate, normalize, reverse, silently correct, or infer missing text.
 - Do not convert Arabic-Indic digits.
 - If a character or region is genuinely unclear, preserve what is readable and describe the uncertainty in `uncertain_regions`.
 
+Rules for charts / figures:
+- Set `contains_chart=true` when the page shows a chart, graph, plot, bar/line/pie figure, or similar (whether raster or drawn).
+- Put visible chart title, legend entries, axis labels, and only clearly readable plotted values into `chart_notes`.
+- Also include those same readable chart strings in `transcription` when they are visible as text on the page image.
+- Never invent series values you cannot read. Prefer uncertainty over guessing.
+
 Rules for `items`:
 - Include every visible answer-bearing number, date, time, percentage, amount, document reference, account/code, or alphanumeric identifier.
-- `literal` must be the exact visible characters and must occur verbatim in `transcription`.
+- `literal` must be the exact visible characters and must occur verbatim in `transcription` or `chart_notes`.
 - `context` must be a short verbatim phrase around the literal.
 - Set `uncertain=true` when the literal or its association is not visually certain.
 
-Set `complete=true` only when all visible text on the page was inspected and represented. Prefer explicit uncertainty over guessing."""
-
+Set `complete=true` only when all visible text and chart labels on the page were inspected and represented. Prefer explicit uncertainty over guessing."""
 
 def _configuration(model: str) -> dict[str, object]:
     return {
@@ -336,13 +349,16 @@ class GeminiVisualTranscriber:
             on_rotate=_rotate,
         )
         parsed = VisualPage.model_validate_json(output_text)
-        if not parsed.transcription.strip():
+        if not parsed.transcription.strip() and not parsed.chart_notes.strip():
             raise ValueError("Gemini returned an empty page transcription")
+        if not parsed.transcription.strip() and parsed.chart_notes.strip():
+            parsed.transcription = parsed.chart_notes.strip()
+        evidence_blob = f"{parsed.transcription}\n{parsed.chart_notes}"
         # The transcription is the evidence; items are an index into it. An item whose
         # literal/context is not found verbatim (Arabic marks, spacing) is kept as
         # uncertain rather than failing the whole page.
         for item in parsed.items:
-            if item.literal not in parsed.transcription or item.context not in parsed.transcription:
+            if item.literal not in evidence_blob or item.context not in evidence_blob:
                 item.uncertain = True
                 parsed.uncertain_regions.append(f"unbound_item:{item.literal}")
 

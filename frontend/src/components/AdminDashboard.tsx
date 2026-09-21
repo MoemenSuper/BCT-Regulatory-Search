@@ -63,6 +63,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
+  const [docKind, setDocKind] = useState<'regulatory' | 'statistical' | 'internal'>('regulatory');
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [theme, setTheme] = useState<AdminTheme>(readAdminTheme);
   const navigation = [
@@ -258,6 +259,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         });
         const form = new FormData();
         form.append('file', file);
+        form.append('doc_kind', docKind);
         try {
           const report = await uploadDocument(form) as { duplicate?: boolean };
           const status: UploadEntryStatus = report.duplicate ? 'duplicate' : 'imported';
@@ -363,6 +365,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             locale={locale}
             files={files}
             fileKey={fileKey}
+            docKind={docKind}
+            onDocKindChange={setDocKind}
             uploadProgress={uploadProgress}
             onUpload={(event) => void handleUpload(event)}
             onFilesChange={(next) => {
@@ -870,7 +874,7 @@ function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
 }
 
 function DocumentsPage({
-  documents, loading, busy, locale, files, fileKey, uploadProgress, onUpload, onFilesChange, onInvalidFiles,
+  documents, loading, busy, locale, files, fileKey, docKind, onDocKindChange, uploadProgress, onUpload, onFilesChange, onInvalidFiles,
 }: {
   documents: unknown[];
   loading: boolean;
@@ -878,6 +882,8 @@ function DocumentsPage({
   locale: UiLocale;
   files: File[];
   fileKey: number;
+  docKind: 'regulatory' | 'statistical' | 'internal';
+  onDocKindChange: (value: 'regulatory' | 'statistical' | 'internal') => void;
   uploadProgress: UploadProgress | null;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
@@ -974,6 +980,26 @@ function DocumentsPage({
             <FileUp aria-hidden="true" size={23} />
           </div>
           <p className="admin-help">{t(locale, 'admin.uploadHelp')}</p>
+          <div className="admin-field">
+            <label htmlFor="admin-doc-kind">{t(locale, 'admin.docKind')}</label>
+            <select
+              id="admin-doc-kind"
+              name="doc_kind"
+              value={docKind}
+              disabled={busy}
+              onChange={(event) => onDocKindChange(event.target.value as 'regulatory' | 'statistical' | 'internal')}
+            >
+              <option value="regulatory">{t(locale, 'admin.docKindRegulatory')}</option>
+              <option value="statistical">{t(locale, 'admin.docKindStatistical')}</option>
+              <option value="internal">{t(locale, 'admin.docKindInternal')}</option>
+            </select>
+            <p className="admin-help">{t(locale, 'admin.docKindHelp')}</p>
+            {docKind !== 'regulatory' ? (
+              <p className="admin-help admin-doc-kind-vlm" role="note">
+                {t(locale, 'admin.docKindVlmNote')}
+              </p>
+            ) : null}
+          </div>
           <div className="admin-field admin-file-field">
             <label
               className={`admin-file-input${dragActive ? ' is-dragover' : ''}${busy ? ' is-disabled' : ''}`}
@@ -1047,15 +1073,28 @@ function DocumentsPage({
             {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
           </button>
         </form>
-        <DocumentsList documents={documents} loading={loading} locale={locale} />
+        <DocumentsList documents={documents} loading={loading} locale={locale} docKind={docKind} />
       </section>
     </>
   );
 }
 
 
-function DocumentsList({ documents, loading, locale }: { documents: unknown[]; loading: boolean; locale: UiLocale }) {
-  const rows = Array.isArray(documents) ? documents : [];
+function DocumentsList({
+  documents, loading, locale, docKind,
+}: {
+  documents: unknown[];
+  loading: boolean;
+  locale: UiLocale;
+  docKind: 'regulatory' | 'statistical' | 'internal';
+}) {
+  const rows = (Array.isArray(documents) ? documents : []).filter((doc) => {
+    const item = doc as { doc_kind?: string; filename?: string };
+    const kind = item.doc_kind === 'statistical' || item.doc_kind === 'internal'
+      ? item.doc_kind
+      : 'regulatory';
+    return kind === docKind;
+  });
   return (
     <section className="admin-panel admin-documents-panel">
       <div className="admin-panel-heading">
@@ -1067,6 +1106,8 @@ function DocumentsList({ documents, loading, locale }: { documents: unknown[]; l
       </div>
       {loading ? (
         <DocumentSkeleton label={t(locale, 'admin.loading')} />
+      ) : rows.length === 0 ? (
+        <p className="admin-help">{t(locale, 'admin.indexedEmptyKind')}</p>
       ) : (
         <ul className="admin-doc-list">
           {rows.map((doc, index) => {

@@ -20,6 +20,24 @@ _HEADING_AR = re.compile(r"^\s*((?:العنوان|الباب|القسم|الجز
 _LIST = re.compile(r"^\s*(?:[-•▪◦]|\d+[.)]|[أ-ي][.)])\s+")
 
 
+@dataclass(frozen=True)
+class ChartSignals:
+    image_count: int
+    drawing_cluster_count: int
+    max_image_area_ratio: float
+    max_drawing_area_ratio: float
+    suspect: bool
+
+    def as_metadata(self) -> dict[str, object]:
+        return {
+            "chart_image_count": self.image_count,
+            "chart_drawing_clusters": self.drawing_cluster_count,
+            "chart_max_image_area_ratio": round(self.max_image_area_ratio, 4),
+            "chart_max_drawing_area_ratio": round(self.max_drawing_area_ratio, 4),
+            "has_chart": self.suspect,
+        }
+
+
 @dataclass
 class Hierarchy:
     headings: list[str]
@@ -119,12 +137,86 @@ def _text_blocks(text: str, page_number: int, *, extraction_method: str) -> list
     ]
 
 
-def _visual_plan(*, language: str, native_text: str, requires_fallback: bool) -> tuple[bool, bool]:
+def _rect_area(bbox) -> float:
+    try:
+        return abs(float(bbox[2]) - float(bbox[0])) * abs(float(bbox[3]) - float(bbox[1]))
+    except (TypeError, ValueError, IndexError):
+        return 0.0
+
+
+def page_chart_signals(page) -> ChartSignals:
+    """Geometric chart/figure suspects: large images and/or clustered drawings.
+
+    PyMuPDF documents that cluster_drawings wraps pie/bar charts and similar
+    vector figures; get_image_info reports displayed raster images. Native text
+    (including legends) is left to _native_blocks.
+    """
+    page_area = abs(float(page.rect.width) * float(page.rect.height)) or 1.0
+    images: list = []
+    try:
+        images = list(page.get_image_info(xrefs=True) or [])
+    except Exception:
+        images = []
+    max_image = 0.0
+    for info in images:
+        bbox = info.get("bbox") if isinstance(info, dict) else None
+        if bbox is None and isinstance(info, dict):
+            bbox = info.get("transform")
+        max_image = max(max_image, _rect_area(bbox) / page_area)
+
+    image_blocks = 0
+    try:
+        for raw in page.get_text("blocks") or []:
+            if len(raw) > 6 and int(raw[6]) == 1:
+                image_blocks += 1
+                max_image = max(max_image, _rect_area(raw[:4]) / page_area)
+    except Exception:
+        pass
+
+    clusters: list = []
+    try:
+        clusters = list(page.cluster_drawings() or [])
+    except Exception:
+        clusters = []
+    max_drawing = 0.0
+    for rect in clusters:
+        try:
+            max_drawing = max(max_drawing, abs(float(rect.width) * float(rect.height)) / page_area)
+        except Exception:
+            continue
+
+    image_count = max(len(images), image_blocks)
+    # Substantial figure area → suspect chart/figure even when legend text is fine.
+    suspect = (
+        max_image >= 0.12
+        or max_drawing >= 0.08
+        or (image_count >= 1 and max_image >= 0.05)
+        or (len(clusters) >= 1 and max_drawing >= 0.04)
+    )
+    return ChartSignals(
+        image_count=image_count,
+        drawing_cluster_count=len(clusters),
+        max_image_area_ratio=max_image,
+        max_drawing_area_ratio=max_drawing,
+        suspect=suspect,
+    )
+
+
+def _visual_plan(
+    *,
+    language: str,
+    native_text: str,
+    requires_fallback: bool,
+    chart_suspect: bool = False,
+) -> tuple[bool, bool]:
     """Return (should_visualize, require_complete_visual)."""
     if os.environ.get("BCT_GEMINI_VISUAL", "1") != "1":
         return False, False
     if requires_fallback:
         return True, True
+    if chart_suspect and os.environ.get("BCT_GEMINI_CHART_VISION", "1") == "1":
+        # Chart pages: Gemini is best-effort. Keep native legend text if vision fails.
+        return True, False
     if language != "ar":
         return False, False
     mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "risk").strip().casefold()
@@ -135,6 +227,25 @@ def _visual_plan(*, language: str, native_text: str, requires_fallback: bool) ->
     if mode == "all":
         return True, True
     raise ValueError("BCT_GEMINI_ARABIC_MODE must be one of: all, risk, off")
+
+
+def _merge_chart_text(native_text: str, visual) -> str:
+    """Keep extractable legend/body; append Gemini chart notes / missing visual text."""
+    pieces = [native_text.strip()] if native_text.strip() else []
+    chart_notes = str(getattr(visual, "chart_notes", "") or "").strip()
+    transcription = str(getattr(visual, "transcription", "") or "").strip()
+    if chart_notes and chart_notes not in native_text:
+        pieces.append(chart_notes)
+    elif transcription and transcription not in native_text:
+        # Avoid duplicating a full page replace when native already holds the body.
+        extras = [
+            line.strip()
+            for line in transcription.splitlines()
+            if line.strip() and line.strip() not in native_text
+        ]
+        if extras:
+            pieces.append("\n".join(extras))
+    return "\n\n".join(piece for piece in pieces if piece).strip()
 
 
 class PdfExtractor:
@@ -180,6 +291,8 @@ class PdfExtractor:
             hierarchy = Hierarchy([])
             for index, (native_blocks, native_text) in enumerate(native_by_page):
                 page_number = index + 1
+                page = pdf.load_page(index)
+                chart = page_chart_signals(page)
                 quality = assess_page_quality(native_text, len(native_blocks))
                 page_language = "ar" if arabic_character_ratio(native_text) >= 0.20 else language
                 # Native text can look healthy while its digits are garbled by a broken
@@ -192,16 +305,19 @@ class PdfExtractor:
                     language=page_language,
                     native_text=native_text,
                     requires_fallback=quality.requires_fallback or bool(digits_unreliable),
+                    chart_suspect=chart.suspect,
                 )
+                pixmap_png = None
+                if should_visualize or chart.suspect:
+                    pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2.0, 2.0), alpha=False)
+                    pixmap_png = pixmap.tobytes("png")
                 if should_visualize:
                     if self.visual_transcriber is None:
                         visual_error = "gemini_not_configured"
                     else:
-                        page = pdf.load_page(index)
-                        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2.0, 2.0), alpha=False)
                         try:
                             visual = self.visual_transcriber.transcribe(
-                                image_png=pixmap.tobytes("png"),
+                                image_png=pixmap_png,
                                 source_pdf_sha256=content_hash,
                                 page_number=page_number,
                             )
@@ -214,7 +330,9 @@ class PdfExtractor:
                 # best-effort behavior with BCT_ALLOW_DEGRADED_INGESTION=1.
                 allow_degraded = os.environ.get("BCT_ALLOW_DEGRADED_INGESTION", "0") == "1"
                 visual_complete = bool(
-                    visual is not None and visual.complete and visual.transcription.strip()
+                    visual is not None
+                    and visual.complete
+                    and (visual.transcription.strip() or str(getattr(visual, "chart_notes", "") or "").strip())
                 )
                 if should_visualize and require_complete and not allow_degraded and not visual_complete:
                     detail = visual_error or "gemini_returned_incomplete_transcription"
@@ -236,8 +354,13 @@ class PdfExtractor:
                 flags = list(quality.flags)
                 if digits_unreliable:
                     flags.append(f"native_digits_unreliable:{digits_unreliable}")
+                if chart.suspect:
+                    flags.append("chart_suspect")
                 if use_visual_as_primary:
                     raw_text = visual.transcription.strip()
+                    chart_notes = str(getattr(visual, "chart_notes", "") or "").strip()
+                    if chart_notes and chart_notes not in raw_text:
+                        raw_text = f"{raw_text}\n\n{chart_notes}".strip()
                     chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="vlm")
                     method = "vlm"
                     flags.append("native_replaced_by_gemini")
@@ -246,10 +369,18 @@ class PdfExtractor:
                         flags.append(f"gemini_digits_unreliable:{still_unreliable}")
                 else:
                     raw_text = native_text
-                    chosen_blocks = native_blocks
+                    chosen_blocks = list(native_blocks)
                     method = "native"
                     if quality.requires_fallback or digits_unreliable:
                         flags.append("fallback_unavailable_native_retained")
+                    # Chart pages: keep legend text; append Gemini chart notes when available.
+                    if chart.suspect and visual is not None and visual.complete:
+                        merged = _merge_chart_text(raw_text, visual)
+                        if merged != raw_text:
+                            raw_text = merged
+                            chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="native")
+                            flags.append("chart_notes_merged")
+                            method = "native"
 
                 hierarchy = classify_blocks(chosen_blocks, page_language, hierarchy)
                 metadata = {
@@ -260,7 +391,11 @@ class PdfExtractor:
                     "single_arabic_token_ratio": quality.single_arabic_token_ratio,
                     "visual_attempted": should_visualize,
                     "visual_error": visual_error,
+                    **chart.as_metadata(),
                 }
+                if pixmap_png is not None and chart.suspect:
+                    # Transient; pipeline persists under immutable page-images/.
+                    metadata["page_image_png"] = pixmap_png
                 if visual is not None:
                     metadata.update(
                         {
@@ -269,10 +404,15 @@ class PdfExtractor:
                             "visual_uncertain_regions": list(visual.uncertain_regions),
                             "visual_sensitive_items": [item.model_dump() for item in visual.items],
                             "visual_model": self.visual_transcriber.model if self.visual_transcriber else None,
+                            "contains_chart": bool(getattr(visual, "contains_chart", False) or chart.suspect),
+                            "chart_notes": str(getattr(visual, "chart_notes", "") or "").strip(),
                         }
                     )
                     if visual.uncertain_regions:
                         flags.append("gemini_reported_uncertainty")
+                    if getattr(visual, "contains_chart", False):
+                        flags.append("gemini_contains_chart")
+                        metadata["has_chart"] = True
 
                 pages.append(
                     Page(

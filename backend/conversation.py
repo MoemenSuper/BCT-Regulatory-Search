@@ -378,6 +378,11 @@ def chat(
         route_query
     )
 
+    from query_authority import classify_query_authority
+
+    query_authority = classify_query_authority(llm, message)
+    query_class = str(query_authority.get("query_class") or "uncertain")
+
     reranked_results = retrieval_backend.retrieve(query_for_retrieval)
     # Opaque compatibility field for conversation memory / API clients.
     graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
@@ -402,8 +407,10 @@ def chat(
         top_results,
         memory_text,
         temporal_unverified=temporal_unverified,
+        query_class=query_class,
     )
     diagnostics = list(generated.get("diagnostics") or [])
+    diagnostics.append(f"query_class:{query_class}:{query_authority.get('confidence') or 'low'}")
     status = generated.get("status", "answered")
     refusal_reason = None
     if status in {"search_results", "insufficient_evidence", "clarification_needed", "out_of_scope"}:

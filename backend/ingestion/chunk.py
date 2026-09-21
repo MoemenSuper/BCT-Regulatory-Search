@@ -57,7 +57,10 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
         for heading in block.heading_path:
             if heading not in headings:
                 headings.append(heading)
-    return {
+    admin = document.metadata.get("administrator_metadata") or {}
+    doc_kind = str(document.metadata.get("doc_kind") or admin.get("doc_kind") or "regulatory")
+    authority = str(document.metadata.get("authority") or admin.get("authority") or "primary")
+    meta = {
         "source": document.filename,
         "page": page.page_number,
         "page_end": page.page_number,
@@ -79,7 +82,17 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
         ),
         "quality_score": page.quality_score,
         "quality_flags": ",".join(page.quality_flags),
+        "doc_kind": doc_kind,
+        "authority": authority,
+        "has_chart": bool(page.metadata.get("has_chart")),
     }
+    page_image = str(page.metadata.get("page_image_path") or "").strip()
+    if page_image:
+        meta["page_image_path"] = page_image
+    related = str(document.metadata.get("related_to") or admin.get("related_to") or "").strip()
+    if related:
+        meta["related_to"] = related
+    return meta
 
 
 def build_runtime_chunks(document: StructuredDocument) -> tuple[list[Document], list[Document]]:

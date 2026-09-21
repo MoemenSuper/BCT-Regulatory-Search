@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
@@ -864,16 +864,26 @@ def _install_ingestion_routes(target: FastAPI) -> None:
     async def ingest_document(
         request: Request,
         file: UploadFile = File(...),
+        doc_kind: str = Form("regulatory"),
+        related_to: str = Form(""),
         _admin=Depends(require_admin),
     ):
-        # ponytail: admin catalog fields were form theater; filename is enough for listing.
+        # Filename is the listing title; doc_kind chooses primary vs secondary grounding.
         filename = (file.filename or "").strip()
         if not filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
         content_type = (file.content_type or "").lower()
         if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
             raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
-        metadata = {"title": Path(filename).stem or filename or "document"}
+        from document_authority import normalize_doc_kind
+
+        metadata = {
+            "title": Path(filename).stem or filename or "document",
+            "doc_kind": normalize_doc_kind(doc_kind),
+        }
+        related = (related_to or "").strip()
+        if related:
+            metadata["related_to"] = related[:300]
 
         max_bytes = int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024)))
         temporary_path = None

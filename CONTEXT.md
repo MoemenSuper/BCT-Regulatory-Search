@@ -134,3 +134,15 @@ _Avoid_: original path as the only identity after ingest
 **Not legal advice**:
 Product stance: research aid. The original PDF is authoritative; open the cited page before operational use.
 _Avoid_: “qualified legal opinion”, “en vigueur” claims when temporal scope is incomplete
+
+**Document kind (`doc_kind`)**:
+Admin tag at ingest: `regulatory` (primary), `statistical`, or `internal` (secondary). One corpus; claim grounding uses kind, not retrieval silos. Works with any search provider (Voyage, Google, local). Hard pages (scans, charts, image notes) use Gemini VLM at ingest (`GEMINI_API_KEY`, default on for every profile); after transcription the active embedder indexes that text.
+_Avoid_: treating a bulletin or memo as a binding circulaire
+
+**Query class**:
+Turn label for which kinds may prove claims: `regulatory_rule` | `statistical_fact` | `internal_procedure` | `mixed` | `uncertain`. `uncertain` grounds as regulatory; never rejects the question.
+_Avoid_: classifier as a refusal gate
+
+**Chart / figure page**:
+A PDF page flagged by geometry (image/drawing area) and optionally transcribed by Gemini VLM at ingest. Quotes still need page text.
+_Avoid_: embedding vector as proof of a number
