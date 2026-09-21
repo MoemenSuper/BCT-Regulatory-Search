@@ -1,19 +1,66 @@
-import { FileText, MessageSquareText } from 'lucide-react';
+import { useState, type MouseEvent } from 'react';
+import { FileText, MessageSquareText, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { postTurnFeedback } from '../api/chat';
 import type { ResearchNoteData } from '../types/ui';
 
 interface ResearchNoteProps {
   note: ResearchNoteData;
+  conversationId: string;
+  turnId: string;
   compact?: boolean;
   selectedSourceIndex?: number;
   onSelectSource?: (index: number) => void;
 }
 
+type Rating = 'up' | 'down';
+
+function feedbackKey(turnId: string) {
+  return `bct-turn-feedback:${turnId}`;
+}
+
+function readRating(turnId: string): Rating | null {
+  try {
+    const value = sessionStorage.getItem(feedbackKey(turnId));
+    return value === 'up' || value === 'down' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRating(turnId: string, rating: Rating) {
+  try {
+    sessionStorage.setItem(feedbackKey(turnId), rating);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function ResearchNote({
   note,
+  conversationId,
+  turnId,
   compact = false,
   selectedSourceIndex = 0,
   onSelectSource,
 }: ResearchNoteProps) {
+  const [rating, setRating] = useState<Rating | null>(() => readRating(turnId));
+  const [busy, setBusy] = useState(false);
+
+  async function sendFeedback(event: MouseEvent, next: Rating) {
+    event.stopPropagation();
+    if (busy || rating) return;
+    setBusy(true);
+    try {
+      await postTurnFeedback(conversationId, turnId, next);
+      writeRating(turnId, next);
+      setRating(next);
+    } catch {
+      /* leave unset so the user can retry */
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <article className={`research-note${compact ? ' research-note-compact' : ''}`}>
       {!compact ? (
@@ -92,6 +139,31 @@ export function ResearchNote({
           <p className="note-body">Aucune source renvoyée pour cette réponse.</p>
         )}
       </section>
+
+      <div className="note-feedback" role="group" aria-label="Évaluation de la réponse">
+        <button
+          type="button"
+          className={`note-feedback-btn${rating === 'up' ? ' is-active' : ''}`}
+          aria-pressed={rating === 'up'}
+          aria-label="Réponse utile"
+          title="Réponse utile"
+          disabled={busy || rating !== null}
+          onClick={(event) => void sendFeedback(event, 'up')}
+        >
+          <ThumbsUp size={16} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`note-feedback-btn${rating === 'down' ? ' is-active is-down' : ''}`}
+          aria-pressed={rating === 'down'}
+          aria-label="Signaler une réponse incorrecte"
+          title="Signaler une réponse incorrecte"
+          disabled={busy || rating !== null}
+          onClick={(event) => void sendFeedback(event, 'down')}
+        >
+          <ThumbsDown size={16} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </div>
     </article>
   );
 }

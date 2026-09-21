@@ -75,6 +75,23 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   if (!response.ok) throw new Error(await readError(response));
 }
 
+export async function postTurnFeedback(
+  conversationId: string,
+  turnId: string,
+  rating: 'up' | 'down',
+): Promise<void> {
+  const response = await fetch(
+    `/api/conversations/${encodeURIComponent(conversationId)}/turns/${encodeURIComponent(turnId)}/feedback`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating }),
+    },
+  );
+  if (!response.ok) throw new Error(await readError(response));
+}
+
 export function getSourceInfo(filename: string): Promise<SourceInfo> {
   return getJson(`/api/sources/${encodeURIComponent(filename)}/info`);
 }

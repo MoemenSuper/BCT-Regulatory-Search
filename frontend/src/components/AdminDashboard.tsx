@@ -333,10 +333,11 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             className="admin-refresh admin-theme-toggle"
             aria-label={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
             title={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
+            aria-pressed={theme === 'dark'}
             onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           >
-            {theme === 'dark' ? <Sun aria-hidden="true" size={17} /> : <Moon aria-hidden="true" size={17} />}
-            <span>{theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}</span>
+            {theme === 'dark' ? <Moon aria-hidden="true" size={17} /> : <Sun aria-hidden="true" size={17} />}
+            <span>{theme === 'dark' ? t(locale, 'admin.themeDark') : t(locale, 'admin.themeLight')}</span>
           </button>
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" />
           <ProfileMenu
@@ -345,6 +346,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             onUserChange={onUserChange}
             onLogout={() => void handleLogout()}
             variant="header"
+            theme={theme}
           />
         </div>
       </header>

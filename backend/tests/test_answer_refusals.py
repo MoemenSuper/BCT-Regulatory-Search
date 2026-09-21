@@ -87,3 +87,28 @@ def test_answer_refusals_persist_in_conversation_store(tmp_path):
     assert item["user_email"] == "analyst@bct.gov.tn"
     assert "clarification_needed" in item["reason"]
     assert item["diagnostics"][0].startswith("selection:clarification_needed:")
+
+
+def test_user_thumbs_down_maps_to_admin_bucket():
+    from answer_contract import refusal_reason_bucket, refusal_reason_title
+
+    assert refusal_reason_bucket("user_thumbs_down:turn:abc") == "user_thumbs_down"
+    assert refusal_reason_title(bucket="user_thumbs_down") == "User thumbs down"
+
+
+def test_get_turn_scoped_to_owner(tmp_path):
+    store = ConversationStore(tmp_path / "conversations.sqlite3")
+    conversation_id = store.create("owner")
+    state = store.load(conversation_id, user_id="owner")
+    turn_id = store.save_with_turn(
+        conversation_id,
+        state,
+        user_id="owner",
+        question="Quel délai ?",
+        answer="120 jours.",
+        answer_status="answered",
+        profile="cloud",
+    )
+    owned = store.get_turn(conversation_id, turn_id, user_id="owner")
+    assert owned["question"] == "Quel délai ?"
+    assert store.get_turn(conversation_id, turn_id, user_id="other") is None

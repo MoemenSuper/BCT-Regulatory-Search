@@ -383,3 +383,45 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
     assert listed.status_code == 200
     assert listed.json()["total"] == 4
     assert len(listed.json()["items"]) == 4
+
+
+def test_thumbs_down_feedback_lands_in_answer_refusals(auth_client):
+    registered = auth_client.post(
+        "/auth/register",
+        json={"email": "rater@bct.tn", "password": "Password123"},
+    ).json()["user"]
+    auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+    auth_client.post(f"/admin/users/{registered['id']}/approve")
+    auth_client.post("/auth/logout")
+    auth_client.post("/auth/login", json={"email": "rater@bct.tn", "password": "Password123"})
+
+    store = auth_client.app.state.conversation_store
+    conversation_id = store.create(registered["id"])
+    state = store.load(conversation_id, user_id=registered["id"])
+    turn_id = store.save_with_turn(
+        conversation_id,
+        state,
+        user_id=registered["id"],
+        question="Au-delà de quel délai ?",
+        answer="120 jours.",
+        answer_status="answered",
+        profile="cloud",
+    )
+
+    up = auth_client.post(
+        f"/conversations/{conversation_id}/turns/{turn_id}/feedback",
+        json={"rating": "up"},
+    )
+    assert up.status_code == 200
+    assert store.count_answer_refusals() == 0
+
+    down = auth_client.post(
+        f"/conversations/{conversation_id}/turns/{turn_id}/feedback",
+        json={"rating": "down"},
+    )
+    assert down.status_code == 200
+    assert store.count_answer_refusals() == 1
+    item = store.list_answer_refusals()[0]
+    assert item["reason_bucket"] == "user_thumbs_down"
+    assert item["question"] == "Au-delà de quel délai ?"
+    assert item["answer_status"] == "answered"

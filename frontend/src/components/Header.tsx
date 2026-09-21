@@ -1,6 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
-import { useTheme } from '../hooks/useTheme';
+import type { Theme } from '../hooks/useTheme';
 import { ProfileMenu } from './ProfileMenu';
 import type { UiLocale } from '../uiLocale';
 
@@ -9,10 +9,18 @@ interface HeaderProps {
   locale?: UiLocale;
   onUserChange?: (user: AuthUser) => void;
   onLogout?: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
-export function Header({ user, locale = 'fr', onUserChange, onLogout }: HeaderProps) {
-  const { theme, toggleTheme } = useTheme();
+export function Header({
+  user,
+  locale = 'fr',
+  onUserChange,
+  onLogout,
+  theme,
+  onToggleTheme,
+}: HeaderProps) {
   const dark = theme === 'dark';
 
   return (
@@ -30,13 +38,13 @@ export function Header({ user, locale = 'fr', onUserChange, onLogout }: HeaderPr
         <button
           type="button"
           className="theme-toggle"
-          onClick={toggleTheme}
+          onClick={onToggleTheme}
           aria-pressed={dark}
-          aria-label={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-          title={dark ? 'Mode clair' : 'Mode sombre'}
+          aria-label={dark ? 'Mode sombre' : 'Mode clair'}
+          title={dark ? 'Mode sombre' : 'Mode clair'}
         >
-          {dark ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
-          <span>{dark ? 'Clair' : 'Sombre'}</span>
+          {dark ? <Moon size={18} strokeWidth={1.75} /> : <Sun size={18} strokeWidth={1.75} />}
+          <span>{dark ? 'Sombre' : 'Clair'}</span>
         </button>
         {user && onUserChange && onLogout ? (
           <ProfileMenu
@@ -45,6 +53,7 @@ export function Header({ user, locale = 'fr', onUserChange, onLogout }: HeaderPr
             onUserChange={onUserChange}
             onLogout={onLogout}
             variant="header"
+            theme={theme}
           />
         ) : onLogout ? (
           <button type="button" className="theme-toggle" onClick={onLogout} aria-label="Sign out">

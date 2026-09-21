@@ -762,6 +762,37 @@ def delete_conversation(
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
 
+class TurnFeedbackRequest(BaseModel):
+    rating: str = Field(pattern="^(up|down)$")
+
+
+@app.post("/conversations/{conversation_id}/turns/{turn_id}/feedback")
+def post_turn_feedback(
+    conversation_id: str,
+    turn_id: str,
+    payload: TurnFeedbackRequest,
+    request: Request,
+    user=Depends(require_approved_user),
+):
+    store = request.app.state.conversation_store
+    turn = store.get_turn(conversation_id, turn_id, user_id=user.id)
+    if turn is None:
+        raise HTTPException(status_code=404, detail="Turn not found.")
+    if payload.rating == "up":
+        return {"ok": True, "rating": "up"}
+    store.record_answer_refusal(
+        conversation_id=conversation_id,
+        user_id=user.id,
+        user_email=user.email,
+        question=turn["question"],
+        answer_status=turn.get("answer_status") or "answered",
+        reason=f"user_thumbs_down:turn:{turn_id}",
+        diagnostics=[f"user_thumbs_down:{turn_id}"],
+        profile=turn.get("profile"),
+    )
+    return {"ok": True, "rating": "down"}
+
+
 def _resolve_source(filename: str, request: Request):
     try:
         return request.app.state.source_resolver.resolve(filename)
