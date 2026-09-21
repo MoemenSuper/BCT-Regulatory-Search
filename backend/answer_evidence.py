@@ -224,25 +224,39 @@ def trusted_years(question, records):
 
 
 _SCENARIO_DATE = re.compile(
+    r"(?:"
+    # French: 26 mars 2026
     r"\b(\d{1,2})\s+"
     r"(?:janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|"
     r"septembre|octobre|novembre|décembre|decembre)\s+"
-    r"(\d{4})\b",
+    r"(\d{4})\b"
+    r"|"
+    # Arabic (Tunisian + MSA): 26 مارس 2026 / 26 جانفي 2026
+    r"(\d{1,2})\s*"
+    r"(?:جانفي|يناير|فيفري|فبراير|مارس|أفريل|أبريل|افريل|"
+    r"ماي|مايو|جوان|يونيو|جويلية|يوليو|أوت|أغسطس|اوت|"
+    r"سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s*"
+    r"(\d{4})"
+    r")",
     re.I,
 )
 
 
 def question_scenario_numbers(question: str) -> set[str]:
-    """Calendar/scenario numbers from the user question.
+    """Calendar/scenario numbers from the user question (French or Arabic).
 
-    These frame the hypothetical (e.g. 'avant le 26 mars 2026') and may be
-    restated in a claim without appearing in the supporting quotation. Regulatory
-    quanta that are not in the question still require quote support.
+    These frame the hypothetical (e.g. 'avant le 26 mars 2026' / 'قبل 26 مارس 2026')
+    and may be restated in a claim without appearing in the supporting quotation.
+    Regulatory quanta that are not in the question still require quote support.
     """
     found: set[str] = set()
     for match in _SCENARIO_DATE.finditer(plain(question or "")):
-        found.add(str(int(match.group(1))))
-        found.add(match.group(2))
+        day = match.group(1) or match.group(3)
+        year = match.group(2) or match.group(4)
+        if day:
+            found.add(str(int(day)))
+        if year:
+            found.add(year)
     return found
 
 

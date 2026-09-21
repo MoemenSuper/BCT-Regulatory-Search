@@ -469,3 +469,256 @@ def test_voyage_runtime_client_cools_down_and_retries_after_all_keys_rate_limit(
     assert sleeps == [0.0]
     # First sweep burns both keys; second sweep resumes from the next cursor.
     assert calls == ["Bearer first", "Bearer second", "Bearer second"]
+
+
+def test_selon_circulaire_2025_13_named_instrument_outranks_newer_mention():
+    """Explicit instrument names are hard retrieval anchors before semantic/latest preference."""
+    from pathlib import Path
+
+    from retrieval_selection import (
+        explicit_instrument_identity,
+        prefer_named_instrument_hits,
+    )
+    from runtime_retrieval import _identity_diversified_rank
+
+    query = (
+        "Selon la circulaire 2025-13, quelles sont les règles d'exportation ?"
+    )
+    identity = explicit_instrument_identity(query)
+    assert identity is not None
+    assert (identity["kind"], identity["year"], identity["number"]) == ("cir", 2025, 13)
+
+    named = _doc(
+        "Dispositions relatives à l'exportation de produits.",
+        "Cir_2025_13_fr.pdf",
+        2,
+    )
+    mention = _doc(
+        "Vu la circulaire n° 2025-13 du 27 octobre 2025, citée dans le présent texte.",
+        "Cir_2026_04_fr.pdf",
+        1,
+    )
+    # Newer document that only mentions 2025-13 scores higher semantically.
+    preferred = prefer_named_instrument_hits(
+        [(mention, 0.99), (named, 0.40)],
+        identity,
+    )
+    assert Path(str(preferred[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"
+
+    reranked = _identity_diversified_rank(query, [mention, named], [0.99, 0.40])
+    assert Path(str(reranked[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"
+
+
+def test_avant_named_instrument_demotes_cutoff_after_named_promotion():
+    """'Avant 2025-13' must not keep the named later circular on top."""
+    from pathlib import Path
+
+    from runtime_retrieval import _identity_diversified_rank
+
+    query = (
+        "Avant 2025-13, a partir de combien de jours fallait-il des conditions "
+        "pour une vente libre entre 61 et 360 jours ?"
+    )
+    older = _doc(
+        "Article 10 nouveau: délais de règlement allant jusqu'à 60 jours. "
+        "Les ventes de 61 à 360 jours sont effectuées librement sous conditions.",
+        "Cir_2020_02_fr.pdf",
+        2,
+    )
+    cutoff = _doc(
+        "Article 10 nouveau: délais de règlement allant jusqu'à 120 jours. "
+        "Les ventes de 121 à 360 jours sont effectuées librement sous conditions.",
+        "Cir_2025_13_fr.pdf",
+        2,
+    )
+    # Named promotion would otherwise put 2025-13 first; historical must win last.
+    reranked = _identity_diversified_rank(query, [cutoff, older], [0.99, 0.40])
+    assert Path(str(reranked[0][0].metadata["source"])).name == "Cir_2020_02_fr.pdf"
+
+
+def test_selon_bare_year_number_is_explicit_instrument_identity():
+    from retrieval_selection import explicit_instrument_identity
+
+    identity = explicit_instrument_identity(
+        "Selon 2025-13, une vente a 150 jours avec police d'assurance-credit "
+        "a l'export est-elle libre ?"
+    )
+    assert identity is not None
+    assert (identity["kind"], identity["year"], identity["number"]) == ("cir", 2025, 13)
+
+    identity_2026 = explicit_instrument_identity(
+        "Selon 2026-04, une industrielle sans fiche technique "
+        "beneficie-t-elle de l'exclusion ?"
+    )
+    assert identity_2026 is not None
+    assert (identity_2026["kind"], identity_2026["year"], identity_2026["number"]) == (
+        "cir",
+        2026,
+        4,
+    )
+
+
+def test_arabic_instrument_identity_forms_are_generic():
+    """Arabic cite forms must parse any instrument — not a single circular's answer key."""
+    from retrieval_selection import explicit_instrument_identity, query_regulatory_regime
+
+    classic = explicit_instrument_identity("ما هو موضوع المنشور عدد 6 لسنة 2026؟")
+    assert classic is not None
+    assert (classic["kind"], classic["year"], classic["number"]) == ("cir", 2026, 6)
+
+    year_number = explicit_instrument_identity("وفقا للمنشور 2020-03، ما هو موضوعه؟")
+    assert year_number is not None
+    assert (year_number["kind"], year_number["year"], year_number["number"]) == (
+        "cir",
+        2020,
+        3,
+    )
+
+    bare = explicit_instrument_identity("حسب 2016-01، ما هو التوقيت؟")
+    assert bare is not None
+    assert (bare["kind"], bare["year"], bare["number"]) == ("cir", 2016, 1)
+
+    note = explicit_instrument_identity("حسب المذكرة 2024-163، ما السقف؟")
+    assert note is not None
+    assert (note["kind"], note["year"], note["number"]) == ("note", 2024, 163)
+
+    # Domain lexicons are Arabic vocabulary, not instrument pins.
+    assert (
+        query_regulatory_regime("ما شروط تمويل توريد المنتجات غير ذات الأولوية؟")
+        == "nonpriority_import"
+    )
+    assert (
+        query_regulatory_regime("شركة صناعية تستورد منتجا غير ذي أولوية")
+        == "nonpriority_import"
+    )
+    assert (
+        query_regulatory_regime("مدة الدفع القصوى لتصدير بضاعة دون شروط خاصة")
+        == "export_settlement"
+    )
+    assert (
+        query_regulatory_regime(
+            "بيع لمدة 250 يوما بسفتجة مظهرة من بنك غير مقيم. هل تلزم رخصة؟"
+        )
+        == "export_settlement"
+    )
+
+
+def test_export_settlement_query_prefers_settlement_doc_over_nonpriority_mention():
+    """Domain prefer uses page language, not instrument filenames."""
+    from pathlib import Path
+
+    from retrieval_selection import prefer_regime_hits, query_regulatory_regime
+    from runtime_retrieval import _identity_diversified_rank
+
+    query = (
+        "Quel est actuellement le delai de reglement maximum autorise "
+        "pour une vente a l'export sans condition speciale ?"
+    )
+    assert query_regulatory_regime(query) == "export_settlement"
+
+    settlement = _doc(
+        "Les ventes a l'exportation des marchandises sont reglees librement "
+        "et sans autorisation lorsque le delai de reglement n'excede pas 120 jours.",
+        "Any_Settlement_Instrument_fr.pdf",
+        1,
+    )
+    nonpriority = _doc(
+        "Objet : Conditions de financement de l'importation de produits non "
+        "prioritaires. Les importateurs constituent des depots en numeraire "
+        "sur leurs fonds propres a 100%.",
+        "Any_Nonpriority_Instrument_fr.pdf",
+        1,
+    )
+    preferred = prefer_regime_hits(
+        [(nonpriority, 0.99), (settlement, 0.35)],
+        query,
+    )
+    assert Path(str(preferred[0][0].metadata["source"])).name == (
+        "Any_Settlement_Instrument_fr.pdf"
+    )
+
+    reranked = _identity_diversified_rank(
+        query, [nonpriority, settlement], [0.99, 0.35]
+    )
+    assert Path(str(reranked[0][0].metadata["source"])).name == (
+        "Any_Settlement_Instrument_fr.pdf"
+    )
+
+
+def test_nonpriority_import_query_prefers_nonpriority_language_over_settlement():
+    from pathlib import Path
+
+    from retrieval_selection import query_regulatory_regime
+    from runtime_retrieval import _identity_diversified_rank
+
+    query = (
+        "Quelles sont les regles pour le financement des importations "
+        "de produits non prioritaires ?"
+    )
+    assert query_regulatory_regime(query) == "nonpriority_import"
+
+    settlement = _doc(
+        "Les ventes a l'exportation des marchandises sont reglees librement "
+        "et sans autorisation lorsque le delai de reglement n'excede pas 120 jours.",
+        "Any_Settlement_Instrument_fr.pdf",
+        2,
+    )
+    nonpriority = _doc(
+        "Les importateurs de produits non prioritaires doivent constituer "
+        "des depots en numeraire sur leurs fonds propres a hauteur de 100%.",
+        "Any_Nonpriority_Instrument_fr.pdf",
+        2,
+    )
+    reranked = _identity_diversified_rank(
+        query, [settlement, nonpriority], [0.90, 0.40]
+    )
+    assert Path(str(reranked[0][0].metadata["source"])).name == (
+        "Any_Nonpriority_Instrument_fr.pdf"
+    )
+
+
+def test_mixed_regime_query_does_not_force_domain_reorder():
+    from retrieval_selection import prefer_regime_hits, query_regulatory_regime
+
+    query = (
+        "Un intermediaire doit appliquer les delais d'export et les "
+        "restrictions de financement non prioritaire."
+    )
+    assert query_regulatory_regime(query) is None
+    settlement = _doc(
+        "120 jours librement et sans autorisation.",
+        "Any_Settlement_Instrument_fr.pdf",
+        2,
+    )
+    nonpriority = _doc(
+        "produits non prioritaires fonds propres 100%",
+        "Any_Nonpriority_Instrument_fr.pdf",
+        2,
+    )
+    ranked = [(nonpriority, 0.9), (settlement, 0.8)]
+    assert prefer_regime_hits(ranked, query) == ranked
+
+
+def test_nonpriority_prefer_newer_strong_hit_over_mid_era_list():
+    from pathlib import Path
+
+    from retrieval_selection import prefer_regime_hits
+
+    query = (
+        "Quelles operations sont exclues du champ de l'article premier "
+        "relatif aux concours pour produits non prioritaires ?"
+    )
+    older = _doc(
+        "La liste relative aux produits non prioritaires est abrogee et remplacee.",
+        "Cir_2018_01_fr.pdf",
+        2,
+    )
+    newer = _doc(
+        "Sont exclues des dispositions de l'article premier les importations "
+        "realisees dans le cadre de marches publics conclus au profit de l'Etat.",
+        "Cir_2026_04_fr.pdf",
+        2,
+    )
+    preferred = prefer_regime_hits([(older, 0.95), (newer, 0.40)], query)
+    assert Path(str(preferred[0][0].metadata["source"])).name == "Cir_2026_04_fr.pdf"
+

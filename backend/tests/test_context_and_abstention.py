@@ -99,6 +99,233 @@ def test_test3_exception_in_pack_accepts_scenario_date_and_legal_quote():
     assert result["sources"][0]["file"] == "Cir_2026_04_fr.pdf"
 
 
+def test_exclusion_list_item_cannot_be_paraphrased_as_included():
+    """Polarity regression: 'Sont exclues…' must not become 'sont concernées'."""
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2026_04_fr.pdf",
+            "page": 3,
+            "score": 0.9,
+            "text": TEST3_EXCEPTION,
+        }
+    ]
+    # Same truncated list-item quote the live system used (no 'exclues' inside the quote).
+    list_item = (
+        "les importations ayant donne lieu, prealablement a la date d'entree en vigueur "
+        "de la presente circulaire, a des engagements pris par l'intermediaire agree pour "
+        "l'octroi de concours financiers, dont l'execution a ete effectivement entamee"
+    )
+    reversed_draft = {
+        "status": "answered",
+        "message": "",
+        "claims": [
+            {
+                "text": (
+                    "Selon la circulaire 2026-04, les importations qui, avant la date "
+                    "d'entree en vigueur de la circulaire, ont donne lieu a des engagements "
+                    "pris par l'intermediaire agree pour l'octroi de concours financiers et "
+                    "dont l'execution a deja commence sont concernees par les nouvelles "
+                    "restrictions."
+                ),
+                "quotes": [{"evidence_id": "E1", "quote": list_item}],
+            }
+        ],
+    }
+    bad = _parse(reversed_draft, evidence, TEST3_QUESTION)
+    assert bad["status"] == "insufficient_evidence"
+
+    correct_draft = {
+        "status": "answered",
+        "message": "",
+        "claims": [
+            {
+                "text": (
+                    "Selon la circulaire 2026-04, ces importations sont exclues du champ "
+                    "d'application des nouvelles restrictions de l'article premier."
+                ),
+                "quotes": [{"evidence_id": "E1", "quote": list_item}],
+            }
+        ],
+    }
+    good = _parse(correct_draft, evidence, TEST3_QUESTION)
+    assert good["status"] in {"answered", "partial_answer"}
+    assert "exclues" in good["answer"].casefold()
+
+
+def test_inclusion_obligation_cannot_be_paraphrased_as_exempted():
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2026_04_fr.pdf",
+            "page": 2,
+            "score": 0.9,
+            "text": PAGE2_GENERAL,
+        }
+    ]
+    draft = {
+        "status": "answered",
+        "message": "",
+        "claims": [
+            {
+                "text": (
+                    "L'importateur n'est pas soumis a l'obligation de deposer la totalite "
+                    "de la valeur des importations."
+                ),
+                "quotes": [
+                    {
+                        "evidence_id": "E1",
+                        "quote": (
+                            "les importateurs constituent, sur leurs fonds propres, des "
+                            "depots couvrant la totalite de la valeur des importations envisagees"
+                        ),
+                    }
+                ],
+            }
+        ],
+    }
+    result = _parse(draft, evidence, TEST5_QUESTION)
+    assert result["status"] == "insufficient_evidence"
+
+
+def test_arabic_scenario_date_may_be_restated_without_page_literal():
+    """Arabic question dates are scenario facts, like French '26 mars 2026'."""
+    from answer_evidence import question_scenario_numbers
+
+    assert question_scenario_numbers("قبل 26 مارس 2026") == {"26", "2026"}
+    assert question_scenario_numbers("avant le 26 mars 2026") == {"26", "2026"}
+
+    page = (
+        "تستثنى من مجال التطبيق الواردات التي كانت محل تعهدات من الوسيط المقبول "
+        "والتي شرع فعلا في تنفيذها قبل تاريخ دخول هذا المنشور حيز التطبيق."
+    )
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2026_04_ar.pdf",
+            "page": 3,
+            "score": 0.9,
+            "text": page,
+        }
+    ]
+    draft = {
+        "status": "answered",
+        "message": "",
+        "claims": [
+            {
+                "text": (
+                    "لا تنطبق القيود الجديدة على هذه الواردات إذا شرع في تنفيذ التعهد "
+                    "قبل 26 مارس 2026."
+                ),
+                "quotes": [
+                    {
+                        "evidence_id": "E1",
+                        "quote": (
+                            "تستثنى من مجال التطبيق الواردات التي كانت محل تعهدات من "
+                            "الوسيط المقبول والتي شرع فعلا في تنفيذها قبل تاريخ دخول "
+                            "هذا المنشور حيز التطبيق"
+                        ),
+                    }
+                ],
+            }
+        ],
+    }
+    question = (
+        "بنك تعهد بتمويل واردات قبل 26 مارس 2026 وشرع في التنفيذ. "
+        "هل تنطبق قيود المنشور عدد 2026-04؟"
+    )
+    result = _parse(draft, evidence, question)
+    assert result["status"] in {"answered", "partial_answer"}
+
+
+def test_arabic_exclusion_cannot_be_paraphrased_as_applicable():
+    """Arabic polarity: تستثنى / لا تنطبق must not become تخضع / تنطبق."""
+    page = (
+        "الفصل 4 : تستثنى من مجال تطبيق أحكام الفصل الأول العمليات التالية : "
+        "الواردات التي كانت محل تعهدات من الوسيط المقبول لمنح تمويلات، "
+        "والتي شرع فعلا في تنفيذها قبل تاريخ دخول هذا المنشور حيز التطبيق."
+    )
+    list_item = (
+        "الواردات التي كانت محل تعهدات من الوسيط المقبول لمنح تمويلات، "
+        "والتي شرع فعلا في تنفيذها قبل تاريخ دخول هذا المنشور حيز التطبيق"
+    )
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2026_04_ar.pdf",
+            "page": 3,
+            "score": 0.9,
+            "text": page,
+        }
+    ]
+    question = "هل تنطبق القيود الجديدة للمنشور عدد 2026-04 على هذه الواردات؟"
+    bad = _parse(
+        {
+            "status": "answered",
+            "message": "",
+            "claims": [
+                {
+                    "text": "تخضع هذه الواردات للقيود الجديدة وتنطبق عليها أحكام الفصل الأول.",
+                    "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                }
+            ],
+        },
+        evidence,
+        question,
+    )
+    assert bad["status"] == "insufficient_evidence"
+
+    good = _parse(
+        {
+            "status": "answered",
+            "message": "",
+            "claims": [
+                {
+                    "text": "تستثنى هذه الواردات من مجال تطبيق أحكام الفصل الأول ولا تنطبق عليها القيود الجديدة.",
+                    "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                }
+            ],
+        },
+        evidence,
+        question,
+    )
+    assert good["status"] in {"answered", "partial_answer"}
+    assert "تستثنى" in good["answer"] or "لا تنطبق" in good["answer"]
+
+
+def test_arabic_obligation_cannot_be_paraphrased_as_not_applicable():
+    page = (
+        "الفصل الأول : يتعين على البنوك تكوين ودائع تغطي كامل قيمة الواردات. "
+        "وتخضع هذه العمليات لأحكام هذا المنشور."
+    )
+    evidence = [
+        {
+            "evidence_id": "E1",
+            "source": "Cir_2026_04_ar.pdf",
+            "page": 2,
+            "score": 0.9,
+            "text": page,
+        }
+    ]
+    draft = {
+        "status": "answered",
+        "message": "",
+        "claims": [
+            {
+                "text": "لا تخضع البنوك لهذا الالتزام ولا تنطبق عليها أحكام المنشور.",
+                "quotes": [
+                    {
+                        "evidence_id": "E1",
+                        "quote": "يتعين على البنوك تكوين ودائع تغطي كامل قيمة الواردات",
+                    }
+                ],
+            }
+        ],
+    }
+    result = _parse(draft, evidence, "هل يتعين على البنوك تكوين هذه الودائع؟")
+    assert result["status"] == "insufficient_evidence"
+
+
 def test_unsupported_legal_number_still_rejected_when_not_in_question():
     evidence = [
         {

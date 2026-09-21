@@ -15,12 +15,12 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 
 | Concern | Start in |
 | --- | --- |
-| Answer shape, claim/quote gates, answer statuses | `backend/answer_contract.py` |
+| Answer shape, claim/quote gates, answer statuses | `backend/answer_contract.py` (facade); gates in `answer_gates.py`, draft ladder in `answer_draft.py` |
 | Currentness classifiers + `GraphRetrievalTrace` (API/memory compat) | `backend/graph_contract.py` |
-| JSONL SUPERSEDES pin / ingest merge | `backend/jsonl_supersession.py` |
+| JSONL SUPERSEDES pin / ingest merge | `backend/jsonl_supersession.py` (facade); edges IO in `supersession_edges.py`, retrieve pin in `supersession_pin.py` |
 | Conversation routing and follow-ups | `backend/conversation.py` |
 | Profiles `cloud` / `local_hybrid` / `local` | `backend/runtime_profiles.py` |
-| Retrieval + evidence selection | `backend/runtime_retrieval.py`, `backend/retrieval_selection.py` |
+| Retrieval + evidence selection | `backend/runtime_retrieval.py` (backends + facade), `backend/cloud_embed_clients.py` (Voyage/Google clients), `backend/retrieval_selection.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |
 | Ingest → stage → activate | `backend/ingest.py`, `backend/ingestion/` |
 | HTTP surface | `backend/app.py`, `backend/run_api.py` |

@@ -64,8 +64,8 @@ def test_select_edges_from_hits_when_old_circular_in_top_results():
     assert picked[0].target_instrument == "cir:2018:7"
 
 
-def test_pin_topical_query_prefers_successor_over_superseded_hit():
-    """User asks about a topic; classic retrieve returns the old circular; pin successor."""
+def test_pin_topical_query_prefers_successor_but_keeps_classic_hit():
+    """Topical pin fronts successor; classic triggering hit stays in the pack."""
     edges = [
         _edge(
             action="REPLACE",
@@ -91,11 +91,41 @@ def test_pin_topical_query_prefers_successor_over_superseded_hit():
         edges,
         page_lookup=lookup,
     )
+    sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned]
+    assert sources[0] == "Cir_2019_07_fr.pdf"
+    assert "Cir_2018_07_fr.pdf" in sources[:3]
+
+
+def test_pin_topical_currentness_prefers_successor_over_superseded_hit():
+    """Force/currentness wording: classic retrieve returns the old circular; pin successor."""
+    edges = [
+        _edge(
+            action="REPLACE",
+            target_article=None,
+            quote="La circulaire 2018-07 est abrogée et remplacée.",
+        )
+    ]
+    old = Document(
+        page_content="horaires de travail applicables aux banques",
+        metadata={"source": "Cir_2018_07_fr.pdf", "page": 3, "pages": [3]},
+    )
+    noise = Document(
+        page_content="autre circulaire",
+        metadata={"source": "Cir_2015_02_fr.pdf", "page": 1, "pages": [1]},
+    )
+
+    def lookup(edge):
+        return edge.source_file, edge.source_page, edge.quote
+
+    pinned = pin_supersession_edges(
+        [(old, 5.0), (noise, 1.0)],
+        "Les horaires de la circulaire 2018-07 sont-ils encore en vigueur ?",
+        edges,
+        page_lookup=lookup,
+    )
     assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2019_07_fr.pdf"
-    # Fully replaced instrument is demoted below successor + unrelated live hits
     sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned]
     assert sources.index("Cir_2019_07_fr.pdf") < sources.index("Cir_2018_07_fr.pdf")
-    assert sources.index("Cir_2015_02_fr.pdf") < sources.index("Cir_2018_07_fr.pdf")
 
 
 def test_pin_amend_keeps_old_pages_but_fronts_successor():
@@ -158,6 +188,90 @@ def test_pin_boosts_declaring_page_to_front():
     )
     assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2019_07_fr.pdf"
     assert pinned[0][0].metadata["retrieval_source"] == "jsonl_supersession"
+
+
+def test_pin_named_2025_13_outranks_newer_successor_mention():
+    """Selon la circulaire 2025-13… must retrieve 2025-13 before a newer mentioner."""
+    query = "Selon la circulaire 2025-13, quelles sont les règles d'exportation ?"
+    edges = [
+        _edge(
+            source_instrument="cir:2026:4",
+            source_file="Cir_2026_04_fr.pdf",
+            source_page=1,
+            action="AMEND",
+            target_instrument="cir:2025:13",
+            target_article=None,
+            quote="Les dispositions de la circulaire 2025-13 sont modifiées.",
+        )
+    ]
+    named = Document(
+        page_content="Règles d'exportation applicables aux intermédiaires agréés.",
+        metadata={"source": "Cir_2025_13_fr.pdf", "page": 2, "pages": [2]},
+    )
+    mention = Document(
+        page_content=(
+            "Vu la circulaire n° 2025-13 du 27 octobre 2025, "
+            "telle que citée dans le présent texte."
+        ),
+        metadata={"source": "Cir_2026_04_fr.pdf", "page": 1, "pages": [1]},
+    )
+
+    def lookup(edge):
+        return edge.source_file, edge.source_page, edge.quote
+
+    pinned = pin_supersession_edges(
+        [(mention, 5.0), (named, 1.0)],
+        query,
+        edges,
+        page_lookup=lookup,
+    )
+    assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"
+
+
+def test_pin_skips_mid_era_when_newer_regime_hit_already_ranked():
+    """2018 list-replacement pins must not bury a 2026 non-priority operative page."""
+    query = (
+        "Importation non prioritaire pour une entreprise publique "
+        "dans un marche d'Etat. Exemption ?"
+    )
+    edges = [
+        _edge(
+            source_instrument="cir:2018:13",
+            source_file="Cir_2018_13_fr.pdf",
+            source_page=2,
+            action="ABROGATE",
+            target_instrument="cir:2017:9",
+            target_article=None,
+            quote=(
+                "Est abrogee la circulaire n° 2017-09 relative aux conditions "
+                "de financement de l'importation de produits non prioritaires."
+            ),
+        )
+    ]
+    old = Document(
+        page_content="conditions de financement de produits non prioritaires",
+        metadata={"source": "Cir_2017_09_fr.pdf", "page": 2, "pages": [2]},
+    )
+    current = Document(
+        page_content=(
+            "Sont exclues les importations realisees dans le cadre de "
+            "marches publics conclus au profit de l'Etat."
+        ),
+        metadata={"source": "Cir_2026_04_fr.pdf", "page": 2, "pages": [2]},
+    )
+
+    def lookup(edge):
+        return edge.source_file, edge.source_page, edge.quote
+
+    pinned = pin_supersession_edges(
+        [(old, 0.9), (current, 0.5)],
+        query,
+        edges,
+        page_lookup=lookup,
+    )
+    sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned[:3]]
+    assert "Cir_2018_13_fr.pdf" not in sources
+    assert "Cir_2026_04_fr.pdf" in sources
 
 
 def test_extract_edges_from_abrogation_page():
@@ -399,10 +513,10 @@ def test_rebuild_writes_edges_and_resolve_path_uses_them(tmp_path: Path):
         "antérieures contraires, notamment la circulaire n°2007-18 du 5 juillet 2007."
     )
 
-    import jsonl_supersession as mod
+    import supersession_edges as edges_mod
 
-    original = mod._pdf_page_texts
-    mod._pdf_page_texts = lambda _path: [(1, text)]
+    original = edges_mod._pdf_page_texts
+    edges_mod._pdf_page_texts = lambda _path: [(1, text)]
     try:
         active = tmp_path / "versions" / "v1"
         active.mkdir(parents=True)
@@ -418,7 +532,7 @@ def test_rebuild_writes_edges_and_resolve_path_uses_them(tmp_path: Path):
             for e in edges
         )
     finally:
-        mod._pdf_page_texts = original
+        edges_mod._pdf_page_texts = original
 
 
 def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
@@ -436,7 +550,10 @@ def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
                 source_page=1,
                 target_instrument="cir:2016:8",
                 target_article=None,
-                quote="other circular stays",
+                quote=(
+                    "La présente circulaire abroge et remplace les dispositions "
+                    "de la circulaire n°2016-08 du 1 janvier 2016."
+                ),
             ),
         ],
     )

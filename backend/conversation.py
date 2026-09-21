@@ -9,7 +9,12 @@ from answer_contract import (
     evidence_records,
 )
 from langchain_core.prompts import ChatPromptTemplate
-from retrieval_selection import parse_source_identity
+from retrieval_selection import (
+    explicit_instrument_identity,
+    parse_source_identity,
+    prefer_named_instrument_hits,
+    _instrument_year,
+)
 from pydantic import BaseModel, ConfigDict, model_validator
 from graph_contract import (
     GraphRetrievalStatus,
@@ -272,11 +277,6 @@ def _answer_memory(memory_state, route):
     }
 
 
-def _instrument_year(document):
-    identity = parse_source_identity(str(document.metadata.get("source") or ""))
-    return identity["year"] if identity else 0
-
-
 def _prefer_later_instrument_evidence(results):
     return sorted(
         results,
@@ -290,10 +290,14 @@ def _answer_results(
     *,
     ordinary_limit=5,
     prefer_later_instruments=False,
+    query=None,
 ):
     ordinary = list(reranked_results[:ordinary_limit])
     if prefer_later_instruments:
         ordinary = _prefer_later_instrument_evidence(ordinary)
+    identity = explicit_instrument_identity(query) if query else None
+    if identity:
+        ordinary = prefer_named_instrument_hits(ordinary, identity)
     return ordinary
 
 
@@ -387,6 +391,7 @@ def chat(
     top_results = _answer_results(
         answer_candidates,
         prefer_later_instruments=temporal_unverified,
+        query=message,
     )
     memory_text = render_memory_state(_answer_memory(memory_state, route))
     if route["intent"] == RouteIntent.FOLLOW_UP.value:
