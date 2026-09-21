@@ -30,6 +30,7 @@
   padding: clamp(16px, 2.5vw, 36px);
   font-family: var(--sans);
   color: var(--ink);
+  color-scheme: light;
   background:
     radial-gradient(ellipse 80% 60% at 10% 0%, rgba(0, 32, 96, 0.1), transparent 55%),
     radial-gradient(ellipse 70% 50% at 100% 100%, rgba(227, 28, 35, 0.06), transparent 50%),
@@ -167,16 +168,45 @@
   box-shadow: 0 2px 5px rgba(0, 32, 96, 0.22);
 }
 
-.auth-language-switcher {
-  position: absolute;
-  z-index: 2;
-  top: clamp(20px, 3vw, 32px);
-  right: clamp(20px, 3vw, 32px);
+.auth-toolbar {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 18px;
+  flex-shrink: 0;
 }
 
-[dir='rtl'] .auth-language-switcher {
-  right: auto;
-  left: clamp(20px, 3vw, 32px);
+[dir='rtl'] .auth-toolbar {
+  justify-content: flex-start;
+}
+
+.auth-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(0, 32, 96, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(0, 32, 96, 0.08);
+  cursor: pointer;
+}
+
+.auth-theme-toggle span {
+  display: none;
+}
+
+.auth-theme-toggle:hover {
+  background: #fff;
+}
+
+.auth-language-switcher {
+  position: static;
 }
 
 .brand {
@@ -455,5 +485,147 @@
 @media (prefers-reduced-transparency: reduce) {
   .language-switcher {
     background: #fff;
+  }
+}
+
+/* ——— Auth dark mode (own data-theme on .login-page) ——— */
+
+.login-page[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e8eef6;
+  --ink: #e8eef6;
+  --muted: #9aabc0;
+  --field: #0f1c2e;
+  --field-border: #33465f;
+  --page: #0b1220;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(78, 137, 211, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(227, 28, 35, 0.08), transparent 50%),
+    linear-gradient(160deg, #0b1220 0%, #101827 48%, #0a1422 100%);
+}
+
+.login-page[data-theme="dark"] .shell {
+  background: #141c2c;
+  border-color: rgba(140, 180, 232, 0.12);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.login-page[data-theme="dark"] .form-side {
+  background: #141c2c;
+}
+
+.login-page[data-theme="dark"] .login-box h2 {
+  color: #d6e4f6;
+}
+
+.login-page[data-theme="dark"] .field label {
+  color: #c5d4ea;
+}
+
+.login-page[data-theme="dark"] input {
+  background: #0f1c2e;
+  border-color: #33465f;
+  color: #e8eef6;
+  color-scheme: dark;
+}
+
+.login-page[data-theme="dark"] input::placeholder {
+  color: #6b7c94;
+}
+
+.login-page[data-theme="dark"] input:focus {
+  background: #152338;
+  border-color: #6ba3e0;
+  box-shadow: 0 0 0 3px rgba(107, 163, 224, 0.22);
+}
+
+.login-page[data-theme="dark"] input[aria-invalid='true'] {
+  border-color: #e05a66;
+  background: #2a1518;
+  box-shadow: 0 0 0 3px rgba(224, 90, 102, 0.18);
+}
+
+/* Keep autofill readable on dark fields (Chrome paints a light fill otherwise). */
+.login-page[data-theme="dark"] input:-webkit-autofill,
+.login-page[data-theme="dark"] input:-webkit-autofill:hover,
+.login-page[data-theme="dark"] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e8eef6;
+  caret-color: #e8eef6;
+  box-shadow: 0 0 0 1000px #0f1c2e inset;
+  transition: background-color 99999s ease-out;
+}
+
+.login-page[data-theme="dark"] .auth-theme-toggle {
+  border-color: #2a3a52;
+  background: #0f1c2e;
+  color: #e8eef6;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.login-page[data-theme="dark"] .auth-theme-toggle:hover {
+  background: #152338;
+}
+
+.login-page[data-theme="dark"] .language-switcher {
+  border-color: #2a3a52;
+  background: #0f1c2e;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.login-page[data-theme="dark"] .language-switcher button {
+  color: #9aabc0;
+}
+
+.login-page[data-theme="dark"] .language-switcher button[aria-pressed='true'] {
+  color: #fff;
+  background: #2a5a94;
+  box-shadow: none;
+}
+
+.login-page[data-theme="dark"] .btn.primary {
+  background: #2a5a94;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .login-page[data-theme="dark"] .btn.primary:hover {
+    background: #3568a8;
+  }
+}
+
+.login-page[data-theme="dark"] .form-error {
+  color: #f0a0a8;
+  background: #2a1518;
+  border-color: #6b2a32;
+}
+
+.login-page[data-theme="dark"] .form-success {
+  color: #7dd4ae;
+  background: #142820;
+  border-color: #2a5a45;
+}
+
+.login-page[data-theme="dark"] .field-error {
+  color: #f0a0a8;
+}
+
+.login-page[data-theme="dark"] .signup,
+.login-page[data-theme="dark"] .status-panel p {
+  color: #9aabc0;
+}
+
+.login-page[data-theme="dark"] a {
+  color: #f07178;
+}
+
+.login-page[data-theme="dark"] a:hover {
+  color: #ff9aa0;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .login-page[data-theme="dark"] .language-switcher {
+    background: #0f1c2e;
   }
 }

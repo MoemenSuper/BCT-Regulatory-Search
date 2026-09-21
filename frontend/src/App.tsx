@@ -22,6 +22,7 @@ import {
   noteFromConversationTurn,
 } from './data/presentation';
 import { useWorkspacePanels } from './hooks/useWorkspacePanels';
+import { useChatTheme } from './hooks/useTheme';
 import type { UiLocale } from './uiLocale';
 import type {
   ChatSource,
@@ -175,10 +176,18 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
     setRightCollapsed,
     startResize,
   } = useWorkspacePanels();
+  const { theme, toggleTheme } = useChatTheme();
 
   return (
-    <div className="app-shell">
-      <Header user={user} locale={locale} onUserChange={onUserChange} onLogout={onLogout} />
+    <div className="app-shell" data-theme={theme}>
+      <Header
+        user={user}
+        locale={locale}
+        onUserChange={onUserChange}
+        onLogout={onLogout}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
       <div
         ref={workspaceRef}
         className={`workspace${resizing ? ' is-resizing' : ''}`}
@@ -253,6 +262,8 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
                   >
                     <ResearchNote
                       note={note}
+                      conversationId={conversationId || turn.turn_id}
+                      turnId={turn.turn_id}
                       compact={index > 0}
                       selectedSourceIndex={isActive ? selectedSourceIndex : -1}
                       onSelectSource={(sourceIndex) => {

@@ -2,43 +2,68 @@ import { useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-const STORAGE_KEY = 'bct-theme';
+const CHAT_THEME_KEY = 'bct-chat-theme';
+const AUTH_THEME_KEY = 'bct-auth-theme';
+/** @deprecated migrated once from shared html theme */
+const LEGACY_THEME_KEY = 'bct-theme';
 
-function readStoredTheme(): Theme {
+function readTheme(storageKey: string, fallback: Theme = 'light'): Theme {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored === 'dark' || stored === 'light') return stored;
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    if (storageKey === CHAT_THEME_KEY) {
+      const legacy = localStorage.getItem(LEGACY_THEME_KEY);
+      if (legacy === 'dark' || legacy === 'light') return legacy;
+    }
   } catch {
-    /* keep light */
+    /* private mode */
   }
-  return 'light';
+  return fallback;
 }
 
-function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
+function writeTheme(storageKey: string, theme: Theme) {
   try {
-    localStorage.setItem(STORAGE_KEY, theme);
+    localStorage.setItem(storageKey, theme);
   } catch {
-    /* ignore quota / private mode */
+    /* ignore */
   }
 }
 
-export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof document === 'undefined') return 'light';
-    const current = document.documentElement.dataset.theme;
-    return current === 'dark' || current === 'light' ? current : readStoredTheme();
-  });
+/** Per-surface theme. Never writes html[data-theme] — each shell owns its attribute. */
+export function useScopedTheme(storageKey: string) {
+  const [theme, setThemeState] = useState<Theme>(() => readTheme(storageKey));
 
   function setTheme(next: Theme) {
-    applyTheme(next);
+    writeTheme(storageKey, next);
     setThemeState(next);
   }
 
   return {
     theme,
+    setTheme,
     toggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
   };
+}
+
+export function useChatTheme() {
+  return useScopedTheme(CHAT_THEME_KEY);
+}
+
+export function useAuthTheme() {
+  return useScopedTheme(AUTH_THEME_KEY);
+}
+
+/** Clear any leftover global theme from older builds; migrate once into chat storage. */
+export function clearGlobalThemeAttribute() {
+  document.documentElement.removeAttribute('data-theme');
+  document.documentElement.style.colorScheme = '';
+  try {
+    const legacy = localStorage.getItem(LEGACY_THEME_KEY);
+    if ((legacy === 'dark' || legacy === 'light') && !localStorage.getItem(CHAT_THEME_KEY)) {
+      localStorage.setItem(CHAT_THEME_KEY, legacy);
+    }
+    localStorage.removeItem(LEGACY_THEME_KEY);
+  } catch {
+    /* ignore */
+  }
 }

@@ -459,6 +459,36 @@ class ConversationStore:
             )
         return result
 
+    def get_turn(self, conversation_id, turn_id, *, user_id: str):
+        owner = self._require_user_id(user_id)
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            owned = connection.execute(
+                "SELECT 1 FROM conversation_sessions "
+                "WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, owner),
+            ).fetchone()
+            if owned is None:
+                return None
+            row = connection.execute(
+                """
+                SELECT turn_id, conversation_id, question, answer, answer_status, profile
+                FROM conversation_turns
+                WHERE conversation_id = ? AND turn_id = ?
+                """,
+                (conversation_id, turn_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "turn_id": row["turn_id"],
+            "conversation_id": row["conversation_id"],
+            "question": row["question"],
+            "answer": row["answer"],
+            "answer_status": row["answer_status"],
+            "profile": row["profile"],
+        }
+
     def transcript(self, conversation_id, *, user_id: str):
         owner = self._require_user_id(user_id)
         state = self.load(conversation_id, user_id=owner)

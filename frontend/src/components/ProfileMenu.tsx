@@ -82,9 +82,18 @@ interface ProfileMenuProps {
   onUserChange: (user: AuthUser) => void;
   onLogout: () => void;
   variant?: 'header' | 'admin';
+  /** Light/dark for the portaled panel — must match the host surface theme. */
+  theme: 'light' | 'dark';
 }
 
-export function ProfileMenu({ user, locale, onUserChange, onLogout, variant = 'header' }: ProfileMenuProps) {
+export function ProfileMenu({
+  user,
+  locale,
+  onUserChange,
+  onLogout,
+  variant = 'header',
+  theme,
+}: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(user.display_name || '');
   const [avatar, setAvatar] = useState(user.avatar_icon || '');
@@ -227,7 +236,14 @@ export function ProfileMenu({ user, locale, onUserChange, onLogout, variant = 'h
 
   const panel = open
     ? createPortal(
-        <div className={`profile-menu-panel profile-menu-panel--${variant}`} role="dialog" aria-labelledby={titleId} ref={panelRef} style={panelStyle}>
+        <div
+          className={`profile-menu-panel profile-menu-panel--${variant}`}
+          role="dialog"
+          aria-labelledby={titleId}
+          ref={panelRef}
+          style={panelStyle}
+          data-theme={theme}
+        >
           <h2 id={titleId}>{t(locale, 'profile.title')}</h2>
           <p className="profile-menu-email">{user.email}</p>
           {message ? <p className="profile-menu-banner ok" role="status">{message}</p> : null}

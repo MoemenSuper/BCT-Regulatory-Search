@@ -95,6 +95,7 @@ _REFUSAL_BUCKET_TITLES = {
     "out_of_scope": "Out of scope",
     "search_fallback": "Search fallback",
     "general_chat": "General chat",
+    "user_thumbs_down": "User thumbs down",
     "other": "Other",
 }
 _REFUSAL_BUCKET_RULES = (
@@ -113,6 +114,7 @@ _REFUSAL_BUCKET_RULES = (
     ("out_of_scope", ("out_of_scope",)),
     ("search_fallback", ("search_fallback", "search_results")),
     ("general_chat", ("general_chat",)),
+    ("user_thumbs_down", ("user_thumbs_down",)),
 )
 
 
