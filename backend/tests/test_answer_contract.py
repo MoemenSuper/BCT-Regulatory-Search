@@ -61,7 +61,8 @@ def test_partial_answer_keeps_supported_facts_and_uses_a_trusted_gap_message():
     result = parse_answer(json.dumps(value), "Quel est l'objet et la date ?", EVIDENCE)
     assert result["status"] == "partial_answer"
     assert "voyages d'affaires. [1]" in result["answer"]
-    assert "une partie de la demande" in result["answer"]
+    # Model-chosen partial without dropped claims: no stock incompleteness footer.
+    assert "une partie de la demande" not in result["answer"]
     assert result["sources"][0]["excerpt"] == value["claims"][0]["quotes"][0]["quote"]
 
 

@@ -311,3 +311,32 @@ def claim_asserts_unverified_applicability(text: str) -> bool:
             re.I,
         )
     )
+
+
+_NEGATIVE_AMENDMENT_CLAIM = re.compile(
+    r"(?i)(?:"
+    r"(?:aucun|aucune|pas\s+de|nul(?:le)?)\s+(?:\w+\s+){0,5}"
+    r"(?:texte|circulaire|disposition|amendement|modification)\s+(?:\w+\s+){0,8}"
+    r"(?:ult[eé]rieur|post[eé]rieur|plus\s+r[eé]cent|subs[eé]quent|"
+    r"modifi|abrog|remplac)|"
+    r"(?:ne\s+)?(?:modifie|abroge|remplace)\s+pas|"
+    r"n['’]a\s+pas\s+(?:[eé]t[eé]\s+)?(?:modifi|abrog|remplac)|"
+    r"(?:no|without)\s+(?:later|subsequent|further)\s+"
+    r"(?:text|circular|amendment|modification)|"
+    r"does\s+not\s+(?:modify|amend|abrogate|replace)|"
+    r"nothing\s+(?:later|subsequent)\s+(?:modifies|amends)|"
+    r"no\s+later\s+text|"
+    r"لا\s+يوجد\s+(?:أي\s+)?نص\s+(?:لاحق|معدل)|"
+    r"لم\s+(?:يعدل|تعد|يلغ|تعدل)"
+    r")"
+)
+
+
+def claim_asserts_unsupported_negative_amendment(text: str) -> bool:
+    """True when the claim asserts that no later text modifies/abrogates an instrument.
+
+    Absence from retrieval is not proof; only a literal quote of that assertion may
+    support it.
+    """
+    return bool(_NEGATIVE_AMENDMENT_CLAIM.search(text or ""))
+
