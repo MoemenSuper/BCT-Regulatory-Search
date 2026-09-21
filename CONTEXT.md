@@ -88,7 +88,12 @@ _Avoid_: “in force”, “currently applicable”, perfect legal interpretatio
 
 **Relationship only (not provision-resolved)**:
 An edge or `temporal_relation` proves instrument succession, not provision-level temporal applicability. When evidence carries `temporal_relation` / `relationship_note` for REPLACE / ABROGATE / AMEND, the answer layer keeps both instruments, marks successor vs superseded, and instructs the writer to state the relationship then follow the successor for conflicted facts.
-_Avoid_: verified as synonym for current / en vigueur; silently dropping replaced circulars; merging conflicting values from predecessor and successor
+Absence of a retrieved amending text is not proof that none exists; claims that “no later text modifies” an instrument require a literal quote.
+_Avoid_: verified as synonym for current / en vigueur; silently dropping replaced circulars; merging conflicting values from predecessor and successor; treating missing amendment hits as a negative proof
+
+**Historical cutoff vs grandfathering**:
+`avant` / `before` demotes a named later instrument when the question asks what applied under the prior regime. The same words do **not** demote when they describe engagements or execution before that instrument’s entry into force (transitional / grandfathering questions answer from the named instrument).
+_Avoid_: treating every “avant 2026-04” as a prior-regime retrieval
 
 ## Conversation and UI
 

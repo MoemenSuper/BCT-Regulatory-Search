@@ -515,15 +515,22 @@ passages, using explicit dated replacement wording when available. Incomplete am
 history means partial, NOT insufficient_evidence. The newest unrelated document is not
 an answer. If chronology is unresolved, select scoped alternatives as partial.
 For as-of historical questions, never select a later amendment as then-active.
-When the question says avant/before/قبل a named instrument, prefer the earlier
-same-regime instrument in the pack — do not select the named cutoff as then-active.
+When the question asks what applied before a named instrument as a prior regime
+('Avant 2025-13, quel était…'), prefer the earlier same-regime instrument — do not
+select the named cutoff as then-active.
+When avant/before describes engagements or execution before a named circular's entry
+into force, keep that named circular (transitional provisions) — do not demote it.
 When the question names a calendar year (en 2024, في 2023, in 2024), prefer
 instruments from that year. An older note about a different credit facility is
 context, not proof that no answer exists — select the year-matched passages and
 use partial.
 When the question mentions entreprises industrielles / industrial importer and the
 pack includes an Art.4 / fiche technique exclusion, select that exclusion page —
-not only the general 100% deposit article.
+not only the general 100% deposit article. Prefer both the general rule and the
+exception when the question needs them reconciled.
+When several pages of the same instrument answer different parts of the question
+(general rule vs exception/condition, successive articles), select complementary
+pages — not only the single highest-scoring page.
 For comparisons (ancien régime vs new circular, 60 vs 120), select BOTH instruments'
 operative delay passages when present.
 
@@ -1094,11 +1101,25 @@ unclear, give scoped alternatives and explain the limit through partial_answer.
 For historical/as-of requests, answer for that period: never apply a future amendment
 retroactively or substitute today's latest value. Report what the cited text supports
 even if its applicability on the requested date cannot be fully established.
-When the question says avant/before/قبل a named circular, answer from the earlier
-instrument in evidence — do not restate the named later circular's thresholds as the
-then-active rule.
+When the question asks what applied before a named circular as a prior regime
+('Avant 2025-13, quel était le délai…'), answer from the earlier instrument in
+evidence — do not restate the named later circular's thresholds as the then-active rule.
+When avant/before/قبل describes engagements, execution or operations before a named
+circular's entry into force, answer FROM that named circular's transitional provisions
+— do not demote it as a prior-regime question.
 For comparisons (60 vs 120, ancien régime vs 2025-13), state BOTH sides' operative
 thresholds when both are in the selected evidence.
+When evidence contains both a general rule and an exception or condition, reconcile
+them into ONE conclusion that states the condition. Do not list passages separately
+or drop the condition from a paraphrase. Preserve every operative condition present
+in the cited quotes (sous réserve, lorsque, si, à condition que, sans préjudice,
+and equivalent cross-article conditions).
+When successive pages of the same instrument cover different bands of the same rule
+ladder, state the full ladder supported by those quotes — do not stop at the first
+matching band.
+Never claim that no later text modifies, abrogates or replaces an instrument unless
+a cited quote literally states that. Missing amendment evidence is not proof of
+absence; omit that assertion rather than inventing it.
 When the question asks whether an industrial importer must deposit 100%, and evidence
 includes the fiche technique / Art.4 exclusion, answer that it depends on that certificate
 — do not state the general deposit rule as unconditional.
@@ -1108,7 +1129,8 @@ abrogates/replaces/amends ...'). You MAY say "n'est plus en vigueur" / "abrogée
 that action is literally quoted. Do NOT say 'the current ceiling', 'currently applicable',
 'est actuellement en vigueur', or 'in force' as a present-force conclusion. A disclaimer
 does not validate those assertions. Missing amendment history alone is NOT a reason for
-insufficient_evidence.
+insufficient_evidence, and is also NOT a reason to claim that nothing later modifies
+the instrument.
 
 Use answered if the requested facts are supported; partial_answer for useful supported
 parts or qualified/scoped alternatives; clarification_needed for unresolved scope;
@@ -1144,10 +1166,8 @@ Schema: {schema}"""),
     def _accept(parsed):
         if parsed["status"] not in {"answered", "partial_answer"}:
             return None
-        if selection.decision == "partial" and parsed["status"] == "answered":
-            parsed = dict(parsed)
-            parsed["status"] = "partial_answer"
-            parsed["answer"] += "\n\n" + _PARTIAL_LIMITS[language_of(question)]
+        # Selection "partial" is advisory. Do not downgrade a fully validated
+        # answered draft or append a stock incompleteness footer.
         return note_multi_page_support(question, parsed)
 
     for attempt in range(2):
@@ -1298,10 +1318,26 @@ Schema: {schema}"""),
 
 
 def _cap_draft_evidence(evidence, *, limit=3):
-    """Keep selection order but bound how many long pages enter the answer prompt."""
+    """Bound prompt size; prefer distinct pages over multiple chunks of the same page.
+
+    Selection order is preserved. When several pages of one instrument are needed
+    (general rule + condition, successive articles), the cap must not collapse to
+    three near-duplicate chunks from a single page.
+    """
     if not evidence or limit < 1:
         return list(evidence or [])
-    return list(evidence)[: max(1, int(limit))]
+    limit = max(1, int(limit))
+    seen_pages: set[tuple[str, object]] = set()
+    diversified: list = []
+    duplicates: list = []
+    for record in evidence:
+        key = (str(record.get("source") or ""), record.get("page"))
+        if key in seen_pages:
+            duplicates.append(record)
+            continue
+        seen_pages.add(key)
+        diversified.append(record)
+    return (diversified + duplicates)[:limit]
 
 
 def _verbatim_excerpt(text, *, anchors=(), max_len=350, min_len=20):
@@ -1378,6 +1414,8 @@ Hard rules:
 - Copy every quote character-for-character from an evidence text field.
 - Synthesize useful facts across multiple evidence IDs/pages when the answer is split
   across the pack. Prefer complementary quotes from several pages over abstaining.
+  When a general rule and an exception/condition both appear, state ONE conclusion
+  that keeps the condition (do not drop "sous réserve" / Art.11→12 caveats).
   The application will tell the reader when the answer spans multiple pages.
 - Scope every claim to its source instrument (e.g. "Selon la note 2024-163, ...").
   Do not present one credit facility as the universal BCT rule for all investment credits.
@@ -1385,6 +1423,7 @@ Hard rules:
   facility in the pack is not a reason to refuse.
 - If a number cannot appear inside the supporting quote, omit that number from the claim
   text or extend the quote. Never invent digits.
+- Do NOT claim that no later text modifies an instrument unless the quote says so.
 - Unverified temporal scope: {temporal_unverified}. When true, avoid affirmative
   "est en vigueur" / "currently in force"; "n'est plus en vigueur" / "abrogée" is OK
   when literally supported by the quote.

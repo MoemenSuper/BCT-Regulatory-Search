@@ -536,6 +536,33 @@ def test_avant_named_instrument_demotes_cutoff_after_named_promotion():
     assert Path(str(reranked[0][0].metadata["source"])).name == "Cir_2020_02_fr.pdf"
 
 
+def test_grandfathering_avant_keeps_named_circular():
+    """Commitments before 2026-04 ask for that circular — do not demote it."""
+    from pathlib import Path
+
+    from retrieval_selection import is_historical_cutoff_query
+    from runtime_retrieval import _identity_diversified_rank
+
+    query = (
+        "Pour un engagement de financement existant avant la circulaire 2026-04, "
+        "quelle disposition s'applique si l'exécution était déjà entamée ?"
+    )
+    assert is_historical_cutoff_query(query) is False
+    older = _doc(
+        "Liste des produits non prioritaires. Dépôt de 100%.",
+        "Cir_2017_09_fr.pdf",
+        1,
+    )
+    named = _doc(
+        "Sont exclues les importations dont l'exécution de l'engagement de financement "
+        "a été effectivement entamée avant l'entrée en vigueur de la présente circulaire.",
+        "Cir_2026_04_fr.pdf",
+        3,
+    )
+    reranked = _identity_diversified_rank(query, [older, named], [0.95, 0.50])
+    assert Path(str(reranked[0][0].metadata["source"])).name == "Cir_2026_04_fr.pdf"
+
+
 def test_selon_bare_year_number_is_explicit_instrument_identity():
     from retrieval_selection import explicit_instrument_identity
 

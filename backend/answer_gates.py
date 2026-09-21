@@ -16,7 +16,8 @@ from graph_contract import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, source_quote, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
-    claim_asserts_unverified_applicability, question_scenario_numbers,
+    claim_asserts_unverified_applicability, claim_asserts_unsupported_negative_amendment,
+    question_scenario_numbers,
 )
 
 logger = logging.getLogger(__name__)
@@ -205,6 +206,10 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
             source_quotes[key].append(original_quote)
             sources[source_numbers[key] - 1]["excerpt"] = "\n…\n".join(source_quotes[key])
         numbers.append(source_numbers[key])
+    if claim_asserts_unsupported_negative_amendment(claim.text):
+        quote_blob = " ".join(supporting_text)
+        if not claim_asserts_unsupported_negative_amendment(quote_blob):
+            raise ValueError("unsupported_negative_amendment_claim")
     supported = set().union(*(supported_numbers(text) for text in supporting_text))
     cited = [by_id[quote.evidence_id] for quote in claim.quotes]
     # A number the user asked about ("les billets de 100 et 500 couronnes")
@@ -615,12 +620,16 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
             reason = dropped[0] if len(dropped) == 1 else ("no_supported_claims:" + ",".join(dict.fromkeys(dropped)) if dropped else "Answer contains no supported claims")
             raise ValueError(reason)
         status = draft.status
-        if dropped or temporal_unverified:
+        # Only claim drops force an incomplete footer. Model-chosen partial_answer
+        # may already be complete; temporal_unverified uses its own disclaimer.
+        if dropped:
+            status = "partial_answer"
+        if temporal_unverified:
             status = "partial_answer"
         if temporal_unverified:
             limits = _TEMPORAL_LIMITS if is_temporal_rule_query(question) and not _TEMPORAL_SCOPE_HINT.search(question) else _HISTORICAL_LIMITS
             lines.insert(0, limits[language_of(question)])
-        if status == "partial_answer" and not temporal_unverified:
+        if dropped and not temporal_unverified:
             # The free-form message is not quoted evidence. Never render a second,
             # unvalidated legal answer through this field.
             lines.append(_PARTIAL_LIMITS[language_of(question)])

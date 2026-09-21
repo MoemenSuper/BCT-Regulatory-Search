@@ -513,6 +513,7 @@ def prefer_regime_hits(
             )
     if strong or matched:
         return strong + matched + neutral + demoted
+
     if demoted:
         return neutral + demoted
     return ranked
@@ -541,11 +542,35 @@ _HISTORICAL_QUERY = re.compile(
     r"ancien\s+r[eé]gime|previous\s+regime)\b|"
     r"قبل|سابقا|سابقًا|النظام\s*السابق"
 )
+# "Engagement pris avant 2026-04" asks for that circular's transitional rule,
+# not the prior regime. Do not demote the named instrument in those cases.
+_GRANDFATHERING_AVANT = re.compile(
+    r"(?i)(?:"
+    r"engagements?\s+(?:\w+\s+){0,6}(?:pris|existants?|conclus?)|"
+    r"(?:pris|existants?|conclus?|entam[eé]e?s?|commenc[eé]e?s?|"
+    r"d[eé]marr[eé]e?s?|ex[eé]cut[eé]e?s?)\s+avant|"
+    r"avant\s+l['’]entr[eé]e\s+en\s+vigueur|"
+    r"avant\s+(?:la\s+)?(?:date\s+d['’]entr|publication|mise\s+en\s+application)|"
+    r"dispositions?\s+transitoires|"
+    r"op[eé]rations?\s+(?:\w+\s+){0,4}avant|"
+    r"financement\s+(?:\w+\s+){0,4}avant|"
+    r"ex[eé]cution\s+(?:\w+\s+){0,4}avant|"
+    r"قبل\s+(?:دخول|نشر|بدء)"
+    r")"
+)
 
 
 def is_historical_cutoff_query(query: str) -> bool:
-    """True when the query demotes a named later instrument ('avant 2025-13')."""
-    return bool(_HISTORICAL_QUERY.search(_ascii_fold(query or "")))
+    """True when the query demotes a named later instrument ('avant 2025-13').
+
+    False for grandfathering: commitments/execution before a circular's entry into
+    force — those ask for the named circular's transitional provisions.
+    """
+    raw = query or ""
+    folded = _ascii_fold(raw)
+    if _GRANDFATHERING_AVANT.search(folded) or _GRANDFATHERING_AVANT.search(raw):
+        return False
+    return bool(_HISTORICAL_QUERY.search(folded))
 
 
 _YEAR_NUMBER_TOKEN = re.compile(

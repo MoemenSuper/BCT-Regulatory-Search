@@ -473,7 +473,7 @@ def test_selection_keeps_valid_ids_when_model_adds_junk():
 
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, 0.9)])
-    assert result["status"] == "partial_answer"  # sanitized from answer → partial
+    assert result["status"] == "answered"
     assert "320 dinars" in result["answer"]
 
 
@@ -720,7 +720,7 @@ def test_selector_insufficiency_gets_one_literal_checked_partial_attempt():
         return AIMessage(content=json.dumps(draft()))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "partial_answer"
+    assert result["status"] == "answered"
     assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
     assert len(calls) == 2
 
@@ -738,7 +738,7 @@ def test_best_effort_attempt_never_bypasses_named_instrument_identity():
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond),
         "Selon la circulaire 2022-41, quel est le plafond ?", docs)
-    assert result["status"] == "partial_answer"
+    assert result["status"] == "answered"
     assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
 
 
@@ -866,6 +866,43 @@ def test_negative_force_wording_is_allowed_when_quote_supports_abrogation():
     assert result["status"] == "partial_answer"
     assert result["sources"]
     assert "abrog" in result["answer"].casefold()
+
+
+def test_unsupported_no_later_text_claim_is_rejected():
+    """Absence of a retrieved amendment is not proof that none exists."""
+    claim = (
+        "Selon la circulaire 2025-13, le délai libre est de 120 jours et "
+        "aucun texte ultérieur ne modifie ces dispositions."
+    )
+    quote = (
+        "Les ventes dont les contrats prévoient des délais de règlement allant "
+        "jusqu'à 120 jours sont effectuées librement et sans autorisation."
+    )
+    result = parse(
+        draft(claim, quote),
+        [record(text=quote)],
+        "Quelles dispositions de 2025-13 restent pertinentes aujourd'hui ?",
+    )
+    assert result["status"] == "insufficient_evidence"
+    assert result["sources"] == []
+
+
+def test_draft_evidence_cap_prefers_distinct_pages():
+    from answer_draft import _cap_draft_evidence
+
+    records = [
+        {"evidence_id": "E1", "source": "Cir_2025_13_fr.pdf", "page": 2, "text": "a"},
+        {"evidence_id": "E2", "source": "Cir_2025_13_fr.pdf", "page": 2, "text": "b"},
+        {"evidence_id": "E3", "source": "Cir_2025_13_fr.pdf", "page": 3, "text": "c"},
+        {"evidence_id": "E4", "source": "Cir_2020_02_fr.pdf", "page": 1, "text": "d"},
+    ]
+    capped = _cap_draft_evidence(records, limit=3)
+    pages = [(r["source"], r["page"]) for r in capped]
+    assert pages == [
+        ("Cir_2025_13_fr.pdf", 2),
+        ("Cir_2025_13_fr.pdf", 3),
+        ("Cir_2020_02_fr.pdf", 1),
+    ]
 
 
 def test_temporal_counterpart_ids_are_trusted_like_cited_filenames():
