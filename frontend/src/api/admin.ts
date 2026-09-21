@@ -108,7 +108,7 @@ export function getOverview(): Promise<AdminOverview> {
 export function listAnswerRefusals(limit = 500, buckets: string[] = []): Promise<AnswerRefusalsPage> {
   const params = new URLSearchParams();
   params.set('limit', String(Math.max(1, Math.min(limit, 5000))));
-  for (const bucket of buckets.slice(0, 3)) {
+  for (const bucket of buckets) {
     if (bucket.trim()) params.append('bucket', bucket);
   }
   return request(`/api/admin/answer-refusals?${params}`);
@@ -116,7 +116,7 @@ export function listAnswerRefusals(limit = 500, buckets: string[] = []): Promise
 
 export async function downloadAnswerRefusalsExport(buckets: string[] = []): Promise<void> {
   const params = new URLSearchParams();
-  for (const bucket of buckets.slice(0, 3)) {
+  for (const bucket of buckets) {
     if (bucket.trim()) params.append('bucket', bucket);
   }
   const query = params.toString();

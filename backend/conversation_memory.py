@@ -276,8 +276,8 @@ class ConversationStore:
         from answer_contract import refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 100_000))
-        selected_reasons = [str(item) for item in (reasons or []) if str(item)][:3]
-        selected_buckets = [str(item) for item in (buckets or []) if str(item)][:3]
+        selected_reasons = [str(item) for item in (reasons or []) if str(item)]
+        selected_buckets = [str(item) for item in (buckets or []) if str(item)]
         query = """
             SELECT refusal_id, conversation_id, user_id, user_email, question,
                    answer_status, reason, diagnostics_json, profile, created_at
@@ -320,8 +320,8 @@ class ConversationStore:
         return items
 
     def count_answer_refusals(self, *, reasons=None, buckets=None):
-        selected_reasons = [str(item) for item in (reasons or []) if str(item)][:3]
-        selected_buckets = [str(item) for item in (buckets or []) if str(item)][:3]
+        selected_reasons = [str(item) for item in (reasons or []) if str(item)]
+        selected_buckets = [str(item) for item in (buckets or []) if str(item)]
         if not selected_buckets:
             with self._connect() as connection:
                 if not selected_reasons:

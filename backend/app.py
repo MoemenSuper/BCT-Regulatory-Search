@@ -353,8 +353,8 @@ def admin_answer_refusals(
     _admin=Depends(require_admin),
 ):
     store = request.app.state.conversation_store
-    buckets = [item for item in (bucket or []) if str(item).strip()][:3]
-    reasons = [item for item in (reason or []) if str(item).strip()][:3]
+    buckets = [item for item in (bucket or []) if str(item).strip()]
+    reasons = [item for item in (reason or []) if str(item).strip()]
     return {
         "total": store.count_answer_refusals(reasons=reasons, buckets=buckets),
         "total_all": store.count_answer_refusals(),
@@ -374,8 +374,8 @@ def admin_export_answer_refusals(
 ):
     """Download refusal log as CSV (honours optional reason filters)."""
     store = request.app.state.conversation_store
-    buckets = [item for item in (bucket or []) if str(item).strip()][:3]
-    reasons = [item for item in (reason or []) if str(item).strip()][:3]
+    buckets = [item for item in (bucket or []) if str(item).strip()]
+    reasons = [item for item in (reason or []) if str(item).strip()]
     items = store.list_answer_refusals(limit=100_000, reasons=reasons, buckets=buckets)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
