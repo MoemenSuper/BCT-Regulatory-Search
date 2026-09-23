@@ -498,6 +498,9 @@
   --field: #0f1c2e;
   --field-border: #33465f;
   --page: #0b1220;
+  --bct-navy: #8cb4e8;
+  --bct-navy-soft: #a8c4e8;
+  --bct-navy-deep: #002060;
   background:
     radial-gradient(ellipse 80% 60% at 10% 0%, rgba(78, 137, 211, 0.12), transparent 55%),
     radial-gradient(ellipse 70% 50% at 100% 100%, rgba(227, 28, 35, 0.08), transparent 50%),
@@ -522,6 +525,11 @@
 
 .login-page[data-theme="dark"] .field label {
   color: #c5d4ea;
+}
+
+.login-page[data-theme="dark"] .brand {
+  background: #002060;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
 
 .login-page[data-theme="dark"] input {

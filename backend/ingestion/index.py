@@ -162,6 +162,8 @@ def stage_cloud_assets(
     new_visual: list[Document],
     content_sha256: str,
     source_filename: str,
+    allow_empty: bool = False,
+    removal: bool = False,
 ) -> tuple[Path, dict]:
     """Build a complete new cloud asset version while embedding only new chunks.
 
@@ -211,7 +213,7 @@ def stage_cloud_assets(
     all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
     all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
 
-    if not all_primary:
+    if not all_primary and not allow_empty:
         raise ValueError(
             f"Ingestion of {source_filename!r} produced no native searchable chunks "
             "(and the active corpus has none either)"
@@ -258,11 +260,25 @@ def stage_cloud_assets(
             "cloud_retrieval_provider": spec.key,
             "native_chunks": len(all_primary),
             "arabic_visual_chunks": len(all_visual),
-            "added_document_sha256": content_sha256,
-            "added_source": source_filename,
-            "added_native_chunks": len(new_primary),
-            "added_visual_chunks": len(new_visual),
         }
+        if removal:
+            snapshot.update(
+                {
+                    "removed_document_sha256": content_sha256,
+                    "removed_source": source_filename,
+                    "added_native_chunks": 0,
+                    "added_visual_chunks": 0,
+                }
+            )
+        else:
+            snapshot.update(
+                {
+                    "added_document_sha256": content_sha256,
+                    "added_source": source_filename,
+                    "added_native_chunks": len(new_primary),
+                    "added_visual_chunks": len(new_visual),
+                }
+            )
         (staging / "snapshot.json").write_text(json.dumps(snapshot, indent=2, sort_keys=True), encoding="utf-8")
         final = versions / version_id
         os.replace(staging, final)

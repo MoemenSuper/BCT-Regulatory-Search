@@ -355,3 +355,131 @@ class IngestionPipeline:
                 if not activation_committed:
                     self.registry.fail(content_hash, f"{type(error).__name__}: {error}")
                 raise
+
+    def remove(self, content_sha256: str) -> dict:
+        """Drop a ready PDF from the active index; failed activation keeps the prior corpus."""
+        content_hash = (content_sha256 or "").strip().lower()
+        if not content_hash or len(content_hash) < 16:
+            raise ValueError("Invalid document id")
+        known = self.registry.get(content_hash)
+        if known is None or known.get("status") != "ready":
+            raise KeyError(f"Ready document not found: {content_hash}")
+        filename = _safe_filename(str(known.get("original_filename") or "document.pdf"))
+
+        lock = FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=5)
+        with lock:
+            known = self.registry.get(content_hash)
+            if known is None or known.get("status") != "ready":
+                raise KeyError(f"Ready document not found: {content_hash}")
+            filename = _safe_filename(str(known.get("original_filename") or filename))
+
+            staged_version: Path | None = None
+            pointer_path = self.config.asset_root / "ACTIVE.json"
+            previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
+            activation_committed = False
+            snapshot_updates: dict[str, object] = {}
+            try:
+                active_before = resolve_active_assets(self.config.asset_root)
+                base_snapshot = _read_snapshot(active_before)
+                staged_version, staged_snapshot = stage_cloud_assets(
+                    asset_root=self.config.asset_root,
+                    new_primary=[],
+                    new_visual=[],
+                    content_sha256=content_hash,
+                    source_filename=filename,
+                    allow_empty=True,
+                    removal=True,
+                )
+
+                if self.config.build_local:
+                    from runtime_retrieval import _read_chunks
+
+                    all_primary = _read_chunks(staged_version / "native.jsonl")
+                    all_visual = _read_chunks(staged_version / "arabic_ocr_secondary.jsonl")
+                    local = stage_local_collections(
+                        asset_root=self.config.asset_root,
+                        version_id=staged_snapshot["version"],
+                        all_primary=all_primary,
+                        all_visual=all_visual,
+                        new_primary=[],
+                        new_visual=[],
+                        base_snapshot=base_snapshot,
+                        source_filename=filename,
+                    )
+                    snapshot_updates.update(local)
+
+                supersession_report: dict[str, object] = {"enabled": True}
+                try:
+                    from jsonl_supersession import (
+                        load_prior_edges,
+                        write_edges,
+                    )
+
+                    prior = load_prior_edges(active_before, asset_root=self.config.asset_root)
+                    basename = Path(filename).name.casefold()
+                    kept = [
+                        edge
+                        for edge in prior
+                        if Path(edge.source_file).name.casefold() != basename
+                    ]
+                    write_edges(staged_version / "supersession_edges.jsonl", kept)
+                    supersession_report.update(
+                        {"prior": len(prior), "kept": len(kept), "from_pdf": 0, "total": len(kept)}
+                    )
+                except Exception as supersession_error:
+                    supersession_report["warning"] = (
+                        f"{type(supersession_error).__name__}: {supersession_error}"
+                    )
+                    try:
+                        from jsonl_supersession import load_prior_edges, write_edges
+
+                        write_edges(
+                            staged_version / "supersession_edges.jsonl",
+                            load_prior_edges(active_before, asset_root=self.config.asset_root),
+                        )
+                        supersession_report["fallback"] = "copied_prior_edges"
+                    except Exception as copy_error:
+                        supersession_report["fallback_error"] = (
+                            f"{type(copy_error).__name__}: {copy_error}"
+                        )
+
+                pointer = activate_assets(
+                    self.config.asset_root,
+                    staged_version,
+                    snapshot_updates=snapshot_updates,
+                )
+                try:
+                    self.registry.mark_removed(
+                        content_hash, asset_version=staged_snapshot["version"]
+                    )
+                except Exception:
+                    _restore_active_pointer(self.config.asset_root, previous_pointer)
+                    raise
+                activation_committed = True
+
+                stored = str(known.get("stored_path") or "").strip()
+                if stored:
+                    stored_path = Path(stored)
+                    # Immutable dir is documents_dir / sha256 / file.pdf
+                    immutable_dir = stored_path.parent
+                    if immutable_dir.is_dir() and immutable_dir.parent == self.config.documents_dir:
+                        shutil.rmtree(immutable_dir, ignore_errors=True)
+
+                return {
+                    "status": "removed",
+                    "document_id": content_hash,
+                    "filename": filename,
+                    "asset_version": staged_snapshot["version"],
+                    "active_pointer": pointer,
+                    "native_chunks_remaining": staged_snapshot.get("native_chunks", 0),
+                    "supersession": supersession_report,
+                }
+            except Exception:
+                if staged_version is not None and not activation_committed:
+                    try:
+                        _restore_active_pointer(self.config.asset_root, previous_pointer)
+                    except Exception:
+                        pass
+                    discard_staged_local_collections(snapshot_updates)
+                    shutil.rmtree(staged_version, ignore_errors=True)
+                raise

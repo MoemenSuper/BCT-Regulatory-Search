@@ -969,9 +969,68 @@ def test_literal_evidence_partial_from_exclusion_page_without_llm():
         evidence,
     )
     assert result is not None
-    assert result["status"] == "partial_answer"
+    # Topical quote-backed fact: answered (not a fake temporal partial).
+    assert result["status"] == "answered"
     assert "exclu" in result["answer"].casefold()
+    assert "applicabilité à la date" not in result["answer"].casefold()
+    assert "partie de la demande" not in result["answer"].casefold()
     assert any("2026" in str(s.get("file", "")) for s in result["sources"])
+
+
+def test_literal_evidence_generic_filler_stays_partial_without_temporal_banner():
+    from answer_contract import try_literal_evidence_partial
+
+    evidence = [{
+        "evidence_id": "E1",
+        "source": "Note_2016_34_ar.pdf",
+        "page": 1,
+        "text": (
+            "رمز الجمعية التونسية لمرضى العضلات كمصدر للاقتطاعات البنكية والبريدية هو 0086."
+        ),
+        "score": 0.9,
+    }]
+    result = try_literal_evidence_partial(
+        "ما رمز الجمعية التونسية لمرضى العضلات كمصدر للاقتطاعات البنكية والبريدية؟",
+        evidence,
+    )
+    assert result is not None
+    # Generic "disposition applicable" filler stays partial, but not historical-bannered.
+    assert result["status"] == "partial_answer"
+    assert "انطباقها في التاريخ المطلوب" not in result["answer"]
+    assert "applicabilité à la date" not in result["answer"].casefold()
+
+
+def test_forced_recovery_keeps_answered_when_quotes_fully_support():
+    """Forced ladder must not downgrade a fully validated answered draft."""
+    def respond(prompt):
+        system = prompt.to_messages()[0].content
+        if "Select evidence for" in system:
+            return AIMessage(content=json.dumps(dict(
+                decision="answer", reason="ok", evidence_ids=["E1"],
+            )))
+        if "You MUST answer this BCT regulatory question" in system:
+            return AIMessage(content=json.dumps(dict(
+                status="answered", message="",
+                claims=[dict(
+                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
+                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
+                )],
+            )))
+        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
+
+    doc = Document(
+        page_content=record()["text"],
+        metadata={"source": record()["source"], "page": 2, "pages": [2]},
+    )
+    result = generate_grounded_answer(
+        RunnableLambda(respond),
+        "Quel est le plafond ?",
+        [(doc, 0.9)],
+    )
+    assert result["status"] == "answered"
+    assert "320 dinars" in result["answer"]
+    assert "partie de la demande" not in result["answer"].casefold()
+    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
 
 
 def test_supersession_partial_includes_successor_substance_when_present():

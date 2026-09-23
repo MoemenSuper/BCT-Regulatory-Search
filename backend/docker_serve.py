@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -33,6 +34,31 @@ def ensure_empty_assets(asset_root: Path) -> None:
             json.dumps({"created_by": "docker_serve_empty_bootstrap", "documents": 0}, sort_keys=True),
             encoding="utf-8",
         )
+
+
+def ensure_runtime_assets(asset_root: Path) -> None:
+    """Prefer a baked Voyage corpus; otherwise create empty stubs for first boot.
+
+    Docker Compose mounts an empty named volume over /data/assets. Without seeding,
+    that volume hides any assets copied into the image and the recipient sees an
+    empty index even though the image was built with a full corpus.
+    """
+    asset_root.mkdir(parents=True, exist_ok=True)
+    if (asset_root / "ACTIVE.json").exists() or (asset_root / "native.jsonl").exists():
+        return
+
+    baked = Path(os.environ.get("BCT_BAKED_ASSETS_DIR", "/opt/bct/baked-assets"))
+    if baked.is_dir() and (baked / "ACTIVE.json").is_file():
+        print(f"Seeding runtime assets from baked corpus: {baked}", flush=True)
+        for item in baked.iterdir():
+            dest = asset_root / item.name
+            if item.is_dir():
+                shutil.copytree(item, dest, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item, dest)
+        return
+
+    ensure_empty_assets(asset_root)
 
 
 def build_gateway(static_dir: Path) -> FastAPI:
@@ -65,7 +91,7 @@ def main() -> None:
     documents.mkdir(parents=True, exist_ok=True)
     os.environ["BCT_DOCUMENTS_DIR"] = str(documents)
 
-    ensure_empty_assets(asset_root)
+    ensure_runtime_assets(asset_root)
     active = configure_runtime_assets(asset_root, validate=True)
 
     static_dir = Path(os.environ.get("BCT_STATIC_DIR", "/app/static")).resolve()

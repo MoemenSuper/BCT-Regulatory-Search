@@ -63,13 +63,19 @@ One command starts the **UI + API**.
 - Installs dependencies
 - Builds the React UI into the API image
 - Bakes the local `documents/` PDF corpus into the image (~100 MB)
+- Bakes a slim Voyage runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 445 PDFs
 - Serves the app at **http://localhost:8080**
-- Creates empty search assets so the app can boot before any PDF is ingested
 
 ### What you must do
 
 1. Install **Docker Desktop** (or Docker Engine + Compose).
-2. Get the project (clone or unzip) **with the `documents/` folder present on the machine that builds the image** (`documents/` is gitignored; it must sit next to `Dockerfile` at build time).
+2. Get the project (clone or unzip) **with `documents/` and `baked-runtime-assets/` present on the machine that builds the image** (both are gitignored). Export indexes with:
+
+```powershell
+cd backend
+python tmp\export_baked_assets.py --source "C:\path\to\runtime-assets" --dest "..\baked-runtime-assets"
+```
+
 3. Copy the env template and fill **required** values:
 
 ```powershell
@@ -86,7 +92,7 @@ Edit `.env` and set at least:
 | `VOYAGE_API_KEY` | Cloud search / rerank |
 | `GEMINI_API_KEY` | Hard / Arabic page repair during ingest |
 
-Recipients who only pull/run a pre-built image do **not** need a separate PDF folder — the corpus is already inside the image at `/data/documents`.
+Recipients who only pull/run a pre-built image do **not** need a separate PDF folder or a multi-hour ingest — documents and Voyage indexes ship in the image.
 
 4. Start everything:
 
@@ -95,10 +101,10 @@ docker compose up -d --build
 ```
 
 5. Open **http://localhost:8080**, sign in with the bootstrap admin account.
-6. In the **admin** UI, **ingest the PDFs** (this builds the search indexes). Until this step, the app runs but has nothing to search — the PDFs are present, indexes are not.
+6. Optional: ingest additional PDFs in the admin UI (incremental). With baked assets, the corpus is already searchable.
 7. Approve other user accounts when they register.
 
-You do **not** need a pre-built “runtime assets” folder if you ingest the PDFs yourself. To override the baked-in corpus with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
+If you previously started Compose with an empty `bct-assets` volume and want the baked corpus, remove that volume once (`docker volume rm …`) so first boot can seed again. To override PDFs with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
 
 ### Optional later
 - Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.

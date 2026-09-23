@@ -58,7 +58,7 @@ def test_groq_provider_accepts_the_numbered_key_configuration(monkeypatch):
             return "ok"
 
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    for index in range(3, 8):
+    for index in range(3, 20):
         monkeypatch.delenv(f"GROQ_API_KEY_{index}", raising=False)
     monkeypatch.setenv("GROQ_API_KEY_2", "configured-key")
     monkeypatch.setattr(llm, "ChatGroq", FakeClient)
@@ -72,6 +72,31 @@ def test_groq_provider_accepts_the_numbered_key_configuration(monkeypatch):
     assert len(captured) == 1
     assert captured[0]["groq_api_key"] == "configured-key"
     assert model.invoke([HumanMessage(content="hi")]) == "ok"
+
+
+def test_groq_provider_loads_keys_beyond_slot_seven(monkeypatch):
+    captured = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured.append(kwargs["groq_api_key"])
+
+        def invoke(self, *_args, **_kwargs):
+            return "ok"
+
+    monkeypatch.setenv("GROQ_API_KEY", "key-1")
+    for index in range(2, 14):
+        monkeypatch.setenv(f"GROQ_API_KEY_{index}", f"key-{index}")
+    monkeypatch.setattr(llm, "ChatGroq", FakeClient)
+    llm.create_llm.cache_clear()
+
+    try:
+        model = llm.create_llm("groq")
+    finally:
+        llm.create_llm.cache_clear()
+
+    assert captured == [f"key-{index}" for index in range(1, 14)]
+    assert len(model._keys) == 13
 
 
 def test_groq_provider_rotates_across_keys_on_rate_limit(monkeypatch):
@@ -89,7 +114,7 @@ def test_groq_provider_rotates_across_keys_on_rate_limit(monkeypatch):
 
     monkeypatch.setenv("GROQ_API_KEY", "key-a")
     monkeypatch.setenv("GROQ_API_KEY_2", "key-b")
-    for index in range(3, 8):
+    for index in range(3, 20):
         monkeypatch.delenv(f"GROQ_API_KEY_{index}", raising=False)
     monkeypatch.setattr(llm, "ChatGroq", FakeClient)
     llm.create_llm.cache_clear()

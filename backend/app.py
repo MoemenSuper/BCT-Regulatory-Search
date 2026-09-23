@@ -953,5 +953,35 @@ def _install_ingestion_routes(target: FastAPI) -> None:
         finally:
             registry.close()
 
+    @target.delete("/documents/{document_id}", status_code=200)
+    async def delete_document(
+        document_id: str,
+        request: Request,
+        _admin=Depends(require_admin),
+    ):
+        from ingestion.pipeline import IngestionConfig, IngestionPipeline
+
+        if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+            raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+        config = IngestionConfig.from_environment()
+        pipeline = IngestionPipeline(config)
+        try:
+            try:
+                report = await run_in_threadpool(pipeline.remove, document_id)
+            except KeyError as error:
+                raise HTTPException(status_code=404, detail=str(error)) from error
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
+            except Exception as error:
+                logger.exception("Document removal failed for %s.", document_id)
+                detail = str(error).strip() or "Document removal failed."
+                raise HTTPException(status_code=422, detail=detail) from error
+            _refresh_runtime_asset_environment()
+            request.app.state.profile_manager.reset()
+            request.app.state.source_resolver.refresh()
+            return report
+        finally:
+            pipeline.close()
+
 
 _install_ingestion_routes(app)

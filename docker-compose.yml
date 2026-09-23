@@ -1,12 +1,14 @@
 # One-command pilot: web app + API.
 #
 # 1. cp .env.example .env   and fill the required values
-# 2. Ensure ./documents exists (PDF corpus) before the first build
+# 2. Ensure ./documents and ./baked-runtime-assets exist before build
+#    (export assets with: python backend/tmp/export_baked_assets.py --source <runtime-assets>)
 # 3. docker compose up -d --build
 # 4. open http://localhost:8080
 #
-# PDFs are copied into the image at /data/documents. No host mount needed.
-# Optional override: set BCT_DOCUMENTS_HOST and uncomment the bind mount below.
+# PDFs and Voyage indexes are baked into the image. On first boot the empty
+# bct-assets volume is seeded from /opt/bct/baked-assets so search works
+# without re-uploading ~400 PDFs.
 
 services:
   app:
@@ -20,11 +22,13 @@ services:
       - .env
     environment:
       BCT_ASSETS_DIR: /data/assets
+      BCT_BAKED_ASSETS_DIR: /opt/bct/baked-assets
       BCT_DOCUMENTS_DIR: /data/documents
       BCT_DATA_DIR: /data/state
       BCT_STATIC_DIR: /app/static
       BCT_INGEST_LOCAL_INDEX: "0"
       BCT_DEFAULT_PROFILE: cloud
+      BCT_CLOUD_RETRIEVAL_PROVIDER: voyage
     volumes:
       - bct-assets:/data/assets
       # - ${BCT_DOCUMENTS_HOST}:/data/documents:ro

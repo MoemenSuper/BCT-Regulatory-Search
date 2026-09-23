@@ -104,6 +104,20 @@ class IngestionRegistry:
         )
         self.connection.commit()
 
+    def mark_removed(self, content_sha256: str, *, asset_version: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = self.connection.execute(
+            """
+            UPDATE ingestion_documents
+            SET status='removed', asset_version=?, error=NULL, activated_at=?
+            WHERE content_sha256=? AND status='ready'
+            """,
+            (asset_version, now, content_sha256),
+        )
+        self.connection.commit()
+        if cursor.rowcount != 1:
+            raise KeyError(f"Unknown ready ingestion document: {content_sha256}")
+
     def list_ready(self, limit: int = 100) -> list[dict]:
         rows = self.connection.execute(
             """
