@@ -18,12 +18,29 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Named slots first (production). Numbered VOYAGE_API_KEY_<n> are temporary
+# overflow for eval quota — drop those env vars when daily limits are fine.
 VOYAGE_KEY_NAMES = (
     "VOYAGE_API_KEY_TERTIARY",
     "VOYAGE_API_KEY_QUATERNARY",
     "VOYAGE_API_KEY_SECONDARY",
     "VOYAGE_API_KEY",
 )
+
+
+def _voyage_credential_names() -> tuple[str, ...]:
+    names = list(VOYAGE_KEY_NAMES)
+    numbered: list[tuple[int, str]] = []
+    for name in os.environ:
+        if not name.startswith("VOYAGE_API_KEY_"):
+            continue
+        suffix = name.removeprefix("VOYAGE_API_KEY_")
+        if suffix.isdigit():
+            numbered.append((int(suffix), name))
+    for _, name in sorted(numbered):
+        if name not in names:
+            names.append(name)
+    return tuple(names)
 
 logger = logging.getLogger(__name__)
 
@@ -153,11 +170,14 @@ class VoyageRuntimeClient:
         return self.spec.dimension
 
     def _credentials(self):
-        credentials = [
-            os.environ[name]
-            for name in VOYAGE_KEY_NAMES
-            if os.environ.get(name)
-        ]
+        seen: set[str] = set()
+        credentials: list[str] = []
+        for name in _voyage_credential_names():
+            secret = (os.environ.get(name) or "").strip()
+            if not secret or secret in seen:
+                continue
+            seen.add(secret)
+            credentials.append(secret)
         if not credentials:
             raise RuntimeError("No Voyage API key is configured")
         return credentials

@@ -75,10 +75,23 @@ def _create_ollama_llm():
 
 
 def _groq_api_keys():
-    keys = []
-    for name in ("GROQ_API_KEY", *(f"GROQ_API_KEY_{index}" for index in range(2, 8))):
-        value = (os.environ.get(name) or "").strip()
-        if value and value not in keys:
+    """Collect GROQ_API_KEY plus every GROQ_API_KEY_<n>, de-duplicated."""
+    keys: list[str] = []
+    primary = (os.environ.get("GROQ_API_KEY") or "").strip()
+    if primary:
+        keys.append(primary)
+    numbered: list[tuple[int, str]] = []
+    for name, raw in os.environ.items():
+        if not name.startswith("GROQ_API_KEY_"):
+            continue
+        suffix = name.removeprefix("GROQ_API_KEY_")
+        if not suffix.isdigit():
+            continue
+        value = (raw or "").strip()
+        if value:
+            numbered.append((int(suffix), value))
+    for _, value in sorted(numbered):
+        if value not in keys:
             keys.append(value)
     return keys
 

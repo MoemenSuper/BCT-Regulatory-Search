@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Moon, Network, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
+import { approveUser, deleteDocument, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
@@ -130,6 +130,23 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
   async function handleReject(id: string) { setBusy(true); try { await rejectUser(id); setMessage(t(locale, 'admin.rejected')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
   async function handleDelete(id: string, email: string) { if (!window.confirm(t(locale, 'admin.deleteConfirm', { email }))) return; setBusy(true); try { await deleteUser(id); setMessage(t(locale, 'admin.deleted')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
+
+  async function handleDeleteDocument(documentId: string, label: string) {
+    if (!window.confirm(t(locale, 'admin.deletePdfConfirm', { name: label }))) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteDocument(documentId);
+      setMessage(t(locale, 'admin.pdfDeleted'));
+      await refresh();
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? err.message : t(locale, 'admin.pdfDeleteFailed');
+      setError(detail);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleTokenLimit(id: string, tokenLimit: number) {
     setBusy(true);
@@ -375,6 +392,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
               if (!next.length) setFileKey((key) => key + 1);
             }}
             onInvalidFiles={() => setError(t(locale, 'admin.fileInvalid'))}
+            onDeleteDocument={(documentId, label) => void handleDeleteDocument(documentId, label)}
           />
         ) : null}
         {tab === 'refusals' ? (
@@ -874,7 +892,7 @@ function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
 }
 
 function DocumentsPage({
-  documents, loading, busy, locale, files, fileKey, docKind, onDocKindChange, uploadProgress, onUpload, onFilesChange, onInvalidFiles,
+  documents, loading, busy, locale, files, fileKey, docKind, onDocKindChange, uploadProgress, onUpload, onFilesChange, onInvalidFiles, onDeleteDocument,
 }: {
   documents: unknown[];
   loading: boolean;
@@ -888,6 +906,7 @@ function DocumentsPage({
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
   onInvalidFiles: () => void;
+  onDeleteDocument: (documentId: string, label: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -1073,7 +1092,7 @@ function DocumentsPage({
             {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
           </button>
         </form>
-        <DocumentsList documents={documents} loading={loading} locale={locale} docKind={docKind} />
+        <DocumentsList documents={documents} loading={loading} busy={busy} locale={locale} docKind={docKind} onDelete={onDeleteDocument} />
       </section>
     </>
   );
@@ -1081,12 +1100,14 @@ function DocumentsPage({
 
 
 function DocumentsList({
-  documents, loading, locale, docKind,
+  documents, loading, busy, locale, docKind, onDelete,
 }: {
   documents: unknown[];
   loading: boolean;
+  busy: boolean;
   locale: UiLocale;
   docKind: 'regulatory' | 'statistical' | 'internal';
+  onDelete: (documentId: string, label: string) => void;
 }) {
   const rows = (Array.isArray(documents) ? documents : []).filter((doc) => {
     const item = doc as { doc_kind?: string; filename?: string };
@@ -1118,6 +1139,8 @@ function DocumentsList({
               pages?: number | null;
             };
             const filename = item.filename || '';
+            const documentId = item.document_id || '';
+            const label = item.title || filename || t(locale, 'admin.pdfDocument');
             const meta = [
               item.pages != null ? t(locale, 'admin.pageCount', { count: item.pages }) : '',
             ].filter(Boolean);
@@ -1126,7 +1149,7 @@ function DocumentsList({
               <>
                 <span className="admin-document-icon"><FileText aria-hidden="true" size={18} /></span>
                 <div>
-                  <strong>{item.title || filename || t(locale, 'admin.pdfDocument')}</strong>
+                  <strong>{label}</strong>
                   {filename ? <span className="admin-doc-filename">{filename}</span> : null}
                   {meta.length ? <span className="admin-doc-meta">{meta.join(' · ')}</span> : null}
                 </div>
@@ -1134,14 +1157,14 @@ function DocumentsList({
               </>
             );
             return (
-              <li key={item.document_id || filename || String(index)}>
+              <li key={documentId || filename || String(index)} className="admin-doc-row">
                 {filename ? (
                   <a
                     className="admin-doc-link"
                     href={`/api/sources/${encodeURIComponent(filename)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={`${openLabel}: ${item.title || filename}`}
+                    aria-label={`${openLabel}: ${label}`}
                     title={openLabel}
                   >
                     {body}
@@ -1149,6 +1172,19 @@ function DocumentsList({
                 ) : (
                   <div className="admin-doc-link is-disabled">{body}</div>
                 )}
+                {documentId ? (
+                  <button
+                    type="button"
+                    className="admin-action delete"
+                    disabled={busy}
+                    onClick={() => onDelete(documentId, label)}
+                    aria-label={t(locale, 'admin.deletePdf')}
+                    title={t(locale, 'admin.deletePdf')}
+                  >
+                    <Trash2 aria-hidden="true" size={14} />
+                    {t(locale, 'admin.delete')}
+                  </button>
+                ) : null}
               </li>
             );
           })}

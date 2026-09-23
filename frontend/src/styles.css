@@ -1156,12 +1156,14 @@ ol {
   background: var(--highlight-soft);
   border-radius: var(--radius-sm);
   padding: 12px;
+  color: var(--text);
 }
 
 .selected-passage h3 {
   margin: 0 0 8px;
   font-size: 0.8rem;
   font-weight: 700;
+  color: var(--text);
 }
 
 .selected-quote {
@@ -1687,10 +1689,35 @@ ol {
   --text: #e8eef6;
   --text-muted: #9aabc0;
   --text-soft: #7d8fa3;
+  /* Text/icon navy must lighten; chrome fills are pinned below to #002060. */
+  --bct-navy: #8cb4e8;
+  --bct-navy-soft: #a8c4e8;
   --accent-blue: #8cb4e8;
   --highlight: #c9a227;
-  --highlight-soft: #2f2a14;
+  --highlight-soft: #3d3420;
   --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Solid chrome stays the brand dark navy (token is light for body text). */
+.app-shell[data-theme="dark"] .app-header {
+  background: linear-gradient(180deg, #0a3478 0%, #002060 100%);
+  color: #fff;
+}
+
+.app-shell[data-theme="dark"] .btn-new-search,
+.app-shell[data-theme="dark"] .btn-poser,
+.app-shell[data-theme="dark"] .legal-footer,
+.app-shell[data-theme="dark"] .legal-dialog-close,
+.app-shell[data-theme="dark"] .history-card.selected {
+  background: #002060;
+  border-color: #002060;
+  color: #fff;
+}
+
+.app-shell[data-theme="dark"] .btn-new-search:hover,
+.app-shell[data-theme="dark"] .btn-poser:hover:not(:disabled),
+.app-shell[data-theme="dark"] .legal-dialog-close:hover {
+  background: #0a3478;
 }
 
 .app-shell[data-theme="dark"] .history-card,
@@ -1714,9 +1741,15 @@ ol {
 }
 
 .app-shell[data-theme="dark"] .history-card.selected {
-  background: var(--bct-navy);
-  border-color: var(--bct-navy);
+  background: #002060;
+  border-color: #002060;
   color: #fff;
+}
+
+.app-shell[data-theme="dark"] .history-card.selected .history-card-title,
+.app-shell[data-theme="dark"] .history-card.selected .history-card-time,
+.app-shell[data-theme="dark"] .history-card.selected .history-doc-icon {
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .app-shell[data-theme="dark"] .history-more:hover,
@@ -1751,6 +1784,10 @@ ol {
 .app-shell[data-theme="dark"] .note-title,
 .app-shell[data-theme="dark"] .note-meta,
 .app-shell[data-theme="dark"] .note-section h3,
+.app-shell[data-theme="dark"] .note-turn-badge,
+.app-shell[data-theme="dark"] .note-question,
+.app-shell[data-theme="dark"] .note-body,
+.app-shell[data-theme="dark"] .legal-dialog-title,
 .app-shell[data-theme="dark"] .source-ref,
 .app-shell[data-theme="dark"] .evidence-tab.active,
 .app-shell[data-theme="dark"] .btn-see-all,
@@ -1759,6 +1796,24 @@ ol {
 .app-shell[data-theme="dark"] .panel-rail-btn:hover,
 .app-shell[data-theme="dark"] .icon-ghost:hover {
   color: #d6e4f6;
+}
+
+.app-shell[data-theme="dark"] .evidence-tab.active {
+  border-bottom-color: #8cb4e8;
+}
+
+.app-shell[data-theme="dark"] .meta-sep {
+  color: #7d8fa3;
+}
+
+.app-shell[data-theme="dark"] .history-card:not(.selected) .history-card-title,
+.app-shell[data-theme="dark"] .history-menu button {
+  color: var(--text);
+}
+
+.app-shell[data-theme="dark"] .history-card:not(.selected) .history-doc-icon,
+.app-shell[data-theme="dark"] .history-menu button svg {
+  color: var(--text-muted);
 }
 
 .app-shell[data-theme="dark"] .search-status-phrase {
@@ -1814,12 +1869,41 @@ ol {
 }
 
 .app-shell[data-theme="dark"] .selected-passage {
-  background: #2f2a14;
-  border-color: #8a7428;
+  background: #3d3420;
+  border-color: #c9a227;
+  color: #f4ecd0;
+}
+
+.app-shell[data-theme="dark"] .selected-passage h3 {
+  color: #f7efc8;
+}
+
+.app-shell[data-theme="dark"] .selected-passage .selected-quote {
+  color: #efe6c8;
+}
+
+.app-shell[data-theme="dark"] .selected-passage .selected-source {
+  color: #c9bb8a;
+}
+
+.app-shell[data-theme="dark"] .selected-passage .quote-expand-btn {
+  color: #e8d48a;
+}
+
+.app-shell[data-theme="dark"] .selected-passage .btn-full-source {
+  background: #2a2414;
+  border-color: #a8903a;
+  color: #f4ecd0;
+}
+
+.app-shell[data-theme="dark"] .selected-passage .btn-full-source:hover {
+  background: #3a3220;
+  border-color: #c9a227;
+  color: #fff8dc;
 }
 
 .app-shell[data-theme="dark"] .quote-expand-btn {
-  color: #d6c27a;
+  color: #e8d48a;
 }
 
 .app-shell[data-theme="dark"] .pdf-real-stage,
@@ -1891,6 +1975,35 @@ ol {
   border-color: #6b2a32;
   background: #2a1518;
   color: #f0a0a8;
+}
+
+/* Soften light-only chrome that still punches through in dark. */
+.app-shell[data-theme="dark"] .btn-see-all,
+.app-shell[data-theme="dark"] .btn-full-source,
+.app-shell[data-theme="dark"] .composer {
+  border-color: var(--border);
+}
+
+.app-shell[data-theme="dark"] .evidence-tab {
+  color: var(--text-muted);
+}
+
+.app-shell[data-theme="dark"] .panel-rail-btn,
+.app-shell[data-theme="dark"] .icon-ghost,
+.app-shell[data-theme="dark"] .panel-collapse-btn {
+  color: var(--text-soft);
+}
+
+.app-shell[data-theme="dark"] .empty-panel,
+.app-shell[data-theme="dark"] .thread-empty-copy,
+.app-shell[data-theme="dark"] .viewer-empty {
+  color: var(--text-muted);
+}
+
+.app-shell[data-theme="dark"] .pdf-toolbar,
+.app-shell[data-theme="dark"] .evidence-header {
+  border-color: var(--border-soft);
+  color: var(--text);
 }
 .profile-menu{position:relative}
 .profile-menu-trigger{display:inline-flex;align-items:center;gap:10px;max-width:240px;min-height:40px;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:4px 12px 4px 4px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font:inherit;text-align:left}

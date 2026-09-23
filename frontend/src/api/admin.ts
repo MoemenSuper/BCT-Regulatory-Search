@@ -206,6 +206,10 @@ export function listDocuments(): Promise<unknown[]> {
   return request('/api/documents');
 }
 
+export function deleteDocument(documentId: string): Promise<unknown> {
+  return request(`/api/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+}
+
 export async function uploadDocument(form: FormData): Promise<unknown> {
   const response = await fetch('/api/documents', {
     method: 'POST',
