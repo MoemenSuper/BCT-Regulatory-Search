@@ -1,6 +1,11 @@
-# Core runtime + preserved local/local_hybrid retrieval profiles.
+# Core runtime + local/local_hybrid retrieval + local visual ingest.
 -r requirements.txt
 langchain-chroma>=1.0,<2
 langchain-huggingface>=1.0,<2
 sentence-transformers>=5,<6
 chromadb>=1,<2
+easyocr>=1.7,<2
+# PaddleOCR-VL (charts/tables): Docker installs the CPU paddlepaddle wheel.
+# On a GPU host venv, install a matching paddlepaddle / paddlepaddle-gpu wheel from
+# https://www.paddlepaddle.org.cn then:
+#   pip install "paddleocr[doc-parser]>=3.4,<4"

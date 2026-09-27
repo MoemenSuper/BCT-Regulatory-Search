@@ -228,8 +228,8 @@ def test_pin_named_2025_13_outranks_newer_successor_mention():
     assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"
 
 
-def test_pin_skips_mid_era_when_newer_regime_hit_already_ranked():
-    """2018 list-replacement pins must not bury a 2026 non-priority operative page."""
+def test_pin_keeps_newer_hit_ahead_of_the_abrogated_target():
+    """A 2018 edge pins its declaring page but must not bury a 2026 page already ranked."""
     query = (
         "Importation non prioritaire pour une entreprise publique "
         "dans un marche d'Etat. Exemption ?"
@@ -269,9 +269,9 @@ def test_pin_skips_mid_era_when_newer_regime_hit_already_ranked():
         edges,
         page_lookup=lookup,
     )
-    sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned[:3]]
-    assert "Cir_2018_13_fr.pdf" not in sources
-    assert "Cir_2026_04_fr.pdf" in sources
+    sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned]
+    assert sources.index("Cir_2026_04_fr.pdf") < 3
+    assert sources.index("Cir_2026_04_fr.pdf") < sources.index("Cir_2017_09_fr.pdf")
 
 
 def test_extract_edges_from_abrogation_page():
@@ -589,3 +589,45 @@ def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
     nineteen = [e for e in merged if Path(e.source_file).name == "Cir_2019_07_fr.pdf"]
     assert nineteen
     assert all(e.quote != "old quote" for e in nineteen)
+
+
+def test_local_backend_is_wrapped_with_supersession_pin(tmp_path, monkeypatch):
+    import app as app_module
+    import bm25
+    import embedding
+    import reranker
+    import vector_store
+    from jsonl_supersession import SupersessionPinBackend
+
+    write_edges(tmp_path / "supersession_edges.jsonl", [_edge()])
+    (tmp_path / "native.jsonl").write_text("", encoding="utf-8")
+    monkeypatch.setenv("BCT_NATIVE_CHUNKS_PATH", str(tmp_path / "native.jsonl"))
+    monkeypatch.delenv("BCT_OCR_CHROMA_DB", raising=False)
+    monkeypatch.delenv("BCT_SUPERSESSION_EDGES", raising=False)
+    monkeypatch.setattr(embedding, "create_embedding_model", lambda: None)
+    monkeypatch.setattr(vector_store, "load_vector_store", lambda *_a, **_k: None)
+    monkeypatch.setattr(reranker, "create_reranker", lambda: None)
+    docs = [Document(page_content="x", metadata={"source": "Cir_2018_07_fr.pdf", "page": 1})]
+    monkeypatch.setattr(bm25, "load_documents_from_chroma", lambda _store: docs)
+    monkeypatch.setattr(bm25, "create_bm25", lambda _docs: None)
+
+    assert isinstance(app_module.create_local_backend(), SupersessionPinBackend)
+
+
+def test_empty_local_corpus_warns_at_startup(tmp_path, monkeypatch, capsys):
+    import app as app_module
+    import bm25
+    import embedding
+    import reranker
+    import vector_store
+
+    monkeypatch.setenv("BCT_NATIVE_CHUNKS_PATH", str(tmp_path / "native.jsonl"))
+    monkeypatch.delenv("BCT_OCR_CHROMA_DB", raising=False)
+    monkeypatch.setattr(embedding, "create_embedding_model", lambda: None)
+    monkeypatch.setattr(vector_store, "load_vector_store", lambda *_a, **_k: None)
+    monkeypatch.setattr(reranker, "create_reranker", lambda: None)
+    monkeypatch.setattr(bm25, "load_documents_from_chroma", lambda _store: [])
+    monkeypatch.setattr(bm25, "create_bm25", lambda _docs: None)
+
+    app_module.create_local_backend()
+    assert "local corpus is empty" in capsys.readouterr().out

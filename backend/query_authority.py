@@ -39,7 +39,7 @@ class QueryAuthorityClass(BaseModel):
 # Curated gold bank: hard negatives first. Dynamic demos pick by token overlap.
 _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
     (
-        "Quel est le plafond de financement pour les importations non prioritaires selon la circulaire 2026-04 ?",
+        "Quel est le plafond de financement pour les importations non prioritaires selon la circulaire AAAA-NN ?",
         "regulatory_rule",
         "Named circulaire + plafond = obligation/limit, not a bulletin series.",
     ),
@@ -54,7 +54,7 @@ _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
         "Explicit internal procedure wording.",
     ),
     (
-        "Selon la circulaire 2016-01, quelle procédure suivre en interne pour ouvrir le marché ?",
+        "Selon la circulaire AAAA-NN, quelle procédure suivre en interne pour ouvrir le marché ?",
         "mixed",
         "Binding instrument plus internal how-to.",
     ),
@@ -79,7 +79,7 @@ _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
         "Mémo interne + pièces = internal checklist.",
     ),
     (
-        "La note 2024-03 impose-t-elle un délai de déclaration ?",
+        "La note AAAA-NN impose-t-elle un délai de déclaration ?",
         "regulatory_rule",
         "Note réglementaire + impose/délai = primary rule.",
     ),
@@ -89,7 +89,7 @@ _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
         "Needs both a rule and a published statistic.",
     ),
     (
-        "What is the maximum financing line under circular 2025-13?",
+        "What is the maximum financing line under circular AAAA-NN?",
         "regulatory_rule",
         "English circular ceiling question.",
     ),
@@ -99,7 +99,7 @@ _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
         "English bulletin time-series fact.",
     ),
     (
-        "ما هو السقف المنصوص عليه في المنشور 2026-04؟",
+        "ما هو السقف المنصوص عليه في المنشور AAAA-NN؟",
         "regulatory_rule",
         "Arabic circular ceiling.",
     ),

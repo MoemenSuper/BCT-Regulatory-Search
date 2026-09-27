@@ -11,3 +11,5 @@ python-dotenv==1.1.1
 pydantic==2.13.4
 PyMuPDF>=1.28,<2
 python-multipart==0.0.20
+# Ingestion tracing; no-op when LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY are unset.
+langfuse>=4.15,<5

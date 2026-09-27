@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import os
 import shutil
 import uuid
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 from langchain_core.documents import Document
+from langfuse import get_client
 
 from runtime_retrieval import (
     _load_bound_index,
@@ -19,6 +21,21 @@ from runtime_retrieval import (
     create_cloud_runtime_client,
     document_binding,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def ingest_cloud_embed_enabled() -> bool:
+    """Whether admin/CLI ingest should call Voyage/Google embed APIs.
+
+    local / local_hybrid retrieve from Chroma (e5); cloud embeds are only needed for
+    the cloud profile. Override with BCT_INGEST_CLOUD_INDEX=0|1.
+    """
+    configured = os.environ.get("BCT_INGEST_CLOUD_INDEX")
+    if configured is not None and str(configured).strip() != "":
+        return str(configured).strip() == "1"
+    profile = (os.environ.get("BCT_DEFAULT_PROFILE") or "local_hybrid").strip().casefold()
+    return profile == "cloud"
 
 
 def resolve_active_assets(root: str | Path) -> Path:
@@ -54,14 +71,33 @@ def configure_runtime_assets(asset_root: str | Path, *, validate: bool = False) 
             "BCT_OCR_CHUNKS_PATH": str(active / "arabic_ocr_secondary.jsonl"),
         }
     )
-    if meta.get("local_chroma_db"):
-        os.environ["BCT_CHROMA_DB"] = str(meta["local_chroma_db"])
+    chroma_db = _resolve_local_chroma_db(meta.get("local_chroma_db"), asset_root=asset_root, active=active)
+    if chroma_db is not None:
+        os.environ["BCT_CHROMA_DB"] = str(chroma_db)
     if meta.get("local_collection"):
         os.environ["BCT_CHROMA_COLLECTION"] = str(meta["local_collection"])
-    if meta.get("local_visual_collection"):
-        os.environ["BCT_OCR_CHROMA_DB"] = str(meta.get("local_chroma_db"))
+    if meta.get("local_visual_collection") and chroma_db is not None:
+        os.environ["BCT_OCR_CHROMA_DB"] = str(chroma_db)
         os.environ["BCT_OCR_CHROMA_COLLECTION"] = str(meta["local_visual_collection"])
     return active
+
+
+def _resolve_local_chroma_db(recorded: object, *, asset_root: Path, active: Path) -> Path | None:
+    """Prefer a real on-disk Chroma path; remap absolute bake-time paths after Docker seed."""
+    if not recorded:
+        fallback = asset_root / "local_chroma"
+        return fallback.resolve() if fallback.is_dir() else None
+    path = Path(str(recorded))
+    candidates: list[Path] = []
+    if path.is_absolute():
+        candidates.append(path)
+    else:
+        candidates.extend((asset_root / path, active / path))
+    candidates.extend((asset_root / "local_chroma", active / "local_chroma"))
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate.resolve()
+    return (candidates[0] if candidates else asset_root / "local_chroma").resolve()
 
 
 def _jsonl(path: Path, documents: list[Document]) -> None:
@@ -152,7 +188,13 @@ def _embed_new(client, documents: list[Document]) -> np.ndarray:
             if path.is_file():
                 png = path.read_bytes()
         images.append(png)
-    return client.embed_document_chunks(texts, images=images, titles=titles)
+    with get_client().start_as_current_observation(
+        name="embed-chunks",
+        as_type="embedding",
+        model=str(getattr(client, "model", "") or cloud_embed_spec().model),
+        input={"chunks": len(texts), "chars": sum(map(len, texts)), "images": sum(1 for png in images if png)},
+    ):
+        return client.embed_document_chunks(texts, images=images, titles=titles)
 
 
 def stage_cloud_assets(
@@ -164,16 +206,22 @@ def stage_cloud_assets(
     source_filename: str,
     allow_empty: bool = False,
     removal: bool = False,
+    embed_cloud: bool | None = None,
 ) -> tuple[Path, dict]:
-    """Build a complete new cloud asset version while embedding only new chunks.
+    """Build a complete new asset version (JSONL + optional cloud embeddings).
 
     Voyage and Google indexes are separate files; they are never mixed. Switching
     provider on an existing corpus re-embeds kept chunks for that provider only.
+
+    When embed_cloud is False (default for local / local_hybrid), JSONL is still
+    updated and local Chroma can be staged separately — Voyage/Google are not called.
     """
     root = Path(asset_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     active = resolve_active_assets(root)
     spec = cloud_embed_spec()
+    if embed_cloud is None:
+        embed_cloud = ingest_cloud_embed_enabled()
     old_primary, old_primary_vectors = _load_old(active, "native", "native.jsonl", spec=spec)
     old_visual, old_visual_vectors = _load_old(
         active, "arabic_ocr_secondary", "arabic_ocr_secondary.jsonl", spec=spec
@@ -198,20 +246,31 @@ def stage_cloud_assets(
     old_primary, old_primary_vectors = without_replaced_source(old_primary, old_primary_vectors)
     old_visual, old_visual_vectors = without_replaced_source(old_visual, old_visual_vectors)
 
-    client = create_cloud_runtime_client(root, spec)
+    def merge_docs(old_docs, new_docs):
+        return list(old_docs) + list(new_docs)
 
-    def merge(old_docs, old_vectors, new_docs):
-        if old_vectors is None:
-            combined = list(old_docs) + list(new_docs)
-            return combined, _embed_new(client, combined)
-        new_vectors = _embed_new(client, new_docs)
-        combined = list(old_docs) + list(new_docs)
-        if len(old_vectors):
-            return combined, np.vstack([old_vectors, new_vectors])
-        return combined, new_vectors
+    if embed_cloud:
+        client = create_cloud_runtime_client(root, spec)
 
-    all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
-    all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
+        def merge(old_docs, old_vectors, new_docs):
+            if old_vectors is None:
+                combined = merge_docs(old_docs, new_docs)
+                return combined, _embed_new(client, combined)
+            new_vectors = _embed_new(client, new_docs)
+            combined = merge_docs(old_docs, new_docs)
+            if len(old_vectors):
+                return combined, np.vstack([old_vectors, new_vectors])
+            return combined, new_vectors
+
+        all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
+        all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
+    else:
+        all_primary = merge_docs(old_primary, new_primary)
+        all_visual = merge_docs(old_visual, new_visual)
+        # Carry forward prior cloud vectors only when no new chunks need embedding
+        # (e.g. removal). Otherwise leave cloud indexes stale; local Chroma is enough.
+        all_primary_vectors = old_primary_vectors if not new_primary else None
+        all_visual_vectors = old_visual_vectors if not new_visual else None
 
     if not all_primary and not allow_empty:
         raise ValueError(
@@ -229,11 +288,14 @@ def stage_cloud_assets(
     try:
         _jsonl(staging / "native.jsonl", all_primary)
         _jsonl(staging / "arabic_ocr_secondary.jsonl", all_visual)
-        _write_bound_index(staging, "native", all_primary, all_primary_vectors, spec=spec)
-        _write_bound_index(
-            staging, "arabic_ocr_secondary", all_visual, all_visual_vectors, spec=spec
-        )
+        if all_primary_vectors is not None:
+            _write_bound_index(staging, "native", all_primary, all_primary_vectors, spec=spec)
+        if all_visual_vectors is not None:
+            _write_bound_index(
+                staging, "arabic_ocr_secondary", all_visual, all_visual_vectors, spec=spec
+            )
         # Preserve the other provider's indexes so switching back does not wipe them.
+        # Also preserve current-provider indexes when we skipped embed (stale vs jsonl).
         other = "google" if spec.key == "voyage" else "voyage"
         other_spec = cloud_embed_spec(other)
         indexes_src = active / "indexes"
@@ -245,19 +307,27 @@ def stage_cloud_assets(
                     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     continue
-                if (
-                    manifest.get("provider") == other_spec.provider
-                    and manifest.get("model") == other_spec.model
-                ):
-                    npy_path = manifest_path.with_suffix(".npy")
-                    if npy_path.is_file():
-                        shutil.copy2(manifest_path, indexes_dst / manifest_path.name)
-                        shutil.copy2(npy_path, indexes_dst / npy_path.name)
+                provider = manifest.get("provider")
+                model = manifest.get("model")
+                keep_other = provider == other_spec.provider and model == other_spec.model
+                keep_stale_current = (
+                    not embed_cloud
+                    and all_primary_vectors is None
+                    and provider == spec.provider
+                    and model == spec.model
+                )
+                if not (keep_other or keep_stale_current):
+                    continue
+                npy_path = manifest_path.with_suffix(".npy")
+                if npy_path.is_file():
+                    shutil.copy2(manifest_path, indexes_dst / manifest_path.name)
+                    shutil.copy2(npy_path, indexes_dst / npy_path.name)
         snapshot = {
             "version": version_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "parent": str(active.relative_to(root)) if active != root else "legacy-root",
             "cloud_retrieval_provider": spec.key,
+            "cloud_embed": bool(embed_cloud),
             "native_chunks": len(all_primary),
             "arabic_visual_chunks": len(all_visual),
         }
@@ -345,37 +415,66 @@ def _collection_exists(client, name: str) -> bool:
         return False
 
 
-def _copy_collection(source, target, *, batch_size: int = 500, exclude_source: str | None = None) -> None:
+def _read_collection(source, *, batch_size: int = 500, exclude_source: str | None = None) -> list[tuple]:
+    """Return (id, document, metadata, embedding) rows, skipping one source PDF.
+
+    Chroma 1.5 can lose the not-yet-flushed tail of a collection's HNSW index
+    ("Error finding id" / "Nothing found on disk") while documents and metadata
+    stay readable; those pages are re-embedded from their text.
+    """
+    excluded = Path(exclude_source).name.casefold() if exclude_source else None
+    rows: list[tuple] = []
     count = source.count()
     offset = 0
     while offset < count:
-        result = source.get(
-            limit=min(batch_size, count - offset),
-            offset=offset,
-            include=["documents", "metadatas", "embeddings"],
-        )
+        limit = min(batch_size, count - offset)
+        try:
+            result = source.get(limit=limit, offset=offset, include=["documents", "metadatas", "embeddings"])
+            embeddings = result.get("embeddings")
+        except Exception as error:
+            logger.warning("Chroma embeddings unreadable at offset %s of %s; re-embedding.", offset, source.name)
+            get_client().create_event(
+                name="reembed-unreadable-rows",
+                level="WARNING",
+                status_message=f"{type(error).__name__}: {error}",
+                metadata={"collection": source.name, "offset": offset, "limit": limit},
+            )
+            result = source.get(limit=limit, offset=offset, include=["documents", "metadatas"])
+            embeddings = None
         ids = result.get("ids") or []
         documents = result.get("documents") or []
         metadatas = result.get("metadatas") or []
-        embeddings = result.get("embeddings")
-        if embeddings is None:
-            embeddings = []
-        selected = [
+        kept = [
             index
             for index, metadata in enumerate(metadatas)
-            if exclude_source is None
-            or Path(str((metadata or {}).get("source", ""))).name.casefold() != Path(exclude_source).name.casefold()
+            if excluded is None or Path(str((metadata or {}).get("source", ""))).name.casefold() != excluded
         ]
-        if selected:
-            target.add(
-                ids=[ids[index] for index in selected],
-                documents=[documents[index] for index in selected],
-                metadatas=[metadatas[index] for index in selected],
-                embeddings=[embeddings[index] for index in selected],
-            )
+        if embeddings is None and kept:
+            embeddings = dict(zip(kept, _embed_local([documents[i] for i in kept])))
+        rows.extend((ids[i], documents[i], metadatas[i], embeddings[i]) for i in kept)
         offset += len(ids)
         if not ids:
             break
+    return rows
+
+
+def _embed_local(texts: list[str]) -> list:
+    from embedding import create_embedding_model
+
+    model = create_embedding_model()
+    with get_client().start_as_current_observation(
+        name="embed-chunks",
+        as_type="embedding",
+        model=getattr(model, "model_name", None),
+        input={"chunks": len(texts), "chars": sum(map(len, texts))},
+    ):
+        return model.embed_documents(texts)
+
+
+def _add_rows(target, rows: list[tuple], *, batch_size: int = 500) -> None:
+    for start in range(0, len(rows), batch_size):
+        ids, documents, metadatas, embeddings = zip(*rows[start : start + batch_size])
+        target.add(ids=list(ids), documents=list(documents), metadatas=list(metadatas), embeddings=list(embeddings))
 
 
 def stage_local_collections(
@@ -394,7 +493,6 @@ def stage_local_collections(
         import chromadb
     except ImportError as error:
         raise RuntimeError("Local ingestion requires requirements-local.txt") from error
-    from embedding import create_embedding_model
 
     root = Path(asset_root).resolve()
     db_path = Path(os.environ.get("BCT_CHROMA_DB", str(root / "local_chroma"))).resolve()
@@ -411,28 +509,44 @@ def stage_local_collections(
     # ponytail: ceiling=full local re-embed via ingest CLI when seeding Chroma from a legacy
     # cloud-only corpus (no existing collection). Admin PDF upload should not block on that.
     if not has_old_primary and len(all_primary) > len(new_primary):
+        get_client().create_event(
+            name="skip-local-index",
+            level="WARNING",
+            status_message=f"No prior Chroma collection {old_primary_name!r}; new chunks are not searchable locally",
+            metadata={"chroma_db": str(db_path), "all_primary": len(all_primary), "new_primary": len(new_primary)},
+        )
         return {}
 
+    # Read old rows before any write: with the serving retriever holding these collections
+    # open, Chroma 1.5 fails reads ("Error finding id") once the same process starts writing.
+    with get_client().start_as_current_observation(
+        name="copy-prior-collections",
+        input={"chroma_db": str(db_path), "primary": old_primary_name, "visual": old_visual_name},
+    ) as copy_span:
+        old_primary_rows = (
+            _read_collection(client.get_collection(old_primary_name), exclude_source=source_filename)
+            if has_old_primary
+            else []
+        )
+        old_visual_rows = (
+            _read_collection(client.get_collection(old_visual_name), exclude_source=source_filename)
+            if has_old_visual
+            else []
+        )
+        copy_span.update(output={"primary_rows": len(old_primary_rows), "visual_rows": len(old_visual_rows)})
     primary_target = client.create_collection(primary_name)
     visual_target = client.create_collection(visual_name)
-    embedding = create_embedding_model()
     try:
-        if has_old_primary:
-            _copy_collection(client.get_collection(old_primary_name), primary_target, exclude_source=source_filename)
-            primary_to_add = new_primary
-        else:
-            primary_to_add = all_primary
-        if has_old_visual:
-            _copy_collection(client.get_collection(old_visual_name), visual_target, exclude_source=source_filename)
-            visual_to_add = new_visual
-        else:
-            visual_to_add = all_visual
+        _add_rows(primary_target, old_primary_rows)
+        _add_rows(visual_target, old_visual_rows)
+        primary_to_add = new_primary if has_old_primary else all_primary
+        visual_to_add = new_visual if has_old_visual else all_visual
 
         def add(collection, documents):
             if not documents:
                 return
             texts = [doc.page_content for doc in documents]
-            vectors = embedding.embed_documents(texts)
+            vectors = _embed_local(texts)
             collection.upsert(
                 ids=[_document_chunk_id(doc) for doc in documents],
                 documents=texts,

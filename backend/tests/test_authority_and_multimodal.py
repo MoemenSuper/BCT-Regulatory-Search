@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -39,6 +40,8 @@ def test_dynamic_demos_cover_hard_negative_taux():
 
 
 def test_classify_query_authority_fails_closed():
+    from query_authority import classify_query_authority
+
     class Boom:
         def invoke(self, _prompt):
             raise RuntimeError("down")
@@ -107,7 +110,6 @@ def test_parse_answer_rejects_secondary_on_regulatory_query():
 def test_secondary_page_images_cover_internal(tmp_path):
     pytest.importorskip("pymupdf")
     import pymupdf
-    from pathlib import Path
 
     from ingestion.models import Page, StructuredDocument
     from ingestion.pipeline import _ensure_secondary_page_images
@@ -118,18 +120,24 @@ def test_secondary_page_images_cover_internal(tmp_path):
     doc.save(pdf_path)
     doc.close()
 
-    structured = StructuredDocument(
+    empty = StructuredDocument(
         filename=pdf_path.name,
-        pages=[Page(page_number=1, raw_text="")],
+        pages=[Page(page_number=1, raw_text="", quality_flags=["no_native_text"])],
         metadata={"doc_kind": "internal"},
     )
-    written = _ensure_secondary_page_images(structured, pdf_path, tmp_path)
-    assert written == 1
-    assert Path(structured.pages[0].metadata["page_image_path"]).is_file()
+    assert _ensure_secondary_page_images(empty, pdf_path, tmp_path) == 1
+    assert Path(empty.pages[0].metadata["page_image_path"]).is_file()
+
+    text_only = StructuredDocument(
+        filename=pdf_path.name,
+        pages=[Page(page_number=1, raw_text="Procedure interne avec texte natif suffisant.")],
+        metadata={"doc_kind": "internal"},
+    )
+    assert _ensure_secondary_page_images(text_only, pdf_path, tmp_path / "text-only") == 0
 
     regulatory = StructuredDocument(
         filename="Cir.pdf",
-        pages=[Page(page_number=1, raw_text="x")],
+        pages=[Page(page_number=1, raw_text="")],
         metadata={"doc_kind": "regulatory"},
     )
     assert _ensure_secondary_page_images(regulatory, pdf_path, tmp_path) == 0
@@ -240,7 +248,7 @@ def test_chart_suspect_page_triggers_visual_plan(tmp_path, monkeypatch):
         def __init__(self):
             self.calls = 0
 
-        def transcribe(self, *, image_png, source_pdf_sha256, page_number):
+        def transcribe(self, *, image_png, source_pdf_sha256, page_number, **_):
             self.calls += 1
             return VisualPage(
                 transcription="Figure 1. Exportations 2024",
@@ -272,3 +280,8 @@ def test_chart_suspect_page_triggers_visual_plan(tmp_path, monkeypatch):
     assert fake.calls == 1
     assert page_out.metadata.get("has_chart") is True
     assert "Serie A: 12" in page_out.raw_text or page_out.metadata.get("chart_notes") == "Serie A: 12"
+    # Bytes are spilled to disk during extract so multi-page stats PDFs do not OOM.
+    assert "page_image_png" not in page_out.metadata
+    tmp = page_out.metadata.get("page_image_tmp")
+    assert tmp and Path(tmp).is_file()
+    Path(tmp).unlink(missing_ok=True)

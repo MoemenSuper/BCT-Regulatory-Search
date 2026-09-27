@@ -13,7 +13,7 @@ backend/.neo4j-data
 *.pdf
 !documents/
 !documents/**/*.pdf
-# Slim Voyage indexes for Docker bake (export via backend/tmp/export_baked_assets.py)
+# Slim local indexes for Docker bake (export via backend/tmp/rebuild_local_baked.py)
 !baked-runtime-assets/
 !baked-runtime-assets/**
 docs

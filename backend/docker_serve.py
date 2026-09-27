@@ -37,7 +37,7 @@ def ensure_empty_assets(asset_root: Path) -> None:
 
 
 def ensure_runtime_assets(asset_root: Path) -> None:
-    """Prefer a baked Voyage corpus; otherwise create empty stubs for first boot.
+    """Prefer a baked corpus; otherwise create empty stubs for first boot.
 
     Docker Compose mounts an empty named volume over /data/assets. Without seeding,
     that volume hides any assets copied into the image and the recipient sees an
@@ -98,9 +98,10 @@ def main() -> None:
     if not static_dir.is_dir():
         raise SystemExit(f"UI build missing at {static_dir}")
 
-    os.environ.setdefault("BCT_DEFAULT_PROFILE", "cloud")
-    os.environ.setdefault("BCT_INGEST_LOCAL_INDEX", "0")
+    os.environ.setdefault("BCT_DEFAULT_PROFILE", "local_hybrid")
+    os.environ.setdefault("BCT_INGEST_LOCAL_INDEX", "1")
     os.environ.setdefault("BCT_ENABLE_INGESTION", "1")
+    os.environ.setdefault("BCT_WARM_START", "1")
     os.environ.setdefault("BCT_CONVERSATION_DB", str(data / "conversations.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DB", str(data / "ingestion.sqlite3"))
     os.environ.setdefault("BCT_AUTH_DB", str(data / "auth.sqlite3"))

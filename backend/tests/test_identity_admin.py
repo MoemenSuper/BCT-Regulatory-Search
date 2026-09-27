@@ -205,6 +205,19 @@ def test_passwords_are_hashed(tmp_path):
     store.close()
 
 
+def test_concurrent_session_lookups_keep_session(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = AuthStore(tmp_path / "auth.sqlite3")
+    user = store.create_user(email="poll@bct.tn", password="Password123")
+    token = store.create_session(user.id)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: store.user_for_session(token), range(400)))
+    assert all(r is not None and r.id == user.id for r in results)
+    assert store.user_for_session(token) is not None
+    store.close()
+
+
 def test_settings_store_masks_and_applies(tmp_path, monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     store = AppSettingsStore(tmp_path / "settings.sqlite3")

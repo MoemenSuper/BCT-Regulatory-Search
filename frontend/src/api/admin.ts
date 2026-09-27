@@ -34,6 +34,7 @@ export interface AdminOverview {
   users_approved: number;
   users_rejected: number;
   documents_ready: number;
+  documents_enriching: number;
   active_profile: string;
   answer_refusals_total: number;
   supersession: {
@@ -202,12 +203,56 @@ export function setSecrets(secrets: Record<string, string | null>): Promise<Admi
   });
 }
 
-export function listDocuments(): Promise<unknown[]> {
+export interface EnrichmentProgress {
+  total: number;
+  done: number;
+  failed: number;
+  pending: number;
+  seconds_per_page: number | null;
+  eta_seconds: number | null;
+}
+
+export type DocumentStatus = 'enriching' | 'ready' | 'ready_degraded';
+
+export interface IndexedDocument {
+  document_id: string;
+  filename: string;
+  title: string;
+  status: DocumentStatus;
+  searchable: boolean;
+  pages: number | null;
+  doc_kind: string;
+  enrichment: EnrichmentProgress;
+}
+
+export interface EnrichmentWorkerState {
+  state: 'idle' | 'waiting_for_chat' | 'reading' | 'activating' | 'cooldown' | 'disabled';
+  document?: string;
+  page?: number;
+  cooldown_seconds?: number;
+}
+
+export function listDocuments(): Promise<IndexedDocument[]> {
   return request('/api/documents');
 }
 
-export function deleteDocument(documentId: string): Promise<unknown> {
-  return request(`/api/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+export function getEnrichmentState(): Promise<EnrichmentWorkerState> {
+  return request('/api/documents/enrichment');
+}
+
+export function retryEnrichment(documentId: string): Promise<{ requeued_pages: number; enrichment: EnrichmentProgress }> {
+  return request(`/api/documents/${encodeURIComponent(documentId)}/retry-enrichment`, { method: 'POST' });
+}
+
+export function deleteDocuments(documentIds: string[]): Promise<{
+  removed: string[];
+  failed: { document_id: string; error: string }[];
+}> {
+  return request('/api/documents/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_ids: documentIds }),
+  });
 }
 
 export async function uploadDocument(form: FormData): Promise<unknown> {

@@ -92,7 +92,7 @@ Absence of a retrieved amending text is not proof that none exists; claims that 
 _Avoid_: verified as synonym for current / en vigueur; silently dropping replaced circulars; merging conflicting values from predecessor and successor; treating missing amendment hits as a negative proof
 
 **Historical cutoff vs grandfathering**:
-`avant` / `before` demotes a named later instrument when the question asks what applied under the prior regime. The same words do **not** demote when they describe engagements or execution before that instrument’s entry into force (transitional / grandfathering questions answer from the named instrument).
+`avant` / `before` / `قبل` demotes a named later instrument only when it directly precedes the instrument reference (“avant la circulaire 2025-13”) or the question says “ancien régime”. The same words do **not** demote when they describe something done before it (“engagements pris avant …”, “avant le 26 mars”, “avant l’entrée en vigueur de …”): those transitional / grandfathering questions answer from the named instrument.
 _Avoid_: treating every “avant 2026-04” as a prior-regime retrieval
 
 ## Conversation and UI
@@ -123,6 +123,14 @@ _Avoid_: instrument year, PDF revision, deploy
 New assets stage first; activation makes them live. Failure keeps the previous corpus.
 _Avoid_: upload as already-searchable; “hot reload” without activation
 
+**Quick pass / enrichment**:
+Ingest is two-phase. The quick pass (native PyMuPDF text only, seconds) activates a version so the PDF is searchable at once. Pages that need visual reading (scanned / garbled / chart / Arabic risk pages) are queued per page in the ingestion ledger; the background enrichment worker in the API process reads them one at a time (unreadable pages first), checkpoints each result, and re-activates in batches through the same staged activation. Chat requests take priority: the worker pauses between pages while a question is being answered. A page that needs visual reading to be quotable (Arabic mode `all`) has no page text until it is read — never native text standing in for it.
+_Avoid_: “fully ingested” for an `enriching` PDF; OCR inside the upload request
+
+**Document status**:
+`enriching` (searchable on native text; visual reading in progress, with progress/ETA), `ready` (every planned page read), `ready_degraded` (searchable; some pages could not be read visually after retries — native text only on those pages; admin can re-queue them), `failed` (quick pass failed; nothing activated). A `processing` row left by a killed server is marked `failed` at startup.
+_Avoid_: showing `ready_degraded` as `ready`; treating `enriching` as an error
+
 **Trusted document root**:
 A configured corpus path (or ingestion ledger entry) allowed to resolve PDFs for viewing and identity.
 _Avoid_: arbitrary client file path
@@ -136,7 +144,7 @@ Product stance: research aid. The original PDF is authoritative; open the cited 
 _Avoid_: “qualified legal opinion”, “en vigueur” claims when temporal scope is incomplete
 
 **Document kind (`doc_kind`)**:
-Admin tag at ingest: `regulatory` (primary), `statistical`, or `internal` (secondary). One corpus; claim grounding uses kind, not retrieval silos. Works with any search provider (Voyage, Google, local). Hard pages (scans, charts, image notes) use Gemini VLM at ingest (`GEMINI_API_KEY`, default on for every profile); after transcription the active embedder indexes that text.
+Admin tag at ingest: `regulatory` (primary), `statistical`, or `internal` (secondary). One corpus; claim grounding uses kind, not retrieval silos. Works with any search provider (Voyage, Google, local). Hard pages (scans, charts, image notes) use a profile-selected visual backend at ingest: EasyOCR (Arabic) + PaddleOCR-VL (charts/tables/hard pages) for `local` / `local_hybrid`; Gemini VLM (`GEMINI_API_KEY`) for `cloud`. After transcription the active embedder indexes that text.
 _Avoid_: treating a bulletin or memo as a binding circulaire
 
 **Query class**:
@@ -144,5 +152,5 @@ Turn label for which kinds may prove claims: `regulatory_rule` | `statistical_fa
 _Avoid_: classifier as a refusal gate
 
 **Chart / figure page**:
-A PDF page flagged by geometry (image/drawing area) and optionally transcribed by Gemini VLM at ingest. Quotes still need page text.
+A PDF page flagged by geometry (image/drawing area). When chart vision is on, the active visual backend always reads that page (during enrichment) and merges chart notes into the native body — even when the page already has rich extractable text (typical stats layout). Quotes still need page text.
 _Avoid_: embedding vector as proof of a number

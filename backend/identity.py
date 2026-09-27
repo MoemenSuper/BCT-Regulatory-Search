@@ -7,6 +7,7 @@ import hmac
 import os
 import secrets
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -143,10 +144,19 @@ class AuthStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA foreign_keys = ON")
+        self._local = threading.local()
         self._migrate()
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        # One connection per thread: a shared sqlite3 connection races under FastAPI's threadpool.
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.path, timeout=30)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            self._local.conn = conn
+        return conn
 
     def close(self) -> None:
         self._conn.close()

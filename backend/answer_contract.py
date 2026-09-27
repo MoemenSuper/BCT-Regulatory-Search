@@ -23,7 +23,6 @@ from answer_draft import (  # noqa: F401
     refusal_reason_title,
     search_response,
     select_evidence,
-    try_literal_evidence_partial,
     try_supersession_partial_answer,
     _annotate_graph_supersession,
     _repair_answer_schema,

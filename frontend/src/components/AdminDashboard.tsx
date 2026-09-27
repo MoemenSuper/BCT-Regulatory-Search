@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Moon, Network, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteDocument, deleteUser, downloadAnswerRefusalsExport, getConfig, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../api/admin';
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Loader2, Moon, Network, RotateCcw, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
+import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage, type EnrichmentProgress, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
@@ -53,13 +53,15 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [tab, setTab] = useState<AdminTab>('overview');
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AuthUser[]>([]);
-  const [documents, setDocuments] = useState<unknown[]>([]);
+  const [documents, setDocuments] = useState<IndexedDocument[]>([]);
+  const [enrichment, setEnrichment] = useState<EnrichmentWorkerState | null>(null);
   const [refusals, setRefusals] = useState<AnswerRefusalsPage | null>(null);
   const [refusalBuckets, setRefusalBuckets] = useState<string[]>([]);
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
@@ -90,6 +92,32 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     void load();
     return () => { cancelled = true; };
   }, [tab, locale, refusalBuckets]);
+
+  const enrichingCount = documents.filter((doc) => doc.status === 'enriching').length;
+  useEffect(() => {
+    if (tab !== 'documents' || !enrichingCount) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const [docs, state] = await Promise.all([listDocuments(), getEnrichmentState()]);
+        if (!cancelled) { setDocuments(docs); setEnrichment(state); }
+      } catch { /* next tick retries */ }
+    }
+    void poll();
+    const timer = window.setInterval(() => void poll(), 10000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [tab, enrichingCount]);
+
+  async function handleRetryEnrichment(documentId: string) {
+    setBusy(true); setError(null); setMessage(null);
+    try {
+      await retryEnrichment(documentId);
+      setDocuments(await listDocuments());
+      setMessage(t(locale, 'admin.enrichRetryQueued'));
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t(locale, 'admin.enrichRetryFailed'));
+    } finally { setBusy(false); }
+  }
 
   useEffect(() => {
     try {
@@ -131,19 +159,33 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   async function handleReject(id: string) { setBusy(true); try { await rejectUser(id); setMessage(t(locale, 'admin.rejected')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
   async function handleDelete(id: string, email: string) { if (!window.confirm(t(locale, 'admin.deleteConfirm', { email }))) return; setBusy(true); try { await deleteUser(id); setMessage(t(locale, 'admin.deleted')); await refresh(); } catch { setError(t(locale, 'admin.userActionFailed')); } finally { setBusy(false); } }
 
-  async function handleDeleteDocument(documentId: string, label: string) {
-    if (!window.confirm(t(locale, 'admin.deletePdfConfirm', { name: label }))) return;
+  async function handleDeleteDocuments(documentIds: string[], label: string) {
+    if (!documentIds.length) return;
+    const single = documentIds.length === 1;
+    const confirmText = single
+      ? t(locale, 'admin.deletePdfConfirm', { name: label })
+      : t(locale, 'admin.deletePdfsConfirm', { count: documentIds.length });
+    if (!window.confirm(confirmText)) return;
     setBusy(true);
+    setDeletingIds(new Set(documentIds));
     setError(null);
     setMessage(null);
     try {
-      await deleteDocument(documentId);
-      setMessage(t(locale, 'admin.pdfDeleted'));
-      await refresh();
+      const { removed, failed } = await deleteDocuments(documentIds);
+      const gone = new Set(removed);
+      setDocuments((current) => current.filter((doc) => !gone.has(doc.document_id || '')));
+      if (failed.length) {
+        setError(single
+          ? failed[0].error || t(locale, 'admin.pdfDeleteFailed')
+          : t(locale, 'admin.pdfsDeletePartial', { ok: removed.length, failed: failed.length, error: failed[0].error }));
+      } else {
+        setMessage(single ? t(locale, 'admin.pdfDeleted') : t(locale, 'admin.pdfsDeleted', { count: removed.length }));
+      }
     } catch (err) {
       const detail = err instanceof Error && err.message ? err.message : t(locale, 'admin.pdfDeleteFailed');
       setError(detail);
     } finally {
+      setDeletingIds(new Set());
       setBusy(false);
     }
   }
@@ -255,6 +297,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     });
     let ok = 0;
     let duplicates = 0;
+    let enriching = 0;
     const failures: string[] = [];
     try {
       for (let index = 0; index < selected.length; index += 1) {
@@ -278,10 +321,11 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         form.append('file', file);
         form.append('doc_kind', docKind);
         try {
-          const report = await uploadDocument(form) as { duplicate?: boolean };
+          const report = await uploadDocument(form) as { duplicate?: boolean; status?: string };
           const status: UploadEntryStatus = report.duplicate ? 'duplicate' : 'imported';
           if (report.duplicate) duplicates += 1;
           else ok += 1;
+          if (!report.duplicate && report.status === 'enriching') enriching += 1;
           flushSync(() => {
             setUploadProgress((prev) => {
               if (!prev) return prev;
@@ -322,6 +366,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         setError(failures[0]);
       } else if (selected.length === 1 && duplicates === 1) {
         setMessage(t(locale, 'admin.duplicate'));
+      } else if (enriching) {
+        setMessage(t(locale, 'admin.uploadEnriching', { count: enriching }));
       } else if (selected.length === 1) {
         setMessage(t(locale, 'admin.uploadSuccess'));
       } else {
@@ -377,8 +423,11 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         {tab === 'documents' ? (
           <DocumentsPage
             documents={Array.isArray(documents) ? documents : []}
+            enrichment={enrichment}
+            onRetryEnrichment={(id) => void handleRetryEnrichment(id)}
             loading={loading}
             busy={busy}
+            deletingIds={deletingIds}
             locale={locale}
             files={files}
             fileKey={fileKey}
@@ -392,7 +441,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
               if (!next.length) setFileKey((key) => key + 1);
             }}
             onInvalidFiles={() => setError(t(locale, 'admin.fileInvalid'))}
-            onDeleteDocument={(documentId, label) => void handleDeleteDocument(documentId, label)}
+            onDeleteDocuments={(documentIds, label) => void handleDeleteDocuments(documentIds, label)}
           />
         ) : null}
         {tab === 'refusals' ? (
@@ -892,11 +941,14 @@ function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
 }
 
 function DocumentsPage({
-  documents, loading, busy, locale, files, fileKey, docKind, onDocKindChange, uploadProgress, onUpload, onFilesChange, onInvalidFiles, onDeleteDocument,
+  documents, enrichment, onRetryEnrichment, loading, busy, deletingIds, locale, files, fileKey, docKind, onDocKindChange, uploadProgress, onUpload, onFilesChange, onInvalidFiles, onDeleteDocuments,
 }: {
-  documents: unknown[];
+  documents: IndexedDocument[];
+  enrichment: EnrichmentWorkerState | null;
+  onRetryEnrichment: (documentId: string) => void;
   loading: boolean;
   busy: boolean;
+  deletingIds: Set<string>;
   locale: UiLocale;
   files: File[];
   fileKey: number;
@@ -906,7 +958,7 @@ function DocumentsPage({
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
   onInvalidFiles: () => void;
-  onDeleteDocument: (documentId: string, label: string) => void;
+  onDeleteDocuments: (documentIds: string[], label: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -1092,23 +1144,54 @@ function DocumentsPage({
             {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
           </button>
         </form>
-        <DocumentsList documents={documents} loading={loading} busy={busy} locale={locale} docKind={docKind} onDelete={onDeleteDocument} />
+        <DocumentsList key={docKind} documents={documents} enrichment={enrichment} onRetryEnrichment={onRetryEnrichment} loading={loading} busy={busy} deletingIds={deletingIds} locale={locale} docKind={docKind} onDelete={onDeleteDocuments} />
       </section>
     </>
   );
 }
 
 
+function formatEta(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+function enrichmentLine(doc: IndexedDocument, locale: UiLocale): string {
+  const progress: EnrichmentProgress | undefined = doc.enrichment;
+  if (!progress?.total) return '';
+  if (doc.status === 'ready_degraded') return t(locale, 'admin.enrichDegraded', { count: progress.failed, total: progress.total });
+  if (doc.status !== 'enriching') return '';
+  const parts = [t(locale, 'admin.enrichProgress', { done: progress.done, total: progress.total })];
+  if (progress.eta_seconds) parts.push(t(locale, 'admin.enrichEta', { eta: formatEta(progress.eta_seconds) }));
+  if (progress.failed) parts.push(t(locale, 'admin.enrichFailedPages', { count: progress.failed }));
+  if (!doc.searchable) parts.push(t(locale, 'admin.enrichNotSearchable'));
+  return parts.join(' · ');
+}
+
+function enrichmentNotice(state: EnrichmentWorkerState | null, locale: UiLocale): string {
+  if (!state) return '';
+  if (state.state === 'reading') return t(locale, 'admin.enrichReading', { page: state.page ?? '', name: state.document ?? '' });
+  if (state.state === 'waiting_for_chat') return t(locale, 'admin.enrichPausedChat');
+  if (state.state === 'activating') return t(locale, 'admin.enrichActivating');
+  if (state.state === 'cooldown') return t(locale, 'admin.enrichCooldown', { eta: formatEta(state.cooldown_seconds ?? 60) });
+  if (state.state === 'disabled') return t(locale, 'admin.enrichDisabled');
+  return '';
+}
+
 function DocumentsList({
-  documents, loading, busy, locale, docKind, onDelete,
+  documents, enrichment, onRetryEnrichment, loading, busy, deletingIds, locale, docKind, onDelete,
 }: {
-  documents: unknown[];
+  documents: IndexedDocument[];
+  enrichment: EnrichmentWorkerState | null;
+  onRetryEnrichment: (documentId: string) => void;
   loading: boolean;
   busy: boolean;
+  deletingIds: Set<string>;
   locale: UiLocale;
   docKind: 'regulatory' | 'statistical' | 'internal';
-  onDelete: (documentId: string, label: string) => void;
+  onDelete: (documentIds: string[], label: string) => void;
 }) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const rows = (Array.isArray(documents) ? documents : []).filter((doc) => {
     const item = doc as { doc_kind?: string; filename?: string };
     const kind = item.doc_kind === 'statistical' || item.doc_kind === 'internal'
@@ -1116,6 +1199,16 @@ function DocumentsList({
       : 'regulatory';
     return kind === docKind;
   });
+  const rowIds = rows.map((doc) => (doc as { document_id?: string }).document_id || '').filter(Boolean);
+  const selectedIds = rowIds.filter((id) => selected.has(id));
+  const allSelected = rowIds.length > 0 && selectedIds.length === rowIds.length;
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
   return (
     <section className="admin-panel admin-documents-panel">
       <div className="admin-panel-heading">
@@ -1125,19 +1218,48 @@ function DocumentsList({
         </div>
         <span className="admin-count">{rows.length} {t(locale, 'admin.readyCount')}</span>
       </div>
+      {rows.some((doc) => doc.status === 'enriching') ? (
+        <p className="admin-enrich-notice" role="status">
+          <Loader2 aria-hidden="true" size={14} className={enrichment?.state === 'reading' ? 'admin-spin' : undefined} />
+          <span>{t(locale, 'admin.enrichNotice')}{enrichmentNotice(enrichment, locale) ? ` ${enrichmentNotice(enrichment, locale)}` : ''}</span>
+        </p>
+      ) : null}
       {loading ? (
         <DocumentSkeleton label={t(locale, 'admin.loading')} />
       ) : rows.length === 0 ? (
         <p className="admin-help">{t(locale, 'admin.indexedEmptyKind')}</p>
       ) : (
+        <>
+        {rowIds.length ? (
+          <div className="admin-doc-toolbar">
+            <label className="admin-doc-check">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(node) => { if (node) node.indeterminate = selectedIds.length > 0 && !allSelected; }}
+                disabled={busy}
+                onChange={() => setSelected(allSelected ? new Set() : new Set(rowIds))}
+              />
+              {t(locale, 'admin.selectAllPdfs')}
+            </label>
+            {selectedIds.length ? (
+              <button
+                type="button"
+                className="admin-action delete"
+                disabled={busy}
+                onClick={() => onDelete(selectedIds, '')}
+              >
+                {deletingIds.size > 1
+                  ? <Loader2 aria-hidden="true" size={14} className="admin-spin" />
+                  : <Trash2 aria-hidden="true" size={14} />}
+                {t(locale, deletingIds.size > 1 ? 'admin.pdfDeleting' : 'admin.deleteSelected', { count: selectedIds.length })}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <ul className="admin-doc-list">
           {rows.map((doc, index) => {
-            const item = doc as {
-              filename?: string;
-              title?: string;
-              document_id?: string;
-              pages?: number | null;
-            };
+            const item = doc;
             const filename = item.filename || '';
             const documentId = item.document_id || '';
             const label = item.title || filename || t(locale, 'admin.pdfDocument');
@@ -1152,12 +1274,29 @@ function DocumentsList({
                   <strong>{label}</strong>
                   {filename ? <span className="admin-doc-filename">{filename}</span> : null}
                   {meta.length ? <span className="admin-doc-meta">{meta.join(' · ')}</span> : null}
+                  {item.status && item.status !== 'ready' ? (
+                    <span className="admin-doc-enrichment">
+                      <DocumentStatusBadge status={item.status} locale={locale} />
+                      {enrichmentLine(item, locale)}
+                    </span>
+                  ) : null}
                 </div>
                 <ArrowUpRight aria-hidden="true" size={17} />
               </>
             );
+            const deleting = Boolean(documentId) && deletingIds.has(documentId);
             return (
-              <li key={documentId || filename || String(index)} className="admin-doc-row">
+              <li key={documentId || filename || String(index)} className={`admin-doc-row${deleting ? ' is-deleting' : ''}`} aria-busy={deleting || undefined}>
+                {documentId ? (
+                  <input
+                    type="checkbox"
+                    className="admin-doc-select"
+                    checked={selected.has(documentId)}
+                    disabled={busy}
+                    onChange={() => toggle(documentId)}
+                    aria-label={t(locale, 'admin.selectPdf', { name: label })}
+                  />
+                ) : <span />}
                 {filename ? (
                   <a
                     className="admin-doc-link"
@@ -1173,22 +1312,39 @@ function DocumentsList({
                   <div className="admin-doc-link is-disabled">{body}</div>
                 )}
                 {documentId ? (
+                  <span className="admin-doc-actions">
+                  {item.enrichment?.failed ? (
+                    <button
+                      type="button"
+                      className="admin-action promote"
+                      disabled={busy}
+                      onClick={() => onRetryEnrichment(documentId)}
+                      title={t(locale, 'admin.enrichRetryHelp')}
+                    >
+                      <RotateCcw aria-hidden="true" size={14} />
+                      {t(locale, 'admin.enrichRetry')}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="admin-action delete"
                     disabled={busy}
-                    onClick={() => onDelete(documentId, label)}
-                    aria-label={t(locale, 'admin.deletePdf')}
+                    onClick={() => onDelete([documentId], label)}
+                    aria-label={t(locale, deleting ? 'admin.pdfDeleting' : 'admin.deletePdf')}
                     title={t(locale, 'admin.deletePdf')}
                   >
-                    <Trash2 aria-hidden="true" size={14} />
-                    {t(locale, 'admin.delete')}
+                    {deleting
+                      ? <Loader2 aria-hidden="true" size={14} className="admin-spin" />
+                      : <Trash2 aria-hidden="true" size={14} />}
+                    {t(locale, deleting ? 'admin.pdfDeleting' : 'admin.delete')}
                   </button>
+                  </span>
                 ) : null}
               </li>
             );
           })}
         </ul>
+        </>
       )}
     </section>
   );
@@ -1314,6 +1470,11 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onCloudPr
       </form>
     </section>
   );
+}
+
+function DocumentStatusBadge({ status, locale }: { status: string; locale: UiLocale }) {
+  const key = status === 'enriching' ? 'admin.docEnriching' : status === 'ready_degraded' ? 'admin.docDegraded' : 'admin.docReady';
+  return <span className={`admin-status ${status === 'enriching' ? 'enriching' : status === 'ready_degraded' ? 'pending' : 'approved'}`}><i aria-hidden="true" />{t(locale, key)}</span>;
 }
 
 function StatusBadge({ status, locale }: { status: string; locale: UiLocale }) { const values: Record<UiLocale, Record<string, string>> = { fr: { approved: 'Approuvé', pending: 'En attente', rejected: 'Refusé' }, ar: { approved: 'مقبول', pending: 'قيد الانتظار', rejected: 'مرفوض' }, en: { approved: 'Approved', pending: 'Pending', rejected: 'Rejected' } }; const normalized = status.toLowerCase(); return <span className={`admin-status ${normalized}`}><i aria-hidden="true" />{values[locale][normalized] || status}</span>; }

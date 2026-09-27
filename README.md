@@ -60,11 +60,14 @@ This package does **not** ship API keys, BCT PDFs, vector assets, Chroma data, o
 One command starts the **UI + API**.
 
 ### What Docker does for you
-- Installs dependencies
+- Installs dependencies for **local_hybrid**: e5 embeddings, BGE reranker, Chroma, EasyOCR, PaddleOCR-VL (CPU wheels)
+- Pre-downloads embed / rerank / EasyOCR model weights into the image
 - Builds the React UI into the API image
 - Bakes the local `documents/` PDF corpus into the image (~100 MB)
-- Bakes a slim Voyage runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 445 PDFs
+- Bakes a slim local Chroma runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 445 PDFs
 - Serves the app at **http://localhost:8080**
+
+First PaddleOCR-VL ingest may still download VL weights into the container data volume (large, one-time).
 
 ### What you must do
 
@@ -73,8 +76,10 @@ One command starts the **UI + API**.
 
 ```powershell
 cd backend
-python tmp\export_baked_assets.py --source "C:\path\to\runtime-assets" --dest "..\baked-runtime-assets"
+python tmp\rebuild_local_baked.py
 ```
+
+(Or re-export from a live assets root: `python tmp\export_baked_assets.py --source "C:\path\to\runtime-assets" --dest "..\baked-runtime-assets"`.)
 
 3. Copy the env template and fill **required** values:
 
@@ -88,11 +93,11 @@ Edit `.env` and set at least:
 | --- | --- |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` | First admin login email |
 | `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Strong password for that admin |
-| `GROQ_API_KEY` | Answer model |
-| `VOYAGE_API_KEY` | Cloud search / rerank |
-| `GEMINI_API_KEY` | Hard / Arabic page repair during ingest |
+| `GROQ_API_KEY` | Answer model (required for `local_hybrid` / `cloud`) |
+| `VOYAGE_API_KEY` | Cloud-profile search / rerank only (optional for local_hybrid) |
+| `GEMINI_API_KEY` | Cloud-profile visual repair only (optional for local_hybrid; Docker uses EasyOCR + Paddle) |
 
-Recipients who only pull/run a pre-built image do **not** need a separate PDF folder or a multi-hour ingest — documents and Voyage indexes ship in the image.
+Recipients who only pull/run a pre-built image do **not** need a separate PDF folder or a multi-hour ingest — documents and local indexes ship in the image.
 
 4. Start everything:
 
@@ -132,7 +137,7 @@ GROQ_API_KEY=...
 VOYAGE_API_KEY=...
 GEMINI_API_KEY=...
 BCT_DOCUMENTS_DIR=C:\path\to\your\BCT-PDF-corpus
-BCT_DEFAULT_PROFILE=cloud
+BCT_DEFAULT_PROFILE=local_hybrid
 BCT_BOOTSTRAP_ADMIN_EMAIL=admin@bct.tn
 BCT_BOOTSTRAP_ADMIN_PASSWORD=change-me-now
 ```
@@ -141,7 +146,7 @@ BCT_BOOTSTRAP_ADMIN_PASSWORD=change-me-now
 | --- | --- |
 | `GROQ_API_KEY` | Answer model |
 | `VOYAGE_API_KEY` | Cloud retrieval / rerank |
-| `GEMINI_API_KEY` | Visual repair on hard / Arabic pages |
+| `GEMINI_API_KEY` | Cloud-profile visual repair on hard / Arabic / chart pages |
 | `BCT_DOCUMENTS_DIR` | Root of original public BCT PDFs |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` / `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Creates the first approved administrator on API startup |
 
@@ -185,15 +190,27 @@ python ingest.py "C:\path\to\new_circular.pdf" --assets "C:\path\to\runtime-asse
 Flow:
 
 ```text
-PDF → validate → PyMuPDF extract → StructuredDocument
-   → Gemini on Arabic / bad visual pages
+Quick pass (seconds, inside the upload request)
+PDF → validate → PyMuPDF native text → StructuredDocument (visual pages marked pending)
    → page-local chunks → Voyage + Chroma + BM25
-   → merge supersession_edges.jsonl → activate new asset version
+   → merge supersession_edges.jsonl → activate new asset version      status: enriching (searchable)
+
+Enrichment (background worker in the API process, one page at a time)
+pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tables·hard pages) locally,
+   Gemini VLM on cloud → per-page checkpoint in the ingestion ledger
+   → every 8–20 pages: re-extract with the read pages → staged activation → search reload
+   → status: ready, or ready_degraded when pages failed after 3 attempts (admin "Re-read" re-queues them)
 ```
 
-- HTTP upload: the API reloads retrieval backends after success.
-- CLI ingest while the API is running: restart the API so it loads the new asset version.
-- A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by Gemini and the transcription becomes the page's text (`native_replaced_by_gemini`). The garbled native text stays in `structured.json` only.
+- HTTP upload returns as soon as the quick pass is live; the admin Documents tab shows progress and an ETA, polling while anything is `enriching`.
+- Chat has priority: the worker waits between pages while a question is answered. A page already on the GPU finishes first (PaddleOCR-VL ≈ 100–140 s per chart page on an 8 GB laptop GPU), so a question asked mid-page can be slower.
+- Restarts are safe: read pages are checkpointed, the worker resumes with the next pending page, and the PaddleOCR-VL worker process exits with its parent (no orphan holding GPU memory).
+- Any hardware: one PaddleOCR-VL worker per API, capped with `FLAGS_gpu_memory_limit_mb` (default total VRAM − 1 GB; `BCT_PADDLE_GPU_MEMORY_MB` overrides, `0` = no cap). The model needs ~7 GB; when the GPU worker cannot start (small GPU, no CUDA) it falls back to CPU — same model, ≈ 11 min per chart page instead of ≈ 1.5–2 min. EasyOCR also falls back to CPU. Models are released when the queue is empty.
+- Circuit breaker: 3 consecutive page failures (e.g. the OCR worker crashing on VRAM exhaustion) pause visual reading for 10 minutes and free the models; the PDF stays searchable meanwhile.
+- CLI: `python ingest.py …` runs the quick pass and then enriches inline; `--quick-only` leaves the pending pages to a running API started with `--enable-ingestion`. Restart the API after a CLI ingest so it loads the new asset version.
+- Tuning: `BCT_ENRICH_BATCH_PAGES` (20), `BCT_ENRICH_BATCH_SECONDS` (600), `BCT_ENRICH_IDLE_SECONDS` (3, quiet time after a chat), `BCT_ENRICH_MAX_ATTEMPTS` (3), `BCT_ENRICH_BREAKER_FAILURES` (3), `BCT_ENRICH_COOLDOWN_SECONDS` (600); `BCT_ENRICHMENT=0` disables the worker.
+- Tracing (optional): set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL`. Each PDF version is one Langfuse session (`ingest-<sha256>`): the `ingest-document` quick-pass trace, one `enrich-page` trace per page (engine, seconds, chat wait, cold start), `activate-enrichment` per batch, and `open-circuit-breaker` warnings.
+- A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by the active visual backend and the transcription becomes the page's text (`native_replaced_by_visual`). The garbled native text stays in `structured.json` only.
 
 ### Re-extract pages with unreliable digits (staged)
 

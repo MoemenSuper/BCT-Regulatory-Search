@@ -20,24 +20,9 @@ import json
 import logging
 import os
 import re
-from collections import defaultdict
 from dataclasses import asdict, dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
-
-from langchain_core.documents import Document
-
-from retrieval_selection import (
-    parse_source_identity,
-    prefer_historical_hits,
-    prefer_named_instrument_hits,
-    prefer_regime_hits,
-    query_instrument_refs,
-    query_regulatory_regime,
-    _doc_matches_regime,
-)
-from source_metadata import normalize_page
 
 logger = logging.getLogger(__name__)
 

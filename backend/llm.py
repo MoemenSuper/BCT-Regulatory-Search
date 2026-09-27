@@ -62,14 +62,8 @@ def _create_ollama_llm():
         response.raise_for_status()
         message = response.json().get("message") or {}
         content = message.get("content")
-        if not isinstance(content, str) or not content.strip():
-            # Last-resort recovery if a thinking model still returned empty content.
-            thinking = message.get("thinking")
-            if isinstance(thinking, str) and thinking.strip():
-                content = thinking
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("Ollama returned an empty or malformed chat response")
-        return AIMessage(content=content)
+        # An empty reply is an unusable draft for the answer ladder, not a server outage.
+        return AIMessage(content=content if isinstance(content, str) else "")
 
     return RunnableLambda(invoke)
 

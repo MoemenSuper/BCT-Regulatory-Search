@@ -5,13 +5,11 @@ Literal/quote checks do not prove semantic entailment or legal correctness.
 import json
 import re
 import logging
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from retrieval_selection import ARABIC, parse_source_identity
-from source_metadata import normalize_page
+from retrieval_selection import ARABIC, _ascii_fold
 from graph_contract import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, source_quote, numeric_literals, supported_numbers, direct_identity,
@@ -516,6 +514,8 @@ def _reject_threshold_boundary(claim_literals: str, supporting_quotes) -> None:
 
 
 def _anchor_on_page(anchor: str, support_plain: str) -> bool:
+    # "abroge" must match "abrogée": fold accents before the prefix stem compare.
+    anchor, support_plain = _ascii_fold(anchor), _ascii_fold(support_plain)
     if re.search(rf"(?<!\w){re.escape(anchor)}(?!\w)", support_plain):
         return True
     # Plural / light stemming: "billet" ↔ "billets".

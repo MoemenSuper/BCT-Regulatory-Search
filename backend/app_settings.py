@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -44,7 +45,7 @@ class AppSettingsStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._local = threading.local()
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS settings (
@@ -56,6 +57,14 @@ class AppSettingsStore:
         )
         self._conn.commit()
         self.apply_to_environment()
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        # One connection per thread: a shared sqlite3 connection races under FastAPI's threadpool.
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = self._local.conn = sqlite3.connect(self.path, timeout=30)
+        return conn
 
     def close(self) -> None:
         self._conn.close()
@@ -84,7 +93,7 @@ class AppSettingsStore:
         stored = self.get(ACTIVE_PROFILE_KEY)
         if stored:
             return parse_profile(stored)
-        return parse_profile(os.environ.get("BCT_DEFAULT_PROFILE", RuntimeProfile.CLOUD.value))
+        return parse_profile(os.environ.get("BCT_DEFAULT_PROFILE", RuntimeProfile.LOCAL_HYBRID.value))
 
     def set_active_profile(self, profile: str | RuntimeProfile) -> RuntimeProfile:
         resolved = parse_profile(profile)

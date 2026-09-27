@@ -1,14 +1,13 @@
 """Query classification and compatibility result types for currentness / memory.
 
 Classifiers (`is_temporal_rule_query`, `is_relationship_query`) drive retrieval
-ordering and answer prompts. `GraphRetrievalTrace` / `GraphRetrievalResult`
-remain for API and conversation-memory compatibility; currentness pinning uses
-JSONL supersession edges, not a graph database.
+ordering and answer prompts. `GraphRetrievalTrace` remains for API and
+conversation-memory compatibility; currentness pinning uses JSONL supersession
+edges, not a graph database.
 """
 from dataclasses import dataclass
 from enum import Enum
 import re
-from langchain_core.documents import Document
 
 
 _FRENCH_DOCUMENT = r"(?:documents?|circulaires?|notes?|textes?|instruments?)"
@@ -80,6 +79,7 @@ _EXPLICIT_CURRENT_PATTERNS = tuple(
         r"\bin\s+force\b",
         r"\b(?:actuel(?:le(?:ment)?)?s?|aujourd['’]hui)\b",
         r"\ben\s+vigueur\b",
+        r"\b(?:toujours\s+(?:applicable|valable)|still\s+(?:applicable|valid))s?\b",
         r"\bplus\s+récente?s?\b",
         r"\b(?:dernier|dernière)s?\s+(?:taux|plafond|règle|valeur|version|disposition)s?\b",
         r"(?:الساري|النافذ|الحالي|سارية|اليوم|الأحدث|أحدث|آخر\s+(?:قيمة|نسبة|سقف|قاعدة))",
@@ -129,16 +129,6 @@ class GraphRetrievalTrace:
                 self.temporal_reason.value if self.temporal_reason else None
             ),
         }
-
-
-@dataclass(frozen=True)
-class GraphRetrievalResult:
-    documents: tuple[Document, ...]
-    trace: GraphRetrievalTrace
-
-    @property
-    def requires_temporal_abstention(self) -> bool:
-        return self.trace.temporal_status is not TemporalRetrievalStatus.NOT_REQUESTED
 
 
 def is_relationship_query(query: str) -> bool:

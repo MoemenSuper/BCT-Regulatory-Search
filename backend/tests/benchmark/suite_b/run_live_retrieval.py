@@ -1,22 +1,21 @@
-"""Live Suite B retrieval eval against the session runtime-assets index."""
+"""Live Suite B retrieval eval against a runtime-assets index.
+
+Defaults to the local e5/BGE bake (local_hybrid). Override with --assets / --profile.
+"""
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-ASSETS = Path(
-    r"C:\Users\Moemen Super\BCT-Regulatory-Search-local-data"
-    r"\session-20260905\runtime-assets"
-)
-SUITE_B = (
-    Path(__file__).resolve().parent / "human_questions.jsonl"
-)
-OUT = ROOT.parent / "tmp" / "suite_b_live_retrieval_after.json"
+DEFAULT_ASSETS = ROOT.parent / "baked-runtime-assets"
+SUITE_B = Path(__file__).resolve().parent / "human_questions.jsonl"
+OUT = ROOT.parent / "tmp" / "suite_b_live_retrieval_local.json"
 
 
 def _load_dotenv(path: Path) -> None:
@@ -51,20 +50,42 @@ def _hit(expected: list[str], got: list[str]) -> bool:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--assets", type=Path, default=DEFAULT_ASSETS)
+    parser.add_argument(
+        "--profile",
+        choices=("local_hybrid", "local", "cloud"),
+        default="local_hybrid",
+    )
+    parser.add_argument("--out", type=Path, default=OUT)
+    args = parser.parse_args()
+
     sys.stdout.reconfigure(encoding="utf-8")
     _load_dotenv(ROOT / ".env")
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
 
-    from ingestion.index import configure_runtime_assets, resolve_active_assets
+    assets = args.assets.resolve(strict=True)
+    os.environ["BCT_DEFAULT_PROFILE"] = args.profile
+
+    from ingestion.index import configure_runtime_assets
+    from app import create_local_backend
     from runtime_retrieval import create_voyage_backend_from_environment
 
-    active = configure_runtime_assets(ASSETS, validate=True)
-    print(f"assets={ASSETS}")
+    active = configure_runtime_assets(assets, validate=True)
+    print(f"assets={assets}")
     print(f"active={active}")
+    print(f"profile={args.profile}")
     print(f"native_bytes={(active / 'native.jsonl').stat().st_size}")
+    print(f"chroma={os.environ.get('BCT_CHROMA_DB')}")
 
-    backend = create_voyage_backend_from_environment()
+    if args.profile in ("local", "local_hybrid"):
+        from embedding import _torch_device
+
+        print(f"torch_device={_torch_device()}", flush=True)
+        backend = create_local_backend()
+    else:
+        backend = create_voyage_backend_from_environment()
     print(f"backend={type(backend).__name__}")
 
     items = [
@@ -130,8 +151,10 @@ def main() -> int:
             by_hint[r["source_hint"]]["pass"] += 1
 
     summary = {
-        "assets": str(ASSETS),
+        "assets": str(assets),
         "active": str(active),
+        "profile": args.profile,
+        "backend": type(backend).__name__,
         "total": len(rows),
         "scored": len(scored_rows),
         "pass": passed,
@@ -164,14 +187,15 @@ def main() -> int:
         ],
     }
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(
+    out = args.out.resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
         json.dumps({"summary": summary, "rows": rows}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     print("\n=== SUMMARY ===")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
-    print(f"\nwrote {OUT}")
+    print(f"\nwrote {out}")
     return 0 if not failed and not errors else 1
 
 

@@ -24,6 +24,11 @@ def main() -> int:
     parser.add_argument("--type")
     parser.add_argument("--category")
     parser.add_argument("--skip-local", action="store_true")
+    parser.add_argument(
+        "--quick-only",
+        action="store_true",
+        help="Stop after the searchable native pass; a running API with ingestion enabled reads the pending pages",
+    )
     args = parser.parse_args()
     load_dotenv(args.env_file, override=False)
 
@@ -44,8 +49,17 @@ def main() -> int:
     pipeline = IngestionPipeline(config)
     try:
         report = pipeline.ingest(args.pdf, metadata=metadata or None)
+        if report.get("status") == "enriching" and not args.quick_only:
+            from ingestion.enrichment import EnrichmentWorker
+
+            EnrichmentWorker(config).run_until_idle()
+            known = pipeline.registry.get(report["content_sha256"]) or {}
+            report = known.get("report") or report
     finally:
         pipeline.close()
+        from langfuse import get_client
+
+        get_client().flush()
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

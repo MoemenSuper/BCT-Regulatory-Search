@@ -3,14 +3,52 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from langfuse import get_client
+
 from answer_evidence import evidence_warning
 
-from .gemini_visual import GeminiVisualTranscriber
 from .models import Block, Page, StructuredDocument
 from .quality import arabic_character_ratio, assess_page_quality, contains_sensitive_literals
+
+
+# Cap rendered page images so large statistical PDFs do not OOM the API process.
+_MAX_RENDER_EDGE_PX = float(os.environ.get("BCT_PAGE_RENDER_MAX_EDGE", "1600"))
+_MAX_RENDER_PIXELS = float(os.environ.get("BCT_PAGE_RENDER_MAX_PIXELS", str(3_500_000)))
+
+
+def render_page_png(page, *, preferred_scale: float = 2.0) -> bytes:
+    """Rasterize a PDF page for visual OCR / chart persistence with a hard pixel budget."""
+    import pymupdf
+
+    rect = page.rect
+    width = max(float(rect.width), 1.0)
+    height = max(float(rect.height), 1.0)
+    scale = min(preferred_scale, _MAX_RENDER_EDGE_PX / max(width, height))
+    pixels = width * height * scale * scale
+    if pixels > _MAX_RENDER_PIXELS:
+        scale *= (_MAX_RENDER_PIXELS / pixels) ** 0.5
+    scale = max(0.35, float(scale))
+    for attempt in (scale, scale * 0.6, 0.35):
+        attempt = max(0.25, float(attempt))
+        try:
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(attempt, attempt), alpha=False)
+            try:
+                return pixmap.tobytes("png")
+            finally:
+                pixmap = None
+                try:
+                    pymupdf.TOOLS.store_shrink(100)
+                except Exception:
+                    pass
+        except Exception:
+            if attempt <= 0.35:
+                raise
+            continue
+    raise RuntimeError("page render failed")
 
 
 _ARTICLE_FR = re.compile(r"^\s*(Article\s+(?:premier|1er|\d+(?:\s*(?:bis|ter|quater))?)(?:\s*\([^)]*\))?)\s*[:\-–—]?\s*(.*)$", re.I)
@@ -202,6 +240,15 @@ def page_chart_signals(page) -> ChartSignals:
     )
 
 
+def _visual_enabled() -> bool:
+    backend = (os.environ.get("BCT_VISUAL_BACKEND") or "").strip().casefold()
+    if backend in {"off", "0", "none", "false"}:
+        return False
+    if backend in {"local", "gemini"}:
+        return True
+    return os.environ.get("BCT_GEMINI_VISUAL", "1") == "1"
+
+
 def _visual_plan(
     *,
     language: str,
@@ -209,28 +256,38 @@ def _visual_plan(
     requires_fallback: bool,
     chart_suspect: bool = False,
 ) -> tuple[bool, bool]:
-    """Return (should_visualize, require_complete_visual)."""
-    if os.environ.get("BCT_GEMINI_VISUAL", "1") != "1":
+    """Return (should_visualize, require_complete_visual).
+
+    Native text is primary. OCR/VLM runs when the page cannot stand on its
+    extractable text (scanned / garbled / empty), or when the page is
+    chart-suspect (stats layout: prose + chart — merge chart notes into native).
+    Chart visual never fails closed the whole document.
+    """
+    if not _visual_enabled():
         return False, False
+    arabic_mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "risk").strip().casefold()
     if requires_fallback:
-        return True, True
+        # Empty/garbled: try visual when configured. Only Arabic mode=all requires it.
+        if language == "ar" and arabic_mode == "all":
+            return True, True
+        return True, False
     if chart_suspect and os.environ.get("BCT_GEMINI_CHART_VISION", "1") == "1":
-        # Chart pages: Gemini is best-effort. Keep native legend text if vision fails.
+        # Stats pages are usually prose + a chart. Always run visual and merge
+        # chart_notes into native text; do not skip when the body is already rich.
         return True, False
     if language != "ar":
         return False, False
-    mode = os.environ.get("BCT_GEMINI_ARABIC_MODE", "risk").strip().casefold()
-    if mode == "off":
+    if arabic_mode == "off":
         return False, False
-    if mode == "risk":
+    if arabic_mode == "risk":
         return contains_sensitive_literals(native_text), False
-    if mode == "all":
+    if arabic_mode == "all":
         return True, True
     raise ValueError("BCT_GEMINI_ARABIC_MODE must be one of: all, risk, off")
 
 
 def _merge_chart_text(native_text: str, visual) -> str:
-    """Keep extractable legend/body; append Gemini chart notes / missing visual text."""
+    """Keep extractable legend/body; append visual chart notes / missing visual text."""
     pieces = [native_text.strip()] if native_text.strip() else []
     chart_notes = str(getattr(visual, "chart_notes", "") or "").strip()
     transcription = str(getattr(visual, "transcription", "") or "").strip()
@@ -249,17 +306,24 @@ def _merge_chart_text(native_text: str, visual) -> str:
 
 
 class PdfExtractor:
-    """Page-preserving extraction: PyMuPDF native text + selective Gemini vision.
+    """Page-preserving extraction: PyMuPDF native text + selective visual repair.
 
-    This deliberately replaces the heavier two-pass Docling/OCR runtime. The
-    structured legal hierarchy is retained as lightweight metadata because the
-    project's retrieval experiments favored simple page-local chunks.
+    Visual backend is injected (Gemini for cloud; EasyOCR/PaddleOCR-VL for local).
     """
 
-    def __init__(self, *, visual_transcriber: GeminiVisualTranscriber | None = None) -> None:
+    def __init__(self, *, visual_transcriber=None, visual_model: str | None = None) -> None:
         self.visual_transcriber = visual_transcriber
+        self.visual_model = visual_model or getattr(visual_transcriber, "model", None)
 
-    def extract(self, pdf_path: str | Path) -> StructuredDocument:
+    def extract(self, pdf_path: str | Path, *, visual_results: dict | None = None) -> StructuredDocument:
+        """Extract every page.
+
+        ``visual_results`` switches to deferred mode: no model is called. A page that
+        needs visual reading takes its result from the mapping (``VisualPage`` or an
+        error string); a missing entry leaves the page ``visual_pending`` for the
+        background enrichment worker.
+        """
+        deferred = visual_results is not None
         try:
             import pymupdf
         except ImportError as error:
@@ -297,7 +361,7 @@ class PdfExtractor:
                 page_language = "ar" if arabic_character_ratio(native_text) >= 0.20 else language
                 # Native text can look healthy while its digits are garbled by a broken
                 # font map (header reads "لسنة 6112" for 2016). Such a page is only
-                # usable through Gemini's reading of the page image.
+                # usable through visual reading of the page image.
                 digits_unreliable = evidence_warning({"source": path.name, "text": native_text}) if native_text else None
                 visual = None
                 visual_error = None
@@ -308,36 +372,105 @@ class PdfExtractor:
                     chart_suspect=chart.suspect,
                 )
                 pixmap_png = None
-                if should_visualize or chart.suspect:
-                    pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2.0, 2.0), alpha=False)
-                    pixmap_png = pixmap.tobytes("png")
-                if should_visualize:
-                    if self.visual_transcriber is None:
-                        visual_error = "gemini_not_configured"
-                    else:
-                        try:
-                            visual = self.visual_transcriber.transcribe(
-                                image_png=pixmap_png,
-                                source_pdf_sha256=content_hash,
-                                page_number=page_number,
-                            )
+                page_image_tmp: str | None = None
+                visual_pending = False
+                if deferred:
+                    if should_visualize:
+                        known = visual_results.get(page_number)
+                        if known is None:
+                            visual_pending = True
+                        elif isinstance(known, str):
+                            visual_error = known
+                        else:
+                            visual = known
                             visual_count += 1
-                        except Exception as error:  # provider/runtime failure is recorded per page
-                            visual_error = f"{type(error).__name__}: {error}"
+                    if chart.suspect:
+                        try:
+                            png = render_page_png(page)
+                            handle = tempfile.NamedTemporaryFile(prefix="bct-page-", suffix=".png", delete=False)
+                            with handle:
+                                handle.write(png)
+                            page_image_tmp = handle.name
+                        except Exception as error:
+                            visual_error = visual_error or f"render_failed:{type(error).__name__}: {error}"
+                elif should_visualize or chart.suspect:
+                    with get_client().start_as_current_observation(
+                        name="read-page-visual",
+                        as_type="chain",
+                        input={
+                            "page": page_number,
+                            "language": page_language,
+                            "native_chars": len(native_text),
+                            "native_quality": quality.score,
+                            "native_flags": list(quality.flags),
+                            "digits_unreliable": digits_unreliable,
+                            "chart": chart.as_metadata(),
+                            "visualize": should_visualize,
+                            "require_complete": require_complete,
+                        },
+                    ) as page_trace:
+                        # Adaptive scale + immediate disk spill: stats PDFs used to keep every
+                        # 2× PNG in metadata until pipeline persistence and OOM the API worker.
+                        try:
+                            pixmap_png = render_page_png(page)
+                        except Exception as error:
+                            visual_error = f"render_failed:{type(error).__name__}: {error}"
+                            pixmap_png = None
+                        if pixmap_png is not None and chart.suspect:
+                            handle = tempfile.NamedTemporaryFile(prefix="bct-page-", suffix=".png", delete=False)
+                            try:
+                                handle.write(pixmap_png)
+                                handle.close()
+                                page_image_tmp = handle.name
+                            except Exception:
+                                Path(handle.name).unlink(missing_ok=True)
+                                raise
+                            if not should_visualize:
+                                pixmap_png = None
+                        if should_visualize:
+                            if self.visual_transcriber is None:
+                                visual_error = visual_error or "visual_not_configured"
+                            elif pixmap_png is None:
+                                visual_error = visual_error or "page_render_unavailable"
+                            else:
+                                try:
+                                    visual = self.visual_transcriber.transcribe(
+                                        image_png=pixmap_png,
+                                        source_pdf_sha256=content_hash,
+                                        page_number=page_number,
+                                        language=page_language,
+                                        chart_suspect=chart.suspect,
+                                    )
+                                    visual_count += 1
+                                except Exception as error:  # provider/runtime failure is recorded per page
+                                    visual_error = f"{type(error).__name__}: {error}"
+                                finally:
+                                    pixmap_png = None
+                        page_trace.update(
+                            output={
+                                "visual_chars": len(visual.transcription) if visual else 0,
+                                "chart_notes_chars": len(getattr(visual, "chart_notes", "") or "") if visual else 0,
+                                "visual_complete": bool(visual and visual.complete),
+                                "visual_error": visual_error,
+                                "page_image_kept": bool(page_image_tmp),
+                            },
+                            **({"level": "WARNING", "status_message": visual_error} if visual_error else {}),
+                        )
 
-                # Ingestion is an offline operation, so correctness is preferable to
-                # silently activating a degraded page. Operators can opt into
-                # best-effort behavior with BCT_ALLOW_DEGRADED_INGESTION=1.
+                # Required visual (Arabic mode=all) still fails closed unless operators
+                # opt into BCT_ALLOW_DEGRADED_INGESTION=1. Blank cover / image pages in
+                # born-digital stats PDFs must not abort the whole document.
                 allow_degraded = os.environ.get("BCT_ALLOW_DEGRADED_INGESTION", "0") == "1"
                 visual_complete = bool(
                     visual is not None
                     and visual.complete
                     and (visual.transcription.strip() or str(getattr(visual, "chart_notes", "") or "").strip())
                 )
-                if should_visualize and require_complete and not allow_degraded and not visual_complete:
-                    detail = visual_error or "gemini_returned_incomplete_transcription"
+                required_missing = should_visualize and require_complete and not allow_degraded and not visual_complete
+                if required_missing and not deferred:
+                    detail = visual_error or "visual_returned_incomplete_transcription"
                     raise ValueError(
-                        f"Page {page_number} requires complete Gemini visual extraction: {detail}"
+                        f"Page {page_number} requires complete visual extraction: {detail}"
                     )
 
                 use_visual_as_primary = bool(
@@ -346,16 +479,14 @@ class PdfExtractor:
                     and visual.transcription.strip()
                     and visual.complete
                 )
-                if quality.requires_fallback and not use_visual_as_primary and not native_text.strip():
-                    raise ValueError(
-                        f"Page {page_number} has unusable native extraction and no complete Gemini fallback"
-                    )
-
                 flags = list(quality.flags)
                 if digits_unreliable:
                     flags.append(f"native_digits_unreliable:{digits_unreliable}")
                 if chart.suspect:
                     flags.append("chart_suspect")
+                if quality.requires_fallback and not use_visual_as_primary and not native_text.strip():
+                    # Keep an empty page (common: covers, photo spreads) and continue.
+                    flags.append("native_unusable_retained")
                 if use_visual_as_primary:
                     raw_text = visual.transcription.strip()
                     chart_notes = str(getattr(visual, "chart_notes", "") or "").strip()
@@ -363,17 +494,17 @@ class PdfExtractor:
                         raw_text = f"{raw_text}\n\n{chart_notes}".strip()
                     chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="vlm")
                     method = "vlm"
-                    flags.append("native_replaced_by_gemini")
+                    flags.append("native_replaced_by_visual")
                     still_unreliable = evidence_warning({"source": path.name, "text": raw_text})
                     if still_unreliable:
-                        flags.append(f"gemini_digits_unreliable:{still_unreliable}")
+                        flags.append(f"visual_digits_unreliable:{still_unreliable}")
                 else:
                     raw_text = native_text
                     chosen_blocks = list(native_blocks)
                     method = "native"
                     if quality.requires_fallback or digits_unreliable:
                         flags.append("fallback_unavailable_native_retained")
-                    # Chart pages: keep legend text; append Gemini chart notes when available.
+                    # Chart pages: keep legend text; append visual chart notes when available.
                     if chart.suspect and visual is not None and visual.complete:
                         merged = _merge_chart_text(raw_text, visual)
                         if merged != raw_text:
@@ -381,6 +512,12 @@ class PdfExtractor:
                             chosen_blocks = _text_blocks(raw_text, page_number, extraction_method="native")
                             flags.append("chart_notes_merged")
                             method = "native"
+                    if required_missing:
+                        # Native text of a page that must be read visually is not quotable.
+                        raw_text, chosen_blocks = "", []
+                        flags.append("visual_pending_required" if visual_pending else "visual_required_failed")
+                if visual_pending:
+                    flags.append("visual_pending")
 
                 hierarchy = classify_blocks(chosen_blocks, page_language, hierarchy)
                 metadata = {
@@ -393,9 +530,18 @@ class PdfExtractor:
                     "visual_error": visual_error,
                     **chart.as_metadata(),
                 }
-                if pixmap_png is not None and chart.suspect:
-                    # Transient; pipeline persists under immutable page-images/.
-                    metadata["page_image_png"] = pixmap_png
+                if should_visualize:
+                    metadata["visual_plan"] = {
+                        "language": page_language,
+                        "chart_suspect": chart.suspect,
+                        "require_complete": require_complete,
+                        # Pages invisible to search without visual reading go first.
+                        "priority": 0 if (quality.requires_fallback or digits_unreliable or require_complete)
+                        else 1 if chart.suspect else 2,
+                    }
+                if page_image_tmp:
+                    # Transient path; pipeline moves under immutable page-images/.
+                    metadata["page_image_tmp"] = page_image_tmp
                 if visual is not None:
                     metadata.update(
                         {
@@ -403,7 +549,7 @@ class PdfExtractor:
                             "visual_complete": visual.complete,
                             "visual_uncertain_regions": list(visual.uncertain_regions),
                             "visual_sensitive_items": [item.model_dump() for item in visual.items],
-                            "visual_model": self.visual_transcriber.model if self.visual_transcriber else None,
+                            "visual_model": self.visual_model,
                             "contains_chart": bool(getattr(visual, "contains_chart", False) or chart.suspect),
                             "chart_notes": str(getattr(visual, "chart_notes", "") or "").strip(),
                         }
@@ -433,8 +579,9 @@ class PdfExtractor:
             pages=pages,
             metadata={
                 "native_extractor": "pymupdf",
-                "visual_provider": "google_gemini" if visual_count else None,
+                "visual_provider": self.visual_model if visual_count else None,
                 "visual_page_count": visual_count,
+                "visual_pending_pages": [page.page_number for page in pages if "visual_pending" in page.quality_flags],
                 "page_count": len(pages),
             },
         )

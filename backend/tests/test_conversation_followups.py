@@ -72,6 +72,75 @@ def test_route_message_fails_closed_when_multiple_topics_have_no_current_topic()
     assert route["intent"] == "AMBIGUOUS"
 
 
+def _inflation_memory():
+    return {
+        "topics": ["Inflation Tunisie"],
+        "first_topic": "Inflation Tunisie",
+        "current_topic": "Inflation Tunisie",
+        "turns": [
+            {
+                "user_message": "Quel était le taux d'inflation en Tunisie en juin 2026 ?",
+                "standalone_query": "taux d'inflation glissement annuel Tunisie juin 2026",
+                "answer": "5,3 %",
+                "sources": [{"file": "Conjoncture_152_fr.pdf", "page": 9}],
+            }
+        ],
+    }
+
+
+def test_route_message_turns_misrouted_fragment_into_follow_up_on_prior_query():
+    response = {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "juin 2025 et juin 2024",
+        "new_topic": "années",
+        "current_topic": None,
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+    question = "Et combien était-il en juin 2025 et en juin 2024 ?"
+    route = conversation.route_message(llm, question, _inflation_memory())
+    assert route["intent"] == "FOLLOW_UP"
+    assert route["rewrite_query"].startswith("taux d'inflation glissement annuel Tunisie juin 2026")
+    assert question in route["rewrite_query"]
+    assert "Conjoncture_152_fr.pdf" not in route["rewrite_query"]
+    assert route["current_topic"] == "Inflation Tunisie"
+
+
+def test_route_message_keeps_router_follow_up_rewrite_verbatim():
+    response = {
+        "intent": "FOLLOW_UP",
+        "rewrite_query": "taux d inflation Tunisie juin 2025 et juin 2024",
+        "new_topic": None,
+        "current_topic": "Inflation Tunisie",
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+    route = conversation.route_message(
+        llm, "Et combien était-il en juin 2025 et en juin 2024 ?", _inflation_memory()
+    )
+    assert route == response
+
+
+def test_arabic_how_question_is_not_forced_into_follow_up():
+    response = {
+        "intent": "NEW_TOPIC",
+        "rewrite_query": "كيف يتم احتساب نسبة السيولة",
+        "new_topic": "نسبة السيولة",
+        "current_topic": None,
+    }
+    llm = FakeListChatModel(responses=[json.dumps(response)])
+    route = conversation.route_message(llm, "كيف يتم احتساب نسبة السيولة؟", _inflation_memory())
+    assert route == response
+
+
+def test_selection_prompt_teaches_attachment_discipline_without_blocking_sims():
+    import inspect
+    from answer_draft import select_evidence
+
+    source = inspect.getsource(select_evidence)
+    assert "Attachment discipline" in source
+    assert "out_of_scope when" in source
+    assert "user simulations" in source.casefold() or "PME" in source
+
+
 def test_route_message_treats_standalone_deictic_as_ambiguous_not_general_chat():
     response = {
         "intent": "GENERAL_CHAT",
@@ -89,6 +158,79 @@ def test_route_message_treats_standalone_deictic_as_ambiguous_not_general_chat()
 
     assert route["intent"] == "AMBIGUOUS"
     assert route["rewrite_query"] is None
+
+
+def test_follow_up_prefers_prior_turn_source_over_distractor(monkeypatch):
+    from langchain_core.documents import Document
+
+    prior = Document(
+        page_content=(
+            "L'inflation s'est établie à 5,3% contre 5,4% une année auparavant "
+            "et 7,3% en juin 2024."
+        ),
+        metadata={"source": "Conjoncture_152_fr.pdf", "page": 9},
+    )
+    distractor = Document(
+        page_content="Croissance du PIB 2024 2025 indicateurs économiques",
+        metadata={"source": "Balance.pdf", "page": 19},
+    )
+    captured = {}
+
+    class Backend:
+        def retrieve(self, query):
+            captured["query"] = query
+            return [(distractor, 0.99), (prior, 0.80)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(
+        conversation,
+        "route_message",
+        lambda *_: {
+            "intent": "FOLLOW_UP",
+            "rewrite_query": "taux inflation Tunisie juin 2025 juin 2024 Conjoncture_152_fr.pdf",
+            "new_topic": None,
+            "current_topic": "Inflation Tunisie",
+        },
+    )
+
+    import query_authority
+
+    monkeypatch.setattr(
+        query_authority,
+        "classify_query_authority",
+        lambda *_a, **_k: {"query_class": "statistical_fact", "confidence": "high"},
+    )
+
+    def fake_answer(_llm, _message, documents, _memory, **_kwargs):
+        captured["top_source"] = documents[0][0].metadata["source"]
+        return {
+            "status": "answered",
+            "answer": "5,4% et 7,3%",
+            "sources": [{"file": "Conjoncture_152_fr.pdf", "page": 9}],
+            "diagnostics": [],
+        }
+
+    monkeypatch.setattr(conversation, "generate_grounded_answer", fake_answer)
+
+    memory = {
+        "topics": ["Inflation Tunisie"],
+        "current_topic": "Inflation Tunisie",
+        "turns": [
+            {
+                "user_message": "inflation juin 2026",
+                "standalone_query": "taux inflation Tunisie juin 2026",
+                "answer": "5,3%",
+                "sources": [{"file": "Conjoncture_152_fr.pdf", "page": 9}],
+            }
+        ],
+    }
+    result = conversation.chat(
+        "Et combien était-il en juin 2025 et en juin 2024 ?",
+        memory,
+        retrieval_backend=Backend(),
+    )
+    assert captured["top_source"] == "Conjoncture_152_fr.pdf"
+    assert result["status"] == "answered"
 
 
 def test_follow_up_uses_standalone_query_for_dense_bm25(monkeypatch):
@@ -362,43 +504,6 @@ def test_general_chat_replies_without_retrieval(monkeypatch):
     assert "circulaires" in result["answer"].casefold() or "bct" in result["answer"].casefold()
 
 
-def test_general_chat_off_topic_still_skips_retrieval(monkeypatch):
-    class Backend:
-        def retrieve(self, _query):
-            raise AssertionError("retrieval must not run")
-
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
-    monkeypatch.setattr(
-        conversation,
-        "route_message",
-        lambda *_: {
-            "intent": "GENERAL_CHAT",
-            "rewrite_query": None,
-            "new_topic": None,
-            "current_topic": None,
-        },
-    )
-    monkeypatch.setattr(
-        conversation,
-        "general_chat_reply",
-        lambda *_: {
-            "status": "answered",
-            "answer": "يمكنني مساعدتك في الوثائق التنظيمية للبنك المركزي، وليس في وصفات الطبخ.",
-            "sources": [],
-        },
-    )
-
-    result = conversation.chat(
-        "كيف أعد طبق كسكسي تونسي في المنزل ؟",
-        {"topics": [], "turns": []},
-        retrieval_backend=Backend(),
-    )
-
-    assert result["status"] == "answered"
-    assert result["sources"] == []
-    assert result.get("refusal_reason") in (None, "")
-
-
 def test_selon_circulaire_2025_13_beats_prefer_later_instruments():
     """Latest-rule preference must not bury an explicitly named instrument."""
     from pathlib import Path
@@ -412,3 +517,47 @@ def test_selon_circulaire_2025_13_beats_prefer_later_instruments():
         query=query,
     )
     assert Path(str(results[0][0].metadata["source"])).name == "Cir_2025_13_fr.pdf"
+
+
+def test_follow_up_authority_is_classified_on_the_resolved_query(monkeypatch):
+    import query_authority
+
+    seen = {}
+    rewritten = "taux d'inflation Tunisie juin 2025 selon la note de conjoncture"
+
+    class Backend:
+        def retrieve(self, _query):
+            return [(_document(), 1.0)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "route_message", lambda *_: {
+        "intent": "FOLLOW_UP", "rewrite_query": rewritten,
+        "new_topic": None, "current_topic": "Inflation Tunisie"})
+    monkeypatch.setattr(query_authority, "classify_query_authority",
+                        lambda _llm, text: seen.setdefault("text", text) and {"query_class": "statistical_fact"})
+    monkeypatch.setattr(conversation, "generate_grounded_answer",
+                        lambda *_a, **kwargs: seen.setdefault("class", kwargs["query_class"]) and {"answer": "a", "sources": []})
+
+    conversation.chat("Et en juin 2025 ?", _previous_state(), retrieval_backend=Backend())
+    assert seen["text"] == rewritten
+    assert seen["class"] == "statistical_fact"
+
+
+def test_general_chat_hands_a_misrouted_fact_question_to_retrieval(monkeypatch):
+    seen = {}
+
+    class Backend:
+        def retrieve(self, query):
+            seen["query"] = query
+            return [(_document(), 1.0)]
+
+    monkeypatch.setattr(conversation, "create_llm", lambda: FakeListChatModel(responses=["RETRIEVE"]))
+    monkeypatch.setattr(conversation, "route_message", lambda *_: {
+        "intent": "GENERAL_CHAT", "rewrite_query": None, "new_topic": None, "current_topic": None})
+    monkeypatch.setattr(conversation, "generate_grounded_answer",
+                        lambda *_a, **_k: {"status": "answered", "answer": "grounded", "sources": []})
+
+    question = "Quelles sont les heures d'ouverture du marché des changes ?"
+    result = conversation.chat(question, {"topics": [], "turns": []}, retrieval_backend=Backend())
+    assert seen["query"] == question
+    assert result["answer"] == "grounded"

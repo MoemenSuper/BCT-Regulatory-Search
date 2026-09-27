@@ -34,7 +34,7 @@ PROFILE_SPECS = {
         description=(
             "Search: local multilingual-e5-small (no cloud API). "
             "Answer: local Ollama (default qwen3.5:9b-q4_K_M, configurable). "
-            "PDF ingestion may still use Gemini VLM (GEMINI_API_KEY) on hard photo/scan pages."
+            "PDF ingestion: EasyOCR (Arabic) + PaddleOCR-VL (charts/tables/hard pages)."
         ),
     ),
     RuntimeProfile.LOCAL_HYBRID: ProfileSpec(
@@ -46,7 +46,7 @@ PROFILE_SPECS = {
         description=(
             "Search: local multilingual-e5-small (no cloud API). "
             "Answer: Groq API (model via BCT_GROQ_MODEL). "
-            "PDF ingestion: Gemini VLM (GEMINI_API_KEY) for hard-to-read photo/scan pages."
+            "PDF ingestion: EasyOCR (Arabic) + PaddleOCR-VL (charts/tables/hard pages)."
         ),
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
@@ -58,7 +58,7 @@ PROFILE_SPECS = {
         description=(
             "Search: BCT_CLOUD_RETRIEVAL_PROVIDER=voyage (Context-4 + Voyage rerank) "
             "or google (Gemini embed + Vertex Ranking). Indexes are separate; do not mix. "
-            "Answer: Groq. PDF ingestion: Gemini VLM for hard photo/scan pages."
+            "Answer: Groq. PDF ingestion: Gemini VLM for hard photo/scan/chart pages."
         ),
     ),
 }
@@ -146,10 +146,17 @@ class RuntimeProfileManager:
         return self._lazy("_local_retrieval_backend", self._local_retrieval_factory)
 
     def reset(self) -> None:
-        """Drop lazy retrieval backends after an ingestion asset promotion."""
+        """Point retrieval at the newly activated corpus after ingest or removal.
+
+        A local backend that is already serving is rebuilt here and swapped in, so
+        the admin action pays the index reload instead of the next chat. Model
+        weights are process-cached and are not reloaded.
+        """
+        rebuilt = None
+        if self._local_retrieval_factory is not None and self._local_retrieval_backend is not None:
+            rebuilt = self._local_retrieval_factory()
         with self._lock:
             self._cloud_retrieval_backend = None
-            # The production manager constructs local retrieval lazily. Tests may
-            # inject a fixed backend and can simply avoid calling reset().
+            # Tests may inject a fixed backend and can simply avoid calling reset().
             if self._local_retrieval_factory is not None:
-                self._local_retrieval_backend = None
+                self._local_retrieval_backend = rebuilt

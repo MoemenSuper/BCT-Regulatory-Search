@@ -52,3 +52,31 @@ def test_manager_rejects_an_unknown_profile():
 
     with pytest.raises(ValueError, match="Unknown runtime profile"):
         manager.get("half-cloud")
+
+
+def test_reset_rebuilds_a_serving_local_backend_before_the_next_chat():
+    built = []
+
+    def local_factory():
+        built.append(object())
+        return built[-1]
+
+    manager = RuntimeProfileManager(None, lambda: object(), local_retrieval_factory=local_factory)
+    first = manager.get("local_hybrid").retrieval_backend
+
+    manager.reset()
+
+    assert len(built) == 2
+    assert manager.get("local_hybrid").retrieval_backend is built[1] is not first
+    assert len(built) == 2
+
+
+def test_reset_keeps_an_unused_local_backend_lazy():
+    built = []
+    manager = RuntimeProfileManager(
+        None, lambda: object(), local_retrieval_factory=lambda: built.append(1) or object()
+    )
+
+    manager.reset()
+
+    assert built == []

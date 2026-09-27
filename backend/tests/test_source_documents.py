@@ -29,6 +29,28 @@ def test_source_resolver_accepts_only_basename(source_root: Path):
         resolver.resolve(f"../{source_root.name}")
 
 
+@pytest.mark.parametrize("status", ["enriching", "ready_degraded"])
+def test_source_resolver_opens_ledger_pdfs_that_are_live_but_still_being_read(tmp_path: Path, monkeypatch, status):
+    from ingestion.registry import IngestionRegistry
+
+    pymupdf = pytest.importorskip("pymupdf")
+    stored = tmp_path / "immutable" / "dette2024.pdf"
+    stored.parent.mkdir()
+    document = pymupdf.open()
+    document.new_page().insert_text((72, 100), "Dette exterieure 2024")
+    document.save(stored)
+    document.close()
+    database = tmp_path / "ingestion.sqlite3"
+    registry = IngestionRegistry(database)
+    registry.start("a" * 64, "dette2024.pdf", str(stored))
+    registry.ready("a" * 64, stored_path=str(stored), asset_version="v1", report={}, status=status)
+    registry.close()
+    monkeypatch.setenv("BCT_INGESTION_DB", str(database))
+    monkeypatch.setenv("BCT_SOURCE_DOCUMENT_ROOTS", str(tmp_path / "empty"))
+    monkeypatch.delenv("BCT_DOCUMENTS_DIR", raising=False)
+    assert SourceDocumentResolver().resolve("dette2024.pdf").path == stored.resolve()
+
+
 def test_rendered_source_page_contains_real_highlight(source_root: Path):
     resolver = SourceDocumentResolver()
     resolved = resolver.resolve(source_root.name)

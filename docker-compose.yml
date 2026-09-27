@@ -6,7 +6,7 @@
 # 3. docker compose up -d --build
 # 4. open http://localhost:8080
 #
-# PDFs and Voyage indexes are baked into the image. On first boot the empty
+# PDFs and local Chroma indexes are baked into the image. On first boot the empty
 # bct-assets volume is seeded from /opt/bct/baked-assets so search works
 # without re-uploading ~400 PDFs.
 
@@ -26,8 +26,8 @@ services:
       BCT_DOCUMENTS_DIR: /data/documents
       BCT_DATA_DIR: /data/state
       BCT_STATIC_DIR: /app/static
-      BCT_INGEST_LOCAL_INDEX: "0"
-      BCT_DEFAULT_PROFILE: cloud
+      BCT_INGEST_LOCAL_INDEX: "1"
+      BCT_DEFAULT_PROFILE: local_hybrid
       BCT_CLOUD_RETRIEVAL_PROVIDER: voyage
     volumes:
       - bct-assets:/data/assets

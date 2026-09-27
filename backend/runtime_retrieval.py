@@ -5,36 +5,21 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import logging
 import os
-import tempfile
-import time
-from contextlib import contextmanager
-from contextvars import ContextVar
-from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock
 
 import numpy as np
-import requests
 
 from bm25 import create_bm25, retrieve_bm25
 from retrieval_selection import (
     diversify_ranked_pages,
     build_identity_reranker_documents,
     expand_answer_pages,
-    expand_ranked_pages,
-    explicit_instrument_identity,
-    EXPORT_SETTLEMENT_BM25_QUERY,
-    NONPRIORITY_IMPORT_BM25_QUERY,
     page_chunks,
     parse_query_identity,
-    parse_source_identity,
     prefer_historical_hits,
     prefer_named_instrument_hits,
-    prefer_regime_hits,
     query_instrument_refs,
-    query_regulatory_regime,
     source_matches_identity,
     is_arabic_query,
 )
@@ -84,7 +69,6 @@ def _identity_diversified_rank(query, documents, scores):
     ranked = diversify_ranked_pages(
         sorted(zip(documents, scores), key=lambda item: item[1], reverse=True)
     )
-    ranked = prefer_regime_hits(ranked, query)
     # Named before historical: "Avant 2025-13" must demote the named cutoff last.
     ranked = prefer_named_instrument_hits(ranked, query_instrument_refs(query))
     return prefer_historical_hits(ranked, query)
@@ -145,26 +129,13 @@ class LocalRetrievalBackend:
             if matched_docs:
                 # ponytail: named-instrument lane before semantic/latest preference
                 groups.append(matched_docs[:40])
-        else:
-            regime = query_regulatory_regime(query)
-            if regime == "export_settlement":
-                groups.append(
-                    retrieve_bm25(
-                        EXPORT_SETTLEMENT_BM25_QUERY,
-                        self.bm25,
-                        self.bm25_documents,
-                        k=15,
-                    )
-                )
-            elif regime == "nonpriority_import":
-                groups.append(
-                    retrieve_bm25(
-                        NONPRIORITY_IMPORT_BM25_QUERY,
-                        self.bm25,
-                        self.bm25_documents,
-                        k=15,
-                    )
-                )
+        import chat_tracing
+
+        lanes = ["dense", "bm25", "ocr_dense", "ocr_bm25"] if is_arabic_query(query) and self.ocr_vector_store is not None else ["dense", "bm25"]
+        lanes += ["extra"] * (len(groups) - len(lanes))
+        chat_tracing.event("retrieval-lanes", output={
+            name: chat_tracing.brief(group, limit=8) for name, group in zip(lanes, groups)
+        }, metadata={"identity_refs": [str(r) for r in identity_refs], "pool": len(dedupe(*groups))})
         return self.rank(query, dedupe(*groups))
 
     def rank(self, query, documents):
@@ -265,26 +236,6 @@ class VoyageRetrievalBackend:
                     create_bm25(matching), query,
                     dense_k=20, bm25_k=15,
                 ))
-        else:
-            regime = query_regulatory_regime(query)
-            if regime == "export_settlement":
-                groups.append(
-                    retrieve_bm25(
-                        EXPORT_SETTLEMENT_BM25_QUERY,
-                        self.native_bm25,
-                        self.native_documents,
-                        k=15,
-                    )
-                )
-            elif regime == "nonpriority_import":
-                groups.append(
-                    retrieve_bm25(
-                        NONPRIORITY_IMPORT_BM25_QUERY,
-                        self.native_bm25,
-                        self.native_documents,
-                        k=15,
-                    )
-                )
         documents = dedupe(*groups)
         reranker_documents = build_identity_reranker_documents(
             documents, parse_query_identity(query)

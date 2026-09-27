@@ -27,7 +27,9 @@ def main() -> None:
     active = configure_runtime_assets(asset_root, validate=True)
     data = args.data_dir.resolve()
     data.mkdir(parents=True, exist_ok=True)
-    os.environ.setdefault("BCT_DEFAULT_PROFILE", "cloud")
+    os.environ.setdefault("BCT_DEFAULT_PROFILE", "local_hybrid")
+    os.environ.setdefault("BCT_INGEST_LOCAL_INDEX", "1")
+    os.environ.setdefault("BCT_WARM_START", "1")
     os.environ["BCT_ENABLE_INGESTION"] = "1" if args.enable_ingestion else os.environ.get("BCT_ENABLE_INGESTION", "0")
     os.environ.setdefault("BCT_CONVERSATION_DB", str(data / "conversations.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DB", str(data / "ingestion.sqlite3"))
@@ -40,6 +42,9 @@ def main() -> None:
     if args.documents is not None:
         os.environ["BCT_DOCUMENTS_DIR"] = str(args.documents.resolve(strict=True))
     print(f"BCT runtime assets: {active}")
+    print(f"BCT default profile: {os.environ.get('BCT_DEFAULT_PROFILE')}")
+    print(f"BCT chroma: {os.environ.get('BCT_CHROMA_DB')}")
+    print(f"BCT collection: {os.environ.get('BCT_CHROMA_COLLECTION')}")
     uvicorn.run("app:app", host="127.0.0.1", port=args.port)
 
 

@@ -603,8 +603,8 @@ def test_question_year_prefers_matching_instrument_over_older_facility():
             return AIMessage(content=json.dumps(dict(
                 decision="partial", answer_intent="conditions", reason="mixed", evidence_ids=["E1", "E2"])))
         if "You MUST answer" in system or "You answer questions" in system:
-            assert "Note_2024_163_fr.pdf" in human
-            assert "Note_2020_01_fr.pdf" not in human
+            # Same-year evidence leads, but the selector's other pick is not discarded.
+            assert human.index("Note_2024_163_fr.pdf") < human.index("Note_2020_01_fr.pdf")
             return AIMessage(content=json.dumps(dict(
                 status="partial_answer", message="",
                 claims=[dict(text="Selon la note 2024-163, le volume d'investissement ne dépasse pas 15 millions de dinars.",
@@ -686,6 +686,37 @@ def test_claim_cannot_remap_question_actor_onto_a_different_regime_page():
     assert "fournisseur" not in result["answer"].casefold()
 
 
+def test_question_verb_matches_accented_participle_on_page():
+    page = (
+        "Article premier : Est abrogée la circulaire n° 2017-09 en date du 27 octobre 2017, "
+        "relative aux conditions de financement de l'importation de produits non prioritaires."
+    )
+    value = draft(
+        "La circulaire abroge la circulaire n° 2017-09 relative aux conditions de financement "
+        "de l'importation de produits non prioritaires.",
+        quote=page,
+    )
+    result = parse(
+        value,
+        [record(source="Cir_2018_13_fr.pdf", text=page)],
+        question="La circulaire 2018-13 abroge-t-elle une circulaire antérieure, et laquelle ?",
+    )
+    assert result["status"] == "answered"
+
+
+def test_compaction_keeps_window_with_most_question_words():
+    from answer_draft import _compact_evidence_for_formulation
+
+    page = (
+        "Les prix des produits de base ont progressé en juin. " + "Texte neutre. " * 60
+        + "Le cours du baril de Brent a augmenté de 19,4% en juin 2026 par rapport à juin 2025."
+    )
+    out = _compact_evidence_for_formulation(
+        "Le prix du Brent a-t-il augmenté en juin 2026 ?", [record(text=page)]
+    )
+    assert "Brent a augmenté de 19,4%" in out[0]["text"]
+
+
 def test_fenced_json_and_extra_fields_still_parse():
     payload = draft()
     payload["commentary"] = "ignore me"
@@ -717,10 +748,12 @@ def test_selector_insufficiency_gets_one_literal_checked_partial_attempt():
         if "Select evidence for" in calls[-1][0].content:
             return AIMessage(content=json.dumps(dict(
                 decision="insufficient_evidence", reason="uncertain scope", evidence_ids=[])))
+        assert "uncertain scope" in calls[-1][-1].content
         return AIMessage(content=json.dumps(draft()))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "answered"
+    # The selector doubted the pack, so a validated draft cannot claim a full answer.
+    assert result["status"] == "partial_answer"
     assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
     assert len(calls) == 2
 
@@ -738,7 +771,7 @@ def test_best_effort_attempt_never_bypasses_named_instrument_identity():
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond),
         "Selon la circulaire 2022-41, quel est le plafond ?", docs)
-    assert result["status"] == "answered"
+    assert result["status"] == "partial_answer"
     assert result["sources"][0]["file"] == "Cir_2022_41_fr.pdf"
 
 
@@ -948,58 +981,6 @@ def test_supersession_partial_from_pinned_evidence_without_llm():
     assert "abrog" in result["answer"].casefold() or "2018" in result["answer"]
 
 
-def test_literal_evidence_partial_from_exclusion_page_without_llm():
-    from answer_contract import try_literal_evidence_partial
-
-    evidence = [{
-        "evidence_id": "E1",
-        "source": "Cir_2026_04_fr.pdf",
-        "page": 2,
-        "text": (
-            "Sont exclues du champ d'application de l'article premier les opérations "
-            "suivantes : l'importation de produits dans le cadre de marchés publics "
-            "au profit de l'État, des établissements et entreprises publics et des "
-            "collectivités locales."
-        ),
-        "score": 0.9,
-    }]
-    result = try_literal_evidence_partial(
-        "Importation pour un marche public au profit d'une collectivite locale. "
-        "Le depot de 100% s'applique-t-il ?",
-        evidence,
-    )
-    assert result is not None
-    # Topical quote-backed fact: answered (not a fake temporal partial).
-    assert result["status"] == "answered"
-    assert "exclu" in result["answer"].casefold()
-    assert "applicabilité à la date" not in result["answer"].casefold()
-    assert "partie de la demande" not in result["answer"].casefold()
-    assert any("2026" in str(s.get("file", "")) for s in result["sources"])
-
-
-def test_literal_evidence_generic_filler_stays_partial_without_temporal_banner():
-    from answer_contract import try_literal_evidence_partial
-
-    evidence = [{
-        "evidence_id": "E1",
-        "source": "Note_2016_34_ar.pdf",
-        "page": 1,
-        "text": (
-            "رمز الجمعية التونسية لمرضى العضلات كمصدر للاقتطاعات البنكية والبريدية هو 0086."
-        ),
-        "score": 0.9,
-    }]
-    result = try_literal_evidence_partial(
-        "ما رمز الجمعية التونسية لمرضى العضلات كمصدر للاقتطاعات البنكية والبريدية؟",
-        evidence,
-    )
-    assert result is not None
-    # Generic "disposition applicable" filler stays partial, but not historical-bannered.
-    assert result["status"] == "partial_answer"
-    assert "انطباقها في التاريخ المطلوب" not in result["answer"]
-    assert "applicabilité à la date" not in result["answer"].casefold()
-
-
 def test_forced_recovery_keeps_answered_when_quotes_fully_support():
     """Forced ladder must not downgrade a fully validated answered draft."""
     def respond(prompt):
@@ -1033,7 +1014,7 @@ def test_forced_recovery_keeps_answered_when_quotes_fully_support():
     assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
 
 
-def test_supersession_partial_includes_successor_substance_when_present():
+def test_supersession_partial_states_the_edge_without_filler_claims():
     from answer_contract import try_supersession_partial_answer
 
     evidence = [
@@ -1067,8 +1048,8 @@ def test_supersession_partial_includes_successor_substance_when_present():
     )
     assert result is not None
     assert result["status"] == "partial_answer"
-    assert len(result["sources"]) >= 2
-    assert "huit heures" in result["answer"].casefold() or "2019" in result["answer"]
+    assert "abroge" in result["answer"].casefold()
+    assert "passage cité énonce" not in result["answer"]
 
 
 def test_search_fallback_preserves_original_top5_not_currentness_answer_order(monkeypatch):
@@ -1122,3 +1103,51 @@ def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_p
         saved = client.get(f"/conversations/{body['conversation_id']}").json()["turns"][-1]
         assert saved["answer_status"] == "search_results"
         assert saved["sources"] == result["sources"]
+
+
+def test_supersession_partial_needs_the_relationship_verb_in_the_quote():
+    from answer_contract import try_supersession_partial_answer
+
+    evidence = [{
+        "evidence_id": "E1",
+        "source": "Cir_2019_07_fr.pdf",
+        "page": 2,
+        "text": "Objet : horaires de travail des etablissements de credit pendant la seance unique d'ete.",
+        "score": 9.0,
+        "temporal_relation": "ABROGATES",
+        "temporal_source_id": "cir:2019:7",
+        "temporal_target_id": "cir:2018:7",
+    }]
+    history = []
+    assert try_supersession_partial_answer("Horaires des banques ?", evidence, diagnostics=history) is None
+    assert "supersession_partial:quote_not_found" in history
+
+
+def test_selector_and_draft_agreeing_on_insufficient_stop_the_ladder():
+    calls = []
+    def respond(prompt):
+        calls.append(prompt.to_messages())
+        if "Select evidence for" in calls[-1][0].content:
+            return AIMessage(content=json.dumps(dict(
+                decision="insufficient_evidence", reason="banknote fee, not a transfer fee", evidence_ids=[])))
+        if len(calls) == 2:
+            return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
+        return AIMessage(content=json.dumps(draft()))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
+    assert result["status"] == "search_results"
+    assert "draft_abstained:insufficient_evidence" in result["diagnostics"]
+    assert len(calls) == 2
+
+
+def test_draft_prompt_names_the_question_language():
+    seen = []
+    def respond(prompt):
+        messages = prompt.to_messages()
+        seen.append(messages)
+        if "Select evidence for" in messages[0].content:
+            return AIMessage(content=json.dumps(dict(decision="answer", reason="E1", evidence_ids=["E1"])))
+        return AIMessage(content=json.dumps(draft()))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    generate_grounded_answer(RunnableLambda(respond), "What is the ceiling?", [(doc, .9)])
+    assert "Write the claims in English." in seen[1][-1].content

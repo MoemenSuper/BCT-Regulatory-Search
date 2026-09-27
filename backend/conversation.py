@@ -11,7 +11,6 @@ from answer_contract import (
 from langchain_core.prompts import ChatPromptTemplate
 from retrieval_selection import (
     explicit_instrument_identity,
-    parse_source_identity,
     prefer_named_instrument_hits,
     _instrument_year,
 )
@@ -52,6 +51,82 @@ class MessageRoute(BaseModel):
 
 def _ambiguous_route():
     return MessageRoute(intent=RouteIntent.AMBIGUOUS).model_dump(mode="json")
+
+
+_FOLLOWUP_PREFIXES = (
+    "et ",
+    "and ",
+    "et le ",
+    "et la ",
+    "et les ",
+    "et l'",
+    "et d'",
+    "what about ",
+    "وما ",
+)
+
+_FOLLOWUP_MARKERS = (
+    "était-il",
+    "etait-il",
+    "était-elle",
+    "etait-elle",
+    "étaient-ils",
+    "celui-ci",
+    "celle-ci",
+    "celui-là",
+    "celle-là",
+    "the same",
+    "le même",
+    "la même",
+)
+
+
+def _is_followup_fragment(message: str) -> bool:
+    text = " ".join(str(message or "").casefold().split())
+    if len(text) < 4:
+        return False
+    if text.startswith(_FOLLOWUP_PREFIXES):
+        return True
+    return any(marker in text for marker in _FOLLOWUP_MARKERS)
+
+
+def _prior_source_files(memory_state: dict) -> list[str]:
+    turns = memory_state.get("turns") or []
+    if not turns:
+        return []
+    files: list[str] = []
+    for source in turns[-1].get("sources") or []:
+        name = str(source.get("file") or "").strip()
+        if name and name not in files:
+            files.append(name)
+    return files
+
+
+def _prior_standalone_query(memory_state: dict) -> str:
+    turns = memory_state.get("turns") or []
+    if not turns:
+        return ""
+    last = turns[-1]
+    return str(last.get("standalone_query") or last.get("user_message") or "").strip()
+
+
+def _prefer_prior_turn_sources(results, memory_state: dict):
+    """For FOLLOW_UP, surface the prior turn's PDF before unrelated corpus hits."""
+    prior = {name.casefold() for name in _prior_source_files(memory_state)}
+    if not prior or not results:
+        return results
+    preferred = []
+    other = []
+    for item in results:
+        doc = item[0] if isinstance(item, tuple) else item
+        meta = getattr(doc, "metadata", None) or {}
+        source = str(meta.get("source") or meta.get("file") or "")
+        basename = source.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+        if basename in prior or any(name in source.casefold() for name in prior):
+            preferred.append(item)
+        else:
+            other.append(item)
+    return preferred + other if preferred else results
 
 
 _DEICTIC_MARKERS = (
@@ -156,22 +231,31 @@ def route_message(llm, message, memory_state):
         - If the user refers to the first circular, previous circular, that circular, these ones, etc., use FOLLOW_UP.
         - If the user changes to a different circular/topic, use NEW_TOPIC.
         - If a reference could point to more than one discussed topic and cannot be resolved safely, use AMBIGUOUS.
+        - The searchable corpus is BCT circulars, regulatory notes, statistical bulletins/reports
+          (rapports annuels, conjoncture, balance, BSF, etc.), and internal memos — not only circulars.
         - Use GENERAL_CHAT for greetings, thanks, identity ("who are you"), how-you-work / what-can-you-do,
-          requests to summarise or recall this conversation, and light off-topic chat that is not a BCT
-          regulatory fact lookup. Do NOT send those to NEW_TOPIC.
-        - A request explaining how you can help, without a specific regulatory fact to look up, is GENERAL_CHAT.
+          requests to summarise or recall this conversation, and asks that are clearly not a lookup in
+          these documents (weather, cooking, live market quotes, taxes or labour law outside BCT texts).
+        - Use NEW_TOPIC for any fact the corpus could hold, including bank/client scenarios ("notre
+          banque", "un client", "une PME") and statistics a BCT report cites, even about foreign economies.
+        - Any question asking for a fact, rule, rate, price, figure, date, time or procedure is NEW_TOPIC.
+          When unsure between GENERAL_CHAT and NEW_TOPIC, choose NEW_TOPIC: the answer step refuses
+          safely, general chat cannot cite anything.
         - If the message refers to "this/that operation", "pour ça", "cette opération", or similar
           without a resolvable antecedent in memory, use AMBIGUOUS — never GENERAL_CHAT and never invent
           a topic. Do not greet the user as if they only said hello.
         - Keep rewrite_query in the language of the current user message.
         - For NEW_TOPIC and FOLLOW_UP, rewrite_query must be a complete standalone search query.
         - For NEW_TOPIC, rewrite only the current user message. Do not import facts, document names,
-          provisions, dates, or topics from memory. For FOLLOW_UP, resolve references from memory when available.
+          provisions, dates, or topics from memory. For FOLLOW_UP, resolve references from memory and
+          restate the prior topic so the query stands alone.
         - For GENERAL_CHAT and AMBIGUOUS, rewrite_query, new_topic and current_topic must be null.
         - current_topic should be the topic the message refers to now.
         - new_topic and current_topic must be short topic strings, never booleans.
         - Example NEW_TOPIC JSON:
-          {{"intent":"NEW_TOPIC","rewrite_query":"heures d'ouverture du marche des changes selon circulaire 2016-01","new_topic":"Horaires marche des changes 2016-01","current_topic":null}}
+          {{"intent":"NEW_TOPIC","rewrite_query":"plafond de l'allocation selon la circulaire AAAA-NN","new_topic":"Plafond allocation AAAA-NN","current_topic":null}}
+        - Example FOLLOW_UP JSON (prior turn asked the plafond, user now says "Et en 2020 ?"):
+          {{"intent":"FOLLOW_UP","rewrite_query":"plafond de l'allocation selon la circulaire AAAA-NN en 2020","new_topic":null,"current_topic":"Plafond allocation AAAA-NN"}}
         - Example GENERAL_CHAT JSON:
           {{"intent":"GENERAL_CHAT","rewrite_query":null,"new_topic":null,"current_topic":null}}
                 """),
@@ -214,6 +298,26 @@ def route_message(llm, message, memory_state):
         and not (memory_state.get("turns") or memory_state.get("current_topic"))
     ):
         return _ambiguous_route()
+    # A fragment ("Et en 2024 ?") after a prior turn is a follow-up even when the router
+    # misreads it; keep the router's own FOLLOW_UP rewrite, otherwise prefix the prior query.
+    if (
+        route.intent != RouteIntent.FOLLOW_UP
+        and _is_followup_fragment(message)
+        and (memory_state.get("turns") or memory_state.get("current_topic"))
+    ):
+        prior = _prior_standalone_query(memory_state)
+        topic = (
+            str(memory_state.get("current_topic") or "").strip()
+            or str((memory_state.get("topics") or [None])[-1] or "").strip()
+            or prior[:160]
+            or str(message).strip()[:160]
+        )
+        return MessageRoute(
+            intent=RouteIntent.FOLLOW_UP,
+            rewrite_query=f"{prior} — {message}".strip(" —")[:500],
+            new_topic=None,
+            current_topic=topic,
+        ).model_dump(mode="json")
     return route.model_dump(mode="json")
 
 
@@ -308,11 +412,14 @@ def general_chat_reply(llm, message, memory_state):
 (Central Bank of Tunisia). Never invent another country or institution.
 Answer in the same language as the user message. Be brief (a few sentences).
 You may use conversation memory below. You have NO access to PDF text in this mode.
-Allowed: greet the user; explain that you search Tunisian BCT circulars and notes with grounded
-citations; summarise what was already discussed in this conversation from memory; politely decline
-off-topic requests and invite a specific regulatory question.
+Allowed: greet the user; explain that you search Tunisian BCT circulars, regulatory notes,
+statistical bulletins and annual reports, and internal memos with grounded citations;
+summarise what was already discussed in this conversation from memory.
 Forbidden: invent circular numbers, pages, quotes, rates, or legal conclusions not present in memory.
-Do not pretend you retrieved documents. Plain text only — no JSON, no markdown headings."""),
+Do not pretend you retrieved documents. Plain text only — no JSON, no markdown headings.
+For any other request (any fact, rule, rate, price, figure, date, time or procedure not already in
+memory, even one that looks off-topic), reply with exactly: RETRIEVE — the search step answers it
+with citations or declines it."""),
         ("human", "Conversation memory:\n{memory}\n\nUser message:\n{message}"),
     ])
     try:
@@ -327,6 +434,8 @@ Do not pretend you retrieved documents. Plain text only — no JSON, no markdown
         answer = answer.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     if not answer:
         return safe_response(message, "out_of_scope")
+    if answer.strip(" .\"'").upper() == "RETRIEVE":
+        return {"retrieve": True}
     return {"status": "answered", "answer": answer, "sources": []}
 
 
@@ -337,14 +446,23 @@ def chat(
     retrieval_backend,
     llm_provider="groq",
 ):
-    llm = create_llm() if llm_provider == "groq" else create_llm(llm_provider)
+    import chat_tracing
 
-    route = route_message(llm, message, memory_state)
+    llm = chat_tracing.traced_llm(create_llm() if llm_provider == "groq" else create_llm(llm_provider))
 
+    with chat_tracing.span("route-message", input={"message": message, "memory": render_memory_state(memory_state)}) as s:
+        route = route_message(llm, message, memory_state)
+        s.update(output=route)
+
+    if route["intent"] == "GENERAL_CHAT":
+        reply = general_chat_reply(llm, message, memory_state)
+        if reply.get("retrieve"):
+            # A misrouted fact question: general chat cannot cite, so search instead.
+            route = MessageRoute(intent=RouteIntent.NEW_TOPIC, rewrite_query=message,
+                                 new_topic=str(message).strip()[:160]).model_dump(mode="json")
+            chat_tracing.event("general-chat-retrieve", output=route)
     if route["intent"] in {"GENERAL_CHAT", "AMBIGUOUS"}:
         if route["intent"] == "GENERAL_CHAT":
-            # ponytail: replace out_of_scope dead-end; no retrieval for assistant-style turns.
-            reply = general_chat_reply(llm, message, memory_state)
             return {
                 "answer": reply["answer"],
                 "sources": reply["sources"],
@@ -380,10 +498,18 @@ def chat(
 
     from query_authority import classify_query_authority
 
-    query_authority = classify_query_authority(llm, message)
+    # Classify the resolved query: a fragment like "Et en 2024 ?" carries no authority cue.
+    with chat_tracing.span("classify-query-authority", input=route_query) as s:
+        query_authority = classify_query_authority(llm, route_query)
+        s.update(output=query_authority)
     query_class = str(query_authority.get("query_class") or "uncertain")
 
-    reranked_results = retrieval_backend.retrieve(query_for_retrieval)
+    with chat_tracing.span("retrieve", as_type="retriever", input=query_for_retrieval) as s:
+        reranked_results = retrieval_backend.retrieve(query_for_retrieval)
+        s.update(output=chat_tracing.brief(reranked_results))
+    if route["intent"] == RouteIntent.FOLLOW_UP.value:
+        reranked_results = _prefer_prior_turn_sources(reranked_results, memory_state)
+        chat_tracing.event("prefer-prior-turn-sources", output=chat_tracing.brief(reranked_results))
     # Opaque compatibility field for conversation memory / API clients.
     graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
 
@@ -401,16 +527,22 @@ def chat(
     memory_text = render_memory_state(_answer_memory(memory_state, route))
     if route["intent"] == RouteIntent.FOLLOW_UP.value:
         memory_text = f"Resolved reference (not factual evidence): {query_for_retrieval}\n\n{memory_text}"
-    generated = generate_grounded_answer(
-        llm,
-        message,
-        top_results,
-        memory_text,
-        temporal_unverified=temporal_unverified,
-        query_class=query_class,
-    )
+    with chat_tracing.span(
+        "generate-grounded-answer",
+        input={"question": message, "evidence": chat_tracing.brief(top_results), "reference": memory_text},
+        metadata={"query_class": query_class, "temporal_unverified": temporal_unverified},
+    ) as s:
+        generated = generate_grounded_answer(
+            llm,
+            message,
+            top_results,
+            memory_text,
+            temporal_unverified=temporal_unverified,
+            query_class=query_class,
+        )
+        s.update(output={"status": generated.get("status"), "diagnostics": generated.get("diagnostics"),
+                         "answer": generated.get("answer")})
     diagnostics = list(generated.get("diagnostics") or [])
-    diagnostics.append(f"query_class:{query_class}:{query_authority.get('confidence') or 'low'}")
     status = generated.get("status", "answered")
     refusal_reason = None
     if status in {"search_results", "insufficient_evidence", "clarification_needed", "out_of_scope"}:

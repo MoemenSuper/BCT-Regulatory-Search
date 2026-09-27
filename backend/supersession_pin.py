@@ -3,23 +3,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 from langchain_core.documents import Document
 
+from graph_contract import is_temporal_rule_query
 from retrieval_selection import (
-    parse_source_identity,
     prefer_historical_hits,
     prefer_named_instrument_hits,
-    prefer_regime_hits,
     query_instrument_refs,
-    query_regulatory_regime,
-    _doc_matches_regime,
 )
 from source_metadata import normalize_page
 from supersession_edges import (
@@ -163,30 +158,12 @@ def _edge_document(edge: SupersessionEdge, page_lookup) -> Document | None:
     )
 
 
-_CURRENTNESS_QUERY = re.compile(
-    r"(?i)\b(?:encore\s+en\s+vigueur|toujours\s+(?:applicable|valable)|"
-    r"abrog(?:[eé]|ation)|remplac(?:[eé]|ement)|aujourd['’]?hui|"
-    r"actuellement|en\s+vigueur\s+aujourd|"
-    r"still\s+in\s+force|currently\s+applicable|superseded)\b"
-)
-
-
 def _demote_fully_superseded(
     ranked: list[tuple[Document, float]],
     edges: list[SupersessionEdge],
     pinned_sources: set[str],
-    *,
-    aggressive: bool = False,
 ) -> list[tuple[Document, float]]:
-    """Push fully abrogated/replaced instruments below live/successor hits.
-
-    Only demotes when we actually pinned a successor for that target — avoids
-    burying old pages when we have no amending evidence in the pack.
-
-    Soft mode (default): keep superseded pages immediately after the pinned
-    successor front so classic top hits remain visible for citation/P@5.
-    Aggressive mode (explicit currentness questions): push them to the end.
-    """
+    """Push abrogated/replaced instruments below live hits, only when their successor is pinned."""
     if not ranked or not pinned_sources:
         return ranked
     superseded: set[str] = set()
@@ -205,20 +182,7 @@ def _demote_fully_superseded(
             demoted.append((doc, score))
         else:
             keep.append((doc, score))
-    if not demoted:
-        return ranked
-    if aggressive:
-        return keep + demoted
-    # Soft: keep at most two successor pages ahead of the triggering older hit
-    # so P@5 / citation still sees the classic top source.
-    front: list[tuple[Document, float]] = []
-    rest: list[tuple[Document, float]] = []
-    for doc, score in keep:
-        if float(score) >= 8000.0 and len(front) < 2:
-            front.append((doc, score))
-        else:
-            rest.append((doc, score))
-    return front + demoted + rest
+    return keep + demoted if demoted else ranked
 
 
 def _prefer_successor_instrument_hits(
@@ -253,116 +217,6 @@ def _prefer_successor_instrument_hits(
     return front + rest if front else ranked
 
 
-def _edge_fits_query_regime(edge: SupersessionEdge, query: str) -> bool:
-    """Skip topical pins from a different regulatory domain than the query."""
-    regime = query_regulatory_regime(query)
-    if not regime:
-        return True
-    probe = Document(
-        page_content=edge.quote or "",
-        metadata={"source": edge.source_file},
-    )
-    if _doc_matches_regime(probe, regime):
-        return True
-    # Filename alone is not enough; require domain language in the declaring quote.
-    opposite = (
-        "nonpriority_import"
-        if regime == "export_settlement"
-        else "export_settlement"
-    )
-    if _doc_matches_regime(probe, opposite):
-        return False
-    # Neutral quote: allow only when the query named this successor instrument.
-    named = {
-        (item["kind"], item["year"], item["number"])
-        for item in query_instrument_refs(query)
-    }
-    source_identity = parse_source_identity(edge.source_file)
-    if source_identity and (
-        source_identity["kind"],
-        source_identity["year"],
-        source_identity["number"],
-    ) in named:
-        return True
-    return False
-
-
-def _newer_regime_hit_exists(
-    ranked: list[tuple[Document, float]],
-    *,
-    regime: str,
-    before_year: int,
-    look_at: int = 12,
-) -> bool:
-    """True when classic retrieve already surfaced a newer same-domain page."""
-    for document, _score in ranked[:look_at]:
-        if not _doc_matches_regime(document, regime):
-            continue
-        identity = parse_source_identity(str(document.metadata.get("source", "")))
-        if identity and int(identity["year"]) > before_year:
-            return True
-    return False
-
-
-def _retain_classic_lead_hits(
-    classic: list[tuple[Document, float]],
-    ranked: list[tuple[Document, float]],
-    *,
-    lead_limit: int = 2,
-) -> list[tuple[Document, float]]:
-    """Keep classic top instruments visible after successor pin.
-
-    Topical pin fronts the amending PDF for currentness, but the triggering
-    classic hit must remain inside the top-5 unique-source window for citation
-    and document-grounded retrieval evals.
-    """
-    if not classic or not ranked:
-        return ranked
-    lead: list[str] = []
-    for doc, _score in classic[:8]:
-        instrument = instrument_from_filename(_source_name(doc))
-        if not instrument or instrument in lead:
-            continue
-        lead.append(instrument)
-        if len(lead) >= lead_limit:
-            break
-    if not lead:
-        return ranked
-
-    retained: list[tuple[Document, float]] = []
-    seen_page: set[tuple[str, int | None]] = set()
-    for doc, score in classic:
-        instrument = instrument_from_filename(_source_name(doc))
-        if instrument not in lead:
-            continue
-        key = (_source_name(doc).casefold(), _page_label(doc))
-        if key in seen_page:
-            continue
-        seen_page.add(key)
-        retained.append((doc, score))
-        if len(retained) >= lead_limit:
-            break
-    if not retained:
-        return ranked
-
-    retained_keys = {
-        (_source_name(doc).casefold(), _page_label(doc)) for doc, _ in retained
-    }
-    rest = [
-        (doc, score)
-        for doc, score in ranked
-        if (_source_name(doc).casefold(), _page_label(doc)) not in retained_keys
-    ]
-    front: list[tuple[Document, float]] = []
-    tail: list[tuple[Document, float]] = []
-    for doc, score in rest:
-        if float(score) >= 8000.0 and len(front) < 2:
-            front.append((doc, score))
-        else:
-            tail.append((doc, score))
-    return front + retained + tail
-
-
 def pin_supersession_edges(
     ranked: list[tuple[Document, float]],
     query: str,
@@ -374,27 +228,12 @@ def pin_supersession_edges(
     instruments that already appear in classic top hits (topical currentness)."""
     if not edges or not ranked:
         return ranked
-    classic = list(ranked)
     picked: list[SupersessionEdge] = []
     seen_edge: set[tuple] = set()
-    regime = query_regulatory_regime(query)
-    currentness = bool(_CURRENTNESS_QUERY.search(query))
     candidates = select_edges(edges, query, limit=2) + select_edges_from_hits(
         edges, ranked, limit=3
     )
     for edge in candidates:
-        if not _edge_fits_query_regime(edge, query):
-            continue
-        if regime:
-            try:
-                source_year = int(edge.source_instrument.split(":")[1])
-            except (IndexError, ValueError):
-                source_year = 0
-            # Mid-era successor pins must not bury a newer operative hit already ranked.
-            if source_year and _newer_regime_hit_exists(
-                ranked, regime=regime, before_year=source_year
-            ):
-                continue
         key = (edge.source_instrument, edge.target_instrument, edge.target_article, edge.source_page)
         if key in seen_edge:
             continue
@@ -428,20 +267,10 @@ def pin_supersession_edges(
             extras.append((doc, 9000.0))
     combined = extras + working if extras else working
     combined = _prefer_successor_instrument_hits(combined, pinned_sources)
-    combined = _demote_fully_superseded(
-        combined,
-        edges,
-        pinned_sources,
-        aggressive=currentness,
-    )
-    # Regime → named → historical last so "Avant 2025-13" demotes the cutoff after
-    # named promotion; export-tenor still keeps regime over Vu-mentioners.
-    combined = prefer_regime_hits(combined, query)
-    if currentness:
-        return prefer_historical_hits(combined, query)
-    # Re-seat classic leads so P@5 still sees mined PDFs after pin/demote.
-    combined = _retain_classic_lead_hits(classic, combined)
-    combined = prefer_named_instrument_hits(combined, query_instrument_refs(query))
+    combined = _demote_fully_superseded(combined, edges, pinned_sources)
+    # "Is X still in force?" wants the successor first; "Selon X" wants X itself first.
+    if not is_temporal_rule_query(query):
+        combined = prefer_named_instrument_hits(combined, query_instrument_refs(query))
     return prefer_historical_hits(combined, query)
 
 

@@ -288,289 +288,32 @@ def prefer_named_instrument_hits(
     return matched + rest
 
 
-# Export payment-tenor desk questions vs non-priority import financing.
-# ponytail: lexical regime split; graph domain labels if corpus grows beyond these two.
-_EXPORT_SETTLEMENT_QUERY = re.compile(
-    r"(?i)(?:"
-    r"(?:\bexport\w*|\bvente[s]?\b|\bexp[eé]dition\b|\bexportateur\b|"
-    r"\bclient\s+[eé]tranger\b|\bforeign\s+customer\b|تصدير|أجنبي)"
-    r".{0,100}?"
-    r"(?:\bjour[s]?\b|\bday[s]?\b|يوما?|مهلة)"
-    r"|"
-    r"(?:\bjour[s]?\b|\bday[s]?\b|يوما?|مهلة)"
-    r".{0,100}?"
-    r"(?:\bexport\w*|\bvente[s]?\b|\bexp[eé]dition\b|\bexportateur\b|"
-    r"\bclient\s+[eé]tranger\b|\bforeign\s+customer\b|تصدير|أجنبي)"
-    r"|"
-    r"\bd[eé]lai[s]?\s+(?:de\s+)?r[eè]glement\b"
-    r"|"
-    r"\bd[eé]lai[s]?\s+d['’]?export"
-    r"|"
-    r"\bd[eé]lai\s+libre\b"
-    r"|"
-    r"\br[eè]glement\s+[àa]\s+l['’]?export"
-    r"|"
-    r"\br[eè]glement\s+des\s+ventes\b"
-    r"|"
-    r"\bventes?\s+[àa]\s+l['’]?exportation\b"
-    r"|"
-    r"\ba\s+l['’]?export\b"
-    r"|"
-    r"\bexport\s+settlement\b|\bfree\s+export\b|\bexport\s+payment\b|"
-    r"\bexport\s+window\b"
-    r"|"
-    r"\bmaximum\s+payment\s+period\b"
-    r"|"
-    r"\bpayment\s+period\b.{0,40}\bexport"
-    r"|"
-    r"\b120\s*/\s*360\b"
-    r"|"
-    r"(?:assurance-?cr[eé]dit|stand-?by|traite.{0,80}?avalis|"
-    r"banque\s+non[- ]?r[eé]sidente).{0,80}?"
-    r"(?:\bjour[s]?\b|\bday[s]?\b)"
-    r"|"
-    r"(?:\bjour[s]?\b|\bday[s]?\b).{0,80}?"
-    r"(?:assurance-?cr[eé]dit|stand-?by|traite.{0,80}?avalis|"
-    r"banque\s+non[- ]?r[eé]sidente)"
-    r"|"
-    r"مدة\s*الدفع.{0,40}تصدير|تصدير.{0,40}(?:دفع|مهلة)"
-    r"|"
-    r"المهلة\s*الحرة|آجال\s*(?:ال)?تصدير|عند\s*التصدير|"
-    r"تسوية\s*(?:ال)?(?:بيوع|صادرات|تصدير)|ضمان\s*بنكي\s*أجنبي|"
-    r"بيع.{0,40}(?:يوما?|مهلة)|(?:يوما?|مهلة).{0,40}بيع|"
-    r"سفتجة|بنك\s*غير\s*مقيم|خطاب\s*ضمان"
-    r")"
-)
-
-_NONPRIORITY_IMPORT_QUERY = re.compile(
-    r"(?i)non[- ]?priorit|fonds\s+propres|d[eé]p[oô]t[s]?\s*(?:de\s+)?100|"
-    r"produits?\s+non[- ]?essenti|غير\s*ذات\s*الأولوية|غير\s*ذي\s*أولوية|"
-    r"أموال\s*ذاتية|إيداع\s*(?:بنسبة\s*)?100|الواردات\s*غير|"
-    r"financement\s+(?:des\s+)?importations?\s+(?:de\s+)?produits\s+non|"
-    r"non-priority\s+import|"
-    r"produit\s+annexe|"
-    r"collectivit[eé]\s+locale.{0,40}d[eé]p[oô]t|"
-    r"d[eé]p[oô]t.{0,40}collectivit[eé]\s+locale|"
-    r"march[eé]\s+public.{0,40}d[eé]p[oô]t|"
-    r"d[eé]p[oô]t.{0,40}march[eé]\s+public"
-)
-
-# Operative settlement language — not Vu citation phrases shared across PDFs.
-_EXPORT_SETTLEMENT_DOC = re.compile(
-    r"(?i)(?:"
-    r"120\s*jours|"
-    r"121\s*(?:[àa]|et)\s*360|"
-    r"article\s*10\s*nouveau|"
-    r"article\s*11\s*nouveau|"
-    r"article\s*12\s*nouveau|"
-    r"d[eé]lais?\s+de\s+r[eè]glement\s+des\s+export|"
-    r"ventes?\s+[àa]\s+l['’]exportation\s+des\s+marchandises|"
-    r"librement\s+et\s+sans\s+autorisation"
-    r")"
-)
-
-_NONPRIORITY_DOC = re.compile(
-    r"(?i)(?:"
-    r"produits?\s+(?:consid[eé]r[eé]s\s+)?non[- ]?prioritaires?|"
-    r"financement\s+(?:de\s+)?l['’]?importation\s+de\s+produits\s+non|"
-    r"financement\s+des\s+importations\s+de\s+produits\s+non|"
-    r"d[eé]p[oô]ts?\s+(?:en\s+)?num[eé]raire|"
-    r"fonds\s+propres|"
-    r"totalit[eé]\s+de\s+la\s+valeur|"
-    r"100\s*%|"
-    # Operative exemption / exclusion pages often omit the regime title line.
-    r"sont\s+exclues?|"
-    r"march[eé]s?\s+publics?.{0,100}?"
-    r"(?:[eé]tat|entreprises?\s+et\s+des\s+[eé]tablissements?\s+publics|"
-    r"collectivit[eé]s?\s+locales?)|"
-    r"entreprises?\s+industrielles?.{0,80}?fiche\s+technique|"
-    r"fiche\s+technique\s+sp[eé]ciale|"
-    r"engagements?\s+pris\s+par\s+l['’]interm[eé]diaire\s+agr[eé]{1,2}"
-    r")"
-)
-
-# BM25 seed when dense/sparse miss operative settlement pages (domain words, not IDs).
-EXPORT_SETTLEMENT_BM25_QUERY = (
-    "délais de règlement des exportations 120 jours 121 360 "
-    "autorisation préalable ventes à l'exportation marchandises "
-    "garantie bancaire non résidente stand-by assurance-crédit "
-    "librement et sans autorisation article 10 nouveau"
-)
-
-NONPRIORITY_IMPORT_BM25_QUERY = (
-    "produits non prioritaires financement importation "
-    "dépôts numéraire fonds propres 100% concours financiers "
-    "crédits documentaires sont exclues marchés publics "
-    "entreprises industrielles fiche technique collectivité locale"
-)
-
-
-def query_regulatory_regime(query: str) -> str | None:
-    """Return export_settlement / nonpriority_import when the query is clearly one domain."""
-    folded = _ascii_fold(query)
-    export = bool(
-        _EXPORT_SETTLEMENT_QUERY.search(folded) or _EXPORT_SETTLEMENT_QUERY.search(query)
-    )
-    nonpriority = bool(
-        _NONPRIORITY_IMPORT_QUERY.search(folded)
-        or _NONPRIORITY_IMPORT_QUERY.search(query)
-    )
-    if export and nonpriority:
-        return None
-    if export:
-        return "export_settlement"
-    if nonpriority:
-        return "nonpriority_import"
-    return None
-
-
-def _doc_matches_regime(document: Document, regime: str) -> bool:
-    source = Path(str(document.metadata.get("source", ""))).name
-    blob = _ascii_fold(f"{source}\n{document.page_content[:1500]}")
-    if regime == "export_settlement":
-        return bool(_EXPORT_SETTLEMENT_DOC.search(blob))
-    if regime == "nonpriority_import":
-        return bool(_NONPRIORITY_DOC.search(blob))
-    return False
-
-
-_NONPRIORITY_DOC_STRONG = re.compile(
-    r"(?i)(?:"
-    r"produits?\s+(?:consid[eé]r[eé]s\s+)?non[- ]?prioritaires?|"
-    r"sont\s+exclues?|"
-    r"march[eé]s?\s+publics?.{0,100}?(?:[eé]tat|collectivit[eé]s?\s+locales?)|"
-    r"fiche\s+technique\s+sp[eé]ciale"
-    r")"
-)
-_EXPORT_SETTLEMENT_DOC_STRONG = re.compile(
-    r"(?i)(?:120\s*jours|librement\s+et\s+sans\s+autorisation|"
-    r"121\s*(?:[àa]|et)\s*360|article\s*1[012]\s*nouveau|"
-    r"d[eé]lais?\s+de\s+r[eè]glement\s+des\s+export)"
-)
-
-
 def _instrument_year(document: Document) -> int:
     identity = parse_source_identity(str(document.metadata.get("source", "")))
     return int(identity["year"]) if identity else 0
 
 
-def prefer_regime_hits(
-    ranked: list[tuple[Document, float]],
-    query: str,
-) -> list[tuple[Document, float]]:
-    """Prefer same-domain operative pages; demote the opposite financing/settlement regime."""
-    regime = query_regulatory_regime(query)
-    if not ranked or not regime:
-        return ranked
-    opposite = (
-        "nonpriority_import"
-        if regime == "export_settlement"
-        else "export_settlement"
-    )
-    strong_pat = (
-        _NONPRIORITY_DOC_STRONG
-        if regime == "nonpriority_import"
-        else _EXPORT_SETTLEMENT_DOC_STRONG
-    )
-    strong: list[tuple[Document, float]] = []
-    matched: list[tuple[Document, float]] = []
-    neutral: list[tuple[Document, float]] = []
-    demoted: list[tuple[Document, float]] = []
-    for document, score in ranked:
-        blob = _ascii_fold(
-            f"{Path(str(document.metadata.get('source', ''))).name}\n"
-            f"{document.page_content[:1500]}"
-        )
-        if strong_pat.search(blob):
-            strong.append((document, score))
-        elif _doc_matches_regime(document, regime):
-            matched.append((document, score))
-        elif _doc_matches_regime(document, opposite):
-            demoted.append((document, score))
-        else:
-            neutral.append((document, score))
-    # Within a regime bucket, newer instruments outrank mid-era list circulars.
-    if not is_historical_cutoff_query(query):
-        strong.sort(key=lambda item: (-_instrument_year(item[0]), -item[1]))
-        matched.sort(key=lambda item: (-_instrument_year(item[0]), -item[1]))
-    # Exception probes: among the newest same-regime instrument, surface the
-    # Art.4 / marchés publics page ahead of the general 100% deposit article.
-    # Do not promote older list circulars that merely share the exclusion phrase.
-    if regime == "nonpriority_import" and strong:
-        folded_q = _ascii_fold(query)
-        newest = max(_instrument_year(doc) for doc, _score in strong)
-        if re.search(r"(?i)industriel|industrial|صناع", folded_q):
-            strong = _partition_newest_pattern(
-                strong,
-                r"(?i)fiche\s+technique|entreprises?\s+industrielles?",
-                newest,
-            )
-        elif re.search(r"(?i)march[eé]\s+public|collectivit", folded_q):
-            strong = _partition_newest_pattern(
-                strong,
-                r"(?i)march[eé]s?\s+publics?|collectivit[eé]s?\s+locales?",
-                newest,
-            )
-    if strong or matched:
-        return strong + matched + neutral + demoted
-
-    if demoted:
-        return neutral + demoted
-    return ranked
-
-
-def _partition_newest_pattern(
-    items: list[tuple[Document, float]],
-    pattern: str,
-    newest_year: int,
-) -> list[tuple[Document, float]]:
-    """Elevate newest-year pages matching pattern; else leave order unchanged."""
-    compiled = re.compile(pattern)
-    hit: list[tuple[Document, float]] = []
-    miss: list[tuple[Document, float]] = []
-    for document, score in items:
-        blob = document.page_content[:1500]
-        if _instrument_year(document) == newest_year and compiled.search(blob):
-            hit.append((document, score))
-        else:
-            miss.append((document, score))
-    return hit + miss if hit else items
-
-
+# "Avant la circulaire 2025-13" asks for the prior regime; "avant le 26 mars" or
+# "avant l'entrée en vigueur de 2026-04" asks for the named circular's own rules.
 _HISTORICAL_QUERY = re.compile(
-    r"(?i)\b(?:avant|before|auparavant|pr[eé]c[eé]demment|ant[eé]rieurement|"
-    r"ancien\s+r[eé]gime|previous\s+regime)\b|"
-    r"قبل|سابقا|سابقًا|النظام\s*السابق"
+    r"(?i)(?:\b(?:avant|before)|قبل)\s+(?:(?:la|le|the)\s+)?"
+    r"(?:(?:circulaire|circular|note|منشور)\s+)?(?:(?:n[°o.]?|عدد)\s*)?(?:19|20)\d{2}\s*[-/]\s*\d{1,3}"
+    r"|\bancien\s+r[eé]gime\b|\bprevious\s+regime\b|النظام\s*السابق"
 )
-# "Engagement pris avant 2026-04" asks for that circular's transitional rule,
-# not the prior regime. Do not demote the named instrument in those cases.
-_GRANDFATHERING_AVANT = re.compile(
-    r"(?i)(?:"
-    r"engagements?\s+(?:\w+\s+){0,6}(?:pris|existants?|conclus?)|"
-    r"(?:pris|existants?|conclus?|entam[eé]e?s?|commenc[eé]e?s?|"
-    r"d[eé]marr[eé]e?s?|ex[eé]cut[eé]e?s?)\s+avant|"
-    r"avant\s+l['’]entr[eé]e\s+en\s+vigueur|"
-    r"avant\s+(?:la\s+)?(?:date\s+d['’]entr|publication|mise\s+en\s+application)|"
-    r"dispositions?\s+transitoires|"
-    r"op[eé]rations?\s+(?:\w+\s+){0,4}avant|"
-    r"financement\s+(?:\w+\s+){0,4}avant|"
-    r"ex[eé]cution\s+(?:\w+\s+){0,4}avant|"
-    r"قبل\s+(?:دخول|نشر|بدء)"
-    r")"
+# "Engagement existant avant 2026-04": something done before the circular, i.e. its
+# transitional rule, not the prior regime.
+_DONE_BEFORE = re.compile(
+    r"(?i)\b(?:pris|existants?|conclus?|entam[eé]e?s?|ex[eé]cut[eé]e?s?|sign[eé]e?s?|made|signed|concluded)"
+    r"\s+(?:\w+\s+){0,3}(?:avant|before)\b"
 )
 
 
 def is_historical_cutoff_query(query: str) -> bool:
-    """True when the query demotes a named later instrument ('avant 2025-13').
-
-    False for grandfathering: commitments/execution before a circular's entry into
-    force — those ask for the named circular's transitional provisions.
-    """
-    raw = query or ""
-    folded = _ascii_fold(raw)
-    if _GRANDFATHERING_AVANT.search(folded) or _GRANDFATHERING_AVANT.search(raw):
+    """True when the query asks for the regime before a named instrument."""
+    raw = (query or "").translate(str.maketrans({character: "-" for character in "‐‑‒–—−"}))
+    if _DONE_BEFORE.search(raw):
         return False
-    return bool(_HISTORICAL_QUERY.search(folded))
+    return bool(_HISTORICAL_QUERY.search(raw) or _HISTORICAL_QUERY.search(_ascii_fold(raw)))
 
 
 _YEAR_NUMBER_TOKEN = re.compile(

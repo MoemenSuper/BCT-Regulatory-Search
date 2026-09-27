@@ -13,6 +13,7 @@ import unicodedata
 
 from pydantic import BaseModel, Field
 
+from ingestion.registry import _SEARCHABLE_SQL
 from retrieval_selection import _ARABIC_RANGE
 from retrieval_selection import is_arabic_query
 from source_metadata import safe_pdf_filename
@@ -207,7 +208,7 @@ class SourceDocumentResolver:
                     """
                     SELECT stored_path
                     FROM ingestion_documents
-                    WHERE status='ready' AND lower(original_filename)=lower(?)
+                    WHERE status IN """ + _SEARCHABLE_SQL + """ AND lower(original_filename)=lower(?)
                     ORDER BY activated_at DESC, created_at DESC
                     LIMIT 1
                     """,

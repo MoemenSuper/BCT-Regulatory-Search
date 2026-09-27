@@ -43,10 +43,10 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
     )
 
     class FakeExtractor:
-        def __init__(self, visual_transcriber=None):
+        def __init__(self, **_):
             pass
 
-        def extract(self, _path):
+        def extract(self, _path, **_):
             return structured
 
     def fake_chunks(document):

@@ -320,6 +320,7 @@ class GeminiVisualTranscriber:
         image_png: bytes,
         source_pdf_sha256: str,
         page_number: int,
+        **_: object,
     ) -> VisualPage:
         image_sha = hashlib.sha256(image_png).hexdigest()
         binding = {
@@ -340,14 +341,24 @@ class GeminiVisualTranscriber:
             self._client = client
             print(f"gemini key rotated to slot {index + 1}", flush=True)
 
-        output_text, response_id = gemini_json_from_image(
-            image_png,
-            prompt=_PROMPT,
-            schema=VisualPage.model_json_schema(),
+        from langfuse import get_client
+
+        with get_client().start_as_current_observation(
+            name="transcribe-page",
+            as_type="generation",
             model=self.model,
-            client=self._client if self._injected_client else None,
-            on_rotate=_rotate,
-        )
+            input={"page": page_number, "image_bytes": len(image_png)},
+            metadata={"prompt_version": PROMPT_VERSION},
+        ) as generation:
+            output_text, response_id = gemini_json_from_image(
+                image_png,
+                prompt=_PROMPT,
+                schema=VisualPage.model_json_schema(),
+                model=self.model,
+                client=self._client if self._injected_client else None,
+                on_rotate=_rotate,
+            )
+            generation.update(output=output_text[:4000], metadata={"response_id": response_id})
         parsed = VisualPage.model_validate_json(output_text)
         if not parsed.transcription.strip() and not parsed.chart_notes.strip():
             raise ValueError("Gemini returned an empty page transcription")

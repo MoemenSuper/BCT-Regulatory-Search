@@ -34,6 +34,24 @@ def test_local_answer_provider_uses_configurable_loopback_ollama(monkeypatch):
     assert received["json"]["think"] is False
 
 
+def test_empty_ollama_reply_is_an_empty_draft_not_an_error(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"message": {"content": "", "thinking": "hidden reasoning"}}
+
+    monkeypatch.setenv("BCT_LOCAL_LLM_URL", "http://127.0.0.1:11434")
+    monkeypatch.setattr(llm.requests, "post", lambda *_a, **_k: Response())
+    llm.create_llm.cache_clear()
+    try:
+        response = llm.create_llm("ollama").invoke([HumanMessage(content="Question")])
+    finally:
+        llm.create_llm.cache_clear()
+    assert response.content == ""
+
+
 def test_local_answer_provider_rejects_a_remote_endpoint_by_default(monkeypatch):
     monkeypatch.setenv("BCT_LOCAL_LLM_URL", "http://192.0.2.1:11434")
     monkeypatch.delenv("BCT_ALLOW_REMOTE_LOCAL_LLM", raising=False)

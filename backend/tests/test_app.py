@@ -9,6 +9,55 @@ from conversation_memory import ConversationStore
 client = TestClient(app)
 
 
+def _manager_recording(calls, *, fail=False):
+    class Manager:
+        def get(self, profile):
+            calls.append(profile.value if hasattr(profile, "value") else profile)
+            if fail:
+                raise RuntimeError("chroma missing")
+            return object()
+
+        def reset(self):
+            return None
+
+    return Manager()
+
+
+@pytest.mark.parametrize("warm", ["1", None])
+def test_startup_loads_search_models_only_when_warm_start_is_on(tmp_path, monkeypatch, warm):
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
+    monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    monkeypatch.setenv("BCT_DEFAULT_PROFILE", "local_hybrid")
+    if warm:
+        monkeypatch.setenv("BCT_WARM_START", warm)
+    else:
+        monkeypatch.delenv("BCT_WARM_START", raising=False)
+    calls = []
+    monkeypatch.setattr(app_module, "create_runtime_profile_manager", lambda: _manager_recording(calls))
+
+    with TestClient(app_module.app):
+        pass
+
+    assert calls == (["local_hybrid"] if warm else [])
+
+
+def test_failed_warm_start_does_not_block_startup(tmp_path, monkeypatch):
+    monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
+    monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
+    monkeypatch.setenv("BCT_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    monkeypatch.setenv("BCT_WARM_START", "1")
+    calls = []
+    monkeypatch.setattr(
+        app_module, "create_runtime_profile_manager", lambda: _manager_recording(calls, fail=True)
+    )
+
+    with TestClient(app_module.app) as live_client:
+        assert live_client.get("/health").status_code == 200
+
+    assert len(calls) == 1
+
+
 class _FakeTitleLLM:
     def __init__(self, reply="Dépôt à distance d'une demande de change"):
         self.reply = reply

@@ -18,6 +18,7 @@ import io
 from datetime import datetime, timezone
 
 from app_settings import open_app_settings
+import chat_tracing
 from conversation import chat
 from conversation_memory import open_conversation_store, summarize_conversation_title
 from identity import (
@@ -47,7 +48,7 @@ logger = logging.getLogger(__name__)
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     conversation_id: str | None = Field(default=None, min_length=1, max_length=128)
-    profile: str = Field(default_factory=lambda: os.environ.get("BCT_DEFAULT_PROFILE", RuntimeProfile.CLOUD.value))
+    profile: str = Field(default_factory=lambda: os.environ.get("BCT_DEFAULT_PROFILE", RuntimeProfile.LOCAL_HYBRID.value))
 
     @field_validator("question")
     @classmethod
@@ -111,7 +112,14 @@ def create_local_backend():
         )
         ocr_documents = load_documents_from_chroma(ocr_vector_store)
         ocr_bm25 = create_bm25(ocr_documents)
-    return LocalRetrievalBackend(
+    if not documents:
+        # Valid before the first ingest, but a wrong --assets root looks identical.
+        print(
+            f"WARNING: local corpus is empty (collection {os.environ.get('BCT_CHROMA_COLLECTION')!r} "
+            f"in {os.environ.get('BCT_CHROMA_DB')!r}); every question will find no evidence.",
+            flush=True,
+        )
+    backend = LocalRetrievalBackend(
         vector_store,
         reranker,
         bm25,
@@ -120,6 +128,10 @@ def create_local_backend():
         ocr_bm25=ocr_bm25,
         ocr_documents=ocr_documents,
     )
+    from jsonl_supersession import maybe_wrap_backend
+
+    native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
+    return maybe_wrap_backend(backend, Path(native).resolve().parent if native else None)
 
 
 def supersession_status() -> dict[str, object]:
@@ -145,6 +157,60 @@ def supersession_status() -> dict[str, object]:
         return {"ready": False, "edge_count": 0}
 
 
+def _warm_start(profile_manager, settings_store) -> None:
+    """Load the active profile's search models and index before serving requests."""
+    import time
+
+    profile = settings_store.active_profile()
+    print(f"Loading search models for profile '{profile.value}'...", flush=True)
+    started = time.monotonic()
+    try:
+        profile_manager.get(profile)
+    except Exception:
+        # A broken backend must not block login/admin; the first chat reports the error.
+        logger.exception("Warm start failed for profile %s.", profile.value)
+        print("Search models failed to load; they will retry on the first question.", flush=True)
+        return
+    print(f"Search models ready in {time.monotonic() - started:.1f}s.", flush=True)
+
+
+def _start_enrichment(app: FastAPI):
+    """Background visual reading of pages the quick ingest pass left pending."""
+    if os.environ.get("BCT_ENABLE_INGESTION") != "1" or not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+        return None
+    if os.environ.get("BCT_ENRICHMENT", "1") == "0":
+        return None
+    from ingestion.enrichment import EnrichmentWorker
+    from ingestion.pipeline import IngestionConfig
+    from ingestion.registry import IngestionRegistry
+
+    config = IngestionConfig.from_environment()
+    registry = IngestionRegistry(config.registry_path)
+    try:
+        interrupted = registry.fail_interrupted()
+    finally:
+        registry.close()
+    if interrupted:
+        logger.warning("Marked %d interrupted ingestion(s) as failed.", interrupted)
+
+    def refresh_search() -> None:
+        _refresh_runtime_asset_environment()
+        app.state.profile_manager.reset()
+        app.state.source_resolver.refresh()
+
+    worker = EnrichmentWorker(config, on_activated=refresh_search)
+    worker.start()
+    return worker
+
+
+def _foreground():
+    """Chat requests take priority: background enrichment pauses between pages while one runs."""
+    from ingestion.enrichment import FOREGROUND
+
+    with FOREGROUND.busy():
+        yield
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     auth_store = open_auth_store()
@@ -161,9 +227,14 @@ async def lifespan(app: FastAPI):
         f"Supersession edges\n  ready: {status['ready']}\n  edge_count: {status['edge_count']}",
         flush=True,
     )
+    if os.environ.get("BCT_WARM_START") == "1":
+        await run_in_threadpool(_warm_start, app.state.profile_manager, settings_store)
+    app.state.enrichment = _start_enrichment(app)
     try:
         yield
     finally:
+        if app.state.enrichment is not None:
+            await run_in_threadpool(app.state.enrichment.stop)
         closer = getattr(conversation_store, "close", None)
         if callable(closer):
             closer()
@@ -232,6 +303,10 @@ class SecretsUpdateRequest(BaseModel):
 
 class TokenLimitRequest(BaseModel):
     token_limit: int = Field(ge=0, le=100_000_000)
+
+
+class DocumentsDeleteRequest(BaseModel):
+    document_ids: list[str] = Field(min_length=1, max_length=500)
 
 
 @app.post("/auth/register")
@@ -322,7 +397,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         config = IngestionConfig.from_environment()
         registry = IngestionRegistry(config.registry_path)
         try:
-            docs = registry.list_ready(limit=20)
+            docs = registry.list_ready(limit=1000)
         finally:
             registry.close()
     except Exception:
@@ -338,6 +413,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "users_approved": sum(1 for user in users if user.status == "approved"),
         "users_rejected": sum(1 for user in users if user.status == "rejected"),
         "documents_ready": len(docs),
+        "documents_enriching": sum(1 for doc in docs if doc.get("status") == "enriching"),
         "active_profile": settings["active_profile"],
         "answer_refusals_total": refusals_total,
         "supersession": supersession_status(),
@@ -595,6 +671,7 @@ def post_chat(
     payload: ChatRequest,
     request: Request,
     user=Depends(require_approved_user),
+    _busy=Depends(_foreground),
 ):
     auth_store = request.app.state.auth_store
     try:
@@ -624,7 +701,9 @@ def post_chat(
             raise HTTPException(status_code=402, detail=str(error)) from error
         try:
             # Groq usage via LangChain callback; Voyage embed/rerank via live API usage.
-            with track_cloud_retrieval_usage() as voyage_usage:
+            with track_cloud_retrieval_usage() as voyage_usage, chat_tracing.chat_turn(
+                question, conversation_id=conversation_id, user_id=user.id, profile=profile,
+            ) as turn_span:
                 with get_usage_metadata_callback() as usage_cb:
                     result = chat(
                         question,
@@ -633,6 +712,13 @@ def post_chat(
                         llm_provider=runtime.answer_provider,
                     )
                     turn_usage = dict(usage_cb.usage_metadata)
+                turn_span.update(
+                    output={"status": result.get("status"), "answer": result.get("answer"),
+                            "sources": result.get("sources")},
+                    metadata={"refusal_reason": result.get("refusal_reason"),
+                              "diagnostics": result.get("refusal_diagnostics"), "usage": turn_usage},
+                    level="WARNING" if result.get("refusal_reason") else "DEFAULT",
+                )
                 embed_tokens = int(voyage_usage.embed_tokens)
                 rerank_tokens = int(voyage_usage.rerank_tokens)
         except (OSError, RuntimeError, ValueError):
@@ -866,7 +952,7 @@ def _install_ingestion_routes(target: FastAPI) -> None:
         file: UploadFile = File(...),
         doc_kind: str = Form("regulatory"),
         related_to: str = Form(""),
-        _admin=Depends(require_admin),
+        admin=Depends(require_admin),
     ):
         # Filename is the listing title; doc_kind chooses primary vs secondary grounding.
         filename = (file.filename or "").strip()
@@ -907,20 +993,26 @@ def _install_ingestion_routes(target: FastAPI) -> None:
             if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
                 raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
 
+            from langfuse import propagate_attributes
+
             config = IngestionConfig.from_environment()
             pipeline = IngestionPipeline(config)
             try:
-                report = await run_in_threadpool(
-                    pipeline.ingest,
-                    temporary_path,
-                    original_filename=filename or "document.pdf",
-                    metadata=metadata,
-                )
+                with propagate_attributes(user_id=admin.id):
+                    report = await run_in_threadpool(
+                        pipeline.ingest,
+                        temporary_path,
+                        original_filename=filename or "document.pdf",
+                        metadata=metadata,
+                    )
             finally:
                 pipeline.close()
             _refresh_runtime_asset_environment()
-            request.app.state.profile_manager.reset()
+            await run_in_threadpool(request.app.state.profile_manager.reset)
             request.app.state.source_resolver.refresh()
+            worker = getattr(request.app.state, "enrichment", None)
+            if worker is not None and report.get("status") == "enriching":
+                worker.wake()
             return report
         except HTTPException:
             raise
@@ -953,6 +1045,30 @@ def _install_ingestion_routes(target: FastAPI) -> None:
         finally:
             registry.close()
 
+    @target.get("/documents/enrichment")
+    def enrichment_status(request: Request, _admin=Depends(require_admin)):
+        worker = getattr(request.app.state, "enrichment", None)
+        return worker.snapshot() if worker is not None else {"state": "disabled"}
+
+    @target.post("/documents/{document_id}/retry-enrichment")
+    def retry_enrichment(document_id: str, request: Request, _admin=Depends(require_admin)):
+        from ingestion.pipeline import IngestionConfig
+        from ingestion.registry import IngestionRegistry
+
+        registry = IngestionRegistry(IngestionConfig.from_environment().registry_path)
+        try:
+            known = registry.get(document_id)
+            if known is None or known.get("status") not in {"enriching", "ready_degraded"}:
+                raise HTTPException(status_code=404, detail="No document awaiting page reading with that id.")
+            requeued = registry.retry_failed_pages(document_id)
+            progress = registry.progress(document_id)
+        finally:
+            registry.close()
+        worker = getattr(request.app.state, "enrichment", None)
+        if worker is not None:
+            worker.wake(reset_cooldown=True)
+        return {"document_id": document_id, "requeued_pages": requeued, "enrichment": progress}
+
     @target.delete("/documents/{document_id}", status_code=200)
     async def delete_document(
         document_id: str,
@@ -977,9 +1093,39 @@ def _install_ingestion_routes(target: FastAPI) -> None:
                 detail = str(error).strip() or "Document removal failed."
                 raise HTTPException(status_code=422, detail=detail) from error
             _refresh_runtime_asset_environment()
-            request.app.state.profile_manager.reset()
+            await run_in_threadpool(request.app.state.profile_manager.reset)
             request.app.state.source_resolver.refresh()
             return report
+        finally:
+            pipeline.close()
+
+    @target.post("/documents/delete", status_code=200)
+    async def delete_documents(
+        body: DocumentsDeleteRequest,
+        request: Request,
+        _admin=Depends(require_admin),
+    ):
+        """Remove several PDFs, then reload the search index once."""
+        from ingestion.pipeline import IngestionConfig, IngestionPipeline
+
+        if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+            raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+        pipeline = IngestionPipeline(IngestionConfig.from_environment())
+        removed: list[str] = []
+        failed: list[dict[str, str]] = []
+        try:
+            for document_id in dict.fromkeys(body.document_ids):
+                try:
+                    await run_in_threadpool(pipeline.remove, document_id)
+                    removed.append(document_id)
+                except Exception as error:
+                    logger.exception("Document removal failed for %s.", document_id)
+                    failed.append({"document_id": document_id, "error": str(error).strip() or "Document removal failed."})
+            if removed:
+                _refresh_runtime_asset_environment()
+                await run_in_threadpool(request.app.state.profile_manager.reset)
+                request.app.state.source_resolver.refresh()
+            return {"removed": removed, "failed": failed}
         finally:
             pipeline.close()
 
