@@ -193,7 +193,6 @@ def test_chat_uses_application_active_runtime_profile(monkeypatch, tmp_path):
             "answer": "answer",
             "sources": [],
             "memory_state": {},
-            "graph_trace": {"status": "NOT_REQUESTED"},
         }
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
@@ -232,7 +231,6 @@ def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_pat
                     "standalone_query": message,
                     "answer": f"answer {len(received_states)}",
                     "sources": [],
-                    "graph_trace": {"status": "NOT_REQUESTED"},
                 },
             ],
         }
@@ -240,7 +238,6 @@ def test_chat_creates_and_resumes_a_persistent_conversation(monkeypatch, tmp_pat
             "answer": f"answer {len(received_states)}",
             "sources": [],
             "memory_state": next_state,
-            "graph_trace": {"status": "NOT_REQUESTED"},
         }
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
@@ -327,14 +324,12 @@ def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_pa
             "standalone_query": message,
             "answer": f"answer {len(calls)}",
             "sources": [],
-            "graph_trace": {"status": "NOT_REQUESTED"},
         }
         return {
             "answer": f"answer {len(calls)}",
             "sources": [{"file": f"Cir_2019_0{len(calls)}_fr.pdf", "page": len(calls), "score": 1.0}],
             "status": "answered",
             "memory_state": {**memory_state, "turns": [*memory_state.get("turns", []), turn]},
-            "graph_trace": {"status": "NOT_REQUESTED"},
         }
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
@@ -410,7 +405,7 @@ def _title_setup(monkeypatch, tmp_path):
                 {"user_message": message, "standalone_query": message, "answer": "a", "sources": []},
             ],
         }
-        return {"answer": "a", "sources": [], "memory_state": state, "graph_trace": {}}
+        return {"answer": "a", "sources": [], "memory_state": state}
 
     monkeypatch.setattr(app_module, "chat", fake_chat)
     return store

@@ -179,12 +179,9 @@ def _text_blocks(text: str, page_number: int, *, extraction_method: str) -> list
 
 
 def _visual_enabled() -> bool:
-    backend = (os.environ.get("BCT_VISUAL_BACKEND") or "").strip().casefold()
-    if backend in {"off", "0", "none", "false"}:
-        return False
-    if backend in {"local", "gemini"}:
-        return True
-    return os.environ.get("BCT_GEMINI_VISUAL", "1") == "1"
+    from .local_visual import visual_backend_name
+
+    return visual_backend_name() != "off"
 
 
 def _whole_page_plan(*, language: str, native_text: str, requires_fallback: bool) -> tuple[bool, bool]:

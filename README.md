@@ -71,14 +71,12 @@ One command starts the **UI + API**.
 ### What you must do
 
 1. Install **Docker Desktop** (or Docker Engine + Compose).
-2. Get the project (clone or unzip) **with `documents/` and `baked-runtime-assets/` present on the machine that builds the image** (both are gitignored). Export indexes with:
+2. Get the project (clone or unzip) **with `documents/` and `baked-runtime-assets/` present on the machine that builds the image** (both are gitignored: they are handed over with the project, not stored in git). To ship a newer corpus, bake it from a running asset root (only the live version and its search index; a previous bake is renamed, not deleted):
 
 ```powershell
 cd backend
-python tmp\rebuild_local_baked.py
+python bake_assets.py --source "C:\path\to\runtime-assets"
 ```
-
-(Or re-export from a live assets root: `python tmp\export_baked_assets.py --source "C:\path\to\runtime-assets" --dest "..\baked-runtime-assets"`.)
 
 3. Copy the env template and fill **required** values:
 
@@ -228,23 +226,6 @@ pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tab
 - Tuning: `BCT_ENRICH_BATCH_PAGES` (20), `BCT_ENRICH_BATCH_SECONDS` (600), `BCT_ENRICH_IDLE_SECONDS` (3, quiet time after a chat), `BCT_ENRICH_MAX_ATTEMPTS` (3), `BCT_ENRICH_BREAKER_FAILURES` (3), `BCT_ENRICH_COOLDOWN_SECONDS` (600); `BCT_ENRICHMENT=0` disables the worker.
 - Tracing (optional): set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL`. Each PDF version is one Langfuse session (`ingest-<sha256>`): the `ingest-document` quick-pass trace, one `enrich-page` trace per page (engine, seconds, chat wait, cold start), `activate-enrichment` per batch, and `open-circuit-breaker` warnings.
 - A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by the active visual backend and the transcription becomes the page's text (`native_replaced_by_visual`). The garbled native text stays in `structured.json` only.
-
-### Re-extract pages with unreliable digits (staged)
-
-Works on a **candidate** copy of the asset root; the live corpus is untouched until you point the API at the candidate.
-
-```powershell
-cd backend
-# list affected PDFs/pages in the live corpus
-python reingest_unreliable.py --assets "C:\path\to\runtime-assets" --dry-run
-# copy the live root, then re-ingest every affected PDF through Gemini
-$env:BCT_GEMINI_MODEL = "gemini-3.5-flash-lite"   # free tier: 500 req/day; default ingest model is gemini-3.8-flash (falls back to 3.6 on quota)
-python reingest_unreliable.py --assets "C:\path\to\runtime-assets-candidate" --seed-from "C:\path\to\runtime-assets" --documents "C:\path\to\documents"
-# compare, then serve from the candidate root
-python run_api.py --assets "C:\path\to\runtime-assets-candidate" ...
-```
-
-Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Rebuild local Chroma separately for the `local` profiles.
 
 ---
 

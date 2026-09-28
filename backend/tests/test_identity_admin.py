@@ -106,7 +106,6 @@ def test_conversations_are_isolated_between_users(auth_client, monkeypatch):
                     },
                 ],
             },
-            "graph_trace": {},
         },
     )
 

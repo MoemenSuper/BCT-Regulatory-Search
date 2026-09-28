@@ -77,7 +77,6 @@ class ChatResponse(BaseModel):
     status: str
     answer: str
     sources: list[Source]
-    graph_trace: dict
     memory_state: dict[str, Any]
 
 
@@ -718,7 +717,6 @@ def post_chat(
             standalone_query=(memory_state.get("turns") or [{}])[-1].get("standalone_query", question),
             answer=result["answer"],
             sources=result["sources"],
-            graph_trace=result["graph_trace"],
             profile=runtime.spec.value.value,
             answer_status=result.get("status"),
         )
@@ -763,7 +761,6 @@ def post_chat(
         "status": result.get("status", "answered"),
         "answer": result["answer"],
         "sources": result["sources"],
-        "graph_trace": result["graph_trace"],
         "memory_state": result["memory_state"],
     }
 

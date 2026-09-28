@@ -16,8 +16,6 @@ from retrieval_selection import (
 )
 from pydantic import BaseModel, ConfigDict, model_validator
 from graph_contract import (
-    GraphRetrievalStatus,
-    GraphRetrievalTrace,
     is_temporal_rule_query,
 )
 
@@ -329,7 +327,6 @@ def update_memory_state(
     standalone_query=None,
     answer=None,
     sources=None,
-    graph_trace=None,
     answer_status=None,
 ):
     topics = list(memory_state.get("topics", []))
@@ -357,7 +354,6 @@ def update_memory_state(
             "standalone_query": standalone_query or message,
             "answer": answer or "",
             "sources": list(sources or []),
-            "graph_trace": dict(graph_trace or {}),
             "answer_status": answer_status,
         })
 
@@ -470,9 +466,6 @@ def chat(
                 "sources": reply["sources"],
                 "status": reply["status"],
                 "memory_state": memory_state,
-                "graph_trace": GraphRetrievalTrace(
-                    status=GraphRetrievalStatus.NOT_REQUESTED
-                ).as_dict(),
                 "refusal_reason": None,
                 "refusal_diagnostics": [],
             }
@@ -482,9 +475,6 @@ def chat(
             "sources": [],
             "status": clarification["status"],
             "memory_state": memory_state,
-            "graph_trace": GraphRetrievalTrace(
-                status=GraphRetrievalStatus.NOT_REQUESTED
-            ).as_dict(),
             "refusal_reason": format_refusal_reason(
                 "clarification_needed",
                 ["route:AMBIGUOUS:question_scope_unclear"],
@@ -512,9 +502,6 @@ def chat(
     if route["intent"] == RouteIntent.FOLLOW_UP.value:
         reranked_results = _prefer_prior_turn_sources(reranked_results, memory_state)
         chat_tracing.event("prefer-prior-turn-sources", output=chat_tracing.brief(reranked_results))
-    # Opaque compatibility field for conversation memory / API clients.
-    graph_trace = GraphRetrievalTrace(status=GraphRetrievalStatus.NOT_REQUESTED)
-
     # Retrieval is scored per chunk; the answer layer reads the whole retrieved page
     # so a fact in a neighbouring chunk is not lost. Order and citations are unchanged.
     expand_pages = getattr(retrieval_backend, "expand_pages", None)
@@ -555,7 +542,6 @@ def chat(
             generated = search_response(message, evidence_records(reranked_results[:5]))
     answer = generated["answer"]
     sources = generated["sources"]
-    trace = graph_trace.as_dict()
 
     result = {
         "answer": answer,
@@ -567,10 +553,8 @@ def chat(
             standalone_query=query_for_retrieval,
             answer=answer,
             sources=sources,
-            graph_trace=trace,
             answer_status=generated.get("status"),
         ),
-        "graph_trace": trace,
         "status": generated.get("status", "answered"),
     }
     if refusal_reason:

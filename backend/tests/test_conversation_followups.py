@@ -24,7 +24,6 @@ def _previous_state():
                 "standalone_query": "changes made by Circular 2019-07",
                 "answer": "It amended the exchange-office rules.",
                 "sources": [{"file": "Cir_2019_07_fr.pdf", "page": 3}],
-                "graph_trace": {"status": "EXPANDED"},
             }
         ],
     }

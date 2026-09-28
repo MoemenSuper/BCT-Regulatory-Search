@@ -409,7 +409,10 @@ class LocalVisualRouter:
 
 
 def visual_backend_name(profile: str | None = None) -> str:
+    """The one visual-reading switch: BCT_VISUAL_BACKEND = local | gemini | off; default by profile."""
     configured = (os.environ.get("BCT_VISUAL_BACKEND") or "").strip().casefold()
+    if configured in {"off", "0", "none", "false"}:
+        return "off"
     if configured:
         return configured
     active = (profile or os.environ.get("BCT_DEFAULT_PROFILE") or "local_hybrid").strip().casefold()
@@ -419,18 +422,13 @@ def visual_backend_name(profile: str | None = None) -> str:
 def build_visual_transcriber(cache_dir: str | Path, *, profile: str | None = None):
     """Return Gemini or local router, or None when visual ingest is off."""
     backend = visual_backend_name(profile)
-    if backend in {"off", "0", "none", "false"}:
-        return None
-    if os.environ.get("BCT_GEMINI_VISUAL", "1") != "1" and backend == "gemini":
+    if backend == "off":
         return None
     if backend == "gemini":
         from .gemini_visual import GeminiVisualTranscriber
 
         return GeminiVisualTranscriber(cache_dir)
     # local (default for local / local_hybrid)
-    if os.environ.get("BCT_GEMINI_VISUAL", "1") == "0" and not (os.environ.get("BCT_VISUAL_BACKEND") or "").strip():
-        # legacy kill-switch with no explicit backend still disables visual
-        return None
     root = Path(cache_dir)
     # Prefer dedicated local cache; fall back beside gemini-cache.
     local_root = Path(os.environ.get("BCT_VISUAL_CACHE", str(root.parent / "visual-cache" if root.name == "gemini-cache" else root)))

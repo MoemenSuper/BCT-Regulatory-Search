@@ -66,7 +66,7 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
         Path(asset_root, "ACTIVE.json").write_text(json.dumps(pointer), encoding="utf-8")
         return pointer
 
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "0")
+    monkeypatch.setenv("BCT_VISUAL_BACKEND", "off")
     monkeypatch.setattr(pipeline_module, "PdfExtractor", FakeExtractor)
     monkeypatch.setattr(pipeline_module, "build_runtime_chunks", fake_chunks)
     monkeypatch.setattr(pipeline_module, "stage_cloud_assets", fake_stage_cloud_assets)

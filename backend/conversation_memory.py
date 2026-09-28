@@ -113,7 +113,6 @@ class ConversationStore:
                     standalone_query TEXT,
                     answer TEXT NOT NULL,
                     sources_json TEXT NOT NULL,
-                    graph_trace_json TEXT NOT NULL,
                     profile TEXT,
                     answer_status TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -191,7 +190,6 @@ class ConversationStore:
         standalone_query=None,
         answer="",
         sources=None,
-        graph_trace=None,
         profile=None,
         answer_status=None,
     ):
@@ -219,8 +217,8 @@ class ConversationStore:
                 """
                 INSERT INTO conversation_turns (
                     turn_id, conversation_id, question, standalone_query, answer,
-                    sources_json, graph_trace_json, profile, answer_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    sources_json, profile, answer_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     turn_id,
@@ -229,7 +227,6 @@ class ConversationStore:
                     str(standalone_query or question),
                     str(answer or ""),
                     json.dumps(list(sources or []), ensure_ascii=False, sort_keys=True),
-                    json.dumps(dict(graph_trace or {}), ensure_ascii=False, sort_keys=True),
                     profile,
                     answer_status,
                 ),
@@ -504,7 +501,7 @@ class ConversationStore:
             rows = connection.execute(
                 """
                 SELECT turn_id, question, standalone_query, answer, sources_json,
-                       graph_trace_json, profile, answer_status, created_at
+                       profile, answer_status, created_at
                 FROM conversation_turns
                 WHERE conversation_id=?
                 ORDER BY created_at ASC, rowid ASC
@@ -519,7 +516,6 @@ class ConversationStore:
                 "standalone_query": row["standalone_query"],
                 "answer": row["answer"],
                 "sources": json.loads(row["sources_json"] or "[]"),
-                "graph_trace": json.loads(row["graph_trace_json"] or "{}"),
                 "profile": row["profile"],
                 "answer_status": row["answer_status"],
                 "created_at": row["created_at"],
@@ -563,6 +559,9 @@ class ConversationStore:
             connection.execute(
                 "ALTER TABLE conversation_sessions ADD COLUMN user_id TEXT"
             )
+        turn_columns = {row[1] for row in connection.execute("PRAGMA table_info(conversation_turns)").fetchall()}
+        if "graph_trace_json" in turn_columns:  # Neo4j-era field, never read: dropped from older DBs
+            connection.execute("ALTER TABLE conversation_turns DROP COLUMN graph_trace_json")
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_conversation_sessions_user "
             "ON conversation_sessions(user_id)"

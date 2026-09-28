@@ -110,7 +110,7 @@ def test_pipeline_remove_strips_source_and_keeps_peers(tmp_path: Path, monkeypat
     monkeypatch.setattr(
         index_module, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
     )
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "0")
+    monkeypatch.setenv("BCT_VISUAL_BACKEND", "off")
 
     registry = IngestionRegistry(tmp_path / "ingestion.sqlite3")
     try:

@@ -1,12 +1,8 @@
-"""Query classification and compatibility result types for currentness / memory.
+"""Query classification for currentness.
 
 Classifiers (`is_temporal_rule_query`, `is_relationship_query`) drive retrieval
-ordering and answer prompts. `GraphRetrievalTrace` remains for API and
-conversation-memory compatibility; currentness pinning uses JSONL supersession
-edges, not a graph database.
+ordering and answer prompts. Currentness pinning uses JSONL supersession edges.
 """
-from dataclasses import dataclass
-from enum import Enum
 import re
 
 
@@ -85,50 +81,6 @@ _EXPLICIT_CURRENT_PATTERNS = tuple(
         r"(?:الساري|النافذ|الحالي|سارية|اليوم|الأحدث|أحدث|آخر\s+(?:قيمة|نسبة|سقف|قاعدة))",
     )
 )
-
-
-class GraphRetrievalStatus(str, Enum):
-    NOT_REQUESTED = "NOT_REQUESTED"
-    NO_SEED = "NO_SEED"
-    NO_EVIDENCE = "NO_EVIDENCE"
-    EXPANDED = "EXPANDED"
-    UNAVAILABLE = "UNAVAILABLE"
-
-
-class TemporalRetrievalStatus(str, Enum):
-    NOT_REQUESTED = "NOT_REQUESTED"
-    NO_CANDIDATE = "NO_CANDIDATE"
-    INCOMPLETE = "INCOMPLETE"
-    UNAVAILABLE = "UNAVAILABLE"
-
-
-class TemporalFailureReason(str, Enum):
-    NO_RETRIEVAL_SEED = "no_retrieval_seed"
-    RELATIONSHIP_ONLY_NOT_PROVISION_RESOLVED = "relationship_only_not_provision_resolved"
-
-
-@dataclass(frozen=True)
-class GraphRetrievalTrace:
-    status: GraphRetrievalStatus
-    seed_filenames: tuple[str, ...] = ()
-    evidence_count: int = 0
-    paths: tuple[str, ...] = ()
-    error_type: str | None = None
-    temporal_status: TemporalRetrievalStatus = TemporalRetrievalStatus.NOT_REQUESTED
-    temporal_reason: TemporalFailureReason | None = None
-
-    def as_dict(self) -> dict[str, object]:
-        return {
-            "status": self.status.value,
-            "seed_filenames": list(self.seed_filenames),
-            "evidence_count": self.evidence_count,
-            "paths": list(self.paths),
-            "error_type": self.error_type,
-            "temporal_status": self.temporal_status.value,
-            "temporal_reason": (
-                self.temporal_reason.value if self.temporal_reason else None
-            ),
-        }
 
 
 def is_relationship_query(query: str) -> bool:

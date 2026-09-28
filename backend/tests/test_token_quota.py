@@ -80,7 +80,6 @@ def test_chat_blocked_when_token_quota_exhausted(auth_client, monkeypatch):
             "answer": "x",
             "sources": [],
             "memory_state": {},
-            "graph_trace": {},
             "status": "answered",
         },
     )

@@ -2,7 +2,7 @@
 #
 # 1. cp .env.example .env   and fill the required values
 # 2. Ensure ./documents and ./baked-runtime-assets exist before build
-#    (export assets with: python backend/tmp/export_baked_assets.py --source <runtime-assets>)
+#    (refresh the corpus with: python backend/bake_assets.py --source <live asset root>)
 # 3. docker compose up -d --build
 # 4. open http://localhost:8080
 #

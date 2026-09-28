@@ -807,7 +807,7 @@ def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_p
     monkeypatch.setattr(app_module, "create_voyage_backend_from_environment", lambda: object())
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: ConversationStore(tmp_path / "history.sqlite3"))
     result = search_response("Quel est le plafond ?", [record(eid=f"E{n}", source=f"Cir_2022_{n:02}_fr.pdf") for n in range(1, 6)])
-    monkeypatch.setattr(app_module, "chat", lambda *args, **kwargs: {**result, "memory_state": {}, "graph_trace": {}})
+    monkeypatch.setattr(app_module, "chat", lambda *args, **kwargs: {**result, "memory_state": {}})
     with TestClient(app_module.app) as client:
         response = client.post("/chat", json={"question": "Quel est le plafond ?"})
         assert response.status_code == 200

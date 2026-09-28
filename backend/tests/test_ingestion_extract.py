@@ -43,7 +43,6 @@ def test_clean_french_pdf_stays_native_without_visual_call(tmp_path: Path, monke
         "Article 12. La Banque Centrale de Tunisie peut retirer un agrement lorsque les conditions ne sont plus remplies.",
     )
     fake = FakeVisualTranscriber(transcription="unused")
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
     monkeypatch.setenv("BCT_GEMINI_ARABIC_MODE", "all")
 
     document = PdfExtractor(visual_transcriber=fake).extract(path)
@@ -60,7 +59,6 @@ def test_arabic_policy_keeps_native_text_and_adds_complete_gemini_visual_text(tm
     # fixture independent of system Arabic fonts while exercising the Arabic policy.
     _make_pdf(path, "BCT regulatory text 2026 with enough native content for a clean extraction page.")
     fake = FakeVisualTranscriber(transcription="النص المرئي الكامل ١١ أكتوبر ٢٠٢٦")
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
     monkeypatch.setenv("BCT_GEMINI_ARABIC_MODE", "all")
     monkeypatch.delenv("BCT_ALLOW_DEGRADED_INGESTION", raising=False)
 
@@ -78,7 +76,6 @@ def test_blank_scanned_page_uses_complete_gemini_transcription_as_primary(tmp_pa
     path = tmp_path / "Note_2026_02_ar.pdf"
     _make_pdf(path)
     fake = FakeVisualTranscriber(transcription="الفصل الأول\nالمبلغ ١٠٠٠ دينار")
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
     monkeypatch.setenv("BCT_GEMINI_ARABIC_MODE", "all")
     monkeypatch.delenv("BCT_ALLOW_DEGRADED_INGESTION", raising=False)
 
@@ -96,7 +93,6 @@ def test_page_with_garbled_native_digits_is_replaced_by_gemini_transcription(tmp
     # then contradicts the trusted filename, which routes the page to Gemini.
     _make_pdf(path, "CIRCULAIRE AUX BANQUES n° 6112-04 du 15 septembre 6112. Ligne de financement de 31 millions.")
     fake = FakeVisualTranscriber(transcription="CIRCULAIRE AUX BANQUES n° 2016-04 du 15 septembre 2016. Ligne de financement de 31 millions.")
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
     monkeypatch.delenv("BCT_ALLOW_DEGRADED_INGESTION", raising=False)
 
     page = PdfExtractor(visual_transcriber=fake).extract(path).pages[0]
@@ -114,7 +110,6 @@ def test_required_arabic_visual_failure_fails_closed(tmp_path: Path, monkeypatch
     path = tmp_path / "Note_2026_03_ar.pdf"
     _make_pdf(path, "BCT regulatory text with enough native content to avoid the native quality fallback.")
     fake = FakeVisualTranscriber(transcription="جزء غير مكتمل", complete=False)
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
     monkeypatch.setenv("BCT_GEMINI_ARABIC_MODE", "all")
     monkeypatch.delenv("BCT_ALLOW_DEGRADED_INGESTION", raising=False)
 

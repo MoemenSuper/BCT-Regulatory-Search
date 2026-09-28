@@ -70,7 +70,7 @@ COPY --from=ui /ui/dist /app/static
 # (gitignored — present on the builder machine). Recipients get PDFs from the image, no host mount.
 COPY documents/ /data/documents/
 # Slim local runtime assets (chunks + Chroma). Seeded into the assets volume on first boot.
-# Build with: python backend/tmp/rebuild_local_baked.py
+# Refresh with: python backend/bake_assets.py --source <live asset root>
 COPY baked-runtime-assets/ /opt/bct/baked-assets/
 
 # Devices are detected at run time (hardware.py; Paddle falls back to CPU by itself): the same image
