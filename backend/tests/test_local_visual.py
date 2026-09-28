@@ -131,3 +131,15 @@ def test_paddle_gpu_cap_setting(monkeypatch):
     assert _paddle_gpu_cap_mb() is None
     monkeypatch.setenv("BCT_PADDLE_GPU_MEMORY_MB", "4096")
     assert _paddle_gpu_cap_mb() == 4096
+
+
+def test_paddle_on_cpu_refuses_to_start_without_enough_memory(tmp_path, monkeypatch):
+    import pytest
+
+    from ingestion import local_visual
+
+    monkeypatch.setattr(local_visual, "_available_memory_gb", lambda: 5.0)
+    reader = local_visual.PaddleVlVisual(tmp_path)
+    reader._device = "cpu"
+    with pytest.raises(RuntimeError, match="needs about 8 GB of free memory; 5.0 GB free"):
+        reader._start_worker()

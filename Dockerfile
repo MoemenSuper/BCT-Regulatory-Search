@@ -24,11 +24,21 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt backend/requirements-local.txt ./
-# Full local_hybrid stack: retrieval (e5/Chroma/BGE), EasyOCR and Docling. PyPI's Linux torch
-# wheel includes CUDA: it runs on CPU, and on the GPU when the container is given one.
+# Large wheels over slow or filtered networks: wait longer and retry instead of failing the build.
+ENV PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=10
+# DEVICE=cpu (default) or gpu (docker-compose.gpu.yml) picks the torch and Paddle builds.
+ARG DEVICE=cpu
+# Full local_hybrid stack: retrieval (e5/Chroma/BGE), EasyOCR and Docling. Torch goes in first:
+# the CPU image takes the CPU-only wheel (~200 MB); the GPU image PyPI's CUDA wheel (several GB).
 # Docling pulls the GUI OpenCV build; EasyOCR uses the headless one and both provide cv2, so the
 # GUI build is removed and headless reinstalled.
-RUN pip install --no-cache-dir -r requirements-local.txt \
+RUN if [ "$DEVICE" = "gpu" ]; then \
+        pip install --no-cache-dir torch torchvision ; \
+    else \
+        pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu ; \
+    fi \
+    && pip install --no-cache-dir -r requirements-local.txt \
     && pip install --no-cache-dir "google-genai>=2.20.0,<3" "filelock>=3.18,<4" "docling>=2.130,<3" \
     && pip uninstall -y opencv-python \
     && pip install --no-cache-dir --force-reinstall --no-deps \
@@ -36,17 +46,23 @@ RUN pip install --no-cache-dir -r requirements-local.txt \
 
 # PaddleOCR-VL (image regions, scanned French pages) in its own venv: its worker process is the only
 # Paddle user, and keeping Paddle out of the torch environment rules out a clash of their GPU
-# libraries. PADDLE=gpu builds the CUDA wheel (see docker-compose.gpu.yml); the default is CPU.
-ARG PADDLE=cpu
+# libraries. DEVICE=gpu builds its CUDA wheel. Same Paddle version on both: PaddleOCR-VL needs >= 3.2.
 RUN python -m venv /opt/paddle-venv \
-    && if [ "$PADDLE" = "gpu" ]; then \
+    && if [ "$DEVICE" = "gpu" ]; then \
         /opt/paddle-venv/bin/pip install --no-cache-dir "paddlepaddle-gpu==3.2.1" \
             -i https://www.paddlepaddle.org.cn/packages/stable/cu126/ ; \
     else \
-        /opt/paddle-venv/bin/pip install --no-cache-dir "paddlepaddle==3.0.0" \
+        /opt/paddle-venv/bin/pip install --no-cache-dir "paddlepaddle==3.2.1" \
             -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ ; \
     fi \
     && /opt/paddle-venv/bin/pip install --no-cache-dir "paddleocr[doc-parser]>=3.4,<4"
+# PaddleOCR-VL weights (~2 GB), so a server without internet can read image regions. Before the app
+# code is copied, so code changes do not download them again. Download only: loading the 0.9B model
+# needs more memory than a build may have. Names = pipeline v1.6 in ingestion/paddle_vl_worker.py
+# (orientation and unwarping models are off there).
+RUN PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=1 /opt/paddle-venv/bin/python -c \
+    "from paddlex.inference.utils.official_models import official_models; \
+[print(official_models[name]) for name in ('PP-DocLayoutV3', 'PaddleOCR-VL-1.6-0.9B')]"
 
 COPY backend/ ./
 COPY --from=ui /ui/dist /app/static
@@ -81,9 +97,6 @@ import easyocr; easyocr.Reader(['ar'], gpu=False, verbose=False); \
 import pymupdf; d = pymupdf.open(); d.new_page().insert_text((72, 72), 'warm'); d.save('/tmp/warm.pdf'); \
 from ingestion.docling_layout import _convert; _convert('/tmp/warm.pdf'); \
 print('local models warmed')"
-# PaddleOCR-VL weights too, so a server without internet can read image regions: start the real
-# worker once (it loads the pipeline, reports ready) and ask it to quit.
-RUN echo '{"cmd": "quit"}' | /opt/paddle-venv/bin/python -u ingestion/paddle_vl_worker.py
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \

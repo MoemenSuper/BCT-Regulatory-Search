@@ -37,6 +37,14 @@ def _block_modelscope_torch() -> None:
     iutil.find_spec = find_spec  # type: ignore[assignment]
 
 
+def _first_to_go_when_memory_runs_out() -> None:
+    """Linux: if memory runs out anyway, the kernel kills this reader, not the API that serves chat."""
+    try:
+        Path("/proc/self/oom_score_adj").write_text("1000")
+    except OSError:
+        pass  # not Linux, or not allowed: nothing to adjust
+
+
 def _exit_with_parent() -> None:
     """A hard-killed API must not leave this process holding GPU memory (next worker would crash)."""
     parent = int(os.environ.get("BCT_PARENT_PID") or 0)
@@ -62,6 +70,7 @@ def _exit_with_parent() -> None:
 
 
 def main() -> int:
+    _first_to_go_when_memory_runs_out()
     _exit_with_parent()
     _ensure_nvidia_path()
     _block_modelscope_torch()

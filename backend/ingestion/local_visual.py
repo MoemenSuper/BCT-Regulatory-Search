@@ -110,6 +110,22 @@ class EasyOcrVisual:
             return _traced(generation, page, cache_hit=False, model_cold_start=cold)
 
 
+def _available_memory_gb() -> float | None:
+    """Memory the machine (or container VM) can still hand out; None where it cannot be read."""
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) / 2**20
+    except OSError:
+        pass
+    try:
+        import psutil
+
+        return psutil.virtual_memory().available / 2**30
+    except Exception:
+        return None
+
+
 def _paddle_gpu_cap_mb() -> int | None:
     """Hard Paddle allocator cap so the OCR worker cannot starve the API's search models of VRAM.
 
@@ -172,6 +188,14 @@ class PaddleVlVisual:
         import subprocess
         import sys
 
+        if self._device == "cpu":
+            free_gb, needed_gb = _available_memory_gb(), float(os.environ.get("BCT_PADDLE_MIN_FREE_GB", "8"))
+            if free_gb is not None and free_gb < needed_gb:
+                # Loading the 0.9B model on CPU on a small machine (an 8 GB Docker Desktop) runs it
+                # out of memory. The page stays readable from its PDF text and is marked unread.
+                raise RuntimeError(
+                    f"PaddleOCR-VL on CPU needs about {needed_gb:g} GB of free memory; {free_gb:.1f} GB free"
+                )
         self.killed = False
         env = os.environ.copy()
         env.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "1")

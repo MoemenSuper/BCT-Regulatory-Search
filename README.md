@@ -118,7 +118,11 @@ With the NVIDIA driver and NVIDIA Container Toolkit installed on the host:
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
 
-This builds PaddleOCR-VL with its CUDA wheel and gives the container the GPUs; search, reranking, EasyOCR and Docling pick the GPU up by themselves. Without a GPU, the default command above runs everything on CPU (same answers; reading scanned or picture-heavy uploads is slower).
+This builds torch and PaddleOCR-VL with CUDA and gives the container the GPUs; search, reranking, EasyOCR and Docling pick the GPU up by themselves. Without a GPU, the default command above runs everything on CPU (same answers; reading scanned or picture-heavy uploads is slower).
+
+### Memory
+
+Search and answers run in about 3 GB. Reading pictures and scans with PaddleOCR-VL on **CPU** needs about 8 GB of free memory on top, so give Docker at least **12–16 GB** (Docker Desktop: Settings → Resources). With less, the app keeps running: the reader does not start, uploads stay searchable from their PDF text, and the admin page lists those pages as not read visually (`BCT_PADDLE_MIN_FREE_GB` changes the threshold). On a GPU server the model loads into the graphics card instead.
 
 ### Servers without internet
 

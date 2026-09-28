@@ -8,13 +8,12 @@ frontend/dist
 backend/.env
 backend/.demo-data
 backend/.neo4j-data
+backend/tmp
+backend/tmp_cache_test
+backend/chroma_db
 .env
-# Keep stray PDFs out of the build context, but allow the corpus baked into the image.
+# Stray PDFs at the project root stay out; documents/ and baked-runtime-assets/ (the corpus and its
+# indexes) go in. No "!" exceptions: with them Docker walks every excluded folder anyway.
 *.pdf
-!documents/
-!documents/**/*.pdf
-# Slim local indexes for Docker bake (export via backend/tmp/rebuild_local_baked.py)
-!baked-runtime-assets/
-!baked-runtime-assets/**
 docs
 output
