@@ -60,14 +60,13 @@ This package does **not** ship API keys, BCT PDFs, vector assets, Chroma data, o
 One command starts the **UI + API**.
 
 ### What Docker does for you
-- Installs dependencies for **local_hybrid**: e5 embeddings, BGE reranker, Chroma, EasyOCR, PaddleOCR-VL (CPU wheels)
-- Pre-downloads embed / rerank / EasyOCR model weights into the image
+- Installs dependencies for **local_hybrid**: e5 embeddings, BGE reranker, Chroma, EasyOCR, Docling, PaddleOCR-VL (in its own environment)
+- Pre-downloads every model (embed, rerank, EasyOCR, Docling, PaddleOCR-VL) into the image: once built, it runs without internet
+- Detects the hardware at run time: CPU anywhere, the NVIDIA GPU when started with `docker-compose.gpu.yml`
 - Builds the React UI into the API image
 - Bakes the local `documents/` PDF corpus into the image (~100 MB)
 - Bakes a slim local Chroma runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 445 PDFs
 - Serves the app at **http://localhost:8080**
-
-First PaddleOCR-VL ingest may still download VL weights into the container data volume (large, one-time).
 
 ### What you must do
 
@@ -110,6 +109,20 @@ docker compose up -d --build
 7. Approve other user accounts when they register.
 
 If you previously started Compose with an empty `bct-assets` volume and want the baked corpus, remove that volume once (`docker volume rm …`) so first boot can seed again. To override PDFs with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
+
+### NVIDIA GPU server
+
+With the NVIDIA driver and NVIDIA Container Toolkit installed on the host:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
+
+This builds PaddleOCR-VL with its CUDA wheel and gives the container the GPUs; search, reranking, EasyOCR and Docling pick the GPU up by themselves. Without a GPU, the default command above runs everything on CPU (same answers; reading scanned or picture-heavy uploads is slower).
+
+### Servers without internet
+
+Build the image on a connected machine, then move it: `docker save bct-regulatory-search:pilot -o bct.tar`, copy `bct.tar`, `docker load -i bct.tar` on the server, and start it with `docker compose up -d` (no `--build`).
 
 ### Optional later
 - Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.

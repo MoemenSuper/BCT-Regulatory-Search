@@ -1,0 +1,20 @@
+# NVIDIA GPU server. Needs the NVIDIA driver and the NVIDIA Container Toolkit on the host.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# Builds PaddleOCR-VL with its CUDA wheel and gives the container the GPUs. Search, reranking,
+# EasyOCR and Docling detect the GPU by themselves; nothing else changes.
+
+services:
+  app:
+    build:
+      args:
+        PADDLE: gpu
+    image: bct-regulatory-search:pilot-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
