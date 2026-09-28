@@ -49,7 +49,7 @@ def test_local_router_sends_arabic_to_easyocr(tmp_path: Path):
         source_pdf_sha256="abc",
         page_number=1,
         language="ar",
-        chart_suspect=False,
+        image_region=False,
     )
 
     assert page.transcription == "النص العربي"
@@ -67,7 +67,7 @@ def test_local_router_sends_charts_to_paddle(tmp_path: Path):
         source_pdf_sha256="abc",
         page_number=2,
         language="fr",
-        chart_suspect=True,
+        image_region=True,
     )
 
     assert page.transcription.startswith("Tableau")
@@ -85,7 +85,7 @@ def test_local_router_arabic_chart_merges_paddle_notes(tmp_path: Path):
         source_pdf_sha256="abc",
         page_number=3,
         language="ar",
-        chart_suspect=True,
+        image_region=True,
     )
 
     assert "منشور عربي" in page.transcription

@@ -51,13 +51,12 @@ PROFILE_SPECS = {
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
         value=RuntimeProfile.CLOUD,
-        label="Cloud (Voyage|Google + Groq)",
+        label="Cloud (Voyage + Groq)",
         retrieval="cloud_embed_rerank",
         answer="groq",
         qualification="development_not_legally_qualified",
         description=(
-            "Search: BCT_CLOUD_RETRIEVAL_PROVIDER=voyage (Context-4 + Voyage rerank) "
-            "or google (Gemini embed + Vertex Ranking). Indexes are separate; do not mix. "
+            "Search: Voyage Context-4 embeddings + Voyage rerank. "
             "Answer: Groq. PDF ingestion: Gemini VLM for hard photo/scan/chart pages."
         ),
     ),

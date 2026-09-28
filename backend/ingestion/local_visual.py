@@ -1,4 +1,4 @@
-"""Local visual ingest: EasyOCR for Arabic, PaddleOCR-VL for charts/tables/hard pages."""
+"""Local visual ingest: EasyOCR for Arabic page text, PaddleOCR-VL for image regions and other pages."""
 
 from __future__ import annotations
 
@@ -80,7 +80,11 @@ class EasyOcrVisual:
         if self._reader is None:
             import easyocr
 
-            self._reader = easyocr.Reader(["ar"], gpu=os.environ.get("BCT_EASYOCR_GPU", "1") == "1", verbose=False)
+            from hardware import torch_device
+
+            # GPU when the machine has one (EasyOCR runs on CUDA or Apple MPS); BCT_EASYOCR_GPU=0 forces CPU.
+            gpu = torch_device() in {"cuda", "mps"} and os.environ.get("BCT_EASYOCR_GPU", "1") == "1"
+            self._reader = easyocr.Reader(["ar"], gpu=gpu, verbose=False)
         return self._reader
 
     def transcribe(self, *, image_png: bytes, source_pdf_sha256: str, page_number: int, **_) -> VisualPage:
@@ -300,7 +304,8 @@ class PaddleVlVisual:
 
 
 class LocalVisualRouter:
-    """Route Arabic pages to EasyOCR; charts/tables/hard pages to PaddleOCR-VL."""
+    """Route Arabic page text to EasyOCR; image regions (tables, charts, text in images) and French
+    pages to PaddleOCR-VL. An Arabic image region gets both: EasyOCR text plus PaddleOCR-VL structure."""
 
     def __init__(self, cache_dir: str | Path, *, easy=None, paddle=None) -> None:
         root = Path(cache_dir)
@@ -318,16 +323,16 @@ class LocalVisualRouter:
         source_pdf_sha256: str,
         page_number: int,
         language: str = "fr",
-        chart_suspect: bool = False,
+        image_region: bool = False,
         **_,
     ) -> VisualPage:
         arabic = (language or "").casefold().startswith("ar")
-        if arabic and not chart_suspect:
+        if arabic and not image_region:
             self.last_model = self._easy.model
             return self._easy.transcribe(
                 image_png=image_png, source_pdf_sha256=source_pdf_sha256, page_number=page_number
             )
-        if arabic and chart_suspect:
+        if arabic and image_region:
             self.last_model = self._easy.model
             body = self._easy.transcribe(
                 image_png=image_png, source_pdf_sha256=source_pdf_sha256, page_number=page_number

@@ -18,7 +18,7 @@ from pathlib import Path
 
 from langfuse import get_client, propagate_attributes
 
-from .extract import render_page_png
+from .extract import load_layout, page_regions, read_page_visual
 from .local_visual import build_visual_transcriber
 from .pipeline import IngestionConfig, IngestionPipeline, ingest_session_id
 from .registry import IngestionRegistry
@@ -223,6 +223,9 @@ class EnrichmentWorker:
             for plan in pages:
                 registry.page_failed(content_hash, int(plan["page_number"]), error="visual_not_configured", max_attempts=1)
             pages, failed = [], len(pages)
+        # Image-region pages read the boxes Docling found; its layout is cached beside the PDF.
+        layout = load_layout(pdf_path, pdf_path.parent / "docling-layout.json") if any(
+            plan["image_regions"] for plan in pages) else {}
         with pymupdf.open(pdf_path) as pdf:
             for plan in pages:
                 if self._stop.is_set():
@@ -235,7 +238,7 @@ class EnrichmentWorker:
                     break
                 self._preempted = False
                 self._state = {"state": "reading", "document": filename, "page": page_number}
-                outcome = self._read_page(registry, pdf, content_hash, plan, waited)
+                outcome = self._read_page(registry, pdf, content_hash, plan, waited, layout)
                 if outcome is None:
                     continue  # interrupted by chat: stays pending, not an attempt
                 if outcome:
@@ -261,7 +264,8 @@ class EnrichmentWorker:
             self._activate(content_hash)
         return {"pages_read": read, "pages_failed": failed, "waited_for_chat_s": round(waited_total, 1), "breaker": breaker}
 
-    def _read_page(self, registry: IngestionRegistry, pdf, content_hash: str, plan: dict, waited: float) -> bool | None:
+    def _read_page(self, registry: IngestionRegistry, pdf, content_hash: str, plan: dict, waited: float,
+                   layout: dict) -> bool | None:
         page_number = int(plan["page_number"])
         with self._trace(
             "enrich-page",
@@ -269,7 +273,7 @@ class EnrichmentWorker:
             input={
                 "page": page_number,
                 "language": plan["language"],
-                "chart_suspect": bool(plan["chart_suspect"]),
+                "image_regions": bool(plan["image_regions"]),
                 "priority": plan["priority"],
                 "attempt": int(plan["attempts"]) + 1,
             },
@@ -277,13 +281,13 @@ class EnrichmentWorker:
         ) as span:
             started = time.monotonic()
             try:
-                png = render_page_png(pdf.load_page(page_number - 1))
-                visual = self._transcriber.transcribe(
-                    image_png=png,
-                    source_pdf_sha256=content_hash,
+                visual = read_page_visual(
+                    self._transcriber,
+                    pdf.load_page(page_number - 1),
+                    content_hash=content_hash,
                     page_number=page_number,
                     language=plan["language"],
-                    chart_suspect=bool(plan["chart_suspect"]),
+                    regions=page_regions(layout, page_number) if plan["image_regions"] else [],
                 )
             except Exception as error:
                 message = f"{type(error).__name__}: {error}"
@@ -303,9 +307,7 @@ class EnrichmentWorker:
                     "read": True,
                     "model": model,
                     "seconds": round(seconds, 1),
-                    "transcription_chars": len(visual.transcription),
-                    "chart_notes_chars": len(visual.chart_notes or ""),
-                    "blank": not (visual.transcription.strip() or (visual.chart_notes or "").strip()),
+                    "chars": len(visual.model_dump_json()),
                 }
             )
             return True

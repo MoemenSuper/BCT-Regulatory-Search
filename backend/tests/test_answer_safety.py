@@ -13,9 +13,10 @@ def record(source="Cir_2022_41_fr.pdf", text="Le plafond est de 320 dinars.", ei
     return dict(evidence_id=eid, source=source, page=2, score=0.9, text=text)
 
 
-def draft(text="Le plafond est de 320 dinars.", quote=None, eid="E1", **changes):
+def draft(text="Le plafond est de 320 dinars.", unit=1, eid="E1", **changes):
+    """One claim citing unit `unit` of evidence `eid` (pointer citation)."""
     return dict(status="answered", message="", claims=[dict(
-        text=text, quotes=[dict(evidence_id=eid, quote=quote or text)]
+        text=text, cites=[f"{eid}.{unit}"]
     )], **changes)
 
 
@@ -36,16 +37,8 @@ def test_requested_circular_cannot_be_replaced_by_a_similar_document():
     ("La durée est de deux mois (60 jours).", "La durée est de deux mois."),
 ])
 def test_claim_numbers_must_be_supported_by_its_own_quote(claim, quote):
-    result = parse(draft(claim, quote), [record(text=quote), record(text=claim, eid="E2")])
+    result = parse(draft(claim), [record(text=quote), record(text=claim, eid="E2")])
     assert result["status"] == "insufficient_evidence"
-
-
-def test_typographic_quote_normalization_preserves_the_actual_source_excerpt():
-    quote = "L’allocation est de 3\u202f200 dinars."
-    result = parse(draft("L'allocation est de 3 200 dinars.", "L'allocation est de 3 200 dinars."),
-                   [record(text=quote)])
-    assert result["status"] == "answered"
-    assert result["sources"][0]["excerpt"] == quote
 
 
 def test_partial_message_cannot_smuggle_an_unquoted_legal_answer():
@@ -62,31 +55,22 @@ def test_current_query_is_qualified_even_when_called_without_graph_router():
 
 def test_long_contiguous_quote_and_empty_partial_message_are_not_rejected():
     text = "Conditions complémentaires. " * 65 + "Le plafond est de 320 dinars."
-    value = draft(quote=text)
+    value = draft(unit=66)  # a long page is split into sentences; cite the one that states it
     value["status"] = "partial_answer"
     result = parse(value, [record(text=text)])
     assert result["status"] == "partial_answer"
     assert result["sources"]
 
 
-def test_abbreviated_quote_recovers_omitted_conditions_without_fuzzy_matching():
-    full = "Le prêt est remboursable en 7 ans, sous réserve des conditions du contrat, à compter du premier versement."
-    quote = "Le prêt est remboursable en 7 ans ... à compter du premier versement."
-    result = parse(draft("Le prêt est remboursable en 7 ans.", quote), [record(text=full)])
-    assert result["sources"][0]["excerpt"] == full
-    wrong = parse(draft("Le prêt est remboursable en 7 ans.", quote.replace("7 ans", "8 ans")), [record(text=full)])
-    assert wrong["status"] == "insufficient_evidence"
-
-
 def test_small_word_number_equivalence():
-    result = parse(draft("La durée est de 7 ans.", "La durée est de sept ans."), [record(text="La durée est de sept ans.")])
+    result = parse(draft("La durée est de 7 ans."), [record(text="La durée est de sept ans.")])
     assert result["status"] == "answered"
 
 
 def test_cited_document_name_is_metadata_not_an_unsupported_rule_number():
-    result = parse(draft("Le document Cir_2022_41_fr fixe le plafond à 320 dinars.", "Le plafond est de 320 dinars."), [record()])
+    result = parse(draft("Le document Cir_2022_41_fr fixe le plafond à 320 dinars."), [record()])
     assert result["status"] == "answered"
-    wrong = parse(draft("Le document Cir_2022_41_fr fixe le plafond à 41 dinars.", "Le plafond est de 320 dinars."), [record()])
+    wrong = parse(draft("Le document Cir_2022_41_fr fixe le plafond à 41 dinars."), [record()])
     assert wrong["status"] == "insufficient_evidence"
 
 
@@ -97,47 +81,25 @@ def test_arabic_corrupt_header_warns_words_may_support_claims_digits_may_not():
     assert records[0]["evidence_warning"] == "source_header_conflict"
     assert "unusable_reason" not in records[0]
     # Non-numeric fact from the body: supported.
-    assert parse(draft("لون الورقة أخضر.", "لون الورقة أخضر."), records, "ما اللون؟")["status"] == "answered"
+    assert parse(draft("لون الورقة أخضر.", unit=2), records, "ما اللون؟")["status"] == "answered"
     # Digits on a page with reversed/garbled header digits are not reliable, even verbatim.
-    assert parse(draft("الرمز هو 709.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
-    assert parse(draft("الرمز هو 907.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
+    assert parse(draft("الرمز هو 709.", unit=2), records, "ما الرمز؟")["status"] == "insufficient_evidence"
+    assert parse(draft("الرمز هو 907.", unit=2), records, "ما الرمز؟")["status"] == "insufficient_evidence"
     # Numbers written in words remain usable.
-    assert parse(draft("المدة 3 سنوات.", "المدة ثلاث سنوات."), records, "ما المدة؟")["status"] == "answered"
+    assert parse(draft("المدة 3 سنوات.", unit=2), records, "ما المدة؟")["status"] == "answered"
     # Spelling a garbled digit out in words does not launder it.
-    assert parse(draft("الرمز هو سبعة.", "الرمز هو 709."), records, "ما الرمز؟")["status"] == "insufficient_evidence"
-
-
-def test_quote_locating_ignores_spacing_around_punctuation_and_returns_page_text():
-    page = "DECIDE :\nArticle premier :La Banque mettra en circulation, à compter du  19  mars  2018 , trois pièces."
-    quote = "Article premier : La Banque mettra en circulation, à compter du 19 mars 2018, trois pièces."
-    result = parse(draft("Les pièces sont mises en circulation à compter du 19 mars 2018.", quote),
-                   [record(source="Cir_2018_02_fr.pdf", text=page)])
-    assert result["status"] == "answered"
-    assert result["sources"][0]["excerpt"] == page.split("\n", 1)[1]
-
-
-def test_small_ocr_letter_noise_is_located_but_digits_and_negations_are_exact():
-    page = "نعلمكم أن البنك طرح للتدداول بدايدة من تاريخ 4 أكتوبر 2017 ورقة نقدية جديدة من فئة 10 جنيه استرليني."
-    typo_fixed = "طرح للتداول بداية من تاريخ 4 أكتوبر 2017 ورقة نقدية جديدة من فئة 10 جنيه استرليني."
-    result = parse(draft("بدأ التداول في 4 أكتوبر 2017.", typo_fixed), [record(source="Note_2017_65_ar.pdf", text=page)], "متى؟")
-    assert result["status"] == "answered"
-    assert result["sources"][0]["excerpt"] in page and "للتدداول" in result["sources"][0]["excerpt"]
-    digit_changed = typo_fixed.replace("2017", "2018")
-    assert parse(draft("بدأ التداول في 4 أكتوبر 2018.", digit_changed), [record(source="Note_2017_65_ar.pdf", text=page)], "متى؟")["status"] == "insufficient_evidence"
-    page_fr = "Le titulaire ne peut pas céder son allocation touristique à un tiers pendant la campagne."
-    flipped = "Le titulaire peut céder son allocation touristique à un tiers pendant la campagne."
-    assert parse(draft("Le titulaire peut céder son allocation.", flipped), [record(text=page_fr)])["status"] == "insufficient_evidence"
+    assert parse(draft("الرمز هو سبعة.", unit=2), records, "ما الرمز؟")["status"] == "insufficient_evidence"
 
 
 def test_claim_may_name_the_cited_instrument_year_without_quoting_it():
     table = "| d'hiver | d'été |\n| 630 | 1005 |"
-    result = parse(draft("En 2018, le plafond pour les fourrages d'hiver en sec était de 630 dinars par hectare.", table),
+    result = parse(dict(draft("En 2018, le plafond pour les fourrages d'hiver en sec était de 630 dinars par hectare."), claims=[dict(text="En 2018, le plafond pour les fourrages d'hiver en sec était de 630 dinars par hectare.", cites=["E1.1", "E1.2"])]),
                    [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond pour les fourrages d'hiver ?")
     assert result["status"] == "answered"
-    other_year = parse(draft("En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", table),
+    other_year = parse(dict(draft(), claims=[dict(text="En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", cites=["E1.1", "E1.2"])]),
                        [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond pour les fourrages d'hiver ?")
     assert other_year["status"] == "insufficient_evidence"
-    asked_year = parse(draft("En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", table),
+    asked_year = parse(dict(draft(), claims=[dict(text="En 2016, le plafond pour les fourrages d'hiver était de 630 dinars.", cites=["E1.1", "E1.2"])]),
                        [record(source="Cir_2018_11_fr.pdf", text=table)], "Quel était le plafond en 2016 ?")
     assert asked_year["status"] == "answered"
 
@@ -157,14 +119,14 @@ def test_evidence_warning_targets_garbled_digits_not_body_cross_references():
 
 def test_claim_may_scope_itself_to_the_cited_instrument_identifier():
     page = "L'horaire conventionnel s'étend de 8h00 à 17h00 heure locale."
-    ok = parse(draft("Selon la circulaire 2016-01, l'horaire s'étend de 8h00 à 17h00.", page),
+    ok = parse(draft("Selon la circulaire 2016-01, l'horaire s'étend de 8h00 à 17h00."),
                [record(source="Cir_2016_01_fr.pdf", text=page)], "Quelles sont les heures d'ouverture ?")
     assert ok["status"] == "answered"
-    ok_ar = parse(draft("حسب المنشور عدد 1 لسنة 2016، يمتد التوقيت من 8h00 إلى 17h00.", page),
+    ok_ar = parse(draft("حسب المنشور عدد 1 لسنة 2016، يمتد التوقيت من 8h00 إلى 17h00."),
                   [record(source="Cir_2016_01_fr.pdf", text=page)], "ما هو التوقيت؟")
     assert ok_ar["status"] == "answered"
     # Another instrument's identifier is not trusted metadata for this claim.
-    other = parse(draft("Selon la circulaire 2021-03, l'horaire s'étend de 8h00 à 17h00.", page),
+    other = parse(draft("Selon la circulaire 2021-03, l'horaire s'étend de 8h00 à 17h00."),
                   [record(source="Cir_2016_01_fr.pdf", text=page)], "Quelles sont les heures d'ouverture ?")
     assert other["status"] == "insufficient_evidence"
 
@@ -173,11 +135,11 @@ def test_question_numbers_present_on_the_cited_page_may_be_restated():
     page = "Objet : billets de 100 et 500 couronnes.\nLes anciens billets restent acceptés jusqu'au 10 mai 2017 inclus."
     quote = "Les anciens billets restent acceptés jusqu'au 10 mai 2017 inclus."
     question = "Jusqu'à quand les billets de 100 et 500 couronnes restaient-ils acceptés ?"
-    ok = parse(draft("Les billets de 100 et 500 couronnes restaient acceptés jusqu'au 10 mai 2017.", quote),
+    ok = parse(draft("Les billets de 100 et 500 couronnes restaient acceptés jusqu'au 10 mai 2017.", unit=2),
                [record(source="Note_2017_22_fr.pdf", text=page)], question)
     assert ok["status"] == "answered"
     # A number asked about but absent from the page is not laundered into a claim.
-    leading = parse(draft("Le plafond est de 500 dinars.", "Le plafond est de 320 dinars."), [record()],
+    leading = parse(draft("Le plafond est de 500 dinars."), [record()],
                     "Le plafond est-il de 500 dinars ?")
     assert leading["status"] == "insufficient_evidence"
 
@@ -218,21 +180,12 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
         system = prompt.to_messages()[0].content
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(
-                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
-                )],
-            )))
-        return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
+        return AIMessage(content=json.dumps(draft(unit=9)))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    # Ordinary drafts fail quotes; forced partial formulates a natural claim with a real quote.
-    assert result["status"] == "partial_answer"
-    assert "320 dinars" in result["answer"]
-    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
+    # Both drafts cite a unit that does not exist: no model is pushed further, the pages are listed.
+    assert result["status"] == "search_results"
+    assert result["diagnostics"][:2] == ["unknown_citation", "unknown_citation"]
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
@@ -241,12 +194,11 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
             return [(doc, .9)]
     chat_result = conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
     assert "diagnostics" not in chat_result
-    assert chat_result["status"] == "partial_answer"
-    assert "320 dinars" in chat_result["answer"]
+    assert chat_result["status"] == "search_results"
 
 
-def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
-    responses = [draft(quote="invented"), draft()]
+def test_invalid_citation_gets_a_bounded_retry_with_reason():
+    responses = [draft(unit=9), draft()]
     seen = []
     def respond(prompt):
         seen.append(prompt.to_messages())
@@ -256,60 +208,7 @@ def test_ordinary_invalid_quote_gets_a_bounded_repair_with_reason():
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
     assert result["status"] == "answered"
-    assert any("quote_not_found" in m[-1].content for m in seen)
-
-
-def test_schema_invalid_gets_structure_only_repair_before_fallback():
-    malformed = json.dumps({
-        "status": "yes",
-        "message": "",
-        "claims": [dict(text="Le plafond est de 320 dinars.",
-                        quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")])],
-    })
-    calls = []
-    def respond(prompt):
-        messages = prompt.to_messages()
-        calls.append(messages)
-        system = messages[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
-        if "You repair malformed answer JSON" in system:
-            assert "Le plafond est de 320 dinars." in messages[-1].content
-            assert "Selected evidence" not in messages[-1].content
-            return AIMessage(content=json.dumps(draft()))
-        return AIMessage(content=malformed)
-    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
-    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "answered"
-    assert "320 dinars" in result["answer"]
-    assert any("You repair malformed answer JSON" in messages[0].content for messages in calls)
-
-
-def test_quote_failures_do_not_trigger_schema_repair():
-    calls = []
-    def respond(prompt):
-        messages = prompt.to_messages()
-        calls.append(messages)
-        system = messages[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(decision="answer", reason="", evidence_ids=["E1"])))
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(
-                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
-                )],
-            )))
-        assert "You repair malformed answer JSON" not in system
-        return AIMessage(content=json.dumps(draft(quote="invented quote text that is not on the page")))
-    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
-    result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "partial_answer"
-    assert "320 dinars" in result["answer"]
-    assert result["diagnostics"][:2] == ["quote_not_found", "quote_not_found"]
-    assert any("You MUST answer this BCT regulatory question" in messages[0].content for messages in calls)
-    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
+    assert any("unknown_citation" in m[-1].content for m in seen)
 
 
 def test_broad_summary_first_pass_multi_page_partial_skips_forced_fallback():
@@ -328,19 +227,18 @@ def test_broad_summary_first_pass_multi_page_partial_skips_forced_fallback():
                 reason="complementary facts across pages",
                 evidence_ids=["E1", "E2"],
             )))
-        # First writer draft succeeds — must not reach forced partial.
-        assert "You MUST answer this BCT regulatory question" not in system
+        # First writer draft succeeds.
         return AIMessage(content=json.dumps(dict(
             status="partial_answer",
             message="",
             claims=[
                 dict(
                     text="Selon la circulaire 2016-01, les cours au comptant doivent être affichés.",
-                    quotes=[dict(evidence_id="E1", quote="Les cours au comptant acheteur et vendeur des devises contre dinar tunisien doivent être portés à la connaissance du marché")],
+                    cites=["E1.1"],
                 ),
                 dict(
                     text="Selon la circulaire 2021-03, les intermédiaires agréés peuvent négocier devises/dinar au comptant.",
-                    quotes=[dict(evidence_id="E2", quote="Les Intermédiaires Agréés peuvent effectuer librement sur le marché des changes interbancaires des transactions de change devises/dinar au comptant")],
+                    cites=["E2.1"],
                 ),
             ],
         )))
@@ -363,83 +261,25 @@ def test_broad_summary_first_pass_multi_page_partial_skips_forced_fallback():
     assert result["status"] == "partial_answer"
     assert "2016-01" in result["answer"]
     assert "2021-03" in result["answer"]
-    assert not any(str(item).startswith("forced_partial") for item in result.get("diagnostics") or [])
     assert len(calls) == 2  # select + one draft
 
 
-def test_specific_value_question_still_uses_forced_partial_when_drafts_abstain():
-    """Regression: specific hard asks keep the forced-partial safety net."""
-    calls = []
-
-    def respond(prompt):
-        messages = prompt.to_messages()
-        calls.append(messages)
-        system = messages[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(
-                decision="answer", answer_intent="value", reason="plafond", evidence_ids=["E1"],
-            )))
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(
-                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
-                )],
-            )))
-        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
-
-    doc = Document(
-        page_content=record()["text"],
-        metadata={"source": record()["source"], "page": 2, "pages": [2]},
-    )
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Quel est le plafond selon la circulaire 2022-41 ?",
-        [(doc, 0.9)],
-    )
-    assert result["status"] == "partial_answer"
-    assert "320 dinars" in result["answer"]
-    assert any("forced_partial" in str(item) for item in result["diagnostics"])
-
-
-def test_empty_schema_repair_is_skipped():
-    """Repairing an empty draft would invent insufficient_evidence; skip instead."""
-    from answer_contract import _repair_answer_schema
-
-    assert _repair_answer_schema(object(), "") is None
-    assert _repair_answer_schema(object(), "   ") is None
-
-
-def test_empty_draft_does_not_become_fake_abstention_via_repair():
-    """Blank model content must not be schema-repaired into insufficient_evidence."""
+def test_empty_draft_gets_a_retry_not_a_fake_abstention():
+    """Blank model content is a provider hiccup: the second draft is asked for, not a refusal."""
+    drafts = []
     def respond(prompt):
         system = prompt.to_messages()[0].content
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(
                 decision="partial", answer_intent="summary", reason="ok", evidence_ids=["E1"],
             )))
-        if "You repair malformed answer JSON" in system:
-            raise AssertionError("empty draft must not be sent to schema repair")
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(
-                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
-                )],
-            )))
-        return AIMessage(content="")
+        drafts.append(1)
+        return AIMessage(content="" if len(drafts) == 1 else json.dumps(draft()))
 
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Quelles sont les règles du plafond ?",
-        [(doc, 0.9)],
-    )
-    assert "draft_empty" in (result.get("diagnostics") or [])
-    assert not any("schema_repair:draft_abstained" in str(item) for item in result.get("diagnostics") or [])
-    assert result["status"] == "partial_answer"
+    result = generate_grounded_answer(RunnableLambda(respond), "Quelles sont les règles du plafond ?", [(doc, 0.9)])
+    assert len(drafts) == 2
+    assert result["status"] == "answered"
     assert "320 dinars" in result["answer"]
 
 
@@ -450,7 +290,7 @@ def test_truncated_answer_json_salvages_complete_claims():
     truncated = (
         '{"status":"partial_answer","message":"","claims":['
         '{"text":"Selon la circulaire 2022-41, le plafond est de 320 dinars.",'
-        '"quotes":[{"evidence_id":"E1","quote":"Le plafond est de 320 dinars."}]},'
+        '"cites":["E1.1"]},'
         '{"text":"Selon la circulaire 2022-41, la marge est plafonn'
     )
     payload = _load_answer_payload(truncated)
@@ -477,48 +317,6 @@ def test_selection_keeps_valid_ids_when_model_adds_junk():
     assert "320 dinars" in result["answer"]
 
 
-def test_forced_partial_formulates_natural_claim_not_page_paste():
-    """Forced partial must answer in plain language; quotes carry the page wording."""
-    seen = []
-
-    def respond(prompt):
-        system = prompt.to_messages()[0].content
-        human = prompt.to_messages()[-1].content
-        seen.append(system[:80])
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(
-                decision="partial", answer_intent="other", reason="ok", evidence_ids=["E1"],
-            )))
-        if "You MUST answer this BCT regulatory question" in system:
-            assert "natural answer sentence" in system
-            assert "Or monétaire" in human or "encaisse-or" in human
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(
-                    text="Oui, la circulaire 2022-12 prévoit des achats et ventes d'or monétaire pour l'encaisse-or.",
-                    quotes=[dict(
-                        evidence_id="E1",
-                        quote="Or monétaire : achats et ventes d'or pour l'encaisse-or.",
-                    )],
-                )],
-            )))
-        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
-
-    doc = Document(
-        page_content="| Or monétaire : achats et ventes d'or pour l'encaisse-or. Autre ligne hors sujet.",
-        metadata={"source": "Cir_2022_12_fr.pdf", "page": 14, "pages": [14]},
-    )
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Est-ce que les circulaires et les notes mentionnent le prix d'or ?",
-        [(doc, 0.9)],
-    )
-    assert result["status"] == "partial_answer"
-    assert "prévoit des achats et ventes d'or monétaire" in result["answer"]
-    assert not result["answer"].lstrip().startswith("|")
-    assert any("forced_partial" in str(item) for item in result["diagnostics"])
-
-
 def test_question_anchors_keep_arabic_content_tokens():
     from answer_contract import _question_anchors
 
@@ -527,69 +325,6 @@ def test_question_anchors_keep_arabic_content_tokens():
     assert "الذهب" in anchors or "ذهب" in anchors
     assert "هل" not in anchors
     assert "المنشورات" not in anchors
-
-
-def test_forced_partial_multi_page_states_that_answer_spans_pages():
-    from answer_contract import present_top5_synthesis
-
-    pack = [
-        record(eid="E1", source="Note_2024_163_fr.pdf", text="La PME doit déposer une étude de faisabilité."),
-        record(eid="E2", source="Note_2024_163_fr.pdf", text="Le volume d'investissement ne dépasse pas quinze (15) millions de dinars."),
-        record(eid="E3", source="Cir_2020_04_fr.pdf", text="Marge bénéficiaire ne dépasse 3,5%."),
-    ]
-    pack[0]["page"] = 2
-    pack[1]["page"] = 3
-    pack[2]["page"] = 2
-    accepted = {
-        "status": "partial_answer",
-        "answer": (
-            "Selon la note 2024-163, la PME doit déposer une étude de faisabilité. [1]\n\n"
-            "Selon la note 2024-163, le volume d'investissement ne dépasse pas quinze millions de dinars. [2]"
-        ),
-        "sources": [
-            {"file": "Note_2024_163_fr.pdf", "page": 2, "excerpt": "étude de faisabilité"},
-            {"file": "Note_2024_163_fr.pdf", "page": 3, "excerpt": "quinze (15) millions"},
-        ],
-    }
-    result = present_top5_synthesis("Quelles conditions pour une PME ?", accepted, pack)
-    assert result["status"] == "partial_answer"
-    assert "plusieurs pages" in result["answer"]
-    assert "Confirmez ces éléments" in result["answer"]
-    assert result["answer"].index("étude") < result["answer"].index("plusieurs pages")
-    assert "top5_synthesis:multi_page" in result["diagnostics"]
-    assert len(result["sources"]) == 3
-    assert result["sources"][2]["file"] == "Cir_2020_04_fr.pdf"
-    assert "3,5%" in result["sources"][2]["excerpt"]
-
-
-def test_forced_partial_schema_invalid_is_repaired_before_top5():
-    calls = []
-    def respond(prompt):
-        messages = prompt.to_messages()
-        calls.append(messages)
-        system = messages[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(decision="partial", reason="", evidence_ids=["E1"])))
-        if "You repair malformed answer JSON" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="partial_answer", message="",
-                claims=[dict(text="Selon la note 2024-163, la PME a un volume d'investissement plafonné.",
-                             quotes=[dict(evidence_id="E1",
-                                          quote="volume d'investissement ne dépasse pas quinze (15) millions de dinars")])],
-            )))
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=' partial: {"status":"yes","claims":[{"text":"x"}]} ')
-        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
-    text = "On entend par PME toute entreprise dont le volume d'investissement ne dépasse pas quinze (15) millions de dinars y compris les investissements d'extension."
-    doc = Document(page_content=text, metadata={"source": "Note_2024_163_fr.pdf", "page": 2, "pages": [2]})
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Une petite entreprise obtient un crédit d'investissement en 2024. Quelles conditions lui sont applicables ?",
-        [(doc, .9)],
-    )
-    assert result["status"] == "partial_answer"
-    assert "15" in result["answer"] or "volume" in result["answer"].casefold()
-    assert any("You repair malformed answer JSON" in messages[0].content for messages in calls)
 
 
 def test_question_year_prefers_matching_instrument_over_older_facility():
@@ -602,14 +337,13 @@ def test_question_year_prefers_matching_instrument_over_older_facility():
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(
                 decision="partial", answer_intent="conditions", reason="mixed", evidence_ids=["E1", "E2"])))
-        if "You MUST answer" in system or "You answer questions" in system:
+        if "Answer a question about" in system:
             # Same-year evidence leads, but the selector's other pick is not discarded.
             assert human.index("Note_2024_163_fr.pdf") < human.index("Note_2020_01_fr.pdf")
             return AIMessage(content=json.dumps(dict(
                 status="partial_answer", message="",
                 claims=[dict(text="Selon la note 2024-163, le volume d'investissement ne dépasse pas 15 millions de dinars.",
-                             quotes=[dict(evidence_id="E2",
-                                          quote="volume d'investissement ne dépasse pas quinze (15) millions de dinars")])],
+                             cites=["E2.1"])],
             )))
         return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
     docs = [
@@ -644,8 +378,8 @@ def test_mixed_claims_keep_only_literally_supported_parts():
         status="answered",
         message="",
         claims=[
-            dict(text="Le plafond est de 320 dinars.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
-            dict(text="Le taux est de 7,5 %.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
+            dict(text="Le plafond est de 320 dinars.", cites=["E1.1"]),
+            dict(text="Le taux est de 7,5 %.", cites=["E1.1"]),
         ],
     )
     result = parse(value, [record()])
@@ -672,7 +406,7 @@ def test_claim_cannot_remap_question_actor_onto_a_different_regime_page():
                     "Une entreprise peut régler un fournisseur étranger par n'importe quel "
                     "moyen de paiement lorsque le contrat prévoit un délai de 60 jours."
                 ),
-                quotes=[dict(evidence_id="E1", quote=page[:120])],
+                cites=["E1.1"],
             ),
         ],
     )
@@ -694,7 +428,6 @@ def test_question_verb_matches_accented_participle_on_page():
     value = draft(
         "La circulaire abroge la circulaire n° 2017-09 relative aux conditions de financement "
         "de l'importation de produits non prioritaires.",
-        quote=page,
     )
     result = parse(
         value,
@@ -704,17 +437,40 @@ def test_question_verb_matches_accented_participle_on_page():
     assert result["status"] == "answered"
 
 
-def test_compaction_keeps_window_with_most_question_words():
-    from answer_draft import _compact_evidence_for_formulation
+def test_evidence_view_keeps_units_with_most_question_words():
+    from answer_draft import _evidence_view
 
     page = (
-        "Les prix des produits de base ont progressé en juin. " + "Texte neutre. " * 60
+        "Les prix des produits de base ont progressé en juin.\n" + "Texte neutre sans rapport.\n" * 80
         + "Le cours du baril de Brent a augmenté de 19,4% en juin 2026 par rapport à juin 2025."
     )
-    out = _compact_evidence_for_formulation(
-        "Le prix du Brent a-t-il augmenté en juin 2026 ?", [record(text=page)]
-    )
-    assert "Brent a augmenté de 19,4%" in out[0]["text"]
+    view = _evidence_view("Le prix du Brent a-t-il augmenté en juin 2026 ?", [record(text=page)],
+                          max_chars=400, labels=True)
+    assert "[E1.82] Le cours du baril de Brent a augmenté de 19,4%" in view[0]["text"]
+    assert len(view[0]["text"]) < 600
+
+
+def test_citations_resolve_to_exact_page_units_and_unknown_ids_fail():
+    page = "Titre\nLe plafond est de 320 dinars.\nLa durée est de 12 ans."
+    ok = parse(dict(draft("La durée est de 12 ans."), claims=[dict(text="La durée est de 12 ans.", cites=["E1.3"])]),
+               [record(text=page)], "Quelle est la durée ?")
+    assert ok["status"] == "answered"
+    assert ok["sources"][0]["excerpt"] == "La durée est de 12 ans."
+    assert parse(draft(unit=7), [record(text=page)])["status"] == "insufficient_evidence"
+    assert parse(draft(eid="E4"), [record(text=page)])["status"] == "insufficient_evidence"
+
+
+def test_chart_words_are_never_citable():
+    from answer_draft import _evidence_view
+    from answer_evidence import IMAGE_WORDS
+
+    # Words inside a chart box come in drawing order: 67 sits next to the wrong age label.
+    page = f"Répartition du personnel par âge\n{IMAGE_WORDS} Hommes Femmes de 30 à 34 ans 67 de 25 à 29 ans 100\nTotal: 834 agents."
+    view = _evidence_view("Combien de femmes de 30 à 34 ans ?", [record(text=page)], max_chars=2500, labels=True)
+    assert "67" not in view[0]["text"] and "[E1.2] Total: 834 agents." in view[0]["text"]
+    ok = parse(draft("La BCT compte 834 agents.", unit=2), [record(text=page)], "Combien d'agents ?")
+    assert ok["status"] == "answered" and ok["sources"][0]["excerpt"] == "Total: 834 agents."
+    assert parse(draft("67 femmes de 30 à 34 ans.", unit=3), [record(text=page)])["status"] == "insufficient_evidence"
 
 
 def test_fenced_json_and_extra_fields_still_parse():
@@ -732,8 +488,8 @@ def test_all_unsupported_claims_still_fail_closed():
         status="answered",
         message="",
         claims=[
-            dict(text="Le taux est de 7,5 %.", quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")]),
-            dict(text="La durée est de 12 ans.", quotes=[dict(evidence_id="E1", quote="invented")]),
+            dict(text="Le taux est de 7,5 %.", cites=["E1.1"]),
+            dict(text="La durée est de 12 ans.", cites=["E1.9"]),
         ],
     )
     result = parse(value, [record()])
@@ -788,8 +544,8 @@ def test_broad_question_synthesizes_selected_parts_and_carries_answer_intent():
                 evidence_ids=["E1", "E2"])))
         assert '"answer_intent": "conditions"' in messages[-1].content
         return AIMessage(content=json.dumps(dict(status="partial_answer", message="", claims=[
-            dict(text="La condition A s'applique.", quotes=[dict(evidence_id="E1", quote="La condition A s'applique.")]),
-            dict(text="La condition B s'applique.", quotes=[dict(evidence_id="E2", quote="La condition B s'applique.")]),
+            dict(text="La condition A s'applique.", cites=["E1.1"]),
+            dict(text="La condition B s'applique.", cites=["E2.1"]),
         ])))
     docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
             for r in [record(text="La condition A s'applique."),
@@ -803,30 +559,21 @@ def test_broad_question_synthesizes_selected_parts_and_carries_answer_intent():
 
 
 def test_draft_cannot_cite_evidence_excluded_by_selection():
-    """Ordinary drafts only see selected evidence; last-resort top-5 may reopen the pack."""
+    """Drafts only see selected evidence; citing an excluded page fails, and nothing reopens it."""
     calls = []
     def respond(prompt):
         calls.append(prompt.to_messages())
         system = calls[-1][0].content
         if "Select evidence for" in system:
             return AIMessage(content=json.dumps(dict(decision="answer", reason="E2 concerns another operation", evidence_ids=["E1"])))
-        if "You MUST answer this BCT regulatory question" not in system:
-            assert '"evidence_id": "E2"' not in calls[-1][-1].content
-            return AIMessage(content=json.dumps(draft("Le plafond est de 640 dinars.", eid="E2")))
-        # Forced partial / top-5: only the expanded pack can literally support E2.
-        return AIMessage(content=json.dumps(dict(
-            status="partial_answer", message="",
-            claims=[dict(text="Selon la circulaire 2024-52, le plafond est de 640 dinars.",
-                         quotes=[dict(evidence_id="E2", quote="Le plafond est de 640 dinars.")])],
-        )))
+        assert '"evidence_id": "E2"' not in calls[-1][-1].content
+        return AIMessage(content=json.dumps(draft("Le plafond est de 640 dinars.", eid="E2")))
     docs = [(Document(page_content=r["text"], metadata={"source": r["source"], "page": 2, "pages": [2]}), .9)
             for r in [record(), record("Cir_2024_52_fr.pdf", "Le plafond est de 640 dinars.", "E2")]]
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", docs)
-    assert result["status"] == "partial_answer"
-    assert "640" in result["answer"]
-    assert any("forced_partial:" in str(item) for item in result["diagnostics"])
-    assert any("forced_partial_top5:accepted" in str(item) for item in result["diagnostics"])
-    assert len(calls) == 5
+    assert result["status"] == "search_results"
+    assert len(calls) == 3  # selection + two drafts
+
 
 def test_named_document_is_the_only_candidate_for_direct_contents_question():
     def respond(prompt):
@@ -863,9 +610,9 @@ def test_resolved_applicability_can_be_explicitly_passed_by_the_caller():
     assert result["status"] == "answered"
 
 
-@pytest.mark.parametrize("claim", ["Le plafond actuel est de 320 dinars.", "Le plafond actuellement applicable est de 320 dinars.", "The current ceiling is 320 dinars.", "السقف الحالي هو 320 دينار."])
+@pytest.mark.parametrize("claim", ["Le plafond actuel est de 320 dinars.", "The current ceiling is 320 dinars.", "السقف الحالي هو 320 دينار."])
 def test_a_disclaimer_does_not_validate_an_unverified_currentness_assertion(claim):
-    result = parse(draft(claim, "Le plafond est de 320 dinars."), [record()],
+    result = parse(draft(claim), [record()],
                    "What is currently applicable?", temporal_unverified=True)
     assert result["status"] == "insufficient_evidence"
     assert not result["sources"]
@@ -891,7 +638,7 @@ def test_negative_force_wording_is_allowed_when_quote_supports_abrogation():
     )
     quote = "Les dispositions de l'article 2 de la circulaire n°2018-07 sont abrogées."
     result = parse(
-        draft(claim, quote),
+        draft(claim),
         evidence,
         "L'article 2 de la circulaire 2018-07 est-il encore en vigueur ?",
         temporal_unverified=True,
@@ -912,7 +659,7 @@ def test_unsupported_no_later_text_claim_is_rejected():
         "jusqu'à 120 jours sont effectuées librement et sans autorisation."
     )
     result = parse(
-        draft(claim, quote),
+        draft(claim),
         [record(text=quote)],
         "Quelles dispositions de 2025-13 restent pertinentes aujourd'hui ?",
     )
@@ -979,39 +726,6 @@ def test_supersession_partial_from_pinned_evidence_without_llm():
     assert result["status"] == "partial_answer"
     assert result["sources"]
     assert "abrog" in result["answer"].casefold() or "2018" in result["answer"]
-
-
-def test_forced_recovery_keeps_answered_when_quotes_fully_support():
-    """Forced ladder must not downgrade a fully validated answered draft."""
-    def respond(prompt):
-        system = prompt.to_messages()[0].content
-        if "Select evidence for" in system:
-            return AIMessage(content=json.dumps(dict(
-                decision="answer", reason="ok", evidence_ids=["E1"],
-            )))
-        if "You MUST answer this BCT regulatory question" in system:
-            return AIMessage(content=json.dumps(dict(
-                status="answered", message="",
-                claims=[dict(
-                    text="Selon la circulaire 2022-41, le plafond est de 320 dinars.",
-                    quotes=[dict(evidence_id="E1", quote="Le plafond est de 320 dinars.")],
-                )],
-            )))
-        return AIMessage(content=json.dumps(dict(status="insufficient_evidence", message="", claims=[])))
-
-    doc = Document(
-        page_content=record()["text"],
-        metadata={"source": record()["source"], "page": 2, "pages": [2]},
-    )
-    result = generate_grounded_answer(
-        RunnableLambda(respond),
-        "Quel est le plafond ?",
-        [(doc, 0.9)],
-    )
-    assert result["status"] == "answered"
-    assert "320 dinars" in result["answer"]
-    assert "partie de la demande" not in result["answer"].casefold()
-    assert any(str(item).startswith("forced_partial:") for item in result["diagnostics"])
 
 
 def test_supersession_partial_states_the_edge_without_filler_claims():
@@ -1120,7 +834,7 @@ def test_supersession_partial_needs_the_relationship_verb_in_the_quote():
     }]
     history = []
     assert try_supersession_partial_answer("Horaires des banques ?", evidence, diagnostics=history) is None
-    assert "supersession_partial:quote_not_found" in history
+    assert "supersession_partial:no_declaring_unit" in history
 
 
 def test_selector_and_draft_agreeing_on_insufficient_stop_the_ladder():

@@ -11,6 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
+from llm import PROVIDER_ERRORS
+
 from document_authority import DocKind
 
 QueryClass = Literal[
@@ -221,5 +223,7 @@ def classify_query_authority(llm, question: str) -> dict:
         return parsed.model_dump(mode="json")
     except (ValidationError, ValueError, TypeError, json.JSONDecodeError, AttributeError):
         return default_query_authority()
+    except PROVIDER_ERRORS:
+        raise  # an outage must reach the API as 503, not silently change the grounding class
     except Exception:
         return default_query_authority()

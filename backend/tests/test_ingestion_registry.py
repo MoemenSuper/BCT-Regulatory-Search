@@ -79,3 +79,21 @@ def test_list_ready_exposes_doc_kind(tmp_path: Path):
         assert by_id["hash-memo"]["doc_kind"] == "internal"
     finally:
         registry.close()
+
+
+def test_old_ledger_with_chart_column_is_migrated_in_place(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "ingestion.sqlite3"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE ingestion_pages (content_sha256 TEXT NOT NULL, page_number INTEGER NOT NULL, "
+                "priority INTEGER NOT NULL, language TEXT NOT NULL, chart_suspect INTEGER NOT NULL, "
+                "state TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, result_json TEXT, "
+                "model TEXT, error TEXT, seconds REAL, updated_at TEXT, PRIMARY KEY (content_sha256, page_number))")
+    old.execute("INSERT INTO ingestion_pages (content_sha256, page_number, priority, language, chart_suspect) "
+                "VALUES ('abc', 3, 1, 'fr', 1)")
+    old.commit()
+    old.close()
+    registry = IngestionRegistry(path)
+    assert registry.pending_pages("abc") == [
+        {"page_number": 3, "priority": 1, "language": "fr", "image_regions": 1, "attempts": 0}]

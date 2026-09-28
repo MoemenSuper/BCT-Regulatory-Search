@@ -25,7 +25,7 @@ class IngestionRegistry:
                 page_number INTEGER NOT NULL,
                 priority INTEGER NOT NULL,
                 language TEXT NOT NULL,
-                chart_suspect INTEGER NOT NULL,
+                image_regions INTEGER NOT NULL,
                 state TEXT NOT NULL DEFAULT 'pending',
                 attempts INTEGER NOT NULL DEFAULT 0,
                 result_json TEXT,
@@ -52,6 +52,9 @@ class IngestionRegistry:
             )
             """
         )
+        columns = {row["name"] for row in self.connection.execute("PRAGMA table_info(ingestion_pages)")}
+        if "chart_suspect" in columns:  # ledgers written before image regions replaced chart pages
+            self.connection.execute("ALTER TABLE ingestion_pages RENAME COLUMN chart_suspect TO image_regions")
         self.connection.commit()
 
     @property
@@ -171,11 +174,11 @@ class IngestionRegistry:
         self.connection.executemany(
             """
             INSERT OR IGNORE INTO ingestion_pages
-                (content_sha256, page_number, priority, language, chart_suspect)
+                (content_sha256, page_number, priority, language, image_regions)
             VALUES (?, ?, ?, ?, ?)
             """,
             [
-                (content_sha256, int(p["page"]), int(p["priority"]), str(p["language"]), int(bool(p["chart_suspect"])))
+                (content_sha256, int(p["page"]), int(p["priority"]), str(p["language"]), int(bool(p["image_regions"])))
                 for p in plans
             ],
         )
@@ -184,7 +187,7 @@ class IngestionRegistry:
     def pending_pages(self, content_sha256: str) -> list[dict]:
         rows = self.connection.execute(
             """
-            SELECT page_number, priority, language, chart_suspect, attempts FROM ingestion_pages
+            SELECT page_number, priority, language, image_regions, attempts FROM ingestion_pages
             WHERE content_sha256=? AND state='pending' ORDER BY priority, page_number
             """,
             (content_sha256,),

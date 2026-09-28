@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from llm import create_llm
+from llm import PROVIDER_ERRORS, create_llm
 from answer_contract import (
     format_refusal_reason,
     generate_grounded_answer,
@@ -427,6 +427,8 @@ with citations or declines it."""),
             "memory": render_memory_state(memory_state) or "(empty)",
             "message": message,
         }).content
+    except PROVIDER_ERRORS:
+        raise  # an outage is not an out-of-scope question
     except Exception:
         return safe_response(message, "out_of_scope")
     answer = (raw or "").strip()

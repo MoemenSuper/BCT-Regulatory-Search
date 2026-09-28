@@ -26,12 +26,17 @@ RUN apt-get update \
 COPY backend/requirements.txt backend/requirements-local.txt ./
 # Full local_hybrid stack: retrieval (e5/Chroma/BGE) + visual ingest (EasyOCR + PaddleOCR-VL).
 # Torch comes in as CPU via sentence-transformers / EasyOCR (fine for Docker Desktop).
+# Docling (PDF layout for every upload) pulls the GUI OpenCV build; EasyOCR/Paddle use the
+# headless one and both provide cv2, so the GUI build is removed and headless reinstalled.
 RUN pip install --no-cache-dir -r requirements-local.txt \
     && pip install --no-cache-dir \
         "paddlepaddle==3.0.0" \
         -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ \
     && pip install --no-cache-dir "paddleocr[doc-parser]>=3.4,<4" \
-    && pip install --no-cache-dir "google-genai>=2.20.0,<3" "filelock>=3.18,<4"
+    && pip install --no-cache-dir "google-genai>=2.20.0,<3" "filelock>=3.18,<4" "docling>=2.130,<3" \
+    && pip uninstall -y opencv-python \
+    && pip install --no-cache-dir --force-reinstall --no-deps \
+        "opencv-python-headless==$(python -c 'import importlib.metadata as m; print(m.version("opencv-python-headless"))')"
 
 COPY backend/ ./
 COPY --from=ui /ui/dist /app/static
@@ -52,17 +57,19 @@ ENV BCT_STATIC_DIR=/app/static \
     BCT_BIND_PORT=8000 \
     BCT_INGEST_LOCAL_INDEX=1 \
     BCT_DEFAULT_PROFILE=local_hybrid \
-    BCT_CLOUD_RETRIEVAL_PROVIDER=voyage \
     BCT_EASYOCR_GPU=0 \
     BCT_PADDLE_DEVICE=cpu \
     HF_HOME=/opt/bct/hf \
     PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=1 \
     PYTHONUNBUFFERED=1
 
-# Pre-download embed / rerank / EasyOCR weights so first query / Arabic ingest is not a cold start.
+# Pre-download embed / rerank / EasyOCR / Docling weights so the first query or upload is not a
+# cold start. Docling is warmed by converting a one-line PDF: the exact models ingestion loads.
 RUN python -c "from embedding import create_embedding_model; create_embedding_model(); \
 from reranker import create_reranker; create_reranker(); \
 import easyocr; easyocr.Reader(['ar'], gpu=False, verbose=False); \
+import pymupdf; d = pymupdf.open(); d.new_page().insert_text((72, 72), 'warm'); d.save('/tmp/warm.pdf'); \
+from ingestion.docling_layout import _convert; _convert('/tmp/warm.pdf'); \
 print('local models warmed')"
 
 EXPOSE 8000

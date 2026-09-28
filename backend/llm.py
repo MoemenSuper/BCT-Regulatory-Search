@@ -1,3 +1,4 @@
+from groq import APIError
 from langchain_groq import ChatGroq
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -11,6 +12,12 @@ from typing import Any, Optional
 
 
 load_dotenv()
+
+# Answer-model transport failures (Groq API errors, Ollama HTTP errors). Callers must not turn
+# these into refusals or weaker answers: the API reports them as a temporary outage (503).
+PROVIDER_ERRORS = (APIError, requests.RequestException)
+
+
 def _ollama_messages(value):
     messages = value.to_messages() if hasattr(value, "to_messages") else value
     roles = {"human": "user", "ai": "assistant", "system": "system"}

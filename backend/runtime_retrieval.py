@@ -30,12 +30,10 @@ from langchain_core.documents import Document
 
 
 from cloud_embed_clients import (
-    CLOUD_EMBED_SPECS,
+    VOYAGE_SPEC,
     CloudEmbedSpec,
     CloudRetrievalUsage,
-    GoogleRuntimeClient,
     VoyageRuntimeClient,
-    cloud_embed_spec,
     create_cloud_runtime_client,
     track_cloud_retrieval_usage,
     _record_voyage_usage,
@@ -281,7 +279,7 @@ def _load_bound_index(
     documents: list[Document],
     spec: CloudEmbedSpec | None = None,
 ) -> np.ndarray:
-    spec = spec or CLOUD_EMBED_SPECS["voyage"]
+    spec = spec or VOYAGE_SPEC
     if not documents:
         return np.empty((0, spec.dimension), dtype=np.float32)
     text_hashes = [
@@ -338,7 +336,7 @@ def load_voyage_backend(
     client,
     spec: CloudEmbedSpec | None = None,
 ) -> VoyageRetrievalBackend:
-    spec = spec or getattr(client, "spec", None) or CLOUD_EMBED_SPECS["voyage"]
+    spec = spec or getattr(client, "spec", None) or VOYAGE_SPEC
     provider_root = Path(provider_root)
     native_documents = _read_chunks(Path(native_chunks))
     ocr_documents = _read_chunks(Path(ocr_chunks))
@@ -367,8 +365,8 @@ def create_voyage_backend_from_environment():
             "Cloud profile requires: " + ", ".join(missing)
         )
     provider_root = Path(names["BCT_VOYAGE_PROVIDER_ROOT"])
-    spec = cloud_embed_spec()
-    client = create_cloud_runtime_client(provider_root, spec)
+    spec = VOYAGE_SPEC
+    client = create_cloud_runtime_client(provider_root)
     backend = load_voyage_backend(
         provider_root=provider_root,
         native_chunks=names["BCT_NATIVE_CHUNKS_PATH"],

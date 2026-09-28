@@ -131,16 +131,6 @@ def test_arabic_how_question_is_not_forced_into_follow_up():
     assert route == response
 
 
-def test_selection_prompt_teaches_attachment_discipline_without_blocking_sims():
-    import inspect
-    from answer_draft import select_evidence
-
-    source = inspect.getsource(select_evidence)
-    assert "Attachment discipline" in source
-    assert "out_of_scope when" in source
-    assert "user simulations" in source.casefold() or "PME" in source
-
-
 def test_route_message_treats_standalone_deictic_as_ambiguous_not_general_chat():
     response = {
         "intent": "GENERAL_CHAT",

@@ -227,7 +227,7 @@ python reingest_unreliable.py --assets "C:\path\to\runtime-assets-candidate" --s
 python run_api.py --assets "C:\path\to\runtime-assets-candidate" ...
 ```
 
-Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` / `BCT_GOOGLE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Cloud indexes are provider-specific (`voyage` vs `google`); do not mix. Rebuild local Chroma separately for the `local` profiles.
+Set `BCT_GEMINI_CACHE` / `BCT_VOYAGE_RUNTIME_CACHE` to the live caches to reuse transcriptions and embeddings. Rebuild local Chroma separately for the `local` profiles.
 
 ---
 

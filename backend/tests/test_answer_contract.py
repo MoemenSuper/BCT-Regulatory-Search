@@ -7,10 +7,10 @@ EVIDENCE = [{"evidence_id": "E1", "source": "Cir_2020_03_fr.pdf", "page": 1,
              "score": 0.8, "text": "Objet : Les allocations pour voyages d'affaires."}]
 
 
-def draft(evidence_id="E1", quote="Les allocations pour voyages d'affaires."):
+def draft(evidence_id="E1", unit=1):
     return {"status": "answered", "message": "UNTRUSTED FREE TEXT MUST NOT BE DISPLAYED",
             "claims": [{"text": "Elle concerne les allocations pour voyages d'affaires.",
-                        "quotes": [{"evidence_id": evidence_id, "quote": quote}]}]}
+                        "cites": [f"{evidence_id}.{unit}"]}]}
 
 
 def test_only_claims_and_actual_cited_sources_are_displayed():
@@ -18,10 +18,10 @@ def test_only_claims_and_actual_cited_sources_are_displayed():
     assert result["status"] == "answered"
     assert "UNTRUSTED" not in result["answer"]
     assert result["sources"] == [{"file": "Cir_2020_03_fr.pdf", "page": 1, "score": 0.8,
-                                 "excerpt": "Les allocations pour voyages d'affaires."}]
+                                 "excerpt": "Objet : Les allocations pour voyages d'affaires."}]
 
 
-@pytest.mark.parametrize("value", [draft("E999"), draft(quote="invented quote"),
+@pytest.mark.parametrize("value", [draft("E999"), draft(unit=9),
     {"status": "answered", "message": "A fabricated legal conclusion", "claims": []},
     {"status": "insufficient_evidence", "message": "A fabricated legal conclusion", "claims": []}])
 def test_invalid_or_unsupported_output_has_no_answer_sources(value):
@@ -63,17 +63,17 @@ def test_partial_answer_keeps_supported_facts_and_uses_a_trusted_gap_message():
     assert "voyages d'affaires. [1]" in result["answer"]
     # Model-chosen partial without dropped claims: no stock incompleteness footer.
     assert "une partie de la demande" not in result["answer"]
-    assert result["sources"][0]["excerpt"] == value["claims"][0]["quotes"][0]["quote"]
+    assert result["sources"][0]["excerpt"] == EVIDENCE[0]["text"]
 
 
-@pytest.mark.parametrize("change", ["no_claims", "wrong_quote"])
+@pytest.mark.parametrize("change", ["no_claims", "unknown_unit"])
 def test_partial_answer_does_not_bypass_evidence_requirements(change):
     value = draft()
     value.update(status="partial_answer", message="La date n’est pas établie.")
     if change == "no_claims":
         value["claims"] = []
-    elif change == "wrong_quote":
-        value["claims"][0]["quotes"][0]["quote"] = "invented"
+    elif change == "unknown_unit":
+        value["claims"][0]["cites"] = ["E1.9"]
     result = parse_answer(json.dumps(value), "Quel est l'objet ?", EVIDENCE)
     assert result["status"] == "insufficient_evidence"
     assert result["sources"] == []
@@ -198,11 +198,11 @@ def test_generation_binds_partial_answer_scope_and_literal_reference_context():
     assert result["sources"][0]["page"] == 1
 
 
-def test_all_supporting_quotes_on_a_shared_page_are_preserved():
+def test_all_cited_units_on_a_shared_page_are_preserved():
     evidence = [{**EVIDENCE[0], "text": EVIDENCE[0]["text"] + "\nTunis, le 04 février 2020."}]
     value = draft()
     value["claims"].append({"text": "L’en-tête porte la date du 04 février 2020.",
-        "quotes": [{"evidence_id": "E1", "quote": "Tunis, le 04 février 2020."}]})
+        "cites": ["E1.2"]})
     result = parse_answer(json.dumps(value), "Quel est l'objet et la date de l'en-tête ?", evidence)
     assert len(result["sources"]) == 1
     assert "voyages d'affaires" in result["sources"][0]["excerpt"]

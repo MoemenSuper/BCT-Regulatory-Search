@@ -1,6 +1,14 @@
+import os
+
 import pytest
 
-from app import app
+# Set before app/llm import: llm.py loads the developer's .env, and tests must never send traces
+# to Langfuse Cloud with those keys. Blank (not removed) so load_dotenv does not fill them back in;
+# tests that check tracing build their own in-memory client.
+for _key in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_HOST"):
+    os.environ[_key] = ""
+
+from app import app  # noqa: E402
 from identity import AuthStore, UserRecord, require_admin, require_approved_user, require_user
 
 _TEST_USER = UserRecord(
@@ -11,6 +19,14 @@ _TEST_USER = UserRecord(
     created_at=0.0,
     updated_at=0.0,
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_docling_worker(monkeypatch):
+    """Tiny test PDFs use the PDF text layer; Docling's models are exercised by the ingest run."""
+    import ingestion.docling_layout
+
+    monkeypatch.setattr(ingestion.docling_layout, "page_blocks", lambda path, raw_cache=None: {})
 
 
 @pytest.fixture(autouse=True)

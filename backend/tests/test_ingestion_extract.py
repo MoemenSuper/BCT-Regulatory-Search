@@ -141,60 +141,6 @@ def test_blank_cover_page_does_not_abort_document(tmp_path: Path, monkeypatch):
     assert "Situation economique" in structured.pages[1].raw_text
 
 
-def test_chart_page_with_rich_native_still_runs_visual(tmp_path: Path, monkeypatch):
-    pymupdf = pytest.importorskip("pymupdf")
-    from ingestion.extract import ChartSignals, PdfExtractor
-    from ingestion.gemini_visual import VisualPage
-
-    path = tmp_path / "Bulletin_rich_chart_fr.pdf"
-    document = pymupdf.open()
-    page = document.new_page()
-    page.insert_text(
-        (72, 72),
-        "Figure 1. Exportations 2024. Serie A 12. Serie B 18. Source: BCT. "
-        "Legende complete avec assez de texte natif pour porter la page sans OCR.",
-    )
-    document.save(path)
-    document.close()
-
-    class FakeVisual:
-        model = "gemini-test"
-        calls = 0
-
-        def transcribe(self, **_):
-            self.calls += 1
-            return VisualPage(
-                transcription="Figure 1. Exportations 2024",
-                items=[],
-                uncertain_regions=[],
-                complete=True,
-                contains_chart=True,
-                chart_notes="Serie C (bars): 21",
-            )
-
-    fake = FakeVisual()
-    monkeypatch.setenv("BCT_GEMINI_VISUAL", "1")
-    monkeypatch.setenv("BCT_GEMINI_CHART_VISION", "1")
-    monkeypatch.setattr(
-        "ingestion.extract.page_chart_signals",
-        lambda _page: ChartSignals(
-            image_count=1,
-            drawing_cluster_count=1,
-            max_image_area_ratio=0.2,
-            max_drawing_area_ratio=0.2,
-            suspect=True,
-        ),
-    )
-    structured = PdfExtractor(visual_transcriber=fake).extract(path)
-    assert fake.calls == 1
-    assert "chart_suspect" in structured.pages[0].quality_flags
-    assert "chart_notes_merged" in structured.pages[0].quality_flags
-    assert "Serie C (bars): 21" in structured.pages[0].raw_text
-    tmp = structured.pages[0].metadata.get("page_image_tmp")
-    assert tmp and Path(tmp).is_file()
-    Path(tmp).unlink(missing_ok=True)
-
-
 def test_render_page_png_caps_pixel_budget(tmp_path: Path, monkeypatch):
     pymupdf = pytest.importorskip("pymupdf")
     from ingestion.extract import render_page_png
@@ -222,19 +168,115 @@ def test_render_page_png_caps_pixel_budget(tmp_path: Path, monkeypatch):
     assert len(png) < 400_000
 
 
-def test_persist_page_images_moves_temp_spill(tmp_path: Path):
-    from ingestion.models import Page, StructuredDocument
-    from ingestion.pipeline import _persist_page_images
+def test_repair_lam_alef_puts_lam_before_zero_width_alef():
+    from ingestion.extract import repair_lam_alef
 
-    spill = tmp_path / "spill.png"
-    spill.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 32)
-    structured = StructuredDocument(
-        filename="Bulletin.pdf",
-        pages=[Page(page_number=1, raw_text="chart", metadata={"page_image_tmp": str(spill)})],
-    )
-    written = _persist_page_images(structured, tmp_path / "immutable")
-    assert written == 1
-    assert not spill.exists()
-    dest = Path(structured.pages[0].metadata["page_image_path"])
-    assert dest.is_file()
-    assert "page_image_tmp" not in structured.pages[0].metadata
+    def char(c, width):
+        return {"c": c, "bbox": (10.0, 0.0, 10.0 + width, 5.0)}
+
+    # PyMuPDF order for "خلال": خ ا(zero-width) ل ل  ->  خ ل ا ل
+    chars = [char("خ", 4), char("ا", 0.0), char("ل", 3), char("ل", 3)]
+    assert repair_lam_alef(chars) == "خلال"
+    # A real alef (with width) before lam is left alone: "الل" in "الله".
+    assert repair_lam_alef([char("ا", 2), char("ل", 3), char("ل", 3), char("ه", 3)]) == "الله"
+
+
+def test_native_blocks_fix_lam_alef_on_real_corpus_note():
+    pymupdf = pytest.importorskip("pymupdf")
+    from ingestion.extract import _native_blocks
+
+    matches = sorted(Path(__file__).resolve().parents[2].joinpath("documents").rglob("Note_2017_19_ar.pdf"))
+    if not matches:
+        pytest.skip("BCT corpus not present")
+    with pymupdf.open(matches[0]) as pdf:
+        text = "\n".join(block.text for page in pdf for block in _native_blocks(page, page.number + 1))
+    assert "خالل" not in text and "خلال" in text
+
+
+def test_docling_layout_blocks_become_the_page_text_and_are_cached(tmp_path: Path, monkeypatch):
+    import ingestion.docling_layout as layout
+    from answer_evidence import IMAGE_WORDS
+
+    path = tmp_path / "Rapport_2025_fr.pdf"
+    _make_pdf(path, "texte natif")
+    calls = []
+
+    def blocks(pdf_path, raw_cache=None):
+        calls.append(pdf_path)
+        return {1: ["Tableau 4", "Encadrement Moyen — Effectif: 293", f"{IMAGE_WORDS} 56 de 30 à 34 ans 67"]}
+
+    monkeypatch.setattr(layout, "page_blocks", blocks)
+    cache = tmp_path / "docling-layout.json"
+    for _ in range(2):  # the re-extraction after enrichment reads the cache
+        page = PdfExtractor(visual_transcriber=None).extract(path, layout_cache=cache).pages[0]
+    assert len(calls) == 1
+    assert page.raw_text == f"Tableau 4\nEncadrement Moyen — Effectif: 293\n{IMAGE_WORDS} 56 de 30 à 34 ans 67"
+
+
+def test_docling_table_is_kept_only_when_its_rows_match_the_pdf_lines():
+    from ingestion.docling_layout import rows_match_pdf
+
+    lines = ["Encadrement Supérieur 354 42,5", "Encadrement Moyen 293 35,1"]
+    assert rows_match_pdf([["354", "42,5"], ["293", "35,1"]], lines)
+    assert not rows_match_pdf([["354", "35,1"]], lines)  # TableFormer put a cell in the wrong row
+
+
+def test_chunk_starting_inside_chart_words_keeps_the_mark():
+    from answer_evidence import IMAGE_WORDS
+    from ingestion.chunk import _split
+
+    text = "Titre\n" + IMAGE_WORDS + " " + " ".join(f"{i} de {i} ans" for i in range(200))
+    pieces = _split(text)
+    assert len(pieces) > 1 and all(piece.startswith(IMAGE_WORDS) for piece in pieces[1:])
+
+
+def test_docling_column_headers_keep_years_apart():
+    from ingestion.docling_layout import column_headers
+
+    # Tableau 1.1 of the Conjoncture note: a spanning "update" header over two year columns.
+    rows = [["Désignation", "Année", "Actualisations du mois d'avril 2026", "Actualisations du mois d'avril 2026"],
+            ["Désignation", "2025", "2026", "2027"]]
+    assert column_headers(rows) == ["Désignation", "Année / 2025", "Actualisations du mois d'avril 2026 / 2026",
+                                    "Actualisations du mois d'avril 2026 / 2027"]
+
+
+def test_image_region_is_read_visually_and_put_back_in_place(tmp_path: Path, monkeypatch):
+    """A readable page with a box the PDF text layer cannot fill (a table or text that is an image):
+    only that box is read, and its reading lands between the paragraphs around it."""
+    import ingestion.docling_layout as layout
+    from ingestion.extract import ImageRegions
+
+    before = "La Banque Centrale de Tunisie a recruté de nouveaux agents au cours de l'année 2025."
+    after = "La répartition de l'effectif par grade est présentée dans le tableau ci-dessus."
+    path = tmp_path / "Rapport_2025_fr.pdf"
+    _make_pdf(path, before)
+    monkeypatch.setattr(layout, "page_blocks", lambda _pdf, _raw=None: {1: [before, {"image": [72, 120, 300, 300]}, after]})
+    calls = []
+
+    class Reader:
+        model = "local-test"
+
+        def transcribe(self, *, image_png, image_region, **_):
+            calls.append((image_region, len(image_png)))
+            return VisualPage(transcription="Effectif total — 2025: 834", complete=True)
+
+    page = PdfExtractor(visual_transcriber=Reader()).extract(path).pages[0]
+    assert [region for region, _size in calls] == [True]  # the box only, not the whole page
+    assert page.raw_text == f"{before}\nEffectif total — 2025: 834\n{after}"
+
+    # Deferred (upload): pending until the background reader stores the region's reading.
+    pending = PdfExtractor().extract(path, visual_results={}).pages[0]
+    assert "visual_pending" in pending.quality_flags
+    assert pending.metadata["visual_plan"]["image_regions"] is True
+    assert pending.raw_text == f"{before}\n{after}"
+    read = PdfExtractor().extract(path, visual_results={1: ImageRegions(texts=["Effectif total — 2025: 834"], complete=True)})
+    assert read.pages[0].raw_text == page.raw_text
+
+
+def test_table_cells_stored_as_separate_pdf_lines_are_regrouped_into_rows():
+    pymupdf = pytest.importorskip("pymupdf")
+    from ingestion.docling_layout import _visual_rows
+
+    cells = [(pymupdf.Rect(x, y, x + 20, y + 9), text) for x, y, text in [
+        (300, 100, "3,4"), (80, 100, "Monde"), (200, 101, "3,5"), (80, 115, "Chine"), (200, 115, "5,0")]]
+    assert _visual_rows(cells) == ["Monde 3,5 3,4", "Chine 5,0"]

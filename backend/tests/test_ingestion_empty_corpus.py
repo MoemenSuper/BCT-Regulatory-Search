@@ -43,7 +43,7 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
         dimension=4,
         contextual=False,
     )
-    monkeypatch.setattr(index_module, "cloud_embed_spec", lambda value=None: fake_spec)
+    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
     monkeypatch.setattr(
         index_module, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
     )
@@ -99,7 +99,7 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
     )
     monkeypatch.setenv("BCT_DEFAULT_PROFILE", "local_hybrid")
     monkeypatch.delenv("BCT_INGEST_CLOUD_INDEX", raising=False)
-    monkeypatch.setattr(index_module, "cloud_embed_spec", lambda value=None: fake_spec)
+    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
     monkeypatch.setattr(index_module, "create_cloud_runtime_client", boom)
 
     staged, snapshot = index_module.stage_cloud_assets(
@@ -123,7 +123,7 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
 
 
 def test_load_bound_index_empty_documents_is_empty_array(tmp_path: Path):
-    from runtime_retrieval import CLOUD_EMBED_SPECS, _load_bound_index
+    from runtime_retrieval import VOYAGE_SPEC, _load_bound_index
 
-    vectors = _load_bound_index(tmp_path, "arabic_ocr_secondary", [], CLOUD_EMBED_SPECS["voyage"])
-    assert vectors.shape == (0, CLOUD_EMBED_SPECS["voyage"].dimension)
+    vectors = _load_bound_index(tmp_path, "arabic_ocr_secondary", [], VOYAGE_SPEC)
+    assert vectors.shape == (0, VOYAGE_SPEC.dimension)

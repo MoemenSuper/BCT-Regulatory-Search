@@ -44,7 +44,7 @@ def test_chat_keeps_refusal_reason_without_user_facing_diagnostics(monkeypatch):
             "status": "search_results",
             "answer": "fallback",
             "sources": [],
-            "diagnostics": ["quote_not_found", "quote_not_found"],
+            "diagnostics": ["unknown_citation", "unknown_citation"],
         }
 
     monkeypatch.setattr(conversation, "create_llm", lambda: object())
@@ -66,8 +66,8 @@ def test_chat_keeps_refusal_reason_without_user_facing_diagnostics(monkeypatch):
     )
     assert "diagnostics" not in result
     assert result["status"] == "search_results"
-    assert result["refusal_reason"] == "quote_not_found"
-    assert result["refusal_diagnostics"] == ["quote_not_found", "quote_not_found"]
+    assert result["refusal_reason"] == "unknown_citation"
+    assert result["refusal_diagnostics"] == ["unknown_citation", "unknown_citation"]
 
 
 def test_answer_refusals_persist_in_conversation_store(tmp_path):

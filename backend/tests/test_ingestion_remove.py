@@ -106,7 +106,7 @@ def test_pipeline_remove_strips_source_and_keeps_peers(tmp_path: Path, monkeypat
         dimension=4,
         contextual=False,
     )
-    monkeypatch.setattr(index_module, "cloud_embed_spec", lambda value=None: fake_spec)
+    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
     monkeypatch.setattr(
         index_module, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
     )

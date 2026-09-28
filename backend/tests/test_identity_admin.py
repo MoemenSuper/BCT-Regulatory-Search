@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-import os
 import pytest
 
 import app as app_module
@@ -229,34 +228,6 @@ def test_settings_store_masks_and_applies(tmp_path, monkeypatch):
     store.close()
 
 
-def test_admin_can_switch_cloud_retrieval_provider(auth_client, monkeypatch):
-    monkeypatch.delenv("BCT_CLOUD_RETRIEVAL_PROVIDER", raising=False)
-    auth_client.post(
-        "/auth/login",
-        json={"email": "admin@bct.tn", "password": "AdminPass123"},
-    )
-    config = auth_client.get("/admin/config")
-    assert config.status_code == 200
-    body = config.json()
-    assert body["cloud_retrieval_provider"] == "voyage"
-    assert {item["value"] for item in body["cloud_retrieval_providers"]} == {"voyage", "google"}
-
-    switched = auth_client.put(
-        "/admin/config/cloud-retrieval-provider",
-        json={"provider": "google"},
-    )
-    assert switched.status_code == 200
-    assert switched.json()["cloud_retrieval_provider"] == "google"
-    assert switched.json()["config"]["cloud_retrieval_provider"] == "google"
-    assert os.environ["BCT_CLOUD_RETRIEVAL_PROVIDER"] == "google"
-
-    rejected = auth_client.put(
-        "/admin/config/cloud-retrieval-provider",
-        json={"provider": "nope"},
-    )
-    assert rejected.status_code == 422
-
-
 def test_user_can_update_profile_and_password(auth_client):
     registered = auth_client.post(
         "/auth/register",
@@ -350,8 +321,8 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
             user_email="analyst@bct.gov.tn",
             question=f"Question {index} ?",
             answer_status="search_results",
-            reason=f"quote_not_found:{index}",
-            diagnostics=[f"quote_not_found:{index}"],
+            reason=f"unknown_citation:{index}",
+            diagnostics=[f"unknown_citation:{index}"],
             profile="cloud",
         )
     store.record_answer_refusal(
@@ -367,16 +338,16 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
 
     filtered = auth_client.get(
         "/admin/answer-refusals",
-        params=[("bucket", "quote_not_found"), ("limit", "5000")],
+        params=[("bucket", "unknown_citation"), ("limit", "5000")],
     )
     assert filtered.status_code == 200
     body = filtered.json()
     assert body["total"] == 3
     assert body["total_all"] == 4
-    assert {item["reason_bucket"] for item in body["items"]} == {"quote_not_found"}
-    assert {item["reason_title"] for item in body["items"]} == {"Quote not found"}
+    assert {item["reason_bucket"] for item in body["items"]} == {"unknown_citation"}
+    assert {item["reason_title"] for item in body["items"]} == {"Unknown citation"}
     titles = {option["title"]: option["count"] for option in body["reason_options"]}
-    assert titles["Quote not found"] == 3
+    assert titles["Unknown citation"] == 3
     assert titles["Rate limit"] == 1
 
     response = auth_client.get(

@@ -4,6 +4,8 @@ import hashlib
 
 from langchain_core.documents import Document
 
+from answer_evidence import IMAGE_WORDS
+
 from .models import StructuredDocument
 
 
@@ -29,6 +31,9 @@ def _split(text: str, max_chars: int = 1000, overlap: int = 200) -> list[str]:
             if boundary >= 0:
                 end = boundary + 1
         piece = text[start:end].strip()
+        line_start = text.rfind("\n", 0, start) + 1
+        if piece and line_start < start and text.startswith(IMAGE_WORDS, line_start):
+            piece = f"{IMAGE_WORDS} {piece}"  # a chunk starting mid image-words line must stay uncitable
         if piece:
             pieces.append(piece)
         if end >= len(text):
@@ -84,11 +89,7 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
         "quality_flags": ",".join(page.quality_flags),
         "doc_kind": doc_kind,
         "authority": authority,
-        "has_chart": bool(page.metadata.get("has_chart")),
     }
-    page_image = str(page.metadata.get("page_image_path") or "").strip()
-    if page_image:
-        meta["page_image_path"] = page_image
     related = str(document.metadata.get("related_to") or admin.get("related_to") or "").strip()
     if related:
         meta["related_to"] = related

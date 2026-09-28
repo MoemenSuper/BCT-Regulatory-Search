@@ -1,6 +1,6 @@
 """Claim gates: fail-closed validation of grounded answer drafts.
 
-Literal/quote checks do not prove semantic entailment or legal correctness.
+Literal/excerpt checks do not prove semantic entailment or legal correctness.
 """
 import json
 import re
@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from retrieval_selection import ARABIC, _ascii_fold
 from graph_contract import is_temporal_rule_query
 from answer_evidence import (
-    plain as _plain, source_quote, numeric_literals, supported_numbers, direct_identity,
+    plain as _plain, unit_spans, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
     claim_asserts_unverified_applicability, claim_asserts_unsupported_negative_amendment,
     question_scenario_numbers,
@@ -20,17 +20,12 @@ from answer_evidence import (
 
 logger = logging.getLogger(__name__)
 
-class Quote(BaseModel):
-    # Ignore stray model fields; literal quote/number gates remain the real control.
-    model_config = ConfigDict(extra="ignore")
-    evidence_id: str = Field(min_length=1, max_length=16)
-    quote: str = Field(min_length=1)
-
-
 class Claim(BaseModel):
+    # Pointer citations: unit IDs such as "E2.14". The gates read the exact page text of the
+    # cited units; the model never retypes evidence. Stray model fields are ignored.
     model_config = ConfigDict(extra="ignore")
     text: str = Field(min_length=1, max_length=1600)
-    quotes: list[Quote] = Field(min_length=1, max_length=5)
+    cites: list[str] = Field(min_length=1, max_length=12)
 
 
 class AnswerDraft(BaseModel):
@@ -92,7 +87,7 @@ def _salvage_answer_payload(text):
     claims_at = text.find('"claims"')
     if claims_at < 0:
         return None
-    claims = _extract_complete_json_dicts(text[claims_at:], require_keys=("text", "quotes"))
+    claims = _extract_complete_json_dicts(text[claims_at:], require_keys=("text", "cites"))
     if not claims:
         return None
     if status not in {"answered", "partial_answer"}:
@@ -172,60 +167,59 @@ def safe_response(question, status="insufficient_evidence"):
     return {"status": status, "answer": _MESSAGES[language_of(question)][status], "sources": []}
 
 
-def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sources, source_numbers, source_quotes, query_class=None):
+def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sources, source_numbers, source_excerpts, query_class=None, secondary=None):
     """Validate one claim. Raises ValueError/KeyError on literal or identity failure."""
     if not claim.text.strip():
         raise ValueError("Empty claim")
     if temporal_unverified and claim_asserts_unverified_applicability(claim.text):
         raise ValueError("unverified_applicability_claim_use_document_scoped_wording")
+    excerpts = _cited_excerpts(claim.cites, by_id)
     if query_class is not None:
         from query_authority import evidence_kind_allowed
 
-        for quote in claim.quotes:
-            record = by_id[quote.evidence_id]
-            if not evidence_kind_allowed(query_class, doc_kind=record.get("doc_kind")):
-                raise ValueError(
-                    f"authority_mismatch:{query_class}:{record.get('doc_kind') or 'regulatory'}"
-                )
+        for record, _excerpt in excerpts:
+            # A statistical bulletin or internal memo is not the legal authority for a rule,
+            # but it may state the fact (e.g. a policy-rate history). Flag it; parse_answer
+            # downgrades to partial with a trusted notice instead of refusing correct evidence.
+            if not evidence_kind_allowed(query_class, doc_kind=record.get("doc_kind")) and secondary is not None:
+                secondary.add(str(record.get("doc_kind") or "regulatory"))
     numbers = []
     supporting_text = []
     claim_literals = _plain(claim.text)
-    for quote in claim.quotes:
-        record = by_id[quote.evidence_id]
+    for record, excerpt in excerpts:
         if target and not identity_matches(record["source"], target):
             raise ValueError("requested_document_mismatch")
-        original_quote = source_quote(quote.quote, record["text"])
         problem = record.get("unusable_reason") or evidence_problem(record)
         if problem:
             raise ValueError(problem)
-        supporting_text.append(original_quote)
+        supporting_text.append(excerpt)
         # A literal name of the cited document is trusted metadata, not
-        # a numeric rule that must also occur in the extracted quote.
+        # a numeric rule that must also occur in the extracted excerpt.
         stem = re.escape(record["source"].removesuffix(".pdf"))
         claim_literals = re.sub(r"(?<!\w)" + stem + r"(?:\.pdf)?(?!\w)", "", claim_literals, flags=re.I)
         key = record["source"], record["page"]
         if key not in source_numbers:
             source_numbers[key] = len(sources) + 1
             sources.append({"file": record["source"], "page": record["page"],
-                            "score": record["score"], "excerpt": original_quote})
-            source_quotes[key] = [original_quote]
-        elif _plain(quote.quote) not in {_plain(text) for text in source_quotes[key]}:
-            source_quotes[key].append(original_quote)
-            sources[source_numbers[key] - 1]["excerpt"] = "\n…\n".join(source_quotes[key])
+                            "score": record["score"], "excerpt": excerpt})
+            source_excerpts[key] = [excerpt]
+        elif _plain(excerpt) not in {_plain(text) for text in source_excerpts[key]}:
+            source_excerpts[key].append(excerpt)
+            sources[source_numbers[key] - 1]["excerpt"] = "\n…\n".join(source_excerpts[key])
         numbers.append(source_numbers[key])
     if claim_asserts_unsupported_negative_amendment(claim.text):
-        quote_blob = " ".join(supporting_text)
-        if not claim_asserts_unsupported_negative_amendment(quote_blob):
+        excerpt_blob = " ".join(supporting_text)
+        if not claim_asserts_unsupported_negative_amendment(excerpt_blob):
             raise ValueError("unsupported_negative_amendment_claim")
     supported = set().union(*(supported_numbers(text) for text in supporting_text))
-    cited = [by_id[quote.evidence_id] for quote in claim.quotes]
+    cited = [record for record, _excerpt in excerpts]
     # A number the user asked about ("les billets de 100 et 500 couronnes")
     # may be restated when the cited page itself mentions it, even if the
-    # supporting quote is only the answering sentence. Numbers absent from
-    # the page, or not asked about, must be in the quote.
+    # supporting excerpt is only the answering sentence. Numbers absent from
+    # the page, or not asked about, must be in the excerpt.
     echoed = numeric_literals(question) & set().union(*(numeric_literals(record["text"]) for record in cited))
     # Scenario framing from the question (e.g. "26 mars 2026") may be restated
-    # without appearing in the quotation; the legal consequence still needs quotes.
+    # without appearing in the excerpt; the legal consequence still needs excerpts.
     scenario = question_scenario_numbers(question)
     claim_literals = strip_instrument_references(claim_literals, cited)
     claim_numbers = (
@@ -254,6 +248,35 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     _reject_scope_or_operator_inflation(claim_literals, supporting_text)
     _reject_threshold_boundary(claim_literals, supporting_text)
     return claim.text.strip() + " " + " ".join(f"[{n}]" for n in dict.fromkeys(numbers))
+
+
+_CITE_ID = re.compile(r"^\[?(E\d+)\.(\d+)\]?$")
+
+
+def _cited_excerpts(cites, by_id):
+    """Resolve unit IDs to (record, exact page text). Consecutive units of one record form one
+    excerpt. An ID that does not exist in the supplied evidence fails the claim."""
+    wanted = {}
+    for cite in cites:
+        match = _CITE_ID.match(str(cite).strip())
+        if not match or match.group(1) not in by_id:
+            raise ValueError("unknown_citation")
+        wanted.setdefault(match.group(1), set()).add(int(match.group(2)) - 1)
+    excerpts = []
+    for evidence_id, indices in wanted.items():
+        record = by_id[evidence_id]
+        text = record.get("text") or ""
+        spans = unit_spans(text)
+        if any(not 0 <= i < len(spans) for i in indices):
+            raise ValueError("unknown_citation")
+        run = []
+        for i in sorted(indices) + [None]:
+            if run and (i is None or i != run[-1] + 1):
+                excerpts.append((record, text[spans[run[0]][0]:spans[run[-1]][1]]))
+                run = []
+            if i is not None:
+                run.append(i)
+    return excerpts
 
 
 def _token_script(token: str) -> str:
@@ -377,47 +400,47 @@ _CLAIM_DROPS_RESERVE = re.compile(
 )
 
 
-def _quote_context_window(page_text: str, quote: str, *, before: int = 400, after: int = 120) -> str:
-    """Page text around a quote so list-item excerpts keep their exclusion lead-in."""
+def _excerpt_context_window(page_text: str, excerpt: str, *, before: int = 400, after: int = 120) -> str:
+    """Page text around a excerpt so list-item excerpts keep their exclusion lead-in."""
     page = page_text or ""
-    needle = quote or ""
+    needle = excerpt or ""
     if not page or not needle:
         return needle
     pos = page.find(needle)
     if pos < 0:
         collapsed_page = " ".join(page.split())
-        collapsed_quote = " ".join(needle.split())
-        pos = collapsed_page.find(collapsed_quote)
+        collapsed_excerpt = " ".join(needle.split())
+        pos = collapsed_page.find(collapsed_excerpt)
         if pos < 0:
             return needle
         start = max(0, pos - before)
-        return collapsed_page[start : pos + len(collapsed_quote) + after]
+        return collapsed_page[start : pos + len(collapsed_excerpt) + after]
     start = max(0, pos - before)
     return page[start : pos + len(needle) + after]
 
 
-def _support_polarity(cited_records, supporting_quotes) -> str | None:
-    """Return 'exclude', 'include', or None from quote + nearby page context.
+def _support_polarity(cited_records, supporting_excerpts) -> str | None:
+    """Return 'exclude', 'include', or None from excerpt + nearby page context.
 
-    Quote-local language wins over distant Article-premier obligations on the
+    Excerpt-local language wins over distant Article-premier obligations on the
     same page (exclusion lists often sit after a general rule).
     """
-    for record, quote in zip(cited_records, supporting_quotes):
-        quote_text = quote or ""
-        if _SUPPORT_EXCLUSION.search(quote_text):
+    for record, excerpt in zip(cited_records, supporting_excerpts):
+        excerpt_text = excerpt or ""
+        if _SUPPORT_EXCLUSION.search(excerpt_text):
             return "exclude"
-        if _SUPPORT_INCLUSION.search(quote_text):
+        if _SUPPORT_INCLUSION.search(excerpt_text):
             return "include"
-        immediate = _quote_context_window(
-            record.get("text") or "", quote_text, before=120, after=60
+        immediate = _excerpt_context_window(
+            record.get("text") or "", excerpt_text, before=120, after=60
         )
         if _SUPPORT_EXCLUSION.search(immediate):
             return "exclude"
         if _SUPPORT_INCLUSION.search(immediate):
             return "include"
     windows = []
-    for record, quote in zip(cited_records, supporting_quotes):
-        windows.append(_quote_context_window(record.get("text") or "", quote))
+    for record, excerpt in zip(cited_records, supporting_excerpts):
+        windows.append(_excerpt_context_window(record.get("text") or "", excerpt))
     blob = " ".join(windows)
     has_ex = bool(_SUPPORT_EXCLUSION.search(blob))
     has_in = bool(_SUPPORT_INCLUSION.search(blob))
@@ -447,44 +470,44 @@ _CLAIM_FIELD_EXCLUSION = re.compile(
 )
 
 
-def _reject_reversed_legal_polarity(claim_literals, cited, supporting_quotes) -> None:
+def _reject_reversed_legal_polarity(claim_literals, cited, supporting_excerpts) -> None:
     """Fail when the claim flips exclusion/exemption into inclusion/applicability (or vice versa)."""
-    support = _support_polarity(cited, supporting_quotes)
+    support = _support_polarity(cited, supporting_excerpts)
     claim = _claim_polarity(claim_literals)
     if support and claim and support != claim:
         raise ValueError("unsupported_claim_polarity")
-    # Field-exclusion claims need an exclusion operator in the quote/lead-in.
+    # Field-exclusion claims need an exclusion operator in the excerpt/lead-in.
     # (Do not apply this to librement/sans autorisation settlement wording.)
     if _CLAIM_FIELD_EXCLUSION.search(claim_literals) and support != "exclude":
         raise ValueError("unsupported_claim_polarity")
 
 
-def _reject_invented_unit(claim_literals: str, supporting_quotes) -> None:
-    """Reject day-unit inventions (jours ouvrables) absent from the quotes."""
+def _reject_invented_unit(claim_literals: str, supporting_excerpts) -> None:
+    """Reject day-unit inventions (jours ouvrables) absent from the excerpts."""
     if not _INVENTED_DAY_UNIT.search(claim_literals):
         return
-    blob = " ".join(supporting_quotes)
+    blob = " ".join(supporting_excerpts)
     if _INVENTED_DAY_UNIT.search(blob):
         return
     if _SUPPORT_PLAIN_DAYS.search(blob) or supported_numbers(blob):
         raise ValueError("unsupported_claim_unit")
 
 
-def _reject_dropped_condition(claim_literals: str, cited, supporting_quotes) -> None:
+def _reject_dropped_condition(claim_literals: str, cited, supporting_excerpts) -> None:
     """Reject claims that erase a page-level 'sous réserve' / condition."""
     if not _CLAIM_DROPS_RESERVE.search(claim_literals):
         return
     page = " ".join(record.get("text") or "" for record in cited)
-    quotes = " ".join(supporting_quotes)
+    excerpts = " ".join(supporting_excerpts)
     if _PAGE_HAS_RESERVE.search(page) and not _PAGE_HAS_RESERVE.search(claim_literals):
-        # Quote may omit the reserve clause; the page still requires it.
-        if not _PAGE_HAS_RESERVE.search(quotes) or _CLAIM_DROPS_RESERVE.search(claim_literals):
+        # Excerpt may omit the reserve clause; the page still requires it.
+        if not _PAGE_HAS_RESERVE.search(excerpts) or _CLAIM_DROPS_RESERVE.search(claim_literals):
             raise ValueError("unsupported_claim_condition")
 
 
-def _reject_scope_or_operator_inflation(claim_literals: str, supporting_quotes) -> None:
+def _reject_scope_or_operator_inflation(claim_literals: str, supporting_excerpts) -> None:
     """Reject universal/mandatory restatements of narrow/permissive source wording."""
-    blob = " ".join(supporting_quotes)
+    blob = " ".join(supporting_excerpts)
     if _CLAIM_UNIVERSAL_SCOPE.search(claim_literals) and _SUPPORT_NARROW_POPULATION.search(
         blob
     ):
@@ -495,9 +518,9 @@ def _reject_scope_or_operator_inflation(claim_literals: str, supporting_quotes) 
             raise ValueError("unsupported_claim_operator")
 
 
-def _reject_threshold_boundary(claim_literals: str, supporting_quotes) -> None:
-    """Reject off-by-one day thresholds when the quote only supports N, not N±1."""
-    quote_nums = set().union(*(supported_numbers(text) for text in supporting_quotes))
+def _reject_threshold_boundary(claim_literals: str, supporting_excerpts) -> None:
+    """Reject off-by-one day thresholds when the excerpt only supports N, not N±1."""
+    excerpt_nums = set().union(*(supported_numbers(text) for text in supporting_excerpts))
     claim_nums = numeric_literals(claim_literals)
     dayish = {
         token
@@ -506,9 +529,9 @@ def _reject_threshold_boundary(claim_literals: str, supporting_quotes) -> None:
     }
     for token in dayish:
         value = int(token)
-        if token in quote_nums:
+        if token in excerpt_nums:
             continue
-        neighbors = {str(value - 1), str(value + 1)} & quote_nums
+        neighbors = {str(value - 1), str(value + 1)} & excerpt_nums
         if neighbors:
             raise ValueError("unsupported_claim_number")
 
@@ -532,19 +555,19 @@ def _anchor_on_page(anchor: str, support_plain: str) -> bool:
     return False
 
 
-def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_quotes) -> None:
+def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_excerpts) -> None:
     """Fail when the claim restates a question actor absent from the cited page
-    while the supporting quotes are clearly about a different subject regime.
+    while the supporting excerpts are clearly about a different subject regime.
 
     Actor presence is checked on the full page (tables often omit the topic word
-    from the numeric quote). Alternate-regime detection uses the quotes only, so
+    from the numeric excerpt). Alternate-regime detection uses the excerpts only, so
     a same-page but wrong excerpt cannot launder a remapped claim.
 
     Restating question-scenario framing words is allowed when the cited page
     already shares substantive anchors with the question (on-topic evidence).
     """
     page_plain = _plain(" ".join(record["text"] for record in cited)).casefold()
-    quote_plain = _plain(" ".join(supporting_quotes)).casefold()
+    excerpt_plain = _plain(" ".join(supporting_excerpts)).casefold()
     claim_plain = claim_literals.casefold()
     question_plain = _plain(question).casefold()
     anchors = [anchor for anchor in _question_anchors(question) if len(anchor) >= 5]
@@ -564,7 +587,7 @@ def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_qu
     page_only = []
     for token in re.findall(
         r"[0-9A-Za-zÀ-ÖØ-öø-ÿ’']+|[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]+",
-        quote_plain,
+        excerpt_plain,
     ):
         token = token.replace("’", "'").strip("'")
         if len(token) < 5 or token in question_plain:
@@ -602,13 +625,14 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
         if len(by_id) != len(evidence):
             raise ValueError("duplicate_evidence_id")
         target = direct_identity(question)
-        sources, source_numbers, source_quotes, lines = [], {}, {}, []
+        sources, source_numbers, source_excerpts, lines = [], {}, {}, []
         dropped = []
+        secondary = set()
         for claim in draft.claims:
             # Snapshot citation state so a rejected claim cannot leave orphan sources.
             snap_sources = list(sources)
             snap_numbers = dict(source_numbers)
-            snap_quotes = {key: list(value) for key, value in source_quotes.items()}
+            snap_excerpts = {key: list(value) for key, value in source_excerpts.items()}
             try:
                 lines.append(_validate_claim(
                     claim, question, by_id,
@@ -616,15 +640,16 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
                     target=target,
                     sources=sources,
                     source_numbers=source_numbers,
-                    source_quotes=source_quotes,
+                    source_excerpts=source_excerpts,
                     query_class=query_class,
+                    secondary=secondary,
                 ))
             except (ValueError, TypeError, KeyError) as error:
                 sources[:] = snap_sources
                 source_numbers.clear()
                 source_numbers.update(snap_numbers)
-                source_quotes.clear()
-                source_quotes.update(snap_quotes)
+                source_excerpts.clear()
+                source_excerpts.update(snap_excerpts)
                 dropped.append(str(error).strip() or type(error).__name__)
         if not lines:
             reason = dropped[0] if len(dropped) == 1 else ("no_supported_claims:" + ",".join(dict.fromkeys(dropped)) if dropped else "Answer contains no supported claims")
@@ -632,7 +657,7 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
         status = draft.status
         # Only claim drops force an incomplete footer. Model-chosen partial_answer
         # may already be complete; temporal_unverified uses its own disclaimer.
-        if dropped:
+        if dropped or secondary:
             status = "partial_answer"
         if temporal_unverified:
             status = "partial_answer"
@@ -643,6 +668,8 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
             # The free-form message is not quoted evidence. Never render a second,
             # unvalidated legal answer through this field.
             lines.append(_PARTIAL_LIMITS[language_of(question)])
+        if secondary:
+            lines.append(_SECONDARY_SOURCE_NOTICE[language_of(question)])
         return {"status": status, "answer": "\n\n".join(lines), "sources": sources}
     except (ValidationError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
         reason = "schema_invalid" if isinstance(error, (ValidationError, json.JSONDecodeError)) else str(error)
@@ -652,12 +679,11 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
         return safe_response(question)
 
 
-ANSWER_SCHEMA = json.dumps(AnswerDraft.model_json_schema(), ensure_ascii=False)
 # Full pydantic schema in the system prompt burns tokens and, with reasoning models,
 # correlates with empty drafts. Prompts use this compact shape; validation still uses AnswerDraft.
 ANSWER_SCHEMA_FOR_PROMPT = (
     '{"status":"answered|partial_answer|insufficient_evidence|clarification_needed|out_of_scope",'
-    '"message":"","claims":[{"text":"string","quotes":[{"evidence_id":"E1","quote":"exact substring"}]}]}'
+    '"message":"","claims":[{"text":"string","cites":["E1.3","E1.4"]}]}'
 )
 
 # Disclaimer branch in parse_answer: as-of / after / en YYYY (broader than cutoff demotion).
@@ -669,6 +695,11 @@ _HISTORICAL_LIMITS = {
     "fr": "Les passages cités étayent les éléments ci-dessous, mais leur applicabilité à la date demandée n’a pas pu être pleinement confirmée.",
     "ar": "تدعم المقاطع المستشهد بها المعلومات التالية، لكن تعذر تأكيد انطباقها في التاريخ المطلوب بشكل كامل.",
     "en": "The cited passages support the following information, but applicability at the requested date could not be fully confirmed.",
+}
+_SECONDARY_SOURCE_NOTICE = {
+    "fr": "Cette réponse s’appuie sur une publication statistique ou une note interne, pas sur un texte réglementaire. Vérifiez la circulaire ou la note applicable.",
+    "ar": "تستند هذه الإجابة إلى نشرية إحصائية أو مذكرة داخلية وليس إلى نص ترتيبي. يرجى التثبت من المنشور أو المذكرة المنطبقة.",
+    "en": "This answer relies on a statistical publication or internal memo, not a regulatory text. Check the applicable circular or note.",
 }
 _PARTIAL_LIMITS = {
     "fr": "Ces passages ne permettent de répondre qu’à une partie de la demande. Veuillez préciser le point restant ou vérifier le document original.",

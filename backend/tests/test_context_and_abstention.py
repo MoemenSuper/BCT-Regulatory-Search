@@ -79,17 +79,7 @@ def test_test3_exception_in_pack_accepts_scenario_date_and_legal_quote():
                     "ayant deja donne lieu a des engagements de concours financiers dont "
                     "l'execution a ete entamee avant le 26 mars 2026."
                 ),
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": (
-                            "les importations ayant donne lieu, prealablement a la date "
-                            "d'entree en vigueur de la presente circulaire, a des "
-                            "engagements pris par l'intermediaire agree pour l'octroi de "
-                            "concours financiers, dont l'execution a ete effectivement entamee"
-                        ),
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -128,7 +118,7 @@ def test_exclusion_list_item_cannot_be_paraphrased_as_included():
                     "dont l'execution a deja commence sont concernees par les nouvelles "
                     "restrictions."
                 ),
-                "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -144,7 +134,7 @@ def test_exclusion_list_item_cannot_be_paraphrased_as_included():
                     "Selon la circulaire 2026-04, ces importations sont exclues du champ "
                     "d'application des nouvelles restrictions de l'article premier."
                 ),
-                "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -172,15 +162,7 @@ def test_inclusion_obligation_cannot_be_paraphrased_as_exempted():
                     "L'importateur n'est pas soumis a l'obligation de deposer la totalite "
                     "de la valeur des importations."
                 ),
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": (
-                            "les importateurs constituent, sur leurs fonds propres, des "
-                            "depots couvrant la totalite de la valeur des importations envisagees"
-                        ),
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -217,16 +199,7 @@ def test_arabic_scenario_date_may_be_restated_without_page_literal():
                     "لا تنطبق القيود الجديدة على هذه الواردات إذا شرع في تنفيذ التعهد "
                     "قبل 26 مارس 2026."
                 ),
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": (
-                            "تستثنى من مجال التطبيق الواردات التي كانت محل تعهدات من "
-                            "الوسيط المقبول والتي شرع فعلا في تنفيذها قبل تاريخ دخول "
-                            "هذا المنشور حيز التطبيق"
-                        ),
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -266,7 +239,7 @@ def test_arabic_exclusion_cannot_be_paraphrased_as_applicable():
             "claims": [
                 {
                     "text": "تخضع هذه الواردات للقيود الجديدة وتنطبق عليها أحكام الفصل الأول.",
-                    "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                    "cites": ["E1.1"],
                 }
             ],
         },
@@ -282,7 +255,7 @@ def test_arabic_exclusion_cannot_be_paraphrased_as_applicable():
             "claims": [
                 {
                     "text": "تستثنى هذه الواردات من مجال تطبيق أحكام الفصل الأول ولا تنطبق عليها القيود الجديدة.",
-                    "quotes": [{"evidence_id": "E1", "quote": list_item}],
+                    "cites": ["E1.1"],
                 }
             ],
         },
@@ -313,12 +286,7 @@ def test_arabic_obligation_cannot_be_paraphrased_as_not_applicable():
         "claims": [
             {
                 "text": "لا تخضع البنوك لهذا الالتزام ولا تنطبق عليها أحكام المنشور.",
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": "يتعين على البنوك تكوين ودائع تغطي كامل قيمة الواردات",
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -342,12 +310,7 @@ def test_unsupported_legal_number_still_rejected_when_not_in_question():
         "claims": [
             {
                 "text": "L'importateur doit deposer seulement 50 % de la valeur.",
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": "des depots couvrant la totalite de la valeur des importations envisagees",
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -370,7 +333,7 @@ def test_regime_remap_still_rejected_for_off_topic_export_page():
                     "Une entreprise peut regler un fournisseur etranger par n'importe quel "
                     "moyen de paiement lorsque le contrat prevoit un delai de 60 jours."
                 ),
-                "quotes": [{"evidence_id": "E1", "quote": page[:120]}],
+                "cites": ["E1.1"],
             }
         ],
     }
@@ -410,17 +373,7 @@ def test_generate_grounded_answer_does_not_abstain_when_test3_exception_selected
                     "concours financiers dont l'execution a ete effectivement entamee "
                     "avant l'entree en vigueur sont exclues des nouvelles restrictions."
                 ),
-                "quotes": [
-                    {
-                        "evidence_id": "E1",
-                        "quote": (
-                            "les importations ayant donne lieu, prealablement a la date "
-                            "d'entree en vigueur de la presente circulaire, a des "
-                            "engagements pris par l'intermediaire agree pour l'octroi de "
-                            "concours financiers, dont l'execution a ete effectivement entamee"
-                        ),
-                    }
-                ],
+                "cites": ["E1.1"],
             }
         ],
     }

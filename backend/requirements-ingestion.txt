@@ -2,4 +2,5 @@
 -r requirements-local.txt
 google-genai>=2.20.0,<3
 filelock>=3.18,<4
+docling>=2.130,<3
 python-multipart>=0.0.20,<1

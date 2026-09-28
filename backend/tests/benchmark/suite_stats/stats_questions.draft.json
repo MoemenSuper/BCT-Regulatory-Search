@@ -1,0 +1,378 @@
+[
+ {
+  "id": "stat_conj_01",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 3,
+  "query": "Selon les actualisations de juillet 2026 du FMI, quelle est la prévision de croissance mondiale pour 2027 ?",
+  "expected_answer": "3,4%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_02",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 3,
+  "query": "Quelle est la prévision de croissance du FMI pour la Chine en 2026 ?",
+  "expected_answer": "4,6%",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_03",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 4,
+  "query": "De combien de points de base la BCE a-t-elle augmenté ses taux directeurs lors de sa réunion du 11 juin 2026 ?",
+  "expected_answer": "25 points de base",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_04",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 10,
+  "query": "Quel a été le déficit moyen de liquidité sur le marché monétaire au deuxième trimestre 2026 ?",
+  "expected_answer": "-116 MDT",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_05",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 12,
+  "query": "À combien s'est établi en moyenne le solde net des facilités permanentes au T2-2026 ?",
+  "expected_answer": "207 MDT (contre 122 MDT au trimestre précédent)",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_06",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 5,
+  "query": "Quelle est la dernière valeur de l'EUR/USD indiquée sur le graphique d'évolution des taux de change du périodique de conjoncture de juillet 2026 ?",
+  "expected_answer": "1,1507",
+  "answer_type": "chart_label",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_conj_07",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 5,
+  "query": "Quelle était la moyenne mensuelle du taux de change USD/JPY en mars 2024 ?",
+  "expected_answer": "Non lisible dans le texte : valeur uniquement tracée sur la courbe.",
+  "answer_type": "chart_drawn_only",
+  "expected_behavior": "abstain"
+ },
+ {
+  "id": "stat_conj_08",
+  "expected_source": "Conjoncture_152_fr.pdf",
+  "expected_page": 19,
+  "query": "Quelle était la valeur de l'indice TUNINDEX le 15 mars 2026 selon le graphique 4.1 ?",
+  "expected_answer": "Non lisible dans le texte : valeur uniquement tracée sur la courbe.",
+  "answer_type": "chart_drawn_only",
+  "expected_behavior": "abstain"
+ },
+ {
+  "id": "stat_bsf_01",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 15,
+  "query": "Quel était le taux de la facilité de prêt à 24 heures après la décision du Conseil d'administration de la BCT du 19 février 2019 ?",
+  "expected_answer": "8,75%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_02",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 15,
+  "query": "Quel taux directeur a été fixé par le Conseil d'administration de la BCT le 30 décembre 2025 ?",
+  "expected_answer": "7,00%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_03",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 16,
+  "query": "Quel est le taux de rémunération de l'épargne (TRE) fixé par la circulaire n°2025-07 du 07 avril 2025 ?",
+  "expected_answer": "6,50%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_04",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 16,
+  "query": "Comment est déterminé le taux maximum de découvert ?",
+  "expected_answer": "Il est égal au TMM majoré de 7 points de pourcentage.",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_05",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 42,
+  "query": "Quel était le total de la masse monétaire M1 en 2019, en milliers de dinars ?",
+  "expected_answer": "34919309",
+  "answer_type": "table_cell_borderless",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_06",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 42,
+  "query": "Quel était l'encours des dépôts à terme (placements monétaires M2-M1) en 2010 ?",
+  "expected_answer": "9132790 milliers de dinars",
+  "answer_type": "table_cell_borderless",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_07",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 42,
+  "query": "Quelle était la masse monétaire M3 à fin décembre 2025 ?",
+  "expected_answer": "146951670 milliers de dinars",
+  "answer_type": "table_cell_borderless",
+  "expected_behavior": "answer",
+  "note": "Row that Docling's table model misplaced; tests the row check."
+ },
+ {
+  "id": "stat_bsf_08",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 65,
+  "query": "Quel était le taux maximum de découvert en février 2026 ?",
+  "expected_answer": "13,99%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bsf_09",
+  "expected_source": "BSF_fr.pdf",
+  "expected_page": 65,
+  "query": "Quel était le taux moyen du marché monétaire en janvier 2026 ?",
+  "expected_answer": "7,08%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_01",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 1,
+  "query": "Quel était l'agrégat M3 à fin juillet 2026, en millions de dinars ?",
+  "expected_answer": "154.042 MDT",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_02",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 1,
+  "query": "À combien s'élevait le service de la dette extérieure cumulé à fin décembre 2025 ?",
+  "expected_answer": "12.445 MDT",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_03",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 1,
+  "query": "Quel était l'encours des opérations principales de refinancement en juin 2026 ?",
+  "expected_answer": "4.700 MDT",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_04",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 2,
+  "query": "Quel était le montant de la monnaie fiduciaire en juillet 2026 ?",
+  "expected_answer": "28 725 millions de dinars",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_05",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 4,
+  "query": "Quelles ont été les recettes du tourisme sur les sept premiers mois de 2026 selon la balance des paiements ?",
+  "expected_answer": "4358,1 MDT",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sup_06",
+  "expected_source": "Supplement_fr.pdf",
+  "expected_page": 4,
+  "query": "Quel était le montant des crédits du compte des transactions courantes en 2024 ?",
+  "expected_answer": "75751,0 MDT",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_pay_01",
+  "expected_source": "Bulletin_des_paiements_017_fr.pdf",
+  "expected_page": 1,
+  "query": "Combien de cartes bancaires étaient en circulation au premier semestre 2026 ?",
+  "expected_answer": "6151 mille (+5,1% par rapport au 31/12/2025)",
+  "answer_type": "infographic_label",
+  "expected_behavior": "answer",
+  "needs_review": "Infographic: pairing of 6151 mille with 'Cartes bancaires' and +5,1% inferred from layout order."
+ },
+ {
+  "id": "stat_ra_01",
+  "expected_source": "RA_2025_fr.pdf",
+  "expected_page": 22,
+  "query": "Combien de processus granulaires ont été identifiés au total dans la deuxième phase du projet de cartographie et réingénierie des processus ?",
+  "expected_answer": "159",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_ra_02",
+  "expected_source": "RA_2025_fr.pdf",
+  "expected_page": 22,
+  "query": "Combien de processus de la DG de la Politique Monétaire ont été modélisés ?",
+  "expected_answer": "0 (53 identifiés et validés)",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_ra_03",
+  "expected_source": "RA_2025_fr.pdf",
+  "expected_page": 24,
+  "query": "Quel est l'effectif total de la BCT selon le rapport annuel 2025 ?",
+  "expected_answer": "834 agents",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_ra_04",
+  "expected_source": "RA_2025_fr.pdf",
+  "expected_page": 24,
+  "query": "Combien de femmes âgées de 30 à 34 ans compte le personnel de la BCT ?",
+  "expected_answer": "100",
+  "answer_type": "chart_label",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_ra_05",
+  "expected_source": "RA_2025_fr.pdf",
+  "expected_page": 24,
+  "query": "Combien d'étudiants de l'IFID la Banque a-t-elle recrutés en 2025 ?",
+  "expected_answer": "9",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bal_01",
+  "expected_source": "Balance.pdf",
+  "expected_page": 14,
+  "query": "Quelle a été la croissance économique de l'Allemagne en 2023 selon le FMI ?",
+  "expected_answer": "-0,9%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_bal_02",
+  "expected_source": "Balance.pdf",
+  "expected_page": 14,
+  "query": "Quelle est la croissance prévue pour l'Inde en 2025 ?",
+  "expected_answer": "6,6%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_det_01",
+  "expected_source": "dette2024.pdf",
+  "expected_page": 19,
+  "query": "À quel niveau les avoirs nets en devises ont-ils clôturé l'année 2024 ?",
+  "expected_answer": "27.332 MDT, soit 121 jours d'importation",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_det_02",
+  "expected_source": "dette2024.pdf",
+  "expected_page": 22,
+  "query": "Quel montant la BERD a-t-elle fourni en 2024 aux emprunteurs tunisiens ?",
+  "expected_answer": "467 MDT",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_det_03",
+  "expected_source": "dette2024.pdf",
+  "expected_page": 10,
+  "query": "Quelle a été la croissance du PIB de l'Asie du Sud en 2024 ?",
+  "expected_answer": "5,9%",
+  "answer_type": "prose",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_det_04",
+  "expected_source": "Balance.pdf",
+  "expected_page": 24,
+  "query": "Combien de jours d'importation représentaient les avoirs nets en devises en 2021 ?",
+  "expected_answer": "134 jours d'importation (2021)",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer",
+  "note": "Corrected: the value is not on the dette2024 chart, but Balance.pdf page 24 has it in a table."
+ },
+ {
+  "id": "stat_sbc_01",
+  "expected_source": "sup_bc_fr.pdf",
+  "expected_page": 11,
+  "query": "Combien de missions de contrôle sur place la BCT a-t-elle menées en 2024 ?",
+  "expected_answer": "8",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sbc_02",
+  "expected_source": "sup_bc_fr.pdf",
+  "expected_page": 13,
+  "query": "Quel était le ratio de solvabilité des établissements de leasing en 2024 ?",
+  "expected_answer": "16,1%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_sbc_03",
+  "expected_source": "sup_bc_fr.pdf",
+  "expected_page": 13,
+  "query": "Quel était le résultat net des établissements de leasing en 2023 ?",
+  "expected_answer": "103 millions de dinars",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_med_01",
+  "expected_source": "RAPPORT_MEDIATION__2024_fr.pdf",
+  "expected_page": 8,
+  "query": "Combien de réclamations ont été reçues au total par la médiation bancaire en 2024 ?",
+  "expected_answer": "506",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_med_02",
+  "expected_source": "RAPPORT_MEDIATION__2024_fr.pdf",
+  "expected_page": 8,
+  "query": "Quelle part des réclamations reçues a été déclarée recevable en 2023 ?",
+  "expected_answer": "64,2%",
+  "answer_type": "table_cell",
+  "expected_behavior": "answer"
+ },
+ {
+  "id": "stat_med_03",
+  "expected_source": "RAPPORT_MEDIATION__2024_fr.pdf",
+  "expected_page": 7,
+  "expected_pages": [
+   7,
+   8
+  ],
+  "query": "Combien de réclamations provenant des entreprises ont été reçues en 2022 ?",
+  "expected_answer": "40",
+  "answer_type": "chart_label",
+  "expected_behavior": "answer"
+ }
+]

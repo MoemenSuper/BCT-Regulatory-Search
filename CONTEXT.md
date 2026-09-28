@@ -47,7 +47,7 @@ Observable OCR noise in a page header (`source_header_conflict`, `implausible_gr
 _Avoid_: unusable, corrupt document, “bad PDF” (the PDF is authoritative; the extraction is noisy)
 
 **Quotation**:
-A verbatim contiguous excerpt recoverable from the supplied physical page text. Locating tolerates spacing and small OCR letter noise; digits and negations must match exactly, and the rendered text is always the page's own characters.
+A verbatim excerpt of the supplied physical page text. The model never copies it: evidence text is split into numbered units (`[E2.14]` = unit 14 of evidence E2; one line, one table row, or one sentence of a long line) and a claim cites unit IDs. The app resolves the IDs to the page's own characters; consecutive units merge into one excerpt; an unknown ID fails the claim (`unknown_citation`).
 _Avoid_: citation, paraphrase, summary, highlight alone
 
 **Citation**:
@@ -68,9 +68,9 @@ _Avoid_: mode, backend, provider (as the profile name); treating a profile as le
 
 **Answer status**:
 Product outcome of a turn: `answered`, `partial_answer`, `insufficient_evidence`, `clarification_needed`, `out_of_scope`, `search_results`.
-`partial_answer` may also present a grounded synthesis from the top retrieved pages (still with quotations), listing those pages for inspection and asking for admin/PDF confirmation. When that synthesis uses more than one page, the answer states that the useful elements are spread across multiple passages (after the claims). If drafting/repair still cannot form valid JSON, complete claims are salvaged from truncated model output when possible. Forced partial feeds the writer compact on-topic snippets and requires natural claim sentences (quotes stay literal). `search_results` remains the last resort when no quoted claim can be formed.
+`partial_answer` covers the supported part of the question; when the useful elements come from more than one page, the answer says so (after the claims). An answer comes only from a validated draft: at most two drafts, the second with the first one's validation feedback; complete claims are salvaged from truncated model output when possible. No model is then pushed to answer anyway. A pinned SUPERSEDES edge can still answer “X replaces Y” deterministically; otherwise `search_results` lists the top pages for inspection.
 Greetings, help, and conversation-summary turns use the router’s `GENERAL_CHAT` path: a short reply with **no retrieval** (often `answered` with empty sources). Broad regulatory briefings still retrieve; the selector/writer prefer a multi-page **quoted** `partial_answer` when possible, without weakening quote checks. An empty model completion is treated as a draft failure (`draft_empty`), not repaired into `insufficient_evidence`. Selector evidence IDs are sanitized (keep valid IDs; map `1`/`e1` → `E1`) instead of discarding a whole selection for one bad ID.
-_Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer; leading with “couldn’t find” when a multi-page synthesis is available; treating `GENERAL_CHAT` as a fake out-of-scope refusal; treating a blank LLM completion as a deliberate abstention; pasting raw page/OCR text as the claim body
+_Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer; treating `GENERAL_CHAT` as a fake out-of-scope refusal; treating a blank LLM completion as a deliberate abstention; pasting raw page/OCR text as the claim body
 
 ## JSONL supersession
 
@@ -124,7 +124,7 @@ New assets stage first; activation makes them live. Failure keeps the previous c
 _Avoid_: upload as already-searchable; “hot reload” without activation
 
 **Quick pass / enrichment**:
-Ingest is two-phase. The quick pass (native PyMuPDF text only, seconds) activates a version so the PDF is searchable at once. Pages that need visual reading (scanned / garbled / chart / Arabic risk pages) are queued per page in the ingestion ledger; the background enrichment worker in the API process reads them one at a time (unreadable pages first), checkpoints each result, and re-activates in batches through the same staged activation. Chat requests take priority: the worker pauses between pages while a question is being answered. A page that needs visual reading to be quotable (Arabic mode `all`) has no page text until it is read — never native text standing in for it.
+Ingest is two-phase. The quick pass (Docling layout + PDF text layer, no visual reading) activates a version so the PDF is searchable at once. Pages that need visual reading (scanned / garbled / image regions / Arabic risk pages) are queued per page in the ingestion ledger; the background enrichment worker in the API process reads them one at a time (unreadable pages first), checkpoints each result, and re-activates in batches through the same staged activation. Chat requests take priority: the worker pauses between pages while a question is being answered. A page that needs visual reading to be quotable (Arabic mode `all`) has no page text until it is read — never native text standing in for it.
 _Avoid_: “fully ingested” for an `enriching` PDF; OCR inside the upload request
 
 **Document status**:
@@ -144,13 +144,13 @@ Product stance: research aid. The original PDF is authoritative; open the cited 
 _Avoid_: “qualified legal opinion”, “en vigueur” claims when temporal scope is incomplete
 
 **Document kind (`doc_kind`)**:
-Admin tag at ingest: `regulatory` (primary), `statistical`, or `internal` (secondary). One corpus; claim grounding uses kind, not retrieval silos. Works with any search provider (Voyage, Google, local). Hard pages (scans, charts, image notes) use a profile-selected visual backend at ingest: EasyOCR (Arabic) + PaddleOCR-VL (charts/tables/hard pages) for `local` / `local_hybrid`; Gemini VLM (`GEMINI_API_KEY`) for `cloud`. After transcription the active embedder indexes that text.
+Admin tag at ingest: `regulatory` (primary), `statistical`, or `internal` (secondary). One corpus; claim grounding uses kind, not retrieval silos. Works with every profile (cloud Voyage, local hybrid, all local). Scans and image regions use a profile-selected visual backend at ingest: EasyOCR (Arabic text) + PaddleOCR-VL (image regions, other pages) for `local` / `local_hybrid`; Gemini VLM (`GEMINI_API_KEY`) for `cloud`. After transcription the active embedder indexes that text.
 _Avoid_: treating a bulletin or memo as a binding circulaire
 
 **Query class**:
-Turn label for which kinds may prove claims: `regulatory_rule` | `statistical_fact` | `internal_procedure` | `mixed` | `uncertain`. `uncertain` grounds as regulatory; never rejects the question.
+Turn label for which kinds may prove claims: `regulatory_rule` | `statistical_fact` | `internal_procedure` | `mixed` | `uncertain`. `uncertain` grounds as regulatory; never rejects the question. A claim proved only by a secondary kind on a regulatory/uncertain turn is kept, but the answer becomes `partial_answer` with a notice that the source is not a regulatory text.
 _Avoid_: classifier as a refusal gate
 
-**Chart / figure page**:
-A PDF page flagged by geometry (image/drawing area). When chart vision is on, the active visual backend always reads that page (during enrichment) and merges chart notes into the native body — even when the page already has rich extractable text (typical stats layout). Quotes still need page text.
+**Image region**:
+A Docling box on a readable page that the PDF text layer cannot fill: a picture, or a table or text that is itself an image (boxes under ~8 mm are skipped). Only that box is read visually (during enrichment) and its reading is put back in its place in the page text. Pictures are always read; the PDF words inside a picture's box stay searchable on a line starting `[Mots de l'image]` but are never citable, because their drawing order puts numbers next to the wrong labels. A page with no usable text layer is read whole instead.
 _Avoid_: embedding vector as proof of a number

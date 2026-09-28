@@ -28,7 +28,7 @@ services:
       BCT_STATIC_DIR: /app/static
       BCT_INGEST_LOCAL_INDEX: "1"
       BCT_DEFAULT_PROFILE: local_hybrid
-      BCT_CLOUD_RETRIEVAL_PROVIDER: voyage
+
     volumes:
       - bct-assets:/data/assets
       # - ${BCT_DOCUMENTS_HOST}:/data/documents:ro

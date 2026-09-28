@@ -20,7 +20,7 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | JSONL SUPERSEDES pin / ingest merge | `backend/jsonl_supersession.py` (facade); edges IO in `supersession_edges.py`, retrieve pin in `supersession_pin.py` |
 | Conversation routing and follow-ups | `backend/conversation.py` |
 | Profiles `cloud` / `local_hybrid` / `local` | `backend/runtime_profiles.py` |
-| Retrieval + evidence selection | `backend/runtime_retrieval.py` (backends + facade), `backend/cloud_embed_clients.py` (Voyage/Google clients), `backend/retrieval_selection.py` |
+| Retrieval + evidence selection | `backend/runtime_retrieval.py` (backends + facade), `backend/cloud_embed_clients.py` (Voyage client), `backend/retrieval_selection.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |
 | Ingest → stage → activate | `backend/ingest.py`, `backend/ingestion/` |
 | Quick pass + background enrichment (page ledger, chat priority, statuses) | `backend/ingestion/pipeline.py`, `enrichment.py`, `registry.py` |

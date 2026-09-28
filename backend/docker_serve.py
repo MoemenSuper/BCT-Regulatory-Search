@@ -108,9 +108,7 @@ def main() -> None:
     os.environ.setdefault("BCT_SETTINGS_DB", str(data / "app_settings.sqlite3"))
     os.environ.setdefault("BCT_INGESTION_DATA_DIR", str(data / "ingestion"))
     os.environ.setdefault("BCT_VOYAGE_RUNTIME_CACHE", str(data / "voyage-cache"))
-    os.environ.setdefault("BCT_GOOGLE_RUNTIME_CACHE", str(data / "google-cache"))
     os.environ.setdefault("BCT_GEMINI_CACHE", str(data / "gemini-cache"))
-    os.environ.setdefault("BCT_CLOUD_RETRIEVAL_PROVIDER", "voyage")
 
     host = os.environ.get("BCT_BIND_HOST", "0.0.0.0")
     port = int(os.environ.get("BCT_BIND_PORT", "8000"))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 from dataclasses import dataclass
@@ -10,10 +11,11 @@ from filelock import FileLock
 from langfuse import get_client, propagate_attributes
 
 from .chunk import build_runtime_chunks
-from .extract import PdfExtractor, render_page_png, sha256_file
+from .extract import ImageRegions, PdfExtractor, sha256_file
 from .index import (
     activate_assets,
     discard_staged_local_collections,
+    prune_versions,
     resolve_active_assets,
     stage_cloud_assets,
     stage_local_collections,
@@ -82,73 +84,6 @@ def _clean_metadata(metadata: dict | None) -> dict[str, str]:
     return cleaned
 
 
-def _persist_page_images(structured, immutable_dir: Path) -> int:
-    """Move spilled chart-page PNGs beside the immutable PDF; drop temp paths/bytes."""
-    images_dir = immutable_dir / "page-images"
-    written = 0
-    for page in structured.pages:
-        png = page.metadata.pop("page_image_png", None)
-        tmp = page.metadata.pop("page_image_tmp", None)
-        if not png and not tmp:
-            continue
-        images_dir.mkdir(parents=True, exist_ok=True)
-        path = images_dir / f"page-{page.page_number}.png"
-        src = Path(tmp) if tmp else None
-        if src is not None and src.is_file():
-            shutil.move(str(src), str(path))
-        elif png:
-            path.write_bytes(png)
-            if src is not None:
-                src.unlink(missing_ok=True)
-        else:
-            continue
-        page.metadata["page_image_path"] = str(path)
-        page.metadata["has_chart"] = True
-        written += 1
-    return written
-
-
-def _ensure_secondary_page_images(structured, pdf_path: Path, immutable_dir: Path) -> int:
-    """Persist capped PNGs only for chart/empty pages still missing an image.
-
-    Full-document re-renders of 100–250 page statistical PDFs were a major OOM /
-    latency source; born-digital pages with native text do not need a raster.
-    """
-    if str(structured.metadata.get("doc_kind") or "") not in {"statistical", "internal"}:
-        return 0
-    try:
-        import pymupdf
-    except ImportError:
-        return 0
-    images_dir = immutable_dir / "page-images"
-    written = 0
-    with pymupdf.open(pdf_path) as pdf:
-        for page in structured.pages:
-            if page.metadata.get("page_image_path"):
-                continue
-            flags = set(page.quality_flags or [])
-            needs_image = bool(page.metadata.get("has_chart") or page.metadata.get("chart_suspect")) or (
-                "chart_suspect" in flags
-            ) or (not str(page.raw_text or "").strip())
-            if not needs_image:
-                continue
-            images_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                png = render_page_png(pdf.load_page(page.page_number - 1))
-            except Exception:
-                continue
-            path = images_dir / f"page-{page.page_number}.png"
-            path.write_bytes(png)
-            page.metadata["page_image_path"] = str(path)
-            written += 1
-            png = None
-            try:
-                pymupdf.TOOLS.store_shrink(100)
-            except Exception:
-                pass
-    return written
-
-
 def validate_pdf_file(path: str | Path, *, max_bytes: int) -> None:
     path = Path(path)
     size = path.stat().st_size
@@ -211,7 +146,7 @@ def _extract_summary(structured) -> dict:
         "language": structured.language,
         "visual_pages": int(structured.metadata.get("visual_page_count", 0)),
         "visual_attempted": sum(1 for page in structured.pages if page.metadata.get("visual_attempted")),
-        "chart_suspect": sum(1 for page in structured.pages if "chart_suspect" in page.quality_flags),
+        "image_region_pages": sum(1 for page in structured.pages if "image_regions" in page.quality_flags),
         "replaced_by_visual": sum(1 for page in structured.pages if page.extraction_method == "vlm"),
         "degraded_pages": degraded[:50],
         "degraded_count": len(degraded),
@@ -247,6 +182,15 @@ def _traced(name: str, run, *, input: dict, tags: list[str]) -> dict:
             metadata={"memory_before": memory_before, "memory_after": _memory_mb()},
         )
         return report
+
+
+def _prune(root: Path) -> None:
+    """Drop superseded asset versions; a cleanup failure never fails the committed activation."""
+    try:
+        with _step("prune-versions") as span:
+            span.update(output=prune_versions(root))
+    except Exception:
+        logging.getLogger(__name__).warning("Asset version pruning failed.", exc_info=True)
 
 
 def _restore_active_pointer(root: Path, previous: bytes | None) -> None:
@@ -340,7 +284,7 @@ class IngestionPipeline:
             with _step("extract-document", input={"pdf": filename, "quick": quick}) as span:
                 visual_results, visual_model = self._visual_results(content_hash)
                 structured = PdfExtractor(visual_model=visual_model).extract(
-                    immutable_pdf, visual_results=visual_results
+                    immutable_pdf, visual_results=visual_results, layout_cache=immutable_dir / "docling-layout.json"
                 )
                 summary = _extract_summary(structured)
                 span.update(
@@ -363,11 +307,6 @@ class IngestionPipeline:
             structured.metadata["authority"] = metadata["authority"]
             if metadata.get("related_to"):
                 structured.metadata["related_to"] = metadata["related_to"]
-            with _step("persist-page-images", input={"doc_kind": doc_kind}) as span:
-                page_images = _persist_page_images(structured, immutable_dir)
-                page_images += _ensure_secondary_page_images(structured, immutable_pdf, immutable_dir)
-                span.update(output={"page_images": page_images})
-            structured.metadata["chart_page_images"] = page_images
             structured_path = immutable_dir / "structured.json"
             structured_path.write_text(
                 json.dumps(structured.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
@@ -513,6 +452,7 @@ class IngestionPipeline:
                 _restore_active_pointer(self.config.asset_root, previous_pointer)
                 raise
             activation_committed = True
+            _prune(self.config.asset_root)
             return report
         except Exception as error:
             if staged_version is not None and not activation_committed:
@@ -538,7 +478,8 @@ class IngestionPipeline:
         models: set[str] = set()
         for page, (state, payload, model) in self.registry.page_results(content_hash).items():
             if state == "done":
-                results[page] = VisualPage.model_validate_json(payload)
+                data = json.loads(payload)
+                results[page] = ImageRegions.model_validate(data) if "texts" in data else VisualPage.model_validate(data)
                 if model:
                     models.add(model)
             else:
@@ -695,6 +636,7 @@ class IngestionPipeline:
                     _restore_active_pointer(self.config.asset_root, previous_pointer)
                     raise
                 activation_committed = True
+                _prune(self.config.asset_root)
 
                 stored = str(known.get("stored_path") or "").strip()
                 if stored:

@@ -330,64 +330,6 @@ def test_index_rejects_legacy_manifest_without_metadata_binding(tmp_path):
         runtime_retrieval._load_bound_index(tmp_path, "native", documents)
 
 
-def test_google_provider_cannot_load_voyage_indexes(tmp_path):
-    documents = [_doc("shared text", "Cir_2020_03_fr.pdf", 0)]
-    _write_bound_index(
-        tmp_path,
-        "native",
-        documents,
-        np.asarray([[1.0, 0.0]], dtype=np.float32),
-    )
-    google = runtime_retrieval.CLOUD_EMBED_SPECS["google"]
-    with pytest.raises(ValueError, match="not interchangeable"):
-        runtime_retrieval._load_bound_index(tmp_path, "native", documents, google)
-
-
-def test_cloud_embed_spec_defaults_to_voyage(monkeypatch):
-    monkeypatch.delenv("BCT_CLOUD_RETRIEVAL_PROVIDER", raising=False)
-    assert runtime_retrieval.cloud_embed_spec().key == "voyage"
-    monkeypatch.setenv("BCT_CLOUD_RETRIEVAL_PROVIDER", "google")
-    assert runtime_retrieval.cloud_embed_spec().provider == "google"
-    monkeypatch.setenv("BCT_CLOUD_RETRIEVAL_PROVIDER", "nope")
-    with pytest.raises(ValueError, match="Unknown BCT_CLOUD_RETRIEVAL_PROVIDER"):
-        runtime_retrieval.cloud_embed_spec()
-
-
-def test_google_runtime_client_rerank_uses_vertex_payload(monkeypatch, tmp_path):
-    calls = []
-
-    class Response:
-        status_code = 200
-
-        def json(self):
-            return {
-                "records": [
-                    {"id": "1", "score": 0.2},
-                    {"id": "0", "score": 0.9},
-                ]
-            }
-
-        @property
-        def text(self):
-            return ""
-
-    def post(url, *, headers, json, **_kwargs):
-        calls.append((url, headers["Authorization"], json))
-        return Response()
-
-    monkeypatch.setenv("BCT_GCP_PROJECT", "demo-project")
-    client = runtime_retrieval.GoogleRuntimeClient(tmp_path, request_post=post)
-    monkeypatch.setattr(client, "_rank_access_token", lambda: "token-xyz")
-
-    assert client.rerank("q", ["a", "b"]) == [0.9, 0.2]
-    assert "demo-project" in calls[0][0]
-    assert calls[0][1] == "Bearer token-xyz"
-    assert calls[0][2]["records"][0]["content"] == "a"
-    # cache hit
-    assert client.rerank("q", ["a", "b"]) == [0.9, 0.2]
-    assert len(calls) == 1
-
-
 def test_voyage_runtime_client_rotates_once_and_reuses_its_exact_cache(
     monkeypatch, tmp_path
 ):
@@ -661,9 +603,30 @@ def test_empty_collection_has_no_bm25_index_and_retrieves_nothing():
     assert retrieve_bm25("taux directeur", None, []) == []
 
 
+def test_keyword_search_matches_the_way_people_type():
+    from bm25 import create_bm25, retrieve_bm25, tokenize
+
+    # accents, plural, elision, digits glued to letters; Arabic harakat, hamza and taa marbuta
+    assert tokenize("Délais de l'agrément (Cir2024-03)") == tokenize("delai de agrements cir 2024 03")
+    assert tokenize("إعادةُ التمويل") == tokenize("اعاده التمويل")
+    docs = [Document(page_content=t, metadata={}) for t in (
+        "Les délais de paiement des chèques.", "Le taux directeur reste inchangé.", "Autre texte.")]
+    assert retrieve_bm25("delai paiement cheque", create_bm25(docs), docs, k=1)[0] is docs[0]
+
+
 def test_historical_cutoff_needs_avant_before_an_instrument_reference():
     from retrieval_selection import is_historical_cutoff_query
 
     assert is_historical_cutoff_query("Avant la circulaire 2025-13, quel était le délai ?")
     assert not is_historical_cutoff_query("Faut-il un accord avant de payer le fournisseur selon 2025-13 ?")
     assert not is_historical_cutoff_query("Engagements pris avant le 26 mars 2026 : que dit 2026-04 ?")
+
+
+def test_batch_sizes_shrink_with_weaker_hardware(monkeypatch):
+    import hardware
+
+    monkeypatch.setattr(hardware, "torch_device", lambda: "cuda")
+    monkeypatch.setattr(hardware, "gpu_memory_gb", lambda: 6.0)
+    assert hardware.batch_size(64) == 32
+    monkeypatch.setattr(hardware, "torch_device", lambda: "cpu")
+    assert hardware.batch_size(64) == 8

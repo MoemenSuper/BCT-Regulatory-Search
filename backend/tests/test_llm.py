@@ -1,4 +1,6 @@
 
+import os
+
 import llm
 from langchain_core.messages import HumanMessage
 import pytest
@@ -102,6 +104,8 @@ def test_groq_provider_loads_keys_beyond_slot_seven(monkeypatch):
         def invoke(self, *_args, **_kwargs):
             return "ok"
 
+    for name in [name for name in os.environ if name.startswith("GROQ_API_KEY_")]:
+        monkeypatch.delenv(name)  # the developer's real .env keys must not leak in
     monkeypatch.setenv("GROQ_API_KEY", "key-1")
     for index in range(2, 14):
         monkeypatch.setenv(f"GROQ_API_KEY_{index}", f"key-{index}")

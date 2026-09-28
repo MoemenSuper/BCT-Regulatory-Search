@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Loader2, Moon, Network, RotateCcw, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setCloudRetrievalProvider, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage, type EnrichmentProgress, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, FileUp, Gauge, KeyRound, ListFilter, Loader2, Moon, RotateCcw, Settings2, ShieldCheck, ShieldPlus, Sun, Trash2, UserCheck, UsersRound, XCircle } from 'lucide-react';
+import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage, type EnrichmentProgress, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu, displayLabel, AvatarMark } from './ProfileMenu';
@@ -222,22 +222,6 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
 
   async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); setMessage(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
-  async function handleCloudProvider(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const provider = String(new FormData(event.currentTarget).get('cloud_retrieval_provider') || '');
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const result = await setCloudRetrievalProvider(provider);
-      setConfig(result.config);
-      setMessage(t(locale, 'admin.cloudProviderSaved', { provider: result.cloud_retrieval_provider }));
-    } catch {
-      setError(t(locale, 'admin.configFailed'));
-    } finally {
-      setBusy(false);
-    }
-  }
   async function handleSecrets(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -455,7 +439,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             onExport={() => void handleExportRefusals()}
           />
         ) : null}
-        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onCloudProvider={handleCloudProvider} onSecrets={handleSecrets} /> : null}
+        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} /> : null}
       </main>
     </div>
   </div>;
@@ -1351,13 +1335,12 @@ function DocumentsList({
 }
 
 
-function ConfigurationPage({ config, loading, busy, locale, onProfile, onCloudProvider, onSecrets }: {
+function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets }: {
   config: AdminConfig | null;
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
   onProfile: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  onCloudProvider: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onSecrets: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }) {
   if (loading || !config) return <ConfigurationSkeleton label={t(locale, 'admin.loading')} />;
@@ -1366,10 +1349,6 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onCloudPr
     { value: 'local_hybrid', title: t(locale, 'admin.profileHybridTitle'), body: t(locale, 'admin.profileHybridBody') },
     { value: 'local', title: t(locale, 'admin.profileLocalTitle'), body: t(locale, 'admin.profileLocalBody') },
   ];
-  const cloudProviderLabels: Record<string, string> = {
-    voyage: t(locale, 'admin.cloudProviderVoyage'),
-    google: t(locale, 'admin.cloudProviderGoogle'),
-  };
   return (
     <section className="admin-configuration-layout">
       <form className="admin-form admin-panel" onSubmit={(event) => void onProfile(event)}>
@@ -1404,38 +1383,6 @@ function ConfigurationPage({ config, loading, busy, locale, onProfile, onCloudPr
             ))}
           </ul>
         </div>
-      </form>
-      <form className="admin-form admin-panel" onSubmit={(event) => void onCloudProvider(event)}>
-        <div className="admin-panel-heading">
-          <div>
-            <p>{t(locale, 'admin.runtimeControl')}</p>
-            <h2>{t(locale, 'admin.cloudProvider')}</h2>
-          </div>
-          <Network aria-hidden="true" size={22} />
-        </div>
-        <p className="admin-help">{t(locale, 'admin.cloudProviderHelp')}</p>
-        <fieldset className="admin-cloud-provider" disabled={busy}>
-          <legend>{t(locale, 'admin.cloudProvider')}</legend>
-          {(config.cloud_retrieval_providers || []).map((option) => (
-            <label key={option.value} className="admin-choice">
-              <input
-                type="radio"
-                name="cloud_retrieval_provider"
-                value={option.value}
-                defaultChecked={config.cloud_retrieval_provider === option.value}
-                key={`${option.value}-${config.cloud_retrieval_provider}`}
-              />
-              <span>
-                <strong>{cloudProviderLabels[option.value] || option.label}</strong>
-                <small>{option.model} · dim {option.dimension}</small>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        <button type="submit" className="admin-primary-button" disabled={busy}>
-          <CheckCircle2 aria-hidden="true" size={18} />
-          {t(locale, 'admin.saveCloudProvider')}
-        </button>
       </form>
       <form className="admin-form admin-panel" onSubmit={(event) => void onSecrets(event)}>
         <div className="admin-panel-heading">

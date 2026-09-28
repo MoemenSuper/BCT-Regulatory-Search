@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from langfuse import get_client
 from runtime_retrieval import (
     _load_bound_index,
     _read_chunks,
-    cloud_embed_spec,
+    VOYAGE_SPEC,
     create_cloud_runtime_client,
     document_binding,
 )
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def ingest_cloud_embed_enabled() -> bool:
-    """Whether admin/CLI ingest should call Voyage/Google embed APIs.
+    """Whether admin/CLI ingest should call the Voyage embed API.
 
     local / local_hybrid retrieve from Chroma (e5); cloud embeds are only needed for
     the cloud profile. Override with BCT_INGEST_CLOUD_INDEX=0|1.
@@ -122,7 +123,7 @@ def _array_bytes(vectors: np.ndarray) -> bytes:
 
 
 def _write_bound_index(root: Path, representation: str, documents: list[Document], vectors: np.ndarray, *, spec=None) -> None:
-    spec = spec or cloud_embed_spec()
+    spec = spec or VOYAGE_SPEC
     vectors = np.asarray(vectors, dtype=np.float32)
     if vectors.shape != (len(documents), spec.dimension):
         raise ValueError(f"Invalid {representation} vector shape: {vectors.shape}")
@@ -156,7 +157,7 @@ def _write_bound_index(root: Path, representation: str, documents: list[Document
 
 def _load_old(active: Path, representation: str, filename: str, *, spec=None):
     """Load chunks + matching provider vectors. Missing provider index ⇒ vectors None (re-embed)."""
-    spec = spec or cloud_embed_spec()
+    spec = spec or VOYAGE_SPEC
     path = active / filename
     if not path.exists():
         return [], np.empty((0, spec.dimension), dtype=np.float32)
@@ -172,29 +173,17 @@ def _load_old(active: Path, representation: str, filename: str, *, spec=None):
 
 
 def _embed_new(client, documents: list[Document]) -> np.ndarray:
-    dimension = int(getattr(client, "dimension", cloud_embed_spec().dimension))
+    dimension = int(getattr(client, "dimension", VOYAGE_SPEC.dimension))
     if not documents:
         return np.empty((0, dimension), dtype=np.float32)
     texts = [document.page_content for document in documents]
-    images = []
-    titles = []
-    for document in documents:
-        titles.append(Path(str(document.metadata.get("source", ""))).stem or "none")
-        image_path = str(document.metadata.get("page_image_path") or "").strip()
-        png = None
-        # Google-only multimodal: Voyage embed_document_chunks ignores images.
-        if image_path:
-            path = Path(image_path)
-            if path.is_file():
-                png = path.read_bytes()
-        images.append(png)
     with get_client().start_as_current_observation(
         name="embed-chunks",
         as_type="embedding",
-        model=str(getattr(client, "model", "") or cloud_embed_spec().model),
-        input={"chunks": len(texts), "chars": sum(map(len, texts)), "images": sum(1 for png in images if png)},
+        model=str(getattr(client, "model", "") or VOYAGE_SPEC.model),
+        input={"chunks": len(texts), "chars": sum(map(len, texts))},
     ):
-        return client.embed_document_chunks(texts, images=images, titles=titles)
+        return client.embed_document_chunks(texts)
 
 
 def stage_cloud_assets(
@@ -210,16 +199,13 @@ def stage_cloud_assets(
 ) -> tuple[Path, dict]:
     """Build a complete new asset version (JSONL + optional cloud embeddings).
 
-    Voyage and Google indexes are separate files; they are never mixed. Switching
-    provider on an existing corpus re-embeds kept chunks for that provider only.
-
     When embed_cloud is False (default for local / local_hybrid), JSONL is still
-    updated and local Chroma can be staged separately — Voyage/Google are not called.
+    updated and local Chroma can be staged separately — Voyage is not called.
     """
     root = Path(asset_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     active = resolve_active_assets(root)
-    spec = cloud_embed_spec()
+    spec = VOYAGE_SPEC
     if embed_cloud is None:
         embed_cloud = ingest_cloud_embed_enabled()
     old_primary, old_primary_vectors = _load_old(active, "native", "native.jsonl", spec=spec)
@@ -250,7 +236,7 @@ def stage_cloud_assets(
         return list(old_docs) + list(new_docs)
 
     if embed_cloud:
-        client = create_cloud_runtime_client(root, spec)
+        client = create_cloud_runtime_client(root)
 
         def merge(old_docs, old_vectors, new_docs):
             if old_vectors is None:
@@ -294,10 +280,7 @@ def stage_cloud_assets(
             _write_bound_index(
                 staging, "arabic_ocr_secondary", all_visual, all_visual_vectors, spec=spec
             )
-        # Preserve the other provider's indexes so switching back does not wipe them.
-        # Also preserve current-provider indexes when we skipped embed (stale vs jsonl).
-        other = "google" if spec.key == "voyage" else "voyage"
-        other_spec = cloud_embed_spec(other)
+        # Preserve the Voyage indexes when this build skipped embedding (stale vs jsonl).
         indexes_src = active / "indexes"
         if indexes_src.is_dir():
             indexes_dst = staging / "indexes"
@@ -309,14 +292,13 @@ def stage_cloud_assets(
                     continue
                 provider = manifest.get("provider")
                 model = manifest.get("model")
-                keep_other = provider == other_spec.provider and model == other_spec.model
-                keep_stale_current = (
+                keep_stale = (
                     not embed_cloud
                     and all_primary_vectors is None
                     and provider == spec.provider
                     and model == spec.model
                 )
-                if not (keep_other or keep_stale_current):
+                if not keep_stale:
                     continue
                 npy_path = manifest_path.with_suffix(".npy")
                 if npy_path.is_file():
@@ -573,6 +555,57 @@ def stage_local_collections(
         except Exception:
             pass
         raise
+
+
+_VERSION_DIR = re.compile(r"^\d{8}T\d{6}Z-")
+_VERSIONED_COLLECTION = re.compile(r"^bct_(?:regulations|arabic_visual)_\w+$")
+
+
+def prune_versions(asset_root: str | Path, *, keep: int = 3) -> dict[str, int]:
+    """Delete asset versions older than the ``keep`` newest, and the Chroma collections only they used.
+
+    Staged activation writes a full corpus copy per activation; without pruning every
+    upload or enrichment batch adds one. Never touches the active version, the collections
+    the process is serving (a version activated without its own local index keeps serving
+    the previous one), hand-seeded folders, or unversioned collection names.
+    """
+    root = Path(asset_root).resolve()
+    versions = root / "versions"
+    if not versions.is_dir():
+        return {"removed_versions": 0, "removed_collections": 0}
+    active = resolve_active_assets(root)
+    dated = sorted((p for p in versions.iterdir() if p.is_dir() and _VERSION_DIR.match(p.name)), key=lambda p: p.name)
+    kept = set(dated[-keep:]) | {active}
+
+    def snapshot(path: Path) -> dict:
+        try:
+            return json.loads((path / "snapshot.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    live = {os.environ.get("BCT_CHROMA_COLLECTION"), os.environ.get("BCT_OCR_CHROMA_COLLECTION")}
+    for path in kept:
+        live |= {snapshot(path).get("local_collection"), snapshot(path).get("local_visual_collection")}
+    for path in reversed([p for p in dated if p.name <= active.name]):
+        if snapshot(path).get("local_collection"):  # the index the active version falls back to
+            live |= {snapshot(path)["local_collection"], snapshot(path).get("local_visual_collection")}
+            break
+    removed_versions = removed_collections = 0
+    for path in dated:
+        if path in kept:
+            continue
+        values = snapshot(path)
+        doomed = {
+            key: values.get(key)
+            for key in ("local_collection", "local_visual_collection")
+            if values.get(key) not in live and _VERSIONED_COLLECTION.match(str(values.get(key) or ""))
+        }
+        if doomed:
+            discard_staged_local_collections({**doomed, "local_chroma_db": values.get("local_chroma_db")})
+            removed_collections += len(doomed)
+        shutil.rmtree(path, ignore_errors=True)
+        removed_versions += 1
+    return {"removed_versions": removed_versions, "removed_collections": removed_collections}
 
 
 def discard_staged_local_collections(snapshot_updates: dict[str, object]) -> None:

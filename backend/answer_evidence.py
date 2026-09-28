@@ -1,7 +1,6 @@
 """Answer-only identity and literal gates. Never use benchmark labels or reorder retrieval."""
 import re
 import unicodedata
-from difflib import SequenceMatcher
 
 from graph_contract import is_relationship_query, is_temporal_rule_query
 from retrieval_selection import _ARABIC_RANGE as _AR, parse_query_identity, parse_source_identity
@@ -10,100 +9,44 @@ from retrieval_selection import _ARABIC_RANGE as _AR, parse_query_identity, pars
 _TYPOGRAPHY = str.maketrans({**{c: "-" for c in "‐‑‒–—−"}, "’": "'", "‘": "'",
                            **{c: str(unicodedata.decimal(c)) for c in "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹"}})
 # Arabic tatweel and harakat: presentation marks that OCR emits inconsistently.
-_ARABIC_MARKS = re.compile(r"[\u0640\u064b-\u065f\u0670]")
-_NEGATION = re.compile(r"(?<![\w-])(?:n'|(?:ne|pas|non|sans|jamais|aucun|aucune|not|no|never|لا|لم|لن|ليس|ليست|غير|دون)(?![\w-]))", re.I)
+_ARABIC_MARKS = re.compile(r"[ـً-ٰٟ]")
 
 
 def plain(text):
-    # Formatting equivalence only: never reverse digits, remove punctuation,
-    # skip words or fuzzy-match a quote.
+    # Formatting equivalence only: never reverse digits, remove punctuation or skip words.
     return " ".join(unicodedata.normalize("NFC", text).translate(_TYPOGRAPHY).split())
 
 
-def _compact(text):
-    """Drop whitespace and Arabic presentation marks for locating, never for display."""
-    return _ARABIC_MARKS.sub("", text).replace(" ", "")
+# Long prose lines are split at a sentence end followed by a capital or Arabic letter; table
+# rows ("row — column: value; ...") stay whole so a cited value keeps its row and column.
+_SENTENCE_END = re.compile(r"(?<=[.؟?!])[ \t]+(?=[A-ZÀ-ÖØ-Þ«\"(؀-ۿ])")
+_LONG_LINE = 400
+# Ingestion prefixes the PDF words found inside a picture's box with this mark. They help
+# retrieval find the page, but their order is the PDF's drawing order (a chart's number sits next
+# to the wrong label): such lines are never citable. The picture's visual reading is citable.
+IMAGE_WORDS = "[Mots de l'image]"
 
 
-def _negations(text):
-    return sorted(_NEGATION.findall(text.casefold()))
+def unit_spans(text):
+    """Citable units of an evidence text: lines, with long prose lines split into sentences.
 
-
-def _near_match(haystack, needle):
-    """Bounded near-match on compact text: ≥95% of the quote's characters align
-    contiguously, the span stays within the quote's length, digits are identical.
-    Locating tolerates OCR letter noise, never a changed number."""
-    if len(needle) < 20:
-        return None
-    blocks = [b for b in SequenceMatcher(None, haystack, needle, autojunk=False).get_matching_blocks() if b.size]
-    if not blocks:
-        return None
-    matched = sum(b.size for b in blocks)
-    start, end = blocks[0].a, blocks[-1].a + blocks[-1].size
-    if matched < 0.95 * len(needle) or end - start > len(needle) * 1.05 + 3:
-        return None
-    if re.findall(r"\d+", haystack[start:end]) != re.findall(r"\d+", needle):
-        return None
-    return start, end
-
-
-def source_quote(quote, text):
-    """Recover the original excerpt, including its typography, after matching.
-
-    Locating tolerates whitespace/punctuation spacing and small OCR letter noise;
-    the returned quotation is always the page's own characters.
+    The model cites units by ID (pointer citations); the application shows the exact page text
+    of the cited units, so a citation can never misquote the page. Chart-word lines get no unit.
     """
-    needle = plain(quote)
-    if not needle:
-        raise ValueError("empty_quote")
-    # Track offsets through whitespace/typographic normalization. NFC is applied
-    # per grapheme so decomposed accents do not lose their original offsets.
-    chars, starts, ends = [], [], []
-    for match in re.finditer(r"\s+|[^\s][\u0300-\u036f]*", text):
-        token = " " if match[0].isspace() else unicodedata.normalize("NFC", match[0]).translate(_TYPOGRAPHY)
-        for char in token:
-            chars.append(char)
-            starts.append(match.start())
-            ends.append(match.end())
-    normalized = "".join(chars)
-    offset = normalized.find(needle)
-    if offset >= 0:
-        return text[starts[offset]:ends[offset + len(needle) - 1]]
-
-    # Whitespace-insensitive pass: "premier :La Banque" vs "premier : La Banque",
-    # "2018 ," vs "2018,". Offsets map compact positions back to the page.
-    keep = [i for i, c in enumerate(normalized) if c != " " and not _ARABIC_MARKS.match(c)]
-    compact = "".join(normalized[i] for i in keep)
-    compact_needle = _compact(needle)
-    if not compact_needle:
-        raise ValueError("empty_quote")
-    span = None
-    offset = compact.find(compact_needle)
-    if offset >= 0:
-        span = offset, offset + len(compact_needle)
-    else:
-        segments = [_compact(s.strip()) for s in re.split(r"(?:\[?…\]?|\[?\.{3}\]?)", needle)]
-        if len(segments) >= 2 and all(len(s) >= 10 for s in segments):
-            cursor, first = 0, None
-            for segment in segments:
-                index = compact.find(segment, cursor)
-                if index < 0:
-                    first = None
-                    break
-                first = index if first is None else first
-                cursor = index + len(segment)
-            if first is not None:
-                # Return the entire original span, including any omitted condition.
-                span = first, cursor
-    if span is None:
-        span = _near_match(compact, compact_needle)
-        # A flipped polarity ("ne peut pas" -> "peut") is within 5% of the characters
-        # but must never anchor a claim to the page.
-        if span is not None and _negations(normalized[keep[span[0]]:keep[span[1] - 1] + 1]) != _negations(needle):
-            span = None
-    if span is None:
-        raise ValueError("quote_not_found")
-    return text[starts[keep[span[0]]]:ends[keep[span[1] - 1]]]
+    spans, offset = [], 0
+    for line in text.split("\n"):
+        if line.startswith(IMAGE_WORDS):
+            offset += len(line) + 1
+            continue
+        pieces, start = [], 0
+        if len(line) > _LONG_LINE:
+            for match in _SENTENCE_END.finditer(line):
+                pieces.append((start, match.start()))
+                start = match.end()
+        pieces.append((start, len(line)))
+        spans.extend((offset + a, offset + b) for a, b in pieces if line[a:b].strip())
+        offset += len(line) + 1
+    return spans
 
 
 def numeric_literals(text):
