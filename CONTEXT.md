@@ -124,7 +124,7 @@ New assets stage first; activation makes them live. Failure keeps the previous c
 _Avoid_: upload as already-searchable; “hot reload” without activation
 
 **Quick pass / enrichment**:
-Ingest is two-phase. The quick pass (Docling layout + PDF text layer, no visual reading) activates a version so the PDF is searchable at once. Pages that need visual reading (scanned / garbled / image regions / Arabic risk pages) are queued per page in the ingestion ledger; the background enrichment worker in the API process reads them one at a time (unreadable pages first), checkpoints each result, and re-activates in batches through the same staged activation. Chat requests take priority: the worker pauses between pages while a question is being answered. A page that needs visual reading to be quotable (Arabic mode `all`) has no page text until it is read — never native text standing in for it.
+Ingest is two-phase. The quick pass (Docling layout + PDF text layer, no visual reading) activates a version so the PDF is searchable at once. Pages that need visual reading (scanned / garbled / image regions / Arabic risk pages) are queued per page in the ingestion ledger; the background enrichment worker in the API process reads them one at a time (unreadable pages first), checkpoints each result, and re-activates in batches through the same staged activation. Chat requests take priority: the worker pauses between pages while a question is being answered.
 _Avoid_: “fully ingested” for an `enriching` PDF; OCR inside the upload request
 
 **Document status**:
