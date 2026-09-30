@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 import logging
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -17,7 +18,7 @@ import chat_tracing
 from bm25 import tokenize
 from retrieval_selection import parse_source_identity
 from source_metadata import normalize_page
-from query_currentness import is_temporal_rule_query
+from query_currentness import is_relationship_query, is_temporal_rule_query
 from answer_evidence import (
     unit_spans, direct_identity, identity_matches, evidence_problem, evidence_warning,
 )
@@ -27,7 +28,6 @@ from answer_gates import (
     parse_answer,
     safe_response,
     _PARTIAL_LIMITS,
-    _question_anchors,
     _load_answer_payload,
 )
 
@@ -90,12 +90,15 @@ _REFUSAL_BUCKET_RULES = (
     ("selection", ("selection:",)),
     ("provider_error", ("provider:",)),
     ("insufficient_evidence", ("insufficient_evidence",)),
-    ("clarification_needed", ("clarification_needed",)),
+    ("clarification_needed", ("clarification_needed", "route:ambiguous")),
     ("out_of_scope", ("out_of_scope",)),
     ("search_fallback", ("search_fallback", "search_results")),
     ("general_chat", ("general_chat",)),
     ("user_thumbs_down", ("user_thumbs_down",)),
 )
+# Every bucket the pipeline can actually log, so the admin filter lists them even at zero.
+# Not "general_chat" (small talk never logs a refusal) nor "other" (empty reasons are not stored).
+REFUSAL_BUCKETS = tuple(bucket for bucket, _ in _REFUSAL_BUCKET_RULES if bucket != "general_chat")
 
 
 def refusal_reason_bucket(reason):
@@ -201,7 +204,7 @@ def evidence_records(scored_documents):
                   "page": page, "text": document.page_content, "score": float(score)}
         record.update({key: value for key, value in document.metadata.items()
                        if key.startswith("temporal_") or key.startswith("valid_")
-                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to"}})
+                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to", "language"}})
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
@@ -284,7 +287,11 @@ def _annotate_supersession(evidence):
     what the model reads.
     """
     records = [dict(record) for record in (evidence or [])]
-    pairs = _supersession_pairs(records)
+    # Only a pair whose older text is in the evidence changes roles and order: "successor of
+    # 2017-09" says nothing when 2017-09 is not here, and would put 2018-13 ahead of the newer
+    # 2026-04. The relationship_note stays on the record either way.
+    present = {_instrument_key(record.get("source", "")) for record in records}
+    pairs = [(newer, relation, older) for newer, relation, older in _supersession_pairs(records) if older in present]
     if not pairs:
         return records
     older_to_edge = {}
@@ -552,11 +559,16 @@ Claims
 - Time: for a past date, or "before circular X", answer for that period from the earlier
   instrument, never applying a later amendment backwards. For current/latest questions give the
   latest supported value for the same scope, naming its instrument.
+  Today is {today}: a date or deadline before today is in the past, so say it in the past tense.
   Unverified temporal scope: {temporal_unverified}. When true, say what the cited text sets; do not assert that a rule is
-  currently in force, and never claim that nothing later changed it.
+  currently in force, and never claim that nothing later changed it. Claims with the words actuel,
+  actuellement, en vigueur, current, currently, in force, الحالي or ساري are refused: give the date
+  or period the cited text states instead ("au terme de l'année 2025, le gouverneur est ...").
 - Evidence marked evidence_warning has unreliable digits: state no numbers or dates from it.
   Evidence marked unusable_reason cannot support a claim.
-- No filenames, page numbers or [n] markers in claim text; the application adds citations.
+- No filenames, page numbers, [n] markers or publication names (rapport annuel, bulletin,
+  conjoncture, rapport de supervision...) in claim text: the application shows each claim's
+  source, and the question's wording about where a fact is written is not evidence.
 
 Status
 - answered: the claims cover everything asked.
@@ -571,7 +583,10 @@ Schema: {schema}"""),
 ])
 
 
-def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None, query_class=None):
+def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None,
+                             query_class=None, search_queries=()):
+    """search_queries: other wordings of the question (its French and Arabic versions). They only
+    help choose which lines of a long page the models are shown."""
     evidence = evidence_records(scored_documents)
     fallback = search_response(question, evidence)
     if not evidence:
@@ -582,6 +597,8 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         query_class = "uncertain"
     # 1. Choose the evidence: a named instrument must be present, then the selector model
     #    picks the passages that answer (or the code falls back to every usable passage).
+    # The question plus its other wordings: a French page's lines are found by French words.
+    focus = " ".join([question, *search_queries])
     target = direct_identity(question)
     if target and not any(identity_matches(r["source"], target) and not r.get("unusable_reason") for r in evidence):
         label = f"{target['kind']}:{target['year']}-{target['number']}"
@@ -598,7 +615,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         # The selector judges question-relevant units, not whole expanded pages: whole pages
         # overflow the provider's per-request token limit (HTTP 413) and dilute the decision.
         selection, evidence = select_evidence(
-            llm, question, _evidence_view(question, evidence, max_chars=_SELECT_CHARS, labels=False),
+            llm, question, _evidence_view(focus, evidence, max_chars=_SELECT_CHARS, labels=False),
             reference_context,
         )
         evidence = [full_by_id[record["evidence_id"]] for record in evidence]
@@ -649,9 +666,10 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         "language": _LANGUAGE_NAMES[language_of(question)],
         "schema": ANSWER_SCHEMA_FOR_PROMPT,
         "temporal_unverified": temporal_unverified,
+        "today": date.today().isoformat(),
         "question": question,
         "reference": reference_context,
-        "evidence": json.dumps(_evidence_view(question, evidence, max_chars=_DRAFT_CHARS, labels=True), ensure_ascii=False),
+        "evidence": json.dumps(_evidence_view(focus, evidence, max_chars=_DRAFT_CHARS, labels=True), ensure_ascii=False),
         "retry_instruction": "",
         "selection_limits": json.dumps({
             "decision": selection.decision,
@@ -700,8 +718,9 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
             diagnostics.append(f"draft_abstained:{parsed['status']}")
             if selector_doubt:
                 # Selector and draft independently found no answer: retrying or forcing only
-                # finds a passage about a neighbouring operation.
-                return {**fallback, "diagnostics": history + diagnostics}
+                # finds a passage about a neighbouring operation, and listing these pages would
+                # show unrelated texts (a travel-allowance circular for a crypto question).
+                return {**safe_response(question), "diagnostics": history + diagnostics}
         logger.info("answer_attempt_rejected attempt=%d reasons=%s", attempt + 1, diagnostics)
         history.extend(diagnostics)
         payload["retry_instruction"] = (
@@ -714,29 +733,35 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     # 3. No model is pushed to answer after this point: a forced "you must answer" draft used to
     # follow, and in every recorded run it only produced wrong numbers. What remains is
     # deterministic: a pinned SUPERSEDES edge answers "X replaces Y", or the Top-5 pages are listed.
-    for pool in (evidence, candidate_evidence):
-        partial = try_supersession_partial_answer(question, pool, diagnostics=history)
-        if partial is not None:
-            return partial
+    # "X replaces Y" only answers a question about which text replaces which or whether a text still
+    # applies; asked "quel est le plafond ?", it would answer something else.
+    if is_relationship_query(question) or is_temporal_rule_query(question):
+        for pool in (evidence, candidate_evidence):
+            partial = try_supersession_partial_answer(question, pool, diagnostics=history)
+            if partial is not None:
+                return partial
     return {**fallback, "diagnostics": history}
 
 
 # Prompt budget per evidence record. Each LLM call must stay well under the provider's
-# per-request limit (Groq free tier: 8,000 tokens including instructions).
-_SELECT_CHARS = 1000
+# per-request limit (Groq free tier: 8,000 tokens including instructions). The selector needs
+# room for an article and its lead-in: at 1000 characters it missed "plafond de 50.000 D" one
+# article below the title it was shown. Eight records of 1600 characters stay near 4,500 tokens.
+_SELECT_CHARS = 1600
 _DRAFT_CHARS = 2500
 
 
 def _relevant_units(question, text, max_chars):
-    """Indices of the units to show: the first two (title, table header), then the units with the
-    most question words and one neighbour on each side, in page order, within max_chars."""
+    """Indices of the units to show, in page order, within max_chars: the first two (title, table
+    header), then the units with the most question words, then their neighbours, then the page start."""
     spans = unit_spans(text)
     units = [text[a:b] for a, b in spans]
     if sum(len(u) + 1 for u in units) <= max_chars:
         return list(range(len(units))), spans
-    # Stems, matched when one starts the other: "mondiale" (mondial) finds the row "Monde" (mond),
-    # "délais" finds "délai", "البنوك" finds "بنك"-forms the keyword search also folds.
-    anchors = {stem for word in _question_anchors(question) for stem in tokenize(word) if len(stem) >= 2}
+    # Every word of the question counts, "plafond", "taux" and "délai" included: they are what
+    # locates the answer. Stems match when one starts the other: "mondiale" (mondial) finds the row
+    # "Monde" (mond), "délais" finds "délai", "البنوك" finds "بنك"-forms the keyword search also folds.
+    anchors = {stem for stem in tokenize(question) if len(stem) >= 2}
     unit_stems = [set(tokenize(unit)) for unit in units]
 
     def matches(anchor, stems):
@@ -744,22 +769,23 @@ def _relevant_units(question, text, max_chars):
             min(len(anchor), len(stem)) >= 4 and (stem.startswith(anchor) or anchor.startswith(stem)) for stem in stems)
 
     hits = {anchor: [matches(anchor, stems) for stems in unit_stems] for anchor in anchors}
-    # A question word that is rare on the page ("mondiale" among many "croissance") says more
-    # about which unit answers than a word every paragraph repeats.
-    score = [sum(1 / sum(hits[anchor]) for anchor in anchors if hits[anchor][i]) for i in range(len(units))]
+    # A word most units share ("de", "la", "circulaire") says nothing about which unit answers,
+    # and a word rare on the page ("mondiale" among many "croissance") says the most.
+    hits = {anchor: found for anchor, found in hits.items() if 0 < sum(found) <= len(units) / 2}
+    score = [sum(1 / sum(found) for found in hits.values() if found[i]) for i in range(len(units))]
     keep = set(range(min(2, len(units))))
 
     def size(indices):
         return sum(len(units[i]) + 1 for i in indices)
 
-    for i in sorted(range(len(units)), key=lambda i: (-score[i], i)):
-        if score[i] == 0:
-            break
-        grown = keep | {j for j in (i - 1, i, i + 1) if 0 <= j < len(units)}
-        if size(grown) <= max_chars:
-            keep = grown
-        elif size(keep | {i}) <= max_chars:
-            keep |= {i}
+    best_first = [i for i in sorted(range(len(units)), key=lambda i: (-score[i], i)) if score[i] > 0]
+    for i in best_first:  # the answering units themselves first...
+        if size(keep | {i}) <= max_chars:
+            keep.add(i)
+    for i in best_first:  # ...then the lines around them, for context
+        for j in (i - 1, i + 1):
+            if 0 <= j < len(units) and size(keep | {j}) <= max_chars:
+                keep.add(j)
     for i in range(len(units)):  # no (more) question words: fill with the page start
         if size(keep | {i}) > max_chars:
             break
@@ -834,6 +860,9 @@ _RETRY_HINTS = {
     "unsupported_claim_scope": "Do not broaden a population the cited text restricts into everyone it could cover. ",
     "unsupported_claim_operator": "Do not swap permissive wording (peuvent / n'importe quel) "
                                   "into mandatory wording (doivent / exclusivement). ",
+    "unverified_applicability_claim_use_document_scoped_wording": "Do not call a rule, rate or person "
+        "current, in force or applicable today (actuel, en vigueur, الحالي, currently). State what the "
+        "cited text sets or says and its date; the application adds the currentness notice. ",
     "digits_unreliable_on_warned_page": "That page's digits are OCR-garbled. Keep only claims without numbers "
                                         "or with numbers written in words; abstain on the numeric part. ",
     "schema_invalid": "Return only the required JSON object with status, message, and claims. "

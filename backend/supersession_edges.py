@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
@@ -58,7 +58,14 @@ ACTION_RE = re.compile(
 TARGET_CIR = re.compile(
     r"(?:circulaire|note|منشور)"
     r"(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’-]{1,30}){0,8}"
-    r"\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})",
+    # Not a date: "25-07-2025" is the 25th of July, not circular 2025-07.
+    r"\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})(?!\d)(?!\s*[-–/]\s*\d)",
+    re.I,
+)
+# "L'annexe 1 de la circulaire 2017-08 est remplacée": only a part of the instrument changes.
+PART_OF_INSTRUMENT = re.compile(
+    r"\b(?P<part>annexes?|liste|alin[ée]as?|paragraphes?|tirets?)\b[^.;:]{0,80}?"
+    r"\b(?:à|a|de)\s+la\s+(?:circulaire|note)",
     re.I,
 )
 # Historical citation: "X telle que modifiée par Y" — Y amended X; the citing PDF is not the actor.
@@ -211,9 +218,27 @@ def load_edges(path: Path) -> list[SupersessionEdge]:
                 )
             except (KeyError, TypeError, ValueError):
                 continue
-            if edge_quote_is_operative(edge):
-                edges.append(edge)
+            if edge_quote_is_operative(edge) and _target_in_quote(edge):
+                edges.append(_with_part_from_quote(edge))
     return edges
+
+
+def _target_in_quote(edge: SupersessionEdge) -> bool:
+    """A stored edge is read again with the current rules: its target must still be an instrument
+    its quote names (an older extractor read the date "25-07-2025" as circular 2025-07)."""
+    for match in TARGET_CIR.finditer(edge.quote or ""):
+        kind = "note" if "note" in match.group(0).casefold() else "cir"
+        if _instrument(kind, int(match.group("y")), int(match.group("n"))) == edge.target_instrument:
+            return True
+    return False
+
+
+def _with_part_from_quote(edge: SupersessionEdge) -> SupersessionEdge:
+    """An edge with no article whose quote replaces an annex or a list only changes that part."""
+    if edge.target_article:
+        return edge
+    part = PART_OF_INSTRUMENT.search(edge.quote or "")
+    return replace(edge, target_article=part.group("part").casefold()) if part else edge
 
 
 def write_edges(path: Path, edges: Iterable[SupersessionEdge]) -> None:
@@ -315,7 +340,11 @@ def _target_article(snippet: str, source: str) -> str | None:
         snippet,
         re.I,
     )
-    return before_cir.group("a") if before_cir else None
+    if before_cir:
+        return before_cir.group("a")
+    # No article, but an annex, list or paragraph: still not the whole instrument.
+    part = PART_OF_INSTRUMENT.search(snippet)
+    return part.group("part").casefold() if part else None
 
 
 def extract_edges_from_page_text(

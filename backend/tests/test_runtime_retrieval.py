@@ -628,3 +628,36 @@ def test_batch_sizes_shrink_with_weaker_hardware(monkeypatch):
     assert hardware.batch_size(64) == 32
     monkeypatch.setattr(hardware, "torch_device", lambda: "cpu")
     assert hardware.batch_size(64) == 8
+
+
+def test_other_wordings_add_candidates_and_each_chunk_keeps_its_best_score(monkeypatch):
+    french_page = _doc("allocation de séjour pour études : 4.000 D par mois", "Cir_2025_10_fr.pdf", 4)
+    arabic_note = _doc("مذكرة حول الدراسة", "Note_2019_05_ar.pdf", 1)
+    by_query = {"ما هو المبلغ الأقصى لمنحة الدراسة؟": arabic_note, "montant maximum de l'allocation études": french_page}
+    monkeypatch.setattr(runtime_retrieval, "retrieve_relevant_chunks", lambda query, store, k=20: [by_query[query]])
+    monkeypatch.setattr(runtime_retrieval, "retrieve_bm25", lambda query, bm25, documents, k=15: [])
+    # The reranker judges the French page badly against the Arabic wording, well against the French one.
+    scores = {("ما هو المبلغ الأقصى لمنحة الدراسة؟", "Cir_2025_10_fr.pdf"): 0.01,
+              ("montant maximum de l'allocation études", "Cir_2025_10_fr.pdf"): 0.95}
+    monkeypatch.setattr(runtime_retrieval, "score_documents", lambda reranker, query, documents: [
+        scores.get((query, document.metadata["source"]), 0.3) for document in documents])
+
+    backend = LocalRetrievalBackend(vector_store="store", reranker="reranker", bm25="bm25",
+                                    bm25_documents=[french_page, arabic_note])
+    ranked = backend.retrieve("ما هو المبلغ الأقصى لمنحة الدراسة؟",
+                              other_queries=["montant maximum de l'allocation études"])
+
+    assert [(document.metadata["source"], score) for document, score in ranked] == [
+        ("Cir_2025_10_fr.pdf", 0.95), ("Note_2019_05_ar.pdf", 0.3)]
+
+
+def test_a_chunk_both_searches_agree_on_keeps_a_top_five_place():
+    from runtime_retrieval import promote_agreed_hit
+
+    ranked = [(_doc(f"page {n}", f"Cir_{n}_fr.pdf", 1), 1.0 - n / 10) for n in range(8)]
+    rule = ranked[7][0]  # the reranker put it last
+    promoted = promote_agreed_hit(ranked, [rule])
+    assert [document for document, _score in promoted[:5]][-1] is rule
+    assert [document for document, _score in promoted[:4]] == [document for document, _score in ranked[:4]]
+    # Already in the top five: nothing moves.
+    assert promote_agreed_hit(ranked, [ranked[1][0]]) == ranked

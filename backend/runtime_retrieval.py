@@ -23,6 +23,7 @@ from retrieval_selection import (
     source_matches_identity,
     is_arabic_query,
 )
+from ingestion.quality import arabic_character_ratio
 from reranker import score_documents
 from vector_store import retrieve_relevant_chunks
 from langchain_core.documents import Document
@@ -47,6 +48,60 @@ def dedupe(*groups):
                 seen.add(key)
                 combined.append(document)
     return combined
+
+
+def _is_arabic_text(text):
+    # Same threshold extraction uses to call a page Arabic.
+    return arabic_character_ratio(text) >= 0.20
+
+
+def best_scores(score, query, other_queries, documents):
+    """Each chunk's reranker score against the wordings written in its own script, best one kept.
+
+    score(wording, documents) returns one score per document. A French chunk is compared with the
+    Latin-script wordings (the French one, or the English question), an Arabic chunk with the
+    Arabic ones: comparing every chunk with every wording would multiply the reranker's work
+    (four wordings took 10 s instead of 1 s on a laptop GPU) without finding anything more.
+    """
+    wordings = [query, *other_queries]
+    scores = [None] * len(documents)
+    for arabic in (False, True):
+        indices = [i for i, document in enumerate(documents) if _is_arabic_text(document.page_content) == arabic]
+        if not indices:
+            continue
+        same_script = [wording for wording in wordings if is_arabic_query(wording) == arabic] or [query]
+        chunks = [documents[i] for i in indices]
+        for wording in same_script:
+            for i, value in zip(indices, score(wording, chunks)):
+                scores[i] = float(value) if scores[i] is None else max(scores[i], float(value))
+    return scores
+
+
+def promote_agreed_hit(ranked, agreed, slots=5):
+    """Keep in the top `slots` a chunk that both searches rank in their first three for one wording.
+
+    The reranker judges a chunk by how closely it matches the question's words, so it can pass
+    over a rule written differently: asked for the "ratio de solvabilité minimum", it prefers the
+    dividend circulars that repeat those words over "un ratio de solvabilité qui ne peut pas être
+    inférieur à 10 %". When the meaning search and the keyword search both rank that rule among
+    their first three (the answer sketch is worded like it), it takes the last of the top places.
+    At most one chunk moves; the rest of the order is the reranker's.
+    """
+    top_pages = {_page(document) for document, _score in ranked[:slots]}
+    for chunk in agreed:
+        if _page(chunk) in top_pages:
+            continue
+        position = next((i for i, (document, _score) in enumerate(ranked) if _doc_key(document) == _doc_key(chunk)), None)
+        if position is None:
+            continue
+        moved = ranked[position]
+        rest = ranked[:position] + ranked[position + 1:]
+        return rest[:slots - 1] + [moved] + rest[slots - 1:]
+    return ranked
+
+
+def _page(document):
+    return document.metadata.get("source"), document.metadata.get("page")
 
 
 def _identity_diversified_rank(query, documents, scores):
@@ -86,51 +141,65 @@ class LocalRetrievalBackend:
         """Full retrieved page text, plus bounded same-PDF neighbour pages."""
         return expand_answer_pages(ranked, self._pages)
 
-    def retrieve(self, query):
-        dense = retrieve_relevant_chunks(query, self.vector_store)
-        sparse = retrieve_bm25(query, self.bm25, self.bm25_documents)
-        groups = [dense, sparse]
+    def retrieve(self, query, other_queries=(), instruments=()):
+        """Rank chunks for a question.
+
+        other_queries: other wordings of the same question (the user's own words, its French and
+        Arabic versions). Each one finds its own candidates, so an English question also reaches a
+        French circular.
+        instruments: extra instruments to search inside, like the ones the question names (for
+        "avant la circulaire X", the texts X replaced).
+        """
+        groups = [
+            retrieve_relevant_chunks(query, self.vector_store),
+            retrieve_bm25(query, self.bm25, self.bm25_documents),
+        ]
+        lanes = ["dense", "bm25"]
+        agreed = []  # chunks both searches rank in their first three for one wording (see promote_agreed_hit)
         if is_arabic_query(query) and self.ocr_vector_store is not None:
-            groups.extend(
-                (
-                    retrieve_relevant_chunks(query, self.ocr_vector_store, k=5),
-                    retrieve_bm25(
-                        query,
-                        self.ocr_bm25,
-                        self.ocr_documents,
-                        k=5,
-                    ),
-                )
-            )
-        identity_refs = query_instrument_refs(query)
-        if identity_refs:
-            matched_docs = []
-            for identity in identity_refs:
-                matched_docs.extend(
-                    document
-                    for document in self.bm25_documents
-                    if source_matches_identity(
-                        str(document.metadata.get("source", "")), identity
-                    )
-                )
+            groups.append(retrieve_relevant_chunks(query, self.ocr_vector_store, k=5))
+            groups.append(retrieve_bm25(query, self.ocr_bm25, self.ocr_documents, k=5))
+            lanes += ["ocr_dense", "ocr_bm25"]
+        # The other wordings bring fewer candidates each: they add what the main query misses.
+        for version in other_queries:
+            groups.append(retrieve_relevant_chunks(version, self.vector_store, k=10))
+            groups.append(retrieve_bm25(version, self.bm25, self.bm25_documents, k=8))
+            lanes += ["dense (other wording)", "bm25 (other wording)"]
+            dense_top = {_doc_key(document) for document in groups[-2][:3]}
+            agreed += [document for document in groups[-1][:3] if _doc_key(document) in dense_top]
+            if is_arabic_query(version) and self.ocr_vector_store is not None:
+                groups.append(retrieve_relevant_chunks(version, self.ocr_vector_store, k=5))
+                groups.append(retrieve_bm25(version, self.ocr_bm25, self.ocr_documents, k=5))
+                lanes += ["ocr_dense (other wording)", "ocr_bm25 (other wording)"]
+        identity_refs = query_instrument_refs(query) + list(instruments)
+        for identity in identity_refs:
+            # ponytail: first 40 chunks of each named instrument; the reranker picks among them
+            matched_docs = [
+                document
+                for document in self.bm25_documents
+                if source_matches_identity(str(document.metadata.get("source", "")), identity)
+            ]
             if matched_docs:
-                # ponytail: named-instrument lane before semantic/latest preference
                 groups.append(matched_docs[:40])
+                lanes.append(f"instrument {identity['year']}-{identity['number']}")
         import chat_tracing
 
-        lanes = ["dense", "bm25", "ocr_dense", "ocr_bm25"] if is_arabic_query(query) and self.ocr_vector_store is not None else ["dense", "bm25"]
-        lanes += ["extra"] * (len(groups) - len(lanes))
-        chat_tracing.event("retrieval-lanes", output={
-            name: chat_tracing.brief(group, limit=8) for name, group in zip(lanes, groups)
-        }, metadata={"identity_refs": [str(r) for r in identity_refs], "pool": len(dedupe(*groups))})
-        return self.rank(query, dedupe(*groups))
+        chat_tracing.event("retrieval-lanes", output=[
+            {"lane": name, "hits": chat_tracing.brief(group, limit=8)} for name, group in zip(lanes, groups)
+        ], metadata={"identity_refs": [str(r) for r in identity_refs], "pool": len(dedupe(*groups)),
+                     "other_queries": list(other_queries)})
+        return promote_agreed_hit(self.rank(query, dedupe(*groups), other_queries), agreed)
 
-    def rank(self, query, documents):
+    def rank(self, query, documents, other_queries=()):
         reranker_documents = build_identity_reranker_documents(
             documents,
             parse_query_identity(query),
         )
-        scores = score_documents(self.reranker, query, reranker_documents)
+        # An Arabic question and a French page are compared through the French wording.
+        scores = best_scores(
+            lambda wording, chunks: score_documents(self.reranker, wording, chunks),
+            query, other_queries, reranker_documents,
+        )
         return _identity_diversified_rank(query, documents, scores)
 
 

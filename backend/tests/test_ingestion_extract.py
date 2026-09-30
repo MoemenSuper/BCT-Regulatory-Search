@@ -240,7 +240,8 @@ def test_image_region_is_read_visually_and_put_back_in_place(tmp_path: Path, mon
 
     page = PdfExtractor(visual_transcriber=Reader()).extract(path).pages[0]
     assert [region for region, _size in calls] == [True]  # the box only, not the whole page
-    assert page.raw_text == f"{before}\nEffectif total — 2025: 834\n{after}"
+    # The reading is marked, so the answer gates know its numbers come from a picture reader.
+    assert page.raw_text == f"{before}\n[Lecture de l'image] Effectif total — 2025: 834\n{after}"
 
     # Deferred (upload): pending until the background reader stores the region's reading.
     pending = PdfExtractor().extract(path, visual_results={}).pages[0]

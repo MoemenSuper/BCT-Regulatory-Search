@@ -115,7 +115,7 @@ def test_followup_preserves_original_answer_language_when_router_translates(monk
         "current_topic": "circulaire BCT n° 2020-03",
     })
     class Retrieval:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             observed["retrieval"] = query
             return []
     def answer(_llm, query, _documents, memory):

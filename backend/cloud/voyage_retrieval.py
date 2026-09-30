@@ -22,7 +22,7 @@ from retrieval_selection import (
     query_instrument_refs,
     source_matches_identity,
 )
-from runtime_retrieval import _identity_diversified_rank, _read_chunks, dedupe, document_binding
+from runtime_retrieval import _identity_diversified_rank, _read_chunks, best_scores, dedupe, document_binding
 
 
 def _provider_candidates(
@@ -68,33 +68,42 @@ class VoyageRetrievalBackend:
         """Full retrieved page text, plus bounded same-PDF neighbour pages."""
         return expand_answer_pages(ranked, self._pages)
 
-    def retrieve(self, query):
-        query_vector = np.asarray(self.client.embed_query(query), dtype=np.float32)
-        query_vector /= max(float(np.linalg.norm(query_vector)), 1e-12)
-        groups = [
-            _provider_candidates(
-                self.native_documents,
-                self.native_vectors,
-                query_vector,
-                self.native_bm25,
-                query,
-                dense_k=20,
-                bm25_k=15,
-            )
-        ]
-        if is_arabic_query(query):
+    def _embed(self, text):
+        vector = np.asarray(self.client.embed_query(text), dtype=np.float32)
+        return vector / max(float(np.linalg.norm(vector)), 1e-12)
+
+    def retrieve(self, query, other_queries=(), instruments=()):
+        """Same contract as the local backend: other_queries are other wordings of the question,
+        instruments are extra instruments to search inside."""
+        versions = [query, *other_queries]
+        vectors = [self._embed(version) for version in versions]
+        groups = []
+        for version, query_vector in zip(versions, vectors):
             groups.append(
                 _provider_candidates(
-                    self.ocr_documents,
-                    self.ocr_vectors,
+                    self.native_documents,
+                    self.native_vectors,
                     query_vector,
-                    self.ocr_bm25,
-                    query,
-                    dense_k=5,
-                    bm25_k=5,
+                    self.native_bm25,
+                    version,
+                    # the other wordings bring fewer candidates each, as in the local backend
+                    dense_k=20 if version == query else 10,
+                    bm25_k=15 if version == query else 8,
                 )
             )
-        identity_refs = query_instrument_refs(query)
+            if is_arabic_query(version):
+                groups.append(
+                    _provider_candidates(
+                        self.ocr_documents,
+                        self.ocr_vectors,
+                        query_vector,
+                        self.ocr_bm25,
+                        version,
+                        dense_k=5,
+                        bm25_k=5,
+                    )
+                )
+        identity_refs = query_instrument_refs(query) + list(instruments)
         if identity_refs:
             indices = []
             seen_idx: set[int] = set()
@@ -110,7 +119,7 @@ class VoyageRetrievalBackend:
             if indices:
                 matching = [self.native_documents[index] for index in indices]
                 groups.append(_provider_candidates(
-                    matching, self.native_vectors[indices], query_vector,
+                    matching, self.native_vectors[indices], vectors[0],
                     create_bm25(matching), query,
                     dense_k=20, bm25_k=15,
                 ))
@@ -118,9 +127,10 @@ class VoyageRetrievalBackend:
         reranker_documents = build_identity_reranker_documents(
             documents, parse_query_identity(query)
         )
-        scores = self.client.rerank(
-            query,
-            [document.page_content for document in reranker_documents],
+        # Each chunk against the wordings in its own script, as in the local backend.
+        scores = best_scores(
+            lambda wording, chunks: self.client.rerank(wording, [chunk.page_content for chunk in chunks]),
+            query, other_queries, reranker_documents,
         )
         return _identity_diversified_rank(query, documents, scores)
 

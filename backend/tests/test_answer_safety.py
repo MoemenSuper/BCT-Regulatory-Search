@@ -160,7 +160,7 @@ def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
         == chunks[1].page_content + "\nArticle 3. Dispositions finales."
     # The chat flow expands answer evidence but keeps search fallback on original chunks.
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             return [(chunks[0], 0.9)]
         def expand_pages(self, ranked):
             return expand_ranked_pages(ranked, pages)
@@ -190,7 +190,7 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             return [(doc, .9)]
     chat_result = conversation.chat("Quel est le plafond ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
     assert "diagnostics" not in chat_result
@@ -772,7 +772,7 @@ def test_search_fallback_preserves_original_top5_not_currentness_answer_order(mo
         "source": f"Cir_{2020+n}_41_fr.pdf", "page": 2, "pages": [2]}), 1 - n / 10)
         for n in range(6)]
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             return docs
     monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(
@@ -849,7 +849,9 @@ def test_selector_and_draft_agreeing_on_insufficient_stop_the_ladder():
         return AIMessage(content=json.dumps(draft()))
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     result = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond ?", [(doc, .9)])
-    assert result["status"] == "search_results"
+    # Both found nothing that answers: a short refusal, not a list of unrelated pages.
+    assert result["status"] == "insufficient_evidence"
+    assert result["sources"] == []
     assert "draft_abstained:insufficient_evidence" in result["diagnostics"]
     assert len(calls) == 2
 
@@ -865,3 +867,22 @@ def test_draft_prompt_names_the_question_language():
     doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
     generate_grounded_answer(RunnableLambda(respond), "What is the ceiling?", [(doc, .9)])
     assert "Write the claims in English." in seen[1][-1].content
+
+
+def test_replacement_fallback_answers_only_a_question_about_replacement():
+    declaring = Document(
+        page_content="Article 7 : La présente circulaire abroge et remplace les dispositions de la circulaire n°2016-08.",
+        metadata={"source": "Cir_2020_03_fr.pdf", "page": 7, "pages": [7], "temporal_relation": "ABROGATES",
+                  "temporal_source_id": "cir:2020:3", "temporal_target_id": "cir:2016:8"},
+    )
+
+    def respond(prompt):
+        if "Select evidence for" in prompt.to_messages()[0].content:
+            return AIMessage(content=json.dumps(dict(decision="answer", evidence_ids=["E1"])))
+        return AIMessage(content="not json")  # both drafts fail
+
+    plafond = generate_grounded_answer(RunnableLambda(respond), "Quel est le plafond de l'allocation ?", [(declaring, 9000.0)])
+    assert plafond["status"] == "search_results"  # not "2020-03 abroge 2016-08"
+    replaced = generate_grounded_answer(RunnableLambda(respond), "Quelle circulaire a remplacé la circulaire 2016-08 ?",
+                                        [(declaring, 9000.0)])
+    assert replaced["status"] == "partial_answer"

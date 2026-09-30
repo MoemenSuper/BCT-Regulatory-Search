@@ -78,7 +78,7 @@ _EXPLICIT_CURRENT_PATTERNS = tuple(
         r"\b(?:toujours\s+(?:applicable|valable)|still\s+(?:applicable|valid))s?\b",
         r"\bplus\s+récente?s?\b",
         r"\b(?:dernier|dernière)s?\s+(?:taux|plafond|règle|valeur|version|disposition)s?\b",
-        r"(?:الساري|النافذ|الحالي|سارية|اليوم|الأحدث|أحدث|آخر\s+(?:قيمة|نسبة|سقف|قاعدة))",
+        r"(?:الساري|النافذ|الحالي|حاليا|حاليًا|حالياً|سارية|اليوم|الأحدث|أحدث|آخر\s+(?:قيمة|نسبة|سقف|قاعدة))",
     )
 )
 

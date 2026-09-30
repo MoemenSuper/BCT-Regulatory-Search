@@ -573,9 +573,12 @@ _QUESTION_SPLIT = re.compile(r"(?<=[?؟])\s+(?=\S)")
 def _sub_questions(text: str) -> list[str]:
     """Run a multi-question message as consecutive turns so every per-question
     gate (retrieval budget, instrument identity, temporal flag) applies once per question.
-    ponytail: punctuation-only split; "A et B ?" stays one query. Capped at 3 turns."""
+    ponytail: punctuation-only split; "A et B ?" stays one query. Capped at 3 turns: from the
+    third question on, the rest of the message is one turn, so no question is silently dropped."""
     parts = [part.strip() for part in _QUESTION_SPLIT.split(text) if len(part.strip()) >= 12]
-    return parts[:3] or [text]
+    if len(parts) > 3:
+        parts = parts[:2] + [" ".join(parts[2:])]
+    return parts or [text]
 
 
 _TITLE_PROMPT = (

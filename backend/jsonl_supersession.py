@@ -25,6 +25,6 @@ from supersession_pin import (  # noqa: F401
     clear_supersession_cache,
     maybe_wrap_backend,
     pin_supersession_edges,
+    label_successor_hits,
     select_edges,
-    select_edges_from_hits,
 )

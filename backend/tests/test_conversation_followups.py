@@ -33,6 +33,9 @@ def test_route_message_validates_a_follow_up_rewrite_against_memory():
     response = {
         "intent": "FOLLOW_UP",
         "rewrite_query": "current deadline under Circular 2019-07",
+        "query_fr": "délai actuel selon la circulaire 2019-07",
+        "query_ar": "الأجل الحالي حسب المنشور 2019-07",
+        "answer_sketch": "Le délai est fixé à X jours par la circulaire 2019-07.",
         "new_topic": None,
         "current_topic": "Circular 2019-07",
     }
@@ -108,6 +111,9 @@ def test_route_message_keeps_router_follow_up_rewrite_verbatim():
     response = {
         "intent": "FOLLOW_UP",
         "rewrite_query": "taux d inflation Tunisie juin 2025 et juin 2024",
+        "query_fr": "taux d inflation Tunisie juin 2025 et juin 2024",
+        "query_ar": "نسبة التضخم في تونس جوان 2025 وجوان 2024",
+        "answer_sketch": "Le taux d'inflation s'est établi à X % en juin 2025 et à X % en juin 2024.",
         "new_topic": None,
         "current_topic": "Inflation Tunisie",
     }
@@ -122,6 +128,9 @@ def test_arabic_how_question_is_not_forced_into_follow_up():
     response = {
         "intent": "NEW_TOPIC",
         "rewrite_query": "كيف يتم احتساب نسبة السيولة",
+        "query_fr": "comment est calculé le ratio de liquidité",
+        "query_ar": "كيف يتم احتساب نسبة السيولة",
+        "answer_sketch": "Le ratio de liquidité est calculé par le rapport entre X et X.",
         "new_topic": "نسبة السيولة",
         "current_topic": None,
     }
@@ -166,7 +175,7 @@ def test_follow_up_prefers_prior_turn_source_over_distractor(monkeypatch):
     captured = {}
 
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             captured["query"] = query
             return [(distractor, 0.99), (prior, 0.80)]
 
@@ -228,7 +237,7 @@ def test_follow_up_uses_standalone_query_for_dense_bm25(monkeypatch):
     calls = {}
 
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             calls["retrieval_query"] = query
             return [(ordinary, 1.0)]
 
@@ -270,7 +279,7 @@ def test_new_topic_does_not_leak_old_turns_into_answer_memory(monkeypatch):
     captured = {}
 
     class Backend:
-        def retrieve(self, _query):
+        def retrieve(self, _query, other_queries=()):
             return [(ordinary, 1.0)]
 
     monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
@@ -307,7 +316,7 @@ def test_chat_uses_the_selected_profile_backend_and_answer_provider(monkeypatch)
     calls = {}
 
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             calls["retrieval_query"] = query
             return [(ordinary, 0.9)]
 
@@ -361,8 +370,9 @@ def test_new_topic_retrieval_uses_the_standalone_rewrite(monkeypatch):
     ordinary = _document("Cir_2016_07_fr.pdf", page=1)
 
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             calls["retrieval_query"] = query
+            calls["other_queries"] = list(other_queries)
             return [(ordinary, 1.0)]
 
     monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
@@ -390,13 +400,15 @@ def test_new_topic_retrieval_uses_the_standalone_rewrite(monkeypatch):
     )
 
     assert calls["retrieval_query"] == rewritten_query
+    # The user's own words are searched too: a rewrite can add a detail they never said.
+    assert calls["other_queries"] == [message]
     assert calls["answer_query"] == message
     assert result["memory_state"]["turns"][-1]["standalone_query"] == rewritten_query
 
 
 def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatch):
     class Backend:
-        def retrieve(self, _query):
+        def retrieve(self, _query, other_queries=()):
             raise AssertionError("retrieval must not run")
 
     monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
@@ -452,7 +464,7 @@ def test_general_chat_reply_with_a_figure_not_in_memory_goes_to_retrieval():
 
 def test_general_chat_replies_without_retrieval(monkeypatch):
     class Backend:
-        def retrieve(self, _query):
+        def retrieve(self, _query, other_queries=()):
             raise AssertionError("retrieval must not run")
 
     class FakeLLM:
@@ -522,7 +534,7 @@ def test_follow_up_authority_is_classified_on_the_resolved_query(monkeypatch):
     rewritten = "taux d'inflation Tunisie juin 2025 selon la note de conjoncture"
 
     class Backend:
-        def retrieve(self, _query):
+        def retrieve(self, _query, other_queries=()):
             return [(_document(), 1.0)]
 
     monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
@@ -543,7 +555,7 @@ def test_general_chat_hands_a_misrouted_fact_question_to_retrieval(monkeypatch):
     seen = {}
 
     class Backend:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=()):
             seen["query"] = query
             return [(_document(), 1.0)]
 
@@ -557,3 +569,27 @@ def test_general_chat_hands_a_misrouted_fact_question_to_retrieval(monkeypatch):
     result = conversation.chat(question, {"topics": [], "turns": []}, retrieval_backend=Backend())
     assert seen["query"] == question
     assert result["answer"] == "grounded"
+
+
+def test_neighbour_pages_reach_the_answer_step_with_five_hits(monkeypatch):
+    hits = [(_document(f"Cir_2024_0{n}_fr.pdf", page=2), 1.0 - n / 10) for n in range(1, 6)]
+    next_page = (_document("Cir_2024_01_fr.pdf", page=3), 0.89)
+    seen = {}
+
+    class Backend:
+        def retrieve(self, _query, other_queries=()):
+            return hits
+
+        def expand_pages(self, ranked):
+            return list(ranked) + [next_page]  # the table continues on the next page
+
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
+    monkeypatch.setattr(conversation, "route_message", lambda *_: {
+        "intent": "NEW_TOPIC", "rewrite_query": "majoration BTP", "new_topic": "Provisions", "current_topic": None})
+    monkeypatch.setattr(conversation, "generate_grounded_answer",
+                        lambda _llm, _q, documents, _memory, **_kw: seen.setdefault("documents", documents)
+                        and {"answer": "answer", "sources": []})
+
+    conversation.chat("Quelle majoration pour le BTP ?", {"topics": [], "turns": []}, retrieval_backend=Backend())
+
+    assert next_page in seen["documents"]

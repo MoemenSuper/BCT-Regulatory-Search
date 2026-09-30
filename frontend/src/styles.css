@@ -258,29 +258,30 @@ ol {
   text-overflow: ellipsis;
 }
 
-.theme-toggle {
+/* Round icon buttons on the navy header (theme, sign-out) share one look with the avatar. */
+.header-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  padding: 0;
   color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--ui-duration) var(--ease-color), border-color var(--ui-duration) var(--ease-color);
 }
 
-.theme-toggle:active {
-  transform: scale(0.97);
+.header-icon-btn:active {
+  transform: scale(0.95);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.16);
+  .header-icon-btn:hover {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -2006,12 +2007,8 @@ ol {
   color: var(--text);
 }
 .profile-menu{position:relative}
-.profile-menu-trigger{display:inline-flex;align-items:center;gap:10px;max-width:240px;min-height:40px;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:4px 12px 4px 4px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font:inherit;text-align:left}
-.profile-menu-trigger:hover{background:rgba(255,255,255,.16)}
-.profile-menu-trigger-copy{display:grid;min-width:0}
-.profile-menu-trigger-copy strong,.profile-menu-trigger-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.profile-menu-trigger-copy strong{font-size:12px;font-weight:700}
-.profile-menu-trigger-copy small{color:rgba(255,255,255,.7);font-size:10px}
+.profile-menu-trigger{display:grid;place-items:center;width:40px;height:40px;border:2px solid rgba(255,255,255,.22);border-radius:50%;padding:0;background:transparent;cursor:pointer;transition:border-color .18s ease}
+.profile-menu-trigger:hover,.profile-menu-trigger[aria-expanded="true"]{border-color:rgba(255,255,255,.6)}
 .avatar-mark{display:grid;place-items:center;flex:0 0 auto;border-radius:50%;color:#fff;background:rgba(195,38,53,.95);font-weight:800;overflow:hidden}
 .avatar-mark--image{background:#d9e2ee;padding:0}
 .avatar-mark--image img{width:100%;height:100%;object-fit:cover;display:block}
@@ -2031,7 +2028,6 @@ ol {
 .profile-primary{border:1px solid #0d4f9c;color:#fff;background:#0d4f9c}
 .profile-secondary{border:1px solid #d9e2ee;padding:0 12px;color:#0d4f9c;background:#f7faff}
 .profile-logout{border:1px solid #d9e2ee;color:#52627a;background:#fff}
-.profile-menu--admin .profile-menu-trigger{width:100%;max-width:none;border-color:rgba(255,255,255,.16);border-radius:10px;padding:8px;background:rgba(255,255,255,.06)}
 /* Portaled panel — theme is on the panel itself (not a page shell ancestor). */
 .profile-menu-panel[data-theme="light"]{color-scheme:light}
 .profile-menu-panel[data-theme="dark"]{border-color:#2a3a52;background:#152338;color:#e8eef8;box-shadow:0 18px 40px rgba(0,0,0,.35);color-scheme:dark}

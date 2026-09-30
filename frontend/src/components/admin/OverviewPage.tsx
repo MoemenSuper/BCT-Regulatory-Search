@@ -1,140 +1,146 @@
-// Admin home: usage and corpus counts, with links to the other pages.
-import { ArrowUpRight } from 'lucide-react';
-import { type AdminOverview } from '../../api/admin';
+// Admin home: the key figures (each opens its page), then the work waiting:
+// access requests to decide and the latest refusals to read.
+import { ArrowRight } from 'lucide-react';
+import { type AdminOverview, type AnswerRefusal } from '../../api/admin';
+import { type AuthUser } from '../../api/auth';
+import { AvatarMark, displayLabel } from '../ProfileMenu';
 import { t, type UiLocale } from '../../uiLocale';
-import { type AdminTab } from './shared';
-import { OverviewSkeleton } from './Skeletons';
+import { formatWhen, type AdminTab } from './shared';
+import { MetricsSkeleton } from './Skeletons';
 
-export function OverviewPage({ overview, loading, locale, onNavigate }: { overview: AdminOverview | null; loading: boolean; locale: UiLocale; onNavigate: (tab: AdminTab) => void }) {
-  if (loading || !overview) {
-    return (
-      <div className="admin-overview-page">
-        <section className="admin-ops-banner" aria-busy="true">
-          <div className="admin-ops-banner-copy">
-            <p>{t(locale, 'admin.operations')}</p>
-            <h2>{t(locale, 'admin.heroTitle')}</h2>
-          </div>
-        </section>
-        <OverviewSkeleton label={t(locale, 'admin.loading')} />
-      </div>
-    );
-  }
+const profileTitleKey: Record<string, string> = {
+  cloud: 'admin.profileCloudTitle',
+  local_hybrid: 'admin.profileHybridTitle',
+  local: 'admin.profileLocalTitle',
+};
 
+export function OverviewPage({ overview, users, recentRefusals, busy, loading, locale, onNavigate, onApprove, onReject }: {
+  overview: AdminOverview | null;
+  users: AuthUser[];
+  recentRefusals: AnswerRefusal[];
+  busy: boolean;
+  loading: boolean;
+  locale: UiLocale;
+  onNavigate: (tab: AdminTab) => void;
+  onApprove: (id: string) => Promise<void>;
+  onReject: (id: string) => Promise<void>;
+}) {
+  if (loading || !overview) return <MetricsSkeleton label={t(locale, 'admin.loading')} />;
+
+  const pending = users.filter((entry) => entry.status === 'pending');
+  const profileKey = profileTitleKey[overview.active_profile];
   const metrics = [
     {
       label: t(locale, 'admin.approvedUsers'),
       value: overview.users_approved,
       detail: t(locale, 'admin.pendingReview', { count: overview.users_pending }),
       tone: overview.users_pending > 0 ? 'pending' : undefined,
+      tab: 'users' as const,
     },
     {
       label: t(locale, 'admin.indexedPdfs'),
       value: overview.documents_ready,
-      detail: t(locale, 'admin.availableCorpus'),
-      tone: overview.documents_ready > 0 ? 'ready' : 'warn',
+      detail: overview.documents_ready ? t(locale, 'admin.availableCorpus') : t(locale, 'admin.noActivePdfs'),
+      tone: overview.documents_ready > 0 ? undefined : 'warn',
+      tab: 'documents' as const,
     },
     {
       label: t(locale, 'admin.runtimeProfile'),
-      value: overview.active_profile,
+      value: profileKey ? t(locale, profileKey) : overview.active_profile,
       detail: t(locale, 'admin.activeRetrieval'),
+      tab: 'configuration' as const,
     },
     {
       label: t(locale, 'admin.supersession'),
       value: overview.supersession.ready ? t(locale, 'admin.ready') : t(locale, 'admin.unavailable'),
-      detail: t(locale, 'admin.supersessionEdges', { count: overview.supersession.edge_count }),
-      tone: overview.supersession.ready ? 'ready' : 'warn',
-    },
-  ];
-
-  const focus = [
-    {
-      title: t(locale, 'admin.accessReview'),
-      detail: overview.users_pending
-        ? t(locale, 'admin.pendingRequests', { count: overview.users_pending })
-        : t(locale, 'admin.noPendingRequests'),
-      action: t(locale, 'admin.reviewUsers'),
-      tab: 'users' as const,
-      tone: overview.users_pending > 0 ? 'pending' : undefined,
-    },
-    {
-      title: t(locale, 'admin.refusals'),
-      detail: overview.answer_refusals_total
-        ? t(locale, 'admin.refusalsHelp', { count: overview.answer_refusals_total })
-        : t(locale, 'admin.refusalsEmpty'),
-      action: t(locale, 'admin.reviewRefusals'),
-      tab: 'refusals' as const,
-    },
-    {
-      title: t(locale, 'admin.corpusReadiness'),
-      detail: overview.documents_ready
-        ? t(locale, 'admin.activePdfCount', { count: overview.documents_ready })
-        : t(locale, 'admin.noActivePdfs'),
-      action: t(locale, 'admin.inspectDocuments'),
-      tab: 'documents' as const,
-      tone: overview.documents_ready > 0 ? 'ready' : 'warn',
-    },
-    {
-      title: t(locale, 'admin.supersessionIndex'),
       detail: overview.supersession.ready
-        ? t(locale, 'admin.supersessionReady', { count: overview.supersession.edge_count })
+        ? t(locale, 'admin.supersessionEdges', { count: overview.supersession.edge_count })
         : t(locale, 'admin.supersessionEmpty'),
-      action: t(locale, 'admin.openConfiguration'),
-      tab: 'configuration' as const,
-      tone: overview.supersession.ready ? 'ready' : 'warn',
+      tone: overview.supersession.ready ? undefined : 'warn',
+      // No admin page manages supersession edges, so this card links nowhere.
+      tab: undefined,
     },
   ];
 
   return (
-    <div className="admin-overview-page">
-      <section className="admin-ops-banner" aria-labelledby="overview-heading">
-        <div className="admin-ops-banner-copy">
-          <p>{t(locale, 'admin.operations')}</p>
-          <h2 id="overview-heading">{t(locale, 'admin.heroTitle')}</h2>
-          <span>{t(locale, 'admin.heroText')}</span>
-        </div>
-        <div className="admin-ops-banner-side" aria-hidden="true">
-          <span className="admin-ops-banner-mark" />
-        </div>
+    <>
+      <section className="admin-metrics" aria-label={t(locale, 'admin.overview')}>
+        {metrics.map((metric) => {
+          const body = (
+            <>
+              <p>{metric.label}</p>
+              <strong className={metric.tone === 'warn' ? 'is-warn' : undefined}>{metric.value}</strong>
+              <span className={metric.tone ? `is-${metric.tone}` : undefined}>{metric.detail}</span>
+            </>
+          );
+          const tab = metric.tab;
+          return tab
+            ? <button type="button" className="admin-metric" key={metric.label} onClick={() => onNavigate(tab)}>{body}</button>
+            : <div className="admin-metric" key={metric.label}>{body}</div>;
+        })}
       </section>
 
-      <section className="admin-metrics-strip" aria-label={t(locale, 'admin.overview')}>
-        {metrics.map((metric) => (
-          <article className="admin-metric" key={metric.label}>
-            <p>{metric.label}</p>
-            <strong className={metric.tone ? `is-${metric.tone}` : undefined}>{metric.value}</strong>
-            <span className={metric.tone === 'pending' ? 'is-pending' : undefined}>{metric.detail}</span>
-          </article>
-        ))}
-      </section>
-
-      <div className="admin-overview-split">
-        <section className="admin-attention-panel" aria-labelledby="attention-heading">
-          <header className="admin-attention-heading">
-            <h2 id="attention-heading">{t(locale, 'admin.operationalFocus')}</h2>
-            <p>{t(locale, 'admin.needsAttention')}</p>
-          </header>
-          <ul className="admin-attention-list">
-            {focus.map((item) => (
-              <li key={item.title}>
-                <div className="admin-attention-copy">
-                  <strong>{item.title}</strong>
-                  <p className={item.tone ? `is-${item.tone}` : undefined}>{item.detail}</p>
-                </div>
-                <button type="button" onClick={() => onNavigate(item.tab)}>
-                  {item.action}
-                  <ArrowUpRight aria-hidden="true" size={14} strokeWidth={1.8} />
-                </button>
-              </li>
-            ))}
-          </ul>
+      <div className="admin-overview-panels">
+        <section className="admin-panel" aria-labelledby="pending-heading">
+          <div className="admin-panel-head">
+            <h2 id="pending-heading">{t(locale, 'admin.accessReview')}<span className="admin-count">{pending.length}</span></h2>
+            <button type="button" className="admin-btn small" onClick={() => onNavigate('users')}>
+              {t(locale, 'admin.viewAll')}
+              <ArrowRight aria-hidden="true" size={14} className="admin-flip" />
+            </button>
+          </div>
+          {pending.length ? (
+            <ul className="admin-overview-list">
+              {pending.map((entry) => (
+                <li key={entry.id}>
+                  <div className="admin-user-cell">
+                    <AvatarMark user={entry} size={32} />
+                    <div>
+                      <strong>{displayLabel(entry)}</strong>
+                      <span>{entry.email}</span>
+                    </div>
+                  </div>
+                  <div className="admin-actions">
+                    <button type="button" className="admin-btn small primary" disabled={busy} onClick={() => void onApprove(entry.id)}>
+                      {t(locale, 'admin.approve')}
+                    </button>
+                    <button type="button" className="admin-btn small" disabled={busy} onClick={() => void onReject(entry.id)}>
+                      {t(locale, 'admin.reject')}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="admin-empty">{t(locale, 'admin.noPendingRequests')}</p>
+          )}
         </section>
 
-        <aside className="admin-safeguard-note">
-          <p>{t(locale, 'admin.safeguards')}</p>
-          <strong>{t(locale, 'admin.safeguardTitle')}</strong>
-          <span>{t(locale, 'admin.safeguardText')}</span>
-        </aside>
+        <section className="admin-panel" aria-labelledby="refusals-heading">
+          <div className="admin-panel-head">
+            <h2 id="refusals-heading">{t(locale, 'admin.recentRefusals')}<span className="admin-count">{overview.answer_refusals_total}</span></h2>
+            <button type="button" className="admin-btn small" onClick={() => onNavigate('refusals')}>
+              {t(locale, 'admin.viewAll')}
+              <ArrowRight aria-hidden="true" size={14} className="admin-flip" />
+            </button>
+          </div>
+          {recentRefusals.length ? (
+            <ul className="admin-overview-list">
+              {recentRefusals.map((item) => (
+                <li key={item.refusal_id}>
+                  <div className="admin-overview-refusal">
+                    <span className="admin-question" title={item.question}>{item.question}</span>
+                    <span className="admin-muted">{formatWhen(item.created_at, locale)} · {item.user_email || '—'}</span>
+                  </div>
+                  <span className="admin-reason" title={item.reason}>{item.reason_title || item.reason}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="admin-empty">{t(locale, 'admin.refusalsEmpty')}</p>
+          )}
+        </section>
       </div>
-    </div>
+    </>
   );
 }

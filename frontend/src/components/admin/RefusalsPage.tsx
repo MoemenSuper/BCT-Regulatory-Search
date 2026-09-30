@@ -1,9 +1,10 @@
 // Answers the assistant declined, filterable and exportable as CSV.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, ListFilter } from 'lucide-react';
 import { type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
-import { TableSkeleton } from './Skeletons';
+import { formatWhen } from './shared';
+import { BlockSkeleton } from './Skeletons';
 
 export function RefusalsPage({
   page,
@@ -23,6 +24,7 @@ export function RefusalsPage({
   onExport: () => void;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const items = page?.items ?? [];
   const total = page?.total ?? 0;
   const totalAll = page?.total_all ?? total;
@@ -33,6 +35,23 @@ export function RefusalsPage({
         count: option.count,
       }))
     : [];
+
+  // Close the filter menu on a click outside it or on Escape.
+  useEffect(() => {
+    if (!filterOpen) return;
+    function onPointer(event: MouseEvent) {
+      if (!filterRef.current?.contains(event.target as Node)) setFilterOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setFilterOpen(false);
+    }
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filterOpen]);
 
   function toggleBucket(bucket: string) {
     if (selectedBuckets.includes(bucket)) {
@@ -49,42 +68,42 @@ export function RefusalsPage({
   }
 
   return (
-    <section className="admin-panel admin-table-panel admin-refusals-page">
-      <div className="admin-panel-heading">
-        <div>
-          <p>{t(locale, 'admin.refusals')}</p>
-          <h2>{t(locale, 'admin.refusalsTitle')}</h2>
-        </div>
-        <div className="admin-refusals-actions">
+    <section className="admin-panel">
+      <div className="admin-panel-head">
+        <h2>
+          {t(locale, 'admin.refusalsTitle')}
           <span className="admin-count">{selectedBuckets.length ? `${total} / ${totalAll}` : total}</span>
-          <div className="admin-refusal-filter">
+        </h2>
+        <div className="admin-panel-head-actions">
+          <div className="admin-popover-anchor" ref={filterRef}>
             <button
               type="button"
-              className={`admin-refresh${selectedBuckets.length ? ' is-active' : ''}`}
+              className="admin-btn"
               disabled={busy || loading || options.length === 0}
               aria-expanded={filterOpen}
-              aria-haspopup="true"
               onClick={() => setFilterOpen((open) => !open)}
             >
-              <ListFilter aria-hidden="true" size={17} />
-              <span>{t(locale, 'admin.refusalFilter')}</span>
-              {selectedBuckets.length ? <em>{selectedBuckets.length}</em> : null}
+              <ListFilter aria-hidden="true" size={16} />
+              {t(locale, 'admin.refusalFilter')}
+              {selectedBuckets.length ? <span className="admin-badge-count">{selectedBuckets.length}</span> : null}
             </button>
             {filterOpen ? (
-              <div className="admin-refusal-filter-menu" role="menu">
-                <p>{t(locale, 'admin.refusalFilterHelp')}</p>
+              <div className="admin-popover">
+                <p className="admin-help">{t(locale, 'admin.refusalFilterHelp')}</p>
                 <ul>
                   {options.map((option) => {
                     const checked = selectedBuckets.includes(option.bucket);
                     return (
                       <li key={option.bucket}>
-                        <label className={checked ? 'is-selected' : undefined}>
+                        <label>
                           <input
                             type="checkbox"
                             checked={checked}
                             disabled={
                               busy ||
                               loading ||
+                              // A reason that never happened would only filter to an empty table.
+                              (!checked && option.count === 0) ||
                               (!checked && options.length > 1 && selectedBuckets.length >= options.length - 1)
                             }
                             onChange={() => toggleBucket(option.bucket)}
@@ -97,50 +116,46 @@ export function RefusalsPage({
                   })}
                 </ul>
                 {selectedBuckets.length ? (
-                  <button type="button" className="admin-action" disabled={busy || loading} onClick={() => onBucketsChange([])}>
+                  <button type="button" className="admin-btn small" disabled={busy || loading} onClick={() => onBucketsChange([])}>
                     {t(locale, 'admin.refusalFilterClear')}
                   </button>
                 ) : null}
               </div>
             ) : null}
           </div>
-          <button type="button" className="admin-refresh" disabled={busy || loading || total === 0} onClick={onExport}>
-            <Download aria-hidden="true" size={17} />
-            <span>{t(locale, 'admin.exportRefusals')}</span>
+          <button type="button" className="admin-btn" disabled={busy || loading || total === 0} onClick={onExport}>
+            <Download aria-hidden="true" size={16} />
+            {t(locale, 'admin.exportRefusals')}
           </button>
         </div>
       </div>
       <p className="admin-help">{t(locale, 'admin.refusalsPageHelp')}</p>
       {loading ? (
-        <TableSkeleton label={t(locale, 'admin.loading')} />
+        <BlockSkeleton label={t(locale, 'admin.loading')} />
       ) : !items.length ? (
         <p className="admin-empty">{t(locale, 'admin.refusalsEmpty')}</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table admin-refusals-table">
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>{t(locale, 'admin.refusalWhen')}</th>
+                <th>{t(locale, 'admin.refusalQuestion')}</th>
+                <th>{t(locale, 'admin.refusalReason')}</th>
                 <th>{t(locale, 'admin.refusalUser')}</th>
                 <th>{t(locale, 'admin.refusalStatus')}</th>
                 <th>{t(locale, 'admin.refusalProfile')}</th>
-                <th>{t(locale, 'admin.refusalReason')}</th>
-                <th>{t(locale, 'admin.refusalQuestion')}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item: AnswerRefusal) => (
                 <tr key={item.refusal_id}>
-                  <td className="admin-refusal-when">{item.created_at}</td>
+                  <td className="num admin-muted">{formatWhen(item.created_at, locale)}</td>
+                  <td><span className="admin-question" title={item.question}>{item.question}</span></td>
+                  <td><span className="admin-reason" title={item.reason}>{item.reason_title || item.reason}</span></td>
                   <td>{item.user_email || '—'}</td>
-                  <td><code>{item.answer_status}</code></td>
-                  <td>{item.profile || '—'}</td>
-                  <td>
-                    <span className="admin-refusal-reason" title={item.reason}>
-                      {item.reason_title || item.reason}
-                    </span>
-                  </td>
-                  <td className="admin-refusal-question">{item.question}</td>
+                  <td className="admin-code">{item.answer_status}</td>
+                  <td className="admin-code">{item.profile || '—'}</td>
                 </tr>
               ))}
             </tbody>

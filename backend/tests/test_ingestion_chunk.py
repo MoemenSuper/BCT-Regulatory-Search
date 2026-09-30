@@ -53,3 +53,17 @@ def test_gemini_primary_page_is_not_embedded_twice():
     assert len(primary) == 1
     assert visual == []
     assert primary[0].metadata["extraction_method"] == "vlm"
+
+
+def test_a_sentence_cut_by_one_chunk_is_whole_in_the_next():
+    from ingestion.chunk import _split
+
+    rule = "Un ratio de solvabilité qui ne peut pas être inférieur à 10 %, calculé par le rapport entre les fonds propres nets et les actifs pondérés."
+    filler = " ".join(f"Phrase de contexte numéro {n} sur les fonds propres." for n in range(16))
+    chunks = _split(f"{filler} {rule} {filler}")
+
+    assert any(rule in chunk for chunk in chunks)
+    for previous, chunk in zip(chunks, chunks[1:]):
+        start = previous.find(chunk[:20])
+        # every chunk starts on a word, never inside one
+        assert start == -1 or not previous[start - 1].isalpha()

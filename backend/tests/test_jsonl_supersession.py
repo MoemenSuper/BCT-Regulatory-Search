@@ -46,26 +46,8 @@ def test_select_edges_ignores_ordinary_query_without_instrument():
     assert select_edges(edges, "Quelles sont les obligations de change ?", limit=2) == []
 
 
-def test_select_edges_from_hits_when_old_circular_in_top_results():
-    from jsonl_supersession import select_edges_from_hits
-
-    edges = [_edge()]
-    old = Document(
-        page_content="taux de change applicables",
-        metadata={"source": "Cir_2018_07_fr.pdf", "page": 4, "pages": [4]},
-    )
-    other = Document(
-        page_content="autre sujet",
-        metadata={"source": "Cir_2016_01_fr.pdf", "page": 1, "pages": [1]},
-    )
-    picked = select_edges_from_hits(edges, [(old, 2.0), (other, 1.0)], limit=2)
-    assert len(picked) == 1
-    assert picked[0].source_instrument == "cir:2019:7"
-    assert picked[0].target_instrument == "cir:2018:7"
-
-
-def test_pin_topical_query_prefers_successor_but_keeps_classic_hit():
-    """Topical pin fronts successor; classic triggering hit stays in the pack."""
+def test_topic_question_moves_a_wholly_replaced_text_below_live_hits_without_adding_pages():
+    """A topic question gets no declaring page; the replaced circular stays, below live texts."""
     edges = [
         _edge(
             action="REPLACE",
@@ -77,7 +59,7 @@ def test_pin_topical_query_prefers_successor_but_keeps_classic_hit():
         page_content="horaires de travail applicables aux banques",
         metadata={"source": "Cir_2018_07_fr.pdf", "page": 3, "pages": [3]},
     )
-    noise = Document(
+    live = Document(
         page_content="autre circulaire",
         metadata={"source": "Cir_2015_02_fr.pdf", "page": 1, "pages": [1]},
     )
@@ -86,14 +68,44 @@ def test_pin_topical_query_prefers_successor_but_keeps_classic_hit():
         return edge.source_file, edge.source_page, edge.quote
 
     pinned = pin_supersession_edges(
-        [(old, 5.0), (noise, 1.0)],
+        [(old, 5.0), (live, 1.0)],
         "Quels sont les horaires de travail des banques ?",
         edges,
         page_lookup=lookup,
     )
     sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned]
-    assert sources[0] == "Cir_2019_07_fr.pdf"
-    assert "Cir_2018_07_fr.pdf" in sources[:3]
+    assert sources == ["Cir_2015_02_fr.pdf", "Cir_2018_07_fr.pdf"]
+
+
+def test_topic_question_labels_the_newer_text_when_both_are_retrieved():
+    edges = [_edge(action="AMEND", target_article="2", quote="L'article 2 de la circulaire 2018-07 est modifié.")]
+    old = Document(page_content="horaires", metadata={"source": "Cir_2018_07_fr.pdf", "page": 3, "pages": [3]})
+    new = Document(page_content="horaires", metadata={"source": "Cir_2019_07_fr.pdf", "page": 2, "pages": [2]})
+
+    pinned = pin_supersession_edges(
+        [(old, 5.0), (new, 4.0)], "Quels sont les horaires ?", edges, page_lookup=lambda edge: None,
+    )
+    # A partial amendment moves nothing; the newer text now says what it changes.
+    assert [Path(str(doc.metadata["source"])).name for doc, _ in pinned] == ["Cir_2018_07_fr.pdf", "Cir_2019_07_fr.pdf"]
+    assert pinned[1][0].metadata["temporal_relation"] == "AMENDS"
+    assert pinned[1][0].metadata["temporal_target_id"] == "cir:2018:7"
+    assert "temporal_relation" not in pinned[0][0].metadata
+
+
+def test_edges_are_read_with_the_current_rules(tmp_path: Path):
+    from jsonl_supersession import load_edges
+
+    write_edges(tmp_path / "edges.jsonl", [
+        # An annex replacement leaves the rest of the circular in force.
+        _edge(source_instrument="cir:2018:9", target_instrument="cir:2017:8", target_article=None,
+              quote="L'annexe 1 de la circulaire n°2017-08 est abrogée et remplacée par l'annexe 1."),
+        # "25-07-2025" is a date on a banknote, not circular 2025-07.
+        _edge(source_instrument="note:2025:142", action="REPLACE", target_instrument="cir:2025:7",
+              target_article=None,
+              quote="La note précise la date d'émission : remplacée par « 25-07-2025 » au lieu de « 20-03-2022 »."),
+    ])
+    edges = load_edges(tmp_path / "edges.jsonl")
+    assert [(edge.target_instrument, edge.target_article) for edge in edges] == [("cir:2017:8", "annexe")]
 
 
 def test_pin_topical_currentness_prefers_successor_over_superseded_hit():
@@ -126,40 +138,6 @@ def test_pin_topical_currentness_prefers_successor_over_superseded_hit():
     assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2019_07_fr.pdf"
     sources = [Path(str(doc.metadata["source"])).name for doc, _ in pinned]
     assert sources.index("Cir_2019_07_fr.pdf") < sources.index("Cir_2018_07_fr.pdf")
-
-
-def test_pin_amend_keeps_old_pages_but_fronts_successor():
-    edges = [
-        _edge(
-            action="AMEND",
-            source_instrument="cir:2020:3",
-            source_file="Cir_2020_03_fr.pdf",
-            source_page=2,
-            target_instrument="cir:2016:8",
-            target_article="5",
-            quote="L'article 5 de la circulaire 2016-08 est modifié.",
-        )
-    ]
-    old = Document(
-        page_content="durée du travail",
-        metadata={"source": "Cir_2016_08_fr.pdf", "page": 5, "pages": [5]},
-    )
-
-    def lookup(edge):
-        return edge.source_file, edge.source_page, edge.quote
-
-    pinned = pin_supersession_edges(
-        [(old, 3.0)],
-        "Quelle est la durée du travail applicable ?",
-        edges,
-        page_lookup=lookup,
-    )
-    assert Path(str(pinned[0][0].metadata["source"])).name == "Cir_2020_03_fr.pdf"
-    # AMEND is partial — old circular stays in the pack (not demoted away)
-    assert any(
-        Path(str(doc.metadata["source"])).name == "Cir_2016_08_fr.pdf"
-        for doc, _ in pinned
-    )
 
 
 def test_messy_user_query_parses_instrument():
@@ -631,3 +609,58 @@ def test_empty_local_corpus_warns_at_startup(tmp_path, monkeypatch, capsys):
 
     app_module.create_local_backend()
     assert "local corpus is empty" in capsys.readouterr().out
+
+
+def test_before_circular_x_searches_inside_the_texts_it_replaced():
+    from jsonl_supersession import SupersessionPinBackend
+
+    edges = [_edge(source_instrument="cir:2020:3", source_file="Cir_2020_03_fr.pdf", action="ABROGATE",
+                   target_instrument="cir:2016:8", target_article=None,
+                   quote="La présente circulaire abroge la circulaire n°2016-08.")]
+    new = Document(page_content="plafond 2020", metadata={"source": "Cir_2020_03_fr.pdf", "page": 3, "pages": [3]})
+    old = Document(page_content="plafond 2016", metadata={"source": "Cir_2016_08_fr.pdf", "page": 4, "pages": [4]})
+    seen = {}
+
+    class Inner:
+        def retrieve(self, query, other_queries=(), instruments=()):
+            seen["instruments"] = [(item["year"], item["number"]) for item in instruments]
+            return [(new, 0.9), (old, 0.5)]
+
+    backend = SupersessionPinBackend(Inner(), edges, page_lookup=lambda edge: (None, None, ""))
+    ranked = backend.retrieve("Avant la circulaire 2020-03, quel était le plafond de l'allocation ?")
+
+    assert seen["instruments"] == [(2016, 8)]
+    assert [Path(str(doc.metadata["source"])).name for doc, _ in ranked] == ["Cir_2016_08_fr.pdf", "Cir_2020_03_fr.pdf"]
+
+
+def test_a_replaced_circular_that_answers_brings_its_successors_and_their_declaring_pages():
+    from jsonl_supersession import SupersessionPinBackend
+
+    edges = [
+        _edge(source_instrument="cir:2021:3", source_file="Cir_2021_03_fr.pdf", source_page=14, action="ABROGATE",
+              target_instrument="cir:2016:1", target_article=None,
+              quote="Sont abrogées toutes dispositions contraires, notamment la circulaire n°2016-01."),
+        _edge(source_instrument="cir:2024:9", source_file="Cir_2024_09_fr.pdf", source_page=3, action="AMEND",
+              target_instrument="cir:2021:3", target_article="4",
+              quote="L'article 4 de la circulaire n°2021-03 est modifié."),
+    ]
+    old = Document(page_content="horaires 7h-13h", metadata={"source": "Cir_2016_01_fr.pdf", "page": 2, "pages": [2]})
+    new = Document(page_content="horaires 8h-14h", metadata={"source": "Cir_2021_03_fr.pdf", "page": 2, "pages": [2]})
+    searched = []
+
+    class Inner:
+        def retrieve(self, query, other_queries=(), instruments=()):
+            searched.append(sorted((item["year"], item["number"]) for item in instruments))
+            return [(old, 0.9)] if not instruments else [(old, 0.9), (new, 0.8)]
+
+    backend = SupersessionPinBackend(Inner(), edges, page_lookup=lambda edge: (edge.source_file, edge.source_page, edge.quote))
+    ranked = backend.retrieve("Quelles sont les heures du marché des changes ?")
+
+    # Second search inside the whole chain: 2021-03 replaced 2016-01, then 2024-09 amended 2021-03.
+    assert searched == [[], [(2021, 3), (2024, 9)]]
+    # The answering pages first, then the pages that declare each step, with the relationship.
+    pages = [(Path(str(doc.metadata["source"])).name, doc.metadata["page"]) for doc, _ in ranked]
+    assert pages[:2] == [("Cir_2021_03_fr.pdf", 2), ("Cir_2016_01_fr.pdf", 2)]
+    assert pages[2:] == [("Cir_2021_03_fr.pdf", 14), ("Cir_2024_09_fr.pdf", 3)]
+    assert ranked[2][0].metadata["temporal_relation"] == "ABROGATES"
+    assert ranked[3][0].metadata["temporal_target_id"] == "cir:2021:3"

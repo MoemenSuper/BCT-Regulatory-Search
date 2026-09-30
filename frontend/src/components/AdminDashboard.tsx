@@ -1,12 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { CheckCircle2, CircleAlert, FileText, Gauge, Moon, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
+import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu } from './ProfileMenu';
 import { languageDirection, t, type UiLocale } from '../uiLocale';
-import { isPdfFile, type AdminTab, type UploadEntryStatus, type UploadProgress } from './admin/shared';
+import { isPdfFile, type AdminTab, type DocKind, type UploadEntryStatus, type UploadProgress } from './admin/shared';
 import { OverviewPage } from './admin/OverviewPage';
 import { RefusalsPage } from './admin/RefusalsPage';
 import { UsersPage } from './admin/UsersPage';
@@ -42,6 +42,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [documents, setDocuments] = useState<IndexedDocument[]>([]);
   const [enrichment, setEnrichment] = useState<EnrichmentWorkerState | null>(null);
   const [refusals, setRefusals] = useState<AnswerRefusalsPage | null>(null);
+  const [recentRefusals, setRecentRefusals] = useState<AnswerRefusal[]>([]);
   const [refusalBuckets, setRefusalBuckets] = useState<string[]>([]);
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
-  const [docKind, setDocKind] = useState<'regulatory' | 'statistical' | 'internal'>('regulatory');
+  const [docKind, setDocKind] = useState<DocKind>('regulatory');
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [theme, setTheme] = useState<AdminTheme>(readAdminTheme);
   const navigation = [
@@ -62,12 +63,23 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     { id: 'configuration' as const, label: t(locale, 'admin.configuration'), icon: Settings2 },
   ];
 
+  // The overview also lists pending access requests and the latest refusals.
+  async function loadOverview() {
+    const [counts, accounts, latest] = await Promise.all([getOverview(), listUsers(), listAnswerRefusals(5)]);
+    return { counts, accounts, latest: latest.items };
+  }
+  function showOverview(data: Awaited<ReturnType<typeof loadOverview>>) {
+    setOverview(data.counts);
+    setUsers(data.accounts);
+    setRecentRefusals(data.latest);
+  }
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setError(null); setLoading(true);
       try {
-        if (tab === 'overview') { const data = await getOverview(); if (!cancelled) setOverview(data); }
+        if (tab === 'overview') { const data = await loadOverview(); if (!cancelled) showOverview(data); }
         else if (tab === 'users') { const data = await listUsers(); if (!cancelled) setUsers(data); }
         else if (tab === 'documents') { const data = await listDocuments(); if (!cancelled) setDocuments(data); }
         else if (tab === 'refusals') { const data = await listAnswerRefusals(5000, refusalBuckets); if (!cancelled) setRefusals(data); }
@@ -116,7 +128,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   async function refresh() {
     setError(null); setLoading(true);
     try {
-      if (tab === 'overview') setOverview(await getOverview());
+      if (tab === 'overview') showOverview(await loadOverview());
       if (tab === 'users') setUsers(await listUsers());
       if (tab === 'documents') setDocuments(await listDocuments());
       if (tab === 'refusals') setRefusals(await listAnswerRefusals(5000, refusalBuckets));
@@ -350,37 +362,32 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
 
   const currentPage = navigation.find((item) => item.id === tab)?.label || t(locale, 'admin.overview');
+  const themeLabel = theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark');
   return <div className="admin-shell" data-theme={theme} lang={locale} dir={languageDirection(locale)}>
     <a className="admin-skip-link" href="#admin-content">{t(locale, 'admin.skip')}</a>
-    <aside className="admin-sidebar" aria-label={t(locale, 'admin.configuration')}>
+    <aside className="admin-sidebar">
       <div className="admin-brand"><img src="/bct-logo-white.png" alt="Banque Centrale de Tunisie" /><span>{t(locale, 'admin.brand')}</span></div>
-      <nav className="admin-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => selectTab(id)}><Icon aria-hidden="true" size={19} strokeWidth={1.8} /><span>{label}</span></button>)}</nav>
+      <nav className="admin-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => selectTab(id)}><Icon aria-hidden="true" size={18} strokeWidth={1.8} /><span>{label}</span></button>)}</nav>
     </aside>
     <div className="admin-workspace">
       <header className="admin-header">
-        <div>
-          <p className="admin-breadcrumb">{t(locale, 'admin.configuration')} <span>/</span> {currentPage}</p>
-          <h1>{currentPage}</h1>
-        </div>
+        <h1>{currentPage}</h1>
         <div className="admin-header-actions">
           <button
             type="button"
-            className="admin-refresh admin-theme-toggle"
-            aria-label={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
-            title={theme === 'dark' ? t(locale, 'admin.themeLight') : t(locale, 'admin.themeDark')}
-            aria-pressed={theme === 'dark'}
+            className="admin-icon-btn large"
+            aria-label={themeLabel}
+            title={themeLabel}
             onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           >
-            {theme === 'dark' ? <Moon aria-hidden="true" size={17} /> : <Sun aria-hidden="true" size={17} />}
-            <span>{theme === 'dark' ? t(locale, 'admin.themeDark') : t(locale, 'admin.themeLight')}</span>
+            {theme === 'dark' ? <Sun aria-hidden="true" size={17} /> : <Moon aria-hidden="true" size={17} />}
           </button>
-          <LanguageSwitcher locale={locale} onChange={onLocaleChange} className="admin-language-switcher" />
+          <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
           <ProfileMenu
             user={user}
             locale={locale}
             onUserChange={onUserChange}
             onLogout={() => void handleLogout()}
-            variant="header"
             theme={theme}
           />
         </div>
@@ -388,7 +395,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
       <main id="admin-content" className="admin-main">
         {error ? <div className="admin-banner error" role="alert"><XCircle aria-hidden="true" size={19} />{error}</div> : null}
         {message ? <div className="admin-banner ok" role="status"><CheckCircle2 aria-hidden="true" size={19} />{message}</div> : null}
-        {tab === 'overview' ? <OverviewPage overview={overview} loading={loading} locale={locale} onNavigate={selectTab} /> : null}
+        {tab === 'overview' ? <OverviewPage overview={overview} users={users} recentRefusals={recentRefusals} busy={busy} loading={loading} locale={locale} onNavigate={selectTab} onApprove={handleApprove} onReject={handleReject} /> : null}
         {tab === 'users' ? <UsersPage users={users} currentUser={user} busy={busy} loading={loading} locale={locale} onApprove={handleApprove} onPromote={handlePromote} onReject={handleReject} onDelete={handleDelete} onTokenLimit={handleTokenLimit} onResetTokens={handleResetTokens} /> : null}
         {tab === 'documents' ? (
           <DocumentsPage

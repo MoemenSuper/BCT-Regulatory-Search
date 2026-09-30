@@ -56,7 +56,7 @@ def test_chat_keeps_refusal_reason_without_user_facing_diagnostics(monkeypatch):
     monkeypatch.setattr(conversation, "generate_grounded_answer", answer)
 
     class Backend:
-        def retrieve(self, _query):
+        def retrieve(self, _query, other_queries=()):
             return [(doc, 0.9)]
 
     result = conversation.chat(
@@ -94,6 +94,24 @@ def test_user_thumbs_down_maps_to_admin_bucket():
 
     assert refusal_reason_bucket("user_thumbs_down:turn:abc") == "user_thumbs_down"
     assert refusal_reason_title(bucket="user_thumbs_down") == "User thumbs down"
+
+
+def test_vague_question_refusal_is_a_clarification():
+    from answer_contract import refusal_reason_bucket
+
+    assert refusal_reason_bucket("route:AMBIGUOUS:question_scope_unclear") == "clarification_needed"
+
+
+def test_refusal_filter_lists_every_bucket_even_at_zero(tmp_path):
+    store = ConversationStore(tmp_path / "conversations.sqlite3")
+    store.record_answer_refusal(
+        conversation_id="c1", user_id="u1", user_email="a@bct.tn", question="q",
+        answer_status="answered", reason="user_thumbs_down:turn:1", diagnostics=[], profile="local",
+    )
+    counts = {option["bucket"]: option["count"] for option in store.distinct_answer_refusal_reasons()}
+    assert counts["user_thumbs_down"] == 1
+    assert counts["out_of_scope"] == 0
+    assert "general_chat" not in counts
 
 
 def test_get_turn_scoped_to_owner(tmp_path):

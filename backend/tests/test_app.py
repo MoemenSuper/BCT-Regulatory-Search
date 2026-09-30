@@ -115,7 +115,7 @@ def test_health_reports_supersession_ready_when_edges_exist(monkeypatch, tmp_pat
     assets = tmp_path / "assets"
     assets.mkdir()
     (assets / "supersession_edges.jsonl").write_text(
-        '{"action":"REPLACE","quote":"abroge","source_file":"Cir_2021_03_fr.pdf",'
+        '{"action":"REPLACE","quote":"La présente circulaire abroge la circulaire n°2016-01.","source_file":"Cir_2021_03_fr.pdf",'
         '"source_instrument":"cir:2021:3","source_page":1,"target_article":null,'
         '"target_instrument":"cir:2016:1"}\n',
         encoding="utf-8",
@@ -307,7 +307,10 @@ def test_sub_questions_splits_only_on_question_marks():
     # Short fragments and "A et B ?" without a second "?" stay one query.
     assert split("Quel est le plafond et la durée ?") == ["Quel est le plafond et la durée ?"]
     assert split("Plafond ? Ok ? Et la durée maximale ?") == ["Et la durée maximale ?"]
-    assert len(split(" ".join(f"Question numéro {i} sur le plafond ?" for i in range(5)))) == 3
+    # Five questions: three turns, and the last one carries the rest, so nothing is dropped.
+    turns = split(" ".join(f"Question numéro {i} sur le plafond ?" for i in range(5)))
+    assert len(turns) == 3
+    assert turns[2] == "Question numéro 2 sur le plafond ? Question numéro 3 sur le plafond ? Question numéro 4 sur le plafond ?"
 
 
 def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_path):

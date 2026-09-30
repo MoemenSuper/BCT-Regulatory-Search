@@ -355,7 +355,7 @@ class ConversationStore:
         return len(self.list_answer_refusals(limit=100_000, reasons=selected_reasons, buckets=selected_buckets))
 
     def distinct_answer_refusal_reasons(self, *, limit=200):
-        from answer_contract import refusal_reason_bucket, refusal_reason_title
+        from answer_contract import REFUSAL_BUCKETS, refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 500))
         with self._connect() as connection:
@@ -367,7 +367,8 @@ class ConversationStore:
                 GROUP BY reason
                 """
             ).fetchall()
-        totals: dict[str, int] = {}
+        # Start from every known bucket so the filter shows what can happen, not only what has.
+        totals: dict[str, int] = {bucket: 0 for bucket in REFUSAL_BUCKETS}
         for reason, count in rows:
             bucket = refusal_reason_bucket(reason)
             totals[bucket] = totals.get(bucket, 0) + int(count)

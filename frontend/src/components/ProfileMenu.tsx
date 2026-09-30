@@ -81,9 +81,21 @@ interface ProfileMenuProps {
   locale: UiLocale;
   onUserChange: (user: AuthUser) => void;
   onLogout: () => void;
-  variant?: 'header' | 'admin';
   /** Light/dark for the portaled panel — must match the host surface theme. */
   theme: 'light' | 'dark';
+}
+
+// The panel is portaled to <body>, so it is placed under the trigger by hand.
+function panelPosition(trigger: HTMLElement): CSSProperties {
+  const rect = trigger.getBoundingClientRect();
+  const width = Math.min(360, Math.max(300, window.innerWidth - 24));
+  return {
+    position: 'fixed',
+    top: Math.min(rect.bottom + 10, window.innerHeight - 24),
+    left: Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12),
+    width,
+    zIndex: 400,
+  };
 }
 
 export function ProfileMenu({
@@ -91,7 +103,6 @@ export function ProfileMenu({
   locale,
   onUserChange,
   onLogout,
-  variant = 'header',
   theme,
 }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
@@ -114,27 +125,8 @@ export function ProfileMenu({
   }, [user.display_name, user.avatar_icon]);
 
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const width = Math.min(360, Math.max(300, window.innerWidth - 24));
-    if (variant === 'admin') {
-      setPanelStyle({
-        position: 'fixed',
-        left: Math.min(Math.max(12, rect.left), window.innerWidth - width - 12),
-        bottom: Math.max(12, window.innerHeight - rect.top + 10),
-        width,
-        zIndex: 400,
-      });
-    } else {
-      setPanelStyle({
-        position: 'fixed',
-        top: Math.min(rect.bottom + 10, window.innerHeight - 24),
-        right: Math.max(12, window.innerWidth - rect.right),
-        width,
-        zIndex: 400,
-      });
-    }
-  }, [open, variant]);
+    if (open && triggerRef.current) setPanelStyle(panelPosition(triggerRef.current));
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -147,26 +139,7 @@ export function ProfileMenu({
       if (event.key === 'Escape') setOpen(false);
     }
     function onReposition() {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      const width = Math.min(360, Math.max(300, window.innerWidth - 24));
-      if (variant === 'admin') {
-        setPanelStyle({
-          position: 'fixed',
-          left: Math.min(Math.max(12, rect.left), window.innerWidth - width - 12),
-          bottom: Math.max(12, window.innerHeight - rect.top + 10),
-          width,
-          zIndex: 400,
-        });
-      } else {
-        setPanelStyle({
-          position: 'fixed',
-          top: Math.min(rect.bottom + 10, window.innerHeight - 24),
-          right: Math.max(12, window.innerWidth - rect.right),
-          width,
-          zIndex: 400,
-        });
-      }
+      if (triggerRef.current) setPanelStyle(panelPosition(triggerRef.current));
     }
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('keydown', onKey);
@@ -178,7 +151,7 @@ export function ProfileMenu({
       window.removeEventListener('resize', onReposition);
       window.removeEventListener('scroll', onReposition, true);
     };
-  }, [open, variant]);
+  }, [open]);
 
   async function onPickFile(file: File | null) {
     if (!file) return;
@@ -237,7 +210,7 @@ export function ProfileMenu({
   const panel = open
     ? createPortal(
         <div
-          className={`profile-menu-panel profile-menu-panel--${variant}`}
+          className="profile-menu-panel"
           role="dialog"
           aria-labelledby={titleId}
           ref={panelRef}
@@ -325,7 +298,7 @@ export function ProfileMenu({
     : null;
 
   return (
-    <div className={`profile-menu profile-menu--${variant}`}>
+    <div className="profile-menu">
       <button
         ref={triggerRef}
         type="button"
@@ -333,17 +306,16 @@ export function ProfileMenu({
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? titleId : undefined}
+        aria-label={`${t(locale, 'profile.title')} — ${displayLabel(user)}`}
+        title={`${displayLabel(user)}
+${user.email}`}
         onClick={() => {
           setOpen((value) => !value);
           setError(null);
           setMessage(null);
         }}
       >
-        <AvatarMark user={user} size={variant === 'admin' ? 36 : 34} />
-        <span className="profile-menu-trigger-copy">
-          <strong>{displayLabel(user)}</strong>
-          <small>{user.email}</small>
-        </span>
+        <AvatarMark user={user} size={34} />
       </button>
       {panel}
     </div>

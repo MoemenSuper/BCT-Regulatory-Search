@@ -1,4 +1,4 @@
-import { Moon, Sun } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 import type { Theme } from '../hooks/useTheme';
 import { ProfileMenu } from './ProfileMenu';
@@ -37,14 +37,12 @@ export function Header({
       <div className="header-actions">
         <button
           type="button"
-          className="theme-toggle"
+          className="header-icon-btn"
           onClick={onToggleTheme}
-          aria-pressed={dark}
-          aria-label={dark ? 'Mode sombre' : 'Mode clair'}
-          title={dark ? 'Mode sombre' : 'Mode clair'}
+          aria-label={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          title={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
         >
-          {dark ? <Moon size={18} strokeWidth={1.75} /> : <Sun size={18} strokeWidth={1.75} />}
-          <span>{dark ? 'Sombre' : 'Clair'}</span>
+          {dark ? <Sun size={18} strokeWidth={1.75} aria-hidden="true" /> : <Moon size={18} strokeWidth={1.75} aria-hidden="true" />}
         </button>
         {user && onUserChange && onLogout ? (
           <ProfileMenu
@@ -52,12 +50,11 @@ export function Header({
             locale={locale}
             onUserChange={onUserChange}
             onLogout={onLogout}
-            variant="header"
             theme={theme}
           />
         ) : onLogout ? (
-          <button type="button" className="theme-toggle" onClick={onLogout} aria-label="Sign out">
-            <span>Sortir</span>
+          <button type="button" className="header-icon-btn" onClick={onLogout} aria-label="Se déconnecter" title="Se déconnecter">
+            <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : null}
       </div>

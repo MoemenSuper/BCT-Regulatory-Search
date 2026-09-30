@@ -1,10 +1,21 @@
 // PDF upload, the indexed document list and background page reading status.
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, FileText, FileUp, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { FileText, FileUp, Loader2, RotateCcw, Trash2, X } from 'lucide-react';
 import { type EnrichmentProgress, type EnrichmentWorkerState, type IndexedDocument } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
-import { isPdfFile, type UploadEntryStatus, type UploadProgress } from './shared';
-import { DocumentSkeleton } from './Skeletons';
+import { isPdfFile, type DocKind, type UploadEntryStatus, type UploadProgress } from './shared';
+import { BlockSkeleton } from './Skeletons';
+
+const DOC_KINDS: DocKind[] = ['regulatory', 'statistical', 'internal'];
+const docKindLabel: Record<DocKind, string> = {
+  regulatory: 'admin.docKindRegulatory',
+  statistical: 'admin.docKindStatistical',
+  internal: 'admin.docKindInternal',
+};
+
+function documentKind(doc: IndexedDocument): DocKind {
+  return doc.doc_kind === 'statistical' || doc.doc_kind === 'internal' ? doc.doc_kind : 'regulatory';
+}
 
 function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
   if (status === 'imported') return t(locale, 'admin.uploadEntryImported');
@@ -26,8 +37,8 @@ export function DocumentsPage({
   locale: UiLocale;
   files: File[];
   fileKey: number;
-  docKind: 'regulatory' | 'statistical' | 'internal';
-  onDocKindChange: (value: 'regulatory' | 'statistical' | 'internal') => void;
+  docKind: DocKind;
+  onDocKindChange: (value: DocKind) => void;
   uploadProgress: UploadProgress | null;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onFilesChange: (files: File[]) => void;
@@ -73,15 +84,14 @@ export function DocumentsPage({
     <>
       {busy && uploadProgress ? (
         <div className="admin-upload-overlay" role="status" aria-live="assertive" aria-busy="true">
-          <div className="admin-upload-overlay-card">
-            <p className="admin-upload-overlay-kicker">{t(locale, 'admin.uploading')}</p>
+          <div className="admin-upload-card">
+            <p>{t(locale, 'admin.uploading')}</p>
             <h2>{t(locale, 'admin.uploadProgressCount', { done: success, total })}</h2>
             {uploadProgress.currentName ? (
-              <p className="admin-upload-overlay-file">{uploadProgress.currentName}</p>
+              <p className="admin-upload-file">{uploadProgress.currentName}</p>
             ) : null}
-            <p className="admin-upload-overlay-help">{t(locale, 'admin.uploadProgress')}</p>
             <div
-              className="admin-upload-progress-track is-determinate"
+              className="admin-progress"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={total}
@@ -90,19 +100,18 @@ export function DocumentsPage({
             >
               <span style={{ width: `${fillPct}%` }} />
             </div>
-            <p className="admin-upload-overlay-stats">
-              {t(locale, 'admin.uploadStats', { imported, duplicates, failed })}
-            </p>
+            <p>{t(locale, 'admin.uploadProgress')}</p>
+            <p>{t(locale, 'admin.uploadStats', { imported, duplicates, failed })}</p>
             <button
               type="button"
-              className="admin-upload-details-toggle"
+              className="admin-btn small"
               aria-expanded={detailsOpen}
               onClick={() => setDetailsOpen((open) => !open)}
             >
               {detailsOpen ? t(locale, 'admin.uploadHideDetails') : t(locale, 'admin.uploadViewDetails')}
             </button>
             {detailsOpen ? (
-              <ul className="admin-upload-details-list">
+              <ul className="admin-upload-details">
                 {entries.map((entry, index) => (
                   <li key={`${entry.name}-${index}`} className={`is-${entry.status}`}>
                     <strong>{entry.name}</strong>
@@ -115,39 +124,30 @@ export function DocumentsPage({
           </div>
         </div>
       ) : null}
-      <section className="admin-document-layout" aria-label={t(locale, 'admin.documents')}>
-        <form className="admin-form admin-upload-card" noValidate onSubmit={onUpload}>
-          <div className="admin-panel-heading">
-            <div>
-              <p>{t(locale, 'admin.corpusIntake')}</p>
-              <h2>{t(locale, 'admin.uploadPdf')}</h2>
+      <section className="admin-documents" aria-label={t(locale, 'admin.documents')}>
+        <form className="admin-panel" noValidate onSubmit={onUpload}>
+          <div className="admin-panel-head">
+            <h2>{t(locale, 'admin.uploadPdf')}</h2>
+          </div>
+          <div className="admin-panel-body">
+            <p className="admin-help">{t(locale, 'admin.uploadHelp')}</p>
+            <div className="admin-field">
+              <label htmlFor="admin-doc-kind">{t(locale, 'admin.docKind')}</label>
+              <select
+                id="admin-doc-kind"
+                name="doc_kind"
+                value={docKind}
+                disabled={busy}
+                onChange={(event) => onDocKindChange(event.target.value as DocKind)}
+              >
+                {DOC_KINDS.map((kind) => <option key={kind} value={kind}>{t(locale, docKindLabel[kind])}</option>)}
+              </select>
+              <p className="admin-help">{t(locale, 'admin.docKindHelp')}</p>
             </div>
-            <FileUp aria-hidden="true" size={23} />
-          </div>
-          <p className="admin-help">{t(locale, 'admin.uploadHelp')}</p>
-          <div className="admin-field">
-            <label htmlFor="admin-doc-kind">{t(locale, 'admin.docKind')}</label>
-            <select
-              id="admin-doc-kind"
-              name="doc_kind"
-              value={docKind}
-              disabled={busy}
-              onChange={(event) => onDocKindChange(event.target.value as 'regulatory' | 'statistical' | 'internal')}
-            >
-              <option value="regulatory">{t(locale, 'admin.docKindRegulatory')}</option>
-              <option value="statistical">{t(locale, 'admin.docKindStatistical')}</option>
-              <option value="internal">{t(locale, 'admin.docKindInternal')}</option>
-            </select>
-            <p className="admin-help">{t(locale, 'admin.docKindHelp')}</p>
-            {docKind !== 'regulatory' ? (
-              <p className="admin-help admin-doc-kind-vlm" role="note">
-                {t(locale, 'admin.docKindVlmNote')}
-              </p>
-            ) : null}
-          </div>
-          <div className="admin-field admin-file-field">
+            {/* Page reading depends on the profile, not on the document kind. */}
+            <p className="admin-help">{t(locale, 'admin.docKindVlmNote')}</p>
             <label
-              className={`admin-file-input${dragActive ? ' is-dragover' : ''}${busy ? ' is-disabled' : ''}`}
+              className={`admin-dropzone${dragActive ? ' is-dragover' : ''}${busy ? ' is-disabled' : ''}`}
               onDragEnter={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -171,7 +171,9 @@ export function DocumentsPage({
                 acceptFiles(Array.from(event.dataTransfer.files || []));
               }}
             >
-              <span>{t(locale, 'admin.pdfFile')}</span>
+              <FileUp aria-hidden="true" size={22} />
+              <strong>{dropLabel}</strong>
+              <span className="sr-only">{t(locale, 'admin.pdfFile')}</span>
               <input
                 key={fileKey}
                 name="file"
@@ -184,13 +186,12 @@ export function DocumentsPage({
                   event.currentTarget.value = '';
                 }}
               />
-              <em>{dropLabel}</em>
             </label>
             {files.length ? (
               <div className="admin-selected-files">
                 <div className="admin-selected-files-bar">
                   <strong>{t(locale, 'admin.filesSelected', { count: files.length })}</strong>
-                  <button type="button" className="admin-action" disabled={busy} onClick={() => onFilesChange([])}>
+                  <button type="button" className="admin-btn small" disabled={busy} onClick={() => onFilesChange([])}>
                     {t(locale, 'admin.clearSelection')}
                   </button>
                 </div>
@@ -200,12 +201,13 @@ export function DocumentsPage({
                       <span title={file.name}>{file.name}</span>
                       <button
                         type="button"
-                        className="admin-action"
+                        className="admin-icon-btn"
                         disabled={busy}
                         aria-label={t(locale, 'admin.removeFile', { name: file.name })}
+                        title={t(locale, 'admin.remove')}
                         onClick={() => onFilesChange(files.filter((entry) => entry !== file))}
                       >
-                        {t(locale, 'admin.remove')}
+                        <X aria-hidden="true" size={14} />
                       </button>
                     </li>
                   ))}
@@ -213,12 +215,14 @@ export function DocumentsPage({
               </div>
             ) : null}
           </div>
-          <button type="submit" className="admin-primary-button" disabled={busy || !files.length}>
-            <FileUp aria-hidden="true" size={18} />
-            {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
-          </button>
+          <div className="admin-form-actions">
+            <button type="submit" className="admin-btn primary" disabled={busy || !files.length}>
+              <FileUp aria-hidden="true" size={16} />
+              {busy ? t(locale, 'admin.uploading') : t(locale, 'admin.upload')}
+            </button>
+          </div>
         </form>
-        <DocumentsList key={docKind} documents={documents} enrichment={enrichment} onRetryEnrichment={onRetryEnrichment} loading={loading} busy={busy} deletingIds={deletingIds} locale={locale} docKind={docKind} onDelete={onDeleteDocuments} />
+        <DocumentsList documents={documents} enrichment={enrichment} onRetryEnrichment={onRetryEnrichment} loading={loading} busy={busy} deletingIds={deletingIds} locale={locale} onDelete={onDeleteDocuments} />
       </section>
     </>
   );
@@ -251,8 +255,9 @@ function enrichmentNotice(state: EnrichmentWorkerState | null, locale: UiLocale)
   return '';
 }
 
+// The indexed list has its own kind tabs; it no longer follows the upload form's dropdown.
 function DocumentsList({
-  documents, enrichment, onRetryEnrichment, loading, busy, deletingIds, locale, docKind, onDelete,
+  documents, enrichment, onRetryEnrichment, loading, busy, deletingIds, locale, onDelete,
 }: {
   documents: IndexedDocument[];
   enrichment: EnrichmentWorkerState | null;
@@ -261,18 +266,12 @@ function DocumentsList({
   busy: boolean;
   deletingIds: Set<string>;
   locale: UiLocale;
-  docKind: 'regulatory' | 'statistical' | 'internal';
   onDelete: (documentIds: string[], label: string) => void;
 }) {
+  const [kind, setKind] = useState<DocKind>('regulatory');
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const rows = (Array.isArray(documents) ? documents : []).filter((doc) => {
-    const item = doc as { doc_kind?: string; filename?: string };
-    const kind = item.doc_kind === 'statistical' || item.doc_kind === 'internal'
-      ? item.doc_kind
-      : 'regulatory';
-    return kind === docKind;
-  });
-  const rowIds = rows.map((doc) => (doc as { document_id?: string }).document_id || '').filter(Boolean);
+  const rows = documents.filter((doc) => documentKind(doc) === kind);
+  const rowIds = rows.map((doc) => doc.document_id || '').filter(Boolean);
   const selectedIds = rowIds.filter((id) => selected.has(id));
   const allSelected = rowIds.length > 0 && selectedIds.length === rowIds.length;
   function toggle(id: string) {
@@ -282,14 +281,22 @@ function DocumentsList({
       return next;
     });
   }
+  function showKind(next: DocKind) {
+    setKind(next);
+    setSelected(new Set());
+  }
   return (
-    <section className="admin-panel admin-documents-panel">
-      <div className="admin-panel-heading">
-        <div>
-          <p>{t(locale, 'admin.activeCorpus')}</p>
-          <h2>{t(locale, 'admin.indexedPdfs')}</h2>
+    <section className="admin-panel">
+      <div className="admin-panel-head">
+        <h2>{t(locale, 'admin.indexedPdfs')}<span className="admin-count">{documents.length}</span></h2>
+        <div className="admin-tabs" role="tablist" aria-label={t(locale, 'admin.docKind')}>
+          {DOC_KINDS.map((value) => (
+            <button key={value} type="button" role="tab" aria-selected={kind === value} onClick={() => showKind(value)}>
+              {t(locale, docKindLabel[value])}
+              <em>{documents.filter((doc) => documentKind(doc) === value).length}</em>
+            </button>
+          ))}
         </div>
-        <span className="admin-count">{rows.length} {t(locale, 'admin.readyCount')}</span>
       </div>
       {rows.some((doc) => doc.status === 'enriching') ? (
         <p className="admin-enrich-notice" role="status">
@@ -298,30 +305,24 @@ function DocumentsList({
         </p>
       ) : null}
       {loading ? (
-        <DocumentSkeleton label={t(locale, 'admin.loading')} />
+        <BlockSkeleton label={t(locale, 'admin.loading')} />
       ) : rows.length === 0 ? (
-        <p className="admin-help">{t(locale, 'admin.indexedEmptyKind')}</p>
+        <p className="admin-empty">{t(locale, 'admin.indexedEmptyKind')}</p>
       ) : (
         <>
-        {rowIds.length ? (
           <div className="admin-doc-toolbar">
-            <label className="admin-doc-check">
+            <label className="admin-check">
               <input
                 type="checkbox"
                 checked={allSelected}
                 ref={(node) => { if (node) node.indeterminate = selectedIds.length > 0 && !allSelected; }}
-                disabled={busy}
+                disabled={busy || !rowIds.length}
                 onChange={() => setSelected(allSelected ? new Set() : new Set(rowIds))}
               />
               {t(locale, 'admin.selectAllPdfs')}
             </label>
             {selectedIds.length ? (
-              <button
-                type="button"
-                className="admin-action delete"
-                disabled={busy}
-                onClick={() => onDelete(selectedIds, '')}
-              >
+              <button type="button" className="admin-btn small danger" disabled={busy} onClick={() => onDelete(selectedIds, '')}>
                 {deletingIds.size > 1
                   ? <Loader2 aria-hidden="true" size={14} className="admin-spin" />
                   : <Trash2 aria-hidden="true" size={14} />}
@@ -329,94 +330,89 @@ function DocumentsList({
               </button>
             ) : null}
           </div>
-        ) : null}
-        <ul className="admin-doc-list">
-          {rows.map((doc, index) => {
-            const item = doc;
-            const filename = item.filename || '';
-            const documentId = item.document_id || '';
-            const label = item.title || filename || t(locale, 'admin.pdfDocument');
-            const meta = [
-              item.pages != null ? t(locale, 'admin.pageCount', { count: item.pages }) : '',
-            ].filter(Boolean);
-            const openLabel = t(locale, 'admin.openPdf');
-            const body = (
-              <>
-                <span className="admin-document-icon"><FileText aria-hidden="true" size={18} /></span>
-                <div>
-                  <strong>{label}</strong>
-                  {filename ? <span className="admin-doc-filename">{filename}</span> : null}
-                  {meta.length ? <span className="admin-doc-meta">{meta.join(' · ')}</span> : null}
-                  {item.status && item.status !== 'ready' ? (
-                    <span className="admin-doc-enrichment">
-                      <DocumentStatusBadge status={item.status} locale={locale} />
-                      {enrichmentLine(item, locale)}
-                    </span>
-                  ) : null}
-                </div>
-                <ArrowUpRight aria-hidden="true" size={17} />
-              </>
-            );
-            const deleting = Boolean(documentId) && deletingIds.has(documentId);
-            return (
-              <li key={documentId || filename || String(index)} className={`admin-doc-row${deleting ? ' is-deleting' : ''}`} aria-busy={deleting || undefined}>
-                {documentId ? (
-                  <input
-                    type="checkbox"
-                    className="admin-doc-select"
-                    checked={selected.has(documentId)}
-                    disabled={busy}
-                    onChange={() => toggle(documentId)}
-                    aria-label={t(locale, 'admin.selectPdf', { name: label })}
-                  />
-                ) : <span />}
-                {filename ? (
-                  <a
-                    className="admin-doc-link"
-                    href={`/api/sources/${encodeURIComponent(filename)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${openLabel}: ${label}`}
-                    title={openLabel}
-                  >
-                    {body}
-                  </a>
-                ) : (
-                  <div className="admin-doc-link is-disabled">{body}</div>
-                )}
-                {documentId ? (
-                  <span className="admin-doc-actions">
-                  {item.enrichment?.failed ? (
-                    <button
-                      type="button"
-                      className="admin-action promote"
+          <ul className="admin-doc-list">
+            {rows.map((item, index) => {
+              const filename = item.filename || '';
+              const documentId = item.document_id || '';
+              const label = item.title || filename || t(locale, 'admin.pdfDocument');
+              const meta = [
+                filename !== label ? filename : '',
+                item.pages != null ? t(locale, 'admin.pageCount', { count: item.pages }) : '',
+              ].filter(Boolean);
+              const openLabel = t(locale, 'admin.openPdf');
+              const body = (
+                <>
+                  <FileText aria-hidden="true" size={18} />
+                  <div>
+                    <strong>{label}</strong>
+                    {meta.length ? <span className="admin-doc-meta">{meta.join(' · ')}</span> : null}
+                    {item.status && item.status !== 'ready' ? (
+                      <span className="admin-doc-enrichment">
+                        <DocumentStatusBadge status={item.status} locale={locale} />
+                        {enrichmentLine(item, locale)}
+                      </span>
+                    ) : null}
+                  </div>
+                </>
+              );
+              const deleting = Boolean(documentId) && deletingIds.has(documentId);
+              return (
+                <li key={documentId || filename || String(index)} className={`admin-doc-row${deleting ? ' is-deleting' : ''}`} aria-busy={deleting || undefined}>
+                  {documentId ? (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(documentId)}
                       disabled={busy}
-                      onClick={() => onRetryEnrichment(documentId)}
-                      title={t(locale, 'admin.enrichRetryHelp')}
+                      onChange={() => toggle(documentId)}
+                      aria-label={t(locale, 'admin.selectPdf', { name: label })}
+                    />
+                  ) : <span />}
+                  {filename ? (
+                    <a
+                      className="admin-doc-link"
+                      href={`/api/sources/${encodeURIComponent(filename)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${openLabel}: ${label}`}
+                      title={openLabel}
                     >
-                      <RotateCcw aria-hidden="true" size={14} />
-                      {t(locale, 'admin.enrichRetry')}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="admin-action delete"
-                    disabled={busy}
-                    onClick={() => onDelete([documentId], label)}
-                    aria-label={t(locale, deleting ? 'admin.pdfDeleting' : 'admin.deletePdf')}
-                    title={t(locale, 'admin.deletePdf')}
-                  >
-                    {deleting
-                      ? <Loader2 aria-hidden="true" size={14} className="admin-spin" />
-                      : <Trash2 aria-hidden="true" size={14} />}
-                    {t(locale, deleting ? 'admin.pdfDeleting' : 'admin.delete')}
-                  </button>
-                  </span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+                      {body}
+                    </a>
+                  ) : (
+                    <div className="admin-doc-link">{body}</div>
+                  )}
+                  {documentId ? (
+                    <span className="admin-actions">
+                      {item.enrichment?.failed ? (
+                        <button
+                          type="button"
+                          className="admin-btn small"
+                          disabled={busy}
+                          onClick={() => onRetryEnrichment(documentId)}
+                          title={t(locale, 'admin.enrichRetryHelp')}
+                        >
+                          <RotateCcw aria-hidden="true" size={14} />
+                          {t(locale, 'admin.enrichRetry')}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="admin-icon-btn danger"
+                        disabled={busy}
+                        onClick={() => onDelete([documentId], label)}
+                        aria-label={t(locale, deleting ? 'admin.pdfDeleting' : 'admin.deletePdf')}
+                        title={t(locale, 'admin.deletePdf')}
+                      >
+                        {deleting
+                          ? <Loader2 aria-hidden="true" size={16} className="admin-spin" />
+                          : <Trash2 aria-hidden="true" size={16} />}
+                      </button>
+                    </span>
+                  ) : <span />}
+                </li>
+              );
+            })}
+          </ul>
         </>
       )}
     </section>

@@ -208,3 +208,120 @@ def test_all_cited_units_on_a_shared_page_are_preserved():
     assert "voyages d'affaires" in result["sources"][0]["excerpt"]
     assert "Tunis, le 04 février 2020." in result["sources"][0]["excerpt"]
     assert result["answer"].count("[1]") == 2
+
+
+def _one_claim(text, cites=("E1.1",)):
+    return json.dumps({"status": "answered", "message": "", "claims": [{"text": text, "cites": list(cites)}]})
+
+
+def _page(text, source="Cir_2020_03_fr.pdf", page=3, language="fr"):
+    return [{"evidence_id": "E1", "source": source, "page": page, "score": 0.9, "text": text, "language": language}]
+
+
+@pytest.mark.parametrize("claim, accepted", [
+    ("Le plafond est de 50 000 D par année civile.", True),       # French thousands with a space
+    ("Le plafond est de 50.000 D par année civile.", True),       # the source's own notation
+    ("Le plafond est de 50,000 D par année civile.", False),      # French comma: 50 dinars
+])
+def test_numbers_are_compared_as_values_in_french_notation(claim, accepted):
+    evidence = _page("Le plafond est fixé à cinquante mille dinars (50.000 D) par année civile.")
+    result = parse_answer(_one_claim(claim), "Quel est le plafond ?", evidence)
+    assert (result["status"] == "answered") is accepted
+
+
+def test_english_answer_reads_numbers_the_english_way_over_a_french_page():
+    evidence = _page("Encours de la dette extérieure à long terme : 75.966 MDT à fin 2024.")
+    result = parse_answer(_one_claim("Long-term external debt stood at 75,966 MDT at the end of 2024."),
+                          "What was the long-term external debt at the end of 2024?", evidence)
+    # Also: English words ("debt", "stood") cannot be looked up on a French page.
+    assert result["status"] == "answered"
+
+
+def test_picture_reading_number_needs_the_pictures_own_words():
+    from answer_evidence import confirmed_numbers
+
+    page = ("REPARTITION DES REQUETES (en %)\n"
+            "[Mots de l'image] 32,3 39,1 9,7 Tunis Nabeul Autres\n"
+            "[Lecture de l'image] Tunis 391\n"
+            "[Lecture de l'image] Nabeul 9,7")
+    assert confirmed_numbers("[Lecture de l'image] Tunis 391", page) == set()
+    assert confirmed_numbers("[Lecture de l'image] Nabeul 9,7", page) == {"9.7"}
+    assert confirmed_numbers("Le délai réglementaire est de 2 mois.", page) == {"2"}
+
+
+def test_table_or_page_reference_is_not_an_unsupported_number():
+    evidence = _page("Tableau 4-1 : Indicateurs\nPIB aux prix courants — 2025: 172.709", source="RA_2025_fr.pdf", page=120)
+    for claim in ("Selon le tableau 4-1, le PIB aux prix courants en 2025 est de 172 709 MDT.",
+                  "Le PIB aux prix courants en 2025 est de 172.709 MDT (page 120)."):
+        assert parse_answer(_one_claim(claim, ("E1.2",)), "Quel est le PIB en 2025 ?", evidence)["status"] == "answered"
+    # A table the page does not have is still an unsupported number.
+    wrong = _one_claim("Selon le tableau 9-9, le PIB en 2025 est de 172 709 MDT.", ("E1.2",))
+    assert parse_answer(wrong, "Quel est le PIB en 2025 ?", evidence)["status"] == "insufficient_evidence"
+
+
+def test_arabic_no_longer_valid_is_not_a_claim_that_nothing_amended_the_text():
+    from answer_evidence import claim_asserts_unsupported_negative_amendment
+
+    assert not claim_asserts_unsupported_negative_amendment("لم تعد صالحة للصرف بعد 19 فيفري 2018")
+    assert claim_asserts_unsupported_negative_amendment("لم يعدل أي نص لاحق هذا المنشور")
+
+
+def test_a_broad_answer_may_have_more_than_eight_claims():
+    lines = [f"Règle {n} : le bureau de change tient le registre {n}." for n in range(1, 11)]
+    claims = [{"text": f"Le bureau de change tient le registre {n}.", "cites": [f"E1.{n}"]} for n in range(1, 11)]
+    result = parse_answer(json.dumps({"status": "answered", "message": "", "claims": claims}),
+                          "Quelles sont les règles des bureaux de change ?", _page("\n".join(lines)))
+    assert result["status"] == "answered"
+    assert result["answer"].count("[1]") == 10
+
+
+@pytest.mark.parametrize("question, language", [
+    ("During Ramadan single session, what are the interbank FX market hours?", "en"),
+    ("Tunisia inflation rate at end of 2025?", "en"),
+    ("and in English please, what about the installation allowance?", "en"),
+    ("Compare l'inflation en 2023, 2024 et 2025.", "fr"),
+    ("chnowa el plafond mta3 allocation voyage d'affaires l'entreprise?", "fr"),
+    ("ما هو المبلغ الأقصى لمنحة الإقامة؟", "ar"),
+])
+def test_answer_language_is_read_from_the_whole_question(question, language):
+    from answer_contract import language_of
+
+    assert language_of(question) == language
+
+
+def test_before_circular_x_does_not_require_evidence_from_x():
+    from answer_evidence import direct_identity
+
+    assert direct_identity("Avant la circulaire 2020-03, quel était le plafond ?") is None
+    assert direct_identity("Selon la circulaire 2020-03, quel est le plafond ?")["number"] == 3
+
+
+def test_selector_is_shown_the_line_that_answers_even_on_a_long_page():
+    from answer_draft import _relevant_units
+
+    page = "\n".join([
+        "L'intermédiaire agréé qui procède à l'annulation du règlement ainsi que le titulaire de l'allocation sont tenus d'en informer l'intermédiaire agréé domiciliataire de l'allocation dans les meilleurs délais.",
+        "SECTION 2 : ALLOCATION POUR VOYAGES D'AFFAIRES",
+        "« AUTRES ACTIVITÉS »",
+        "Article 8 : Les personnes physiques et morales résidentes ne disposant pas d'Allocations pour Voyages d'Affaires peuvent bénéficier d'une allocation pour voyages d'affaires « autres activités » ouverte auprès d'un intermédiaire agréé de leur choix, sur présentation des pièces justificatives prévues par la présente circulaire et dans les conditions fixées ci-après.",
+        "Article 9 : Le montant de l'Allocation pour Voyages d'Affaires « autres activités » est fixé à huit pourcent (8%) du chiffre d'affaires avec un plafond de cinquante mille dinars (50.000D) par année civile.",
+        "Article 10 : Lorsqu'à l'ouverture ou à la reconduction de cette allocation, la déclaration fiscale faisant ressortir le chiffre d'affaires de l'année précédente n'est pas encore disponible, l'allocation est ouverte sur la base de la dernière déclaration disponible, sous réserve de régularisation.",
+        "Article 11 : Les intermédiaires agréés peuvent ouvrir des dossiers d'Allocations pour Voyages d'Affaires « autres activités » au profit des personnes qui en font la demande, dans la limite des montants prévus par la présente circulaire et après vérification des pièces.",
+    ])
+    indices, spans = _relevant_units("Quel était le plafond de l'allocation voyages d'affaires autres activités ?", page, 1000)
+    shown = " ".join(page[spans[i][0]:spans[i][1]] for i in indices)
+    assert "50.000D" in shown
+
+
+def test_successor_order_only_when_the_replaced_text_is_in_the_evidence():
+    from answer_draft import _annotate_supersession
+
+    newest = {"evidence_id": "E1", "source": "Cir_2026_04_fr.pdf", "page": 2, "text": "règle 2026", "score": 0.9}
+    successor = {"evidence_id": "E2", "source": "Cir_2018_13_fr.pdf", "page": 2, "text": "règle 2018", "score": 0.8,
+                 "temporal_relation": "ABROGATES", "temporal_source_id": "cir:2018:13", "temporal_target_id": "cir:2017:9"}
+    # 2017-09 is not in the evidence: nothing is reordered, 2026-04 stays first.
+    assert [r["evidence_id"] for r in _annotate_supersession([newest, successor])] == ["E1", "E2"]
+    replaced = {"evidence_id": "E3", "source": "Cir_2017_09_fr.pdf", "page": 2, "text": "règle 2017", "score": 0.95}
+    annotated = _annotate_supersession([replaced, newest, successor])
+    assert annotated[0]["evidence_id"] == "E2" and annotated[0]["graph_role"] == "successor"
+    assert annotated[-1]["graph_role"] == "superseded"

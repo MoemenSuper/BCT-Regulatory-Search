@@ -34,8 +34,12 @@ _Avoid_: chunk index, legacy 0-based page, “page” without saying physical
 A human-facing excerpt of regulatory text (search hit or support text).
 _Avoid_: evidence (until selected), chunk, provision, source
 
+**Question wordings**:
+A question is searched with its standalone rewrite plus other wordings: the user's own words (new questions only, since a rewrite can add a detail the user never said) the same search in French and Arabic, the languages of the documents, and an **answer sketch**: one French sentence worded the way the answering text would be (“le ratio ne peut être inférieur à X %”), with X for anything unknown, never shown to the user. Each chunk is reranked against the wordings in its own script and keeps its best score, so an English or Arabic question reaches a French circular or statistics report. When the keyword and meaning searches both rank one chunk among their first three for a wording, that chunk keeps a top-5 place even if the reranker ranked it lower (at most one chunk moves).
+_Avoid_: translating the answer's sources; answering in the PDF's language instead of the question's
+
 **Chunk**:
-A page-local indexed unit of text used for retrieval. Not a legal unit.
+A page-local indexed unit of text used for retrieval. Not a legal unit. A chunk that continues a page starts at the beginning of a line or sentence (or at least a word), so a sentence cut at the end of one chunk is whole in the next.
 _Avoid_: passage, evidence, provision
 
 **Evidence**:
@@ -48,7 +52,8 @@ _Avoid_: unusable, corrupt document, “bad PDF” (the PDF is authoritative; th
 
 **Quotation**:
 A verbatim excerpt of the supplied physical page text. The model never copies it: evidence text is split into numbered units (`[E2.14]` = unit 14 of evidence E2; one line, one table row, or one sentence of a long line) and a claim cites unit IDs. The app resolves the IDs to the page's own characters; consecutive units merge into one excerpt; an unknown ID fails the claim (`unknown_citation`).
-_Avoid_: citation, paraphrase, summary, highlight alone
+Numbers are compared as values, read the way each language writes them: in French and Arabic texts a dot or a space groups thousands and a comma marks decimals (`50.000 D` = `50 000 D`; `146,952 MDT` is not `146.952 MDT`); an English claim uses English notation. A table, article or page reference the cited page really has (“tableau 4-1”, “page 120”) is not a fact that needs a quote.
+_Avoid_: citation, paraphrase, summary, highlight alone; comparing numbers character by character
 
 **Citation**:
 A numbered UI pointer (`[1]`, `[2]`) built only from retrieval metadata (`file` + `page`).
@@ -68,8 +73,9 @@ _Avoid_: mode, backend, provider (as the profile name); treating a profile as le
 
 **Answer status**:
 Product outcome of a turn: `answered`, `partial_answer`, `insufficient_evidence`, `clarification_needed`, `out_of_scope`, `search_results`, `general_chat`.
-`partial_answer` covers the supported part of the question; when the useful elements come from more than one page, the answer says so (after the claims). An answer comes only from a validated draft: at most two drafts, the second with the first one's validation feedback; complete claims are salvaged from truncated model output when possible. No model is then pushed to answer anyway. A pinned SUPERSEDES edge can still answer “X replaces Y” deterministically; otherwise `search_results` lists the top pages for inspection.
+`partial_answer` covers the supported part of the question; when the useful elements come from more than one page, the answer says so (after the claims). An answer comes only from a validated draft: at most two drafts, the second with the first one's validation feedback; complete claims are salvaged from truncated model output when possible. No model is then pushed to answer anyway. For a question about which text replaces which, or whether a text still applies, a pinned SUPERSEDES edge can still answer “X replaces Y” deterministically; otherwise `search_results` lists the top pages for inspection. When the selector and the draft both find that no retrieved passage answers, the turn is `insufficient_evidence` with no page list: those pages would be unrelated.
 Greetings, help, and conversation-summary turns use the router’s `GENERAL_CHAT` path: a short reply with **no retrieval**, status `general_chat` with empty sources — never `answered`, since no gate checks it. A reply stating a figure not already in the conversation goes to retrieval instead. Broad regulatory briefings still retrieve; the selector/writer prefer a multi-page **quoted** `partial_answer` when possible, without weakening quote checks. An empty model completion is treated as a draft failure (`draft_empty`), not repaired into `insufficient_evidence`. Selector evidence IDs are sanitized (keep valid IDs; map `1`/`e1` → `E1`) instead of discarding a whole selection for one bad ID.
+The answer is written in the question's language (read from the whole question, not its first word), whatever the language of the cited PDF. Questions about where a previous answer came from (“dans quel document, quelle page ?”) are `general_chat` answered from the conversation's sources.
 _Avoid_: “success” / “failure” as the only labels; treating `search_results` as a confirmed legal answer; treating `GENERAL_CHAT` as a fake out-of-scope refusal; treating a blank LLM completion as a deliberate abstention; pasting raw page/OCR text as the claim body
 
 ## JSONL supersession
@@ -83,8 +89,12 @@ Operative actions such as `REPLACE`, `ABROGATE`, `AMEND` (JSONL), surfaced to th
 _Avoid_: related, link, predecessor/successor as stored types without an action
 
 **Pinned relationship**:
-A JSONL edge that matched the query or top hits and contributed a declaring page with `temporal_relation` metadata.
+A JSONL edge for an instrument the question names; it contributes the declaring page, with `temporal_relation` metadata, in front of the hits. For a topic question that names no instrument, when one of the first three hits was later replaced or amended, retrieval follows the whole chain (2016-01 → 2021-03 → …), searches again inside the successors so the latest rule competes for the answer, and adds each step's declaring page after the hits (never in place of a page that answers), so the answer can say “remplacée par la circulaire Y, puis Z”. The answer layer marks successor / superseded and puts the successor first only when both texts are in the evidence.
 _Avoid_: “in force”, “currently applicable”, perfect legal interpretation
+
+**Wholly replaced**:
+An ABROGATE / REPLACE edge that names no article, annex, list or paragraph: the whole older text is gone, so its hits stay in the list but below the texts still in force (except for a historical cutoff question). An edge on one article or annex leaves the rest of the text in force. Stored edges are re-read with the current rules (their target must be an instrument the quote names; “25-07-2025” is a date, not circular 2025-07).
+_Avoid_: demoting a circular because one annex changed
 
 **Relationship only (not provision-resolved)**:
 An edge or `temporal_relation` proves instrument succession, not provision-level temporal applicability. When evidence carries `temporal_relation` / `relationship_note` for REPLACE / ABROGATE / AMEND, the answer layer keeps both instruments, marks successor vs superseded, and instructs the writer to state the relationship then follow the successor for conflicted facts.
@@ -93,6 +103,7 @@ _Avoid_: verified as synonym for current / en vigueur; silently dropping replace
 
 **Historical cutoff vs grandfathering**:
 `avant` / `before` / `قبل` demotes a named later instrument only when it directly precedes the instrument reference (“avant la circulaire 2025-13”) or the question says “ancien régime”. The same words do **not** demote when they describe something done before it (“engagements pris avant …”, “avant le 26 mars”, “avant l’entrée en vigueur de …”): those transitional / grandfathering questions answer from the named instrument.
+For a historical cutoff, retrieval also searches inside the instruments the named one replaced, abrogated or amended (from the supersession edges) and puts them first; the answer does not require evidence from the named instrument.
 _Avoid_: treating every “avant 2026-04” as a prior-regime retrieval
 
 ## Conversation and UI
@@ -152,5 +163,5 @@ Turn label for which kinds may prove claims: `regulatory_rule` | `statistical_fa
 _Avoid_: classifier as a refusal gate
 
 **Image region**:
-A Docling box on a readable page that the PDF text layer cannot fill: a picture, or a table or text that is itself an image (boxes under ~8 mm are skipped). Only that box is read visually (during enrichment) and its reading is put back in its place in the page text. Pictures are always read; the PDF words inside a picture's box stay searchable on a line starting `[Mots de l'image]` but are never citable, because their drawing order puts numbers next to the wrong labels. A page with no usable text layer is read whole instead.
+A Docling box on a readable page that the PDF text layer cannot fill: a picture, or a table or text that is itself an image (boxes under ~8 mm are skipped). Only that box is read visually (during enrichment) and its reading is put back in its place in the page text. Pictures are always read; the PDF words inside a picture's box stay searchable on a line starting `[Mots de l'image]` but are never citable, because their drawing order puts numbers next to the wrong labels. Every line of a picture's visual reading starts with `[Lecture de l'image]`: it is citable, but a number on it counts only when the picture's own `[Mots de l'image]` words have that number too (a reader can drop a decimal point, swap labels or invent a month). A page with no usable text layer is read whole instead.
 _Avoid_: embedding vector as proof of a number

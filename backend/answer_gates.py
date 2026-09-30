@@ -15,7 +15,7 @@ from answer_evidence import (
     plain as _plain, unit_spans, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
     claim_asserts_unverified_applicability, claim_asserts_unsupported_negative_amendment,
-    question_scenario_numbers,
+    question_scenario_numbers, confirmed_numbers, strip_structure_references,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,9 @@ class AnswerDraft(BaseModel):
     model_config = ConfigDict(extra="ignore")
     status: Literal["answered", "partial_answer", "insufficient_evidence", "clarification_needed", "out_of_scope"]
     message: str = Field(default="", max_length=600)
-    claims: list[Claim] = Field(default_factory=list, max_length=8)
+    # No cap on the number of claims: a broad question ("les règles des bureaux de change")
+    # can need ten supported facts, and each one is still checked on its own.
+    claims: list[Claim] = Field(default_factory=list)
 
 
 def _extract_complete_json_dicts(text, *, require_keys=()):
@@ -92,7 +94,7 @@ def _salvage_answer_payload(text):
         return None
     if status not in {"answered", "partial_answer"}:
         status = "partial_answer"
-    return {"status": status, "message": "", "claims": claims[:8]}
+    return {"status": status, "message": "", "claims": claims}
 
 
 def _load_answer_payload(content):
@@ -127,21 +129,29 @@ def _load_answer_payload(content):
     return payload
 
 
+# Small words only one of the two languages uses. Counting them over the whole question is
+# enough to tell French from English ("During Ramadan, what are the hours?" is English,
+# "Compare l'inflation en 2023 et 2024" is French) without another model call.
+_ENGLISH_WORDS = set(
+    "the is are was were what which who whom whose when where why how of for to in at and or "
+    "does do did can could should would must this that these those with from by about please "
+    "tell me my our their it its be been has have per much many any there".split()
+)
+_FRENCH_WORDS = set(
+    "le la les l un une des du de d est sont quel quelle quels quelles que qu qui quoi pour "
+    "par avec dans sur au aux et ou en ce cette ces il elle nous vous je j mon ma mes notre nos "
+    "peut doit combien comment pourquoi quand selon c s n pas était étaient".split()
+)
+
+
 def language_of(question):
+    """Language the answer is written in: "ar", "en" or "fr" (the default)."""
     if ARABIC.search(question):
         return "ar"
-    # This is intentionally a tiny deterministic router rather than another
-    # model call. Cover the common imperative/query starters used in the UI so
-    # English safe fallbacks are not accidentally rendered in French.
-    if re.search(
-        r"^\s*(?:what|which|who|when|where|how|why|please|tell|hello|can|could|would|"
-        r"is|are|was|were|does|do|did|give|show|find|explain|describe|compare|list|"
-        r"summarize|summarise|identify|check|has|have|should|may|must)\b",
-        question,
-        re.I,
-    ):
-        return "en"
-    return "fr"
+    words = re.findall(r"[a-zà-ÿ]+", question.casefold())
+    english = sum(word in _ENGLISH_WORDS for word in words)
+    french = sum(word in _FRENCH_WORDS for word in words)
+    return "en" if english > french else "fr"
 
 
 _MESSAGES = {
@@ -211,19 +221,26 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
         excerpt_blob = " ".join(supporting_text)
         if not claim_asserts_unsupported_negative_amendment(excerpt_blob):
             raise ValueError("unsupported_negative_amendment_claim")
-    supported = set().union(*(supported_numbers(text) for text in supporting_text))
     cited = [record for record, _excerpt in excerpts]
+    # Claims are written in the question's language, so their numbers are read with its rules
+    # (an English "75,966" is 75966); the BCT pages are read with French rules.
+    language = language_of(question)
+    supported = set().union(*(confirmed_numbers(text, record["text"])
+                              for record, text in zip(cited, supporting_text)))
     # A number the user asked about ("les billets de 100 et 500 couronnes")
     # may be restated when the cited page itself mentions it, even if the
     # supporting excerpt is only the answering sentence. Numbers absent from
     # the page, or not asked about, must be in the excerpt.
-    echoed = numeric_literals(question) & set().union(*(numeric_literals(record["text"]) for record in cited))
+    echoed = numeric_literals(question, language) & set().union(*(numeric_literals(record["text"]) for record in cited))
     # Scenario framing from the question (e.g. "26 mars 2026") may be restated
     # without appearing in the excerpt; the legal consequence still needs excerpts.
     scenario = question_scenario_numbers(question)
     claim_literals = strip_instrument_references(claim_literals, cited)
+    # "Selon le tableau 4-1" or "article 5": a table, article or page the cited page really has
+    # is a reference, not a fact that needs a quote.
+    claim_literals = strip_structure_references(claim_literals, cited)
     claim_numbers = (
-        numeric_literals(claim_literals)
+        numeric_literals(claim_literals, language)
         - trusted_years(question, cited)
         - echoed
         - scenario
@@ -236,7 +253,7 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     if any(record.get("evidence_warning") for record in cited):
         spelled = set().union(*(supported_numbers(text) - numeric_literals(text) for text in supporting_text))
         # Spelling a garbled digit out in words is still stating it.
-        claim_words = supported_numbers(claim_literals) - numeric_literals(claim_literals) - {"0", "1"}
+        claim_words = supported_numbers(claim_literals, language) - numeric_literals(claim_literals, language) - {"0", "1"}
         if (claim_numbers | claim_words) - spelled:
             raise ValueError("digits_unreliable_on_warned_page")
     if re.search(r"\[\d+\]|\.pdf\b|…|\.\.\.", claim_literals, re.I):
@@ -246,7 +263,7 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     _reject_invented_unit(claim_literals, supporting_text)
     _reject_dropped_condition(claim_literals, cited, supporting_text)
     _reject_scope_or_operator_inflation(claim_literals, supporting_text)
-    _reject_threshold_boundary(claim_literals, supporting_text)
+    _reject_threshold_boundary(claim_literals, supporting_text, language)
     return claim.text.strip() + " " + " ".join(f"[{n}]" for n in dict.fromkeys(numbers))
 
 
@@ -518,10 +535,10 @@ def _reject_scope_or_operator_inflation(claim_literals: str, supporting_excerpts
             raise ValueError("unsupported_claim_operator")
 
 
-def _reject_threshold_boundary(claim_literals: str, supporting_excerpts) -> None:
+def _reject_threshold_boundary(claim_literals: str, supporting_excerpts, language="fr") -> None:
     """Reject off-by-one day thresholds when the excerpt only supports N, not N±1."""
     excerpt_nums = set().union(*(supported_numbers(text) for text in supporting_excerpts))
-    claim_nums = numeric_literals(claim_literals)
+    claim_nums = numeric_literals(claim_literals, language)
     dayish = {
         token
         for token in claim_nums
@@ -565,7 +582,13 @@ def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_ex
 
     Restating question-scenario framing words is allowed when the cited page
     already shares substantive anchors with the question (on-topic evidence).
+
+    Words can only be compared within one language: an English question answered from a
+    French page never shares its words ("growth" vs "croissance"), so such pages are skipped.
     """
+    cited = [record for record in cited if record.get("language", "fr") == language_of(question)]
+    if not cited:
+        return
     page_plain = _plain(" ".join(record["text"] for record in cited)).casefold()
     excerpt_plain = _plain(" ".join(supporting_excerpts)).casefold()
     claim_plain = claim_literals.casefold()

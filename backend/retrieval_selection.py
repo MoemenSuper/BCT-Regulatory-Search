@@ -420,8 +420,9 @@ def page_chunks(documents: list[Document]) -> dict:
 
 
 def _join(left: str, right: str) -> str:
-    """Join consecutive page chunks, removing the chunker's overlap when it is visible."""
-    for size in range(min(len(right), 300), 19, -1):
+    """Join consecutive page chunks, removing the chunker's overlap when it is visible.
+    The chunker's overlap is at most 400 characters (it goes back to a sentence start)."""
+    for size in range(min(len(right), 450), 19, -1):
         if left.endswith(right[:size]):
             return left + right[size:]
     return left + "\n" + right

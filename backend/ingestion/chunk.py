@@ -4,12 +4,25 @@ import hashlib
 
 from langchain_core.documents import Document
 
-from answer_evidence import IMAGE_WORDS
+from answer_evidence import IMAGE_READING, IMAGE_WORDS
 
 from .models import StructuredDocument
 
 
-CHUNKER_VERSION = "bct-page-local-1000-200-v1"
+CHUNKER_VERSION = "bct-page-local-1000-200-v2"
+
+
+def _sentence_start(text: str, position: int, floor: int) -> int:
+    """Where the line or sentence holding `position` starts (not before `floor`), else the word.
+
+    The next chunk starts there, so a sentence cut at the end of one chunk is whole in the next:
+    "Un ratio de solvabilité qui ne peut pas être inférieur à 10 %" is never split into
+    "... être inféri" and "ur à 10 %".
+    """
+    cut = max(text.rfind("\n", floor, position), text.rfind(". ", floor, position), text.rfind("؛", floor, position))
+    if cut < 0:
+        cut = text.rfind(" ", floor, position)
+    return cut + 1 if cut >= 0 else position
 
 
 def _split(text: str, max_chars: int = 1000, overlap: int = 200) -> list[str]:
@@ -28,17 +41,23 @@ def _split(text: str, max_chars: int = 1000, overlap: int = 200) -> list[str]:
                 text.rfind(". ", start + max_chars // 2, end),
                 text.rfind("؛", start + max_chars // 2, end),
             )
+            if boundary < 0:  # one long sentence: at least end between two words
+                boundary = text.rfind(" ", start + max_chars // 2, end)
             if boundary >= 0:
                 end = boundary + 1
         piece = text[start:end].strip()
         line_start = text.rfind("\n", 0, start) + 1
-        if piece and line_start < start and text.startswith(IMAGE_WORDS, line_start):
-            piece = f"{IMAGE_WORDS} {piece}"  # a chunk starting mid image-words line must stay uncitable
+        # A chunk that starts in the middle of a marked line keeps the line's mark: image words
+        # stay uncitable, and a picture reading stays known as a reading.
+        for mark in (IMAGE_WORDS, IMAGE_READING):
+            if piece and line_start < start and text.startswith(mark, line_start):
+                piece = f"{mark} {piece}"
         if piece:
             pieces.append(piece)
         if end >= len(text):
             break
-        start = max(end - overlap, start + 1)
+        # The overlap goes back to the start of its sentence, at most twice the usual overlap.
+        start = max(_sentence_start(text, end - overlap, max(start + 1, end - 2 * overlap)), start + 1)
     return pieces
 
 

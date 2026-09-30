@@ -9,7 +9,7 @@ from pathlib import Path
 from langfuse import get_client
 from pydantic import BaseModel
 
-from answer_evidence import evidence_warning
+from answer_evidence import IMAGE_READING, evidence_warning
 
 from .models import VisualPage
 from .models import Block, Page, StructuredDocument
@@ -403,7 +403,11 @@ class PdfExtractor:
                         seen = region_texts[position].strip() if position < len(region_texts) else ""
                         position += 1
                         if seen:
-                            chosen_blocks.append(Block(type="paragraph", text=seen, page_number=page_number,
+                            # Every line of a picture reading carries the IMAGE_READING mark, so the
+                            # answer gates know these numbers come from a model reading a chart.
+                            marked = "\n".join(f"{IMAGE_READING} {line.strip()}"
+                                               for line in seen.splitlines() if line.strip())
+                            chosen_blocks.append(Block(type="paragraph", text=marked, page_number=page_number,
                                                        metadata={"extraction_method": "image_region"}))
                     if region_visual is not None:
                         flags.append("image_regions_read")

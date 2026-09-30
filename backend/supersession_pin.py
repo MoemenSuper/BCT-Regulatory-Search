@@ -1,4 +1,5 @@
-"""JSONL SUPERSEDES pin: rank/pin declaring pages onto retrieval hits."""
+"""JSONL SUPERSEDES pin: declaring pages for named instruments, relationship labels for topic hits,
+and the replaced texts for "avant la circulaire X" questions."""
 from __future__ import annotations
 
 import json
@@ -12,6 +13,7 @@ from langchain_core.documents import Document
 
 from query_currentness import is_temporal_rule_query
 from retrieval_selection import (
+    is_historical_cutoff_query,
     prefer_historical_hits,
     prefer_named_instrument_hits,
     query_instrument_refs,
@@ -86,51 +88,99 @@ def _page_label(document: Document) -> int | None:
             return None
 
 
-def select_edges_from_hits(
-    edges: list[SupersessionEdge],
-    ranked: list[tuple[Document, float]],
-    *,
-    limit: int = 3,
-    look_at: int = 8,
-) -> list[SupersessionEdge]:
-    """If top hits include superseded instruments, return edges that supersede them.
+def _relation_metadata(edge: SupersessionEdge) -> dict:
+    """The metadata the answer layer reads to say "X replaces / abrogates / amends Y"."""
+    return {
+        "temporal_relation": (
+            "ABROGATES"
+            if edge.action == "ABROGATE"
+            else "AMENDS"
+            if edge.action == "AMEND"
+            else "REPLACES"
+        ),
+        "temporal_source_id": edge.source_instrument,
+        "temporal_target_id": edge.target_instrument,
+    }
 
-    This is the topical-currentness path: user asks about hours/rates without naming
-    a circular; classic retrieve returns the old page; we pin the amending successor.
+
+def label_successor_hits(
+    ranked: list[tuple[Document, float]],
+    edges: list[SupersessionEdge],
+    *,
+    look_at: int = 8,
+) -> list[tuple[Document, float]]:
+    """Topic questions ("heures du marché des changes") can retrieve an old circular and the one
+    that replaced or amended it. Label the newer circular's hits with that relationship: the
+    answer layer then says so and follows the newer text where the two disagree.
+
+    Nothing is added or moved: a declaring page ("la circulaire X est abrogée") does not answer
+    a topic question, and many edges only replace an annex or an article, so the older text
+    can still be the one that answers.
     """
-    if not edges or not ranked:
-        return []
-    by_target: dict[str, list[SupersessionEdge]] = defaultdict(list)
+    hits = {instrument_from_filename(_source_name(doc)) for doc, _score in ranked[:look_at]}
+    edge_for: dict[str, SupersessionEdge] = {}
     for edge in edges:
         if edge.action not in {"ABROGATE", "REPLACE", "AMEND"}:
             continue
-        by_target[edge.target_instrument].append(edge)
+        if edge.source_instrument in hits and edge.target_instrument in hits:
+            edge_for.setdefault(edge.source_instrument, edge)
+    if not edge_for:
+        return ranked
+    labelled = []
+    for doc, score in ranked:
+        edge = edge_for.get(instrument_from_filename(_source_name(doc)))
+        if edge is not None and not doc.metadata.get("temporal_relation"):
+            doc = Document(page_content=doc.page_content, metadata={**doc.metadata, **_relation_metadata(edge)})
+        labelled.append((doc, score))
+    return labelled
 
-    hit_instruments: list[str] = []
-    for doc, _score in ranked[:look_at]:
-        instrument = instrument_from_filename(_source_name(doc))
-        if instrument and instrument not in hit_instruments:
-            hit_instruments.append(instrument)
 
-    scored: list[tuple[tuple, SupersessionEdge]] = []
-    for instrument in hit_instruments:
+def replacement_chain(
+    edges: list[SupersessionEdge],
+    ranked: list[tuple[Document, float]],
+    *,
+    look_at: int = 3,
+    max_edges: int = 4,
+) -> list[SupersessionEdge]:
+    """The replacements of the circulars that answer the question, and theirs in turn.
+
+    Only the first `look_at` hits count: those are the texts that answer. For each one, every
+    later instrument that replaced, abrogated or amended it, then whatever replaced those
+    (2016-01 -> 2021-02 and 2021-03), so the answer can give the latest rule and name each step.
+    """
+    by_target: dict[str, list[SupersessionEdge]] = defaultdict(list)
+    for edge in edges:
+        if edge.action in {"ABROGATE", "REPLACE", "AMEND"}:
+            by_target[edge.target_instrument].append(edge)
+    to_visit = [instrument_from_filename(_source_name(doc)) for doc, _score in ranked[:look_at]]
+    chain: list[SupersessionEdge] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    while to_visit and len(chain) < max_edges:
+        instrument = to_visit.pop(0)
         for edge in by_target.get(instrument, []):
-            # Prefer hard supersession, then later amending year.
-            action_rank = 0 if edge.action in {"ABROGATE", "REPLACE"} else 1
-            year = int(edge.source_instrument.split(":")[1])
-            scored.append(((action_rank, -year, edge.source_page), edge))
-    scored.sort(key=lambda row: row[0])
-    out: list[SupersessionEdge] = []
-    seen: set[tuple] = set()
-    for _key, edge in scored:
-        key = (edge.source_instrument, edge.target_instrument, edge.target_article, edge.source_page)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(edge)
-        if len(out) >= limit:
-            break
-    return out
+            pair = (edge.source_instrument, edge.target_instrument)
+            if pair in seen_pairs or len(chain) >= max_edges:
+                continue
+            seen_pairs.add(pair)
+            chain.append(edge)
+            to_visit.append(edge.source_instrument)
+    return chain
+
+
+def _instrument_ref(instrument: str, reason: str) -> dict:
+    kind, year, number = instrument.split(":")
+    return {"kind": kind, "year": int(year), "number": int(number), "route_reason": reason}
+
+
+def predecessor_refs(edges: list[SupersessionEdge], query: str) -> list[dict]:
+    """For "avant la circulaire X": the instruments X replaced, abrogated or amended."""
+    named = instruments_from_text(query)
+    refs, seen = [], set()
+    for edge in edges:
+        if edge.source_instrument in named and edge.target_instrument not in seen:
+            seen.add(edge.target_instrument)
+            refs.append(_instrument_ref(edge.target_instrument, "historical_predecessor"))
+    return refs
 
 
 def _edge_document(edge: SupersessionEdge, page_lookup) -> Document | None:
@@ -145,44 +195,50 @@ def _edge_document(edge: SupersessionEdge, page_lookup) -> Document | None:
             "pages": [int(page_label)],
             "page_label": int(page_label),
             "retrieval_source": "jsonl_supersession",
-            "temporal_relation": (
-                "ABROGATES"
-                if edge.action == "ABROGATE"
-                else "AMENDS"
-                if edge.action == "AMEND"
-                else "REPLACES"
-            ),
-            "temporal_source_id": edge.source_instrument,
-            "temporal_target_id": edge.target_instrument,
+            **_relation_metadata(edge),
         },
     )
 
 
-def _demote_fully_superseded(
+def _declaring_pages(chain, ranked, page_lookup) -> list[tuple[Document, float]]:
+    """The pages that say "la présente circulaire abroge et remplace X", after the ranked hits.
+
+    They prove "X a été remplacée par Y", which the answer states; they are not the answer, so
+    they come last and never take a place from a page that answers (conversation.py adds them
+    to the evidence)."""
+    present = {(_source_name(doc).casefold(), _page_label(doc)) for doc, _score in ranked}
+    pages = []
+    for edge in chain:
+        doc = _edge_document(edge, page_lookup)
+        if doc is None:
+            continue
+        key = (_source_name(doc).casefold(), _page_label(doc))
+        if key not in present:
+            present.add(key)
+            pages.append((doc, 0.0))
+    return pages
+
+
+def _demote_wholly_replaced(
     ranked: list[tuple[Document, float]],
     edges: list[SupersessionEdge],
-    pinned_sources: set[str],
 ) -> list[tuple[Document, float]]:
-    """Push abrogated/replaced instruments below live hits, only when their successor is pinned."""
-    if not ranked or not pinned_sources:
-        return ranked
-    superseded: set[str] = set()
-    for edge in edges:
-        if edge.action not in {"ABROGATE", "REPLACE"}:
-            continue
-        if edge.source_instrument in pinned_sources:
-            superseded.add(edge.target_instrument)
-    if not superseded:
-        return ranked
+    """A text another circular abrogated or replaced as a whole is no longer the governing rule:
+    keep it in the list, below the texts still in force."""
+    replaced = {
+        edge.target_instrument
+        for edge in edges
+        # An edge that names an article, an annex or a list leaves the rest of the text in force.
+        if edge.action in {"ABROGATE", "REPLACE"} and not edge.target_article
+    }
     keep: list[tuple[Document, float]] = []
     demoted: list[tuple[Document, float]] = []
     for doc, score in ranked:
-        instrument = instrument_from_filename(_source_name(doc))
-        if instrument and instrument in superseded:
+        if instrument_from_filename(_source_name(doc)) in replaced:
             demoted.append((doc, score))
         else:
             keep.append((doc, score))
-    return keep + demoted if demoted else ranked
+    return keep + demoted
 
 
 def _prefer_successor_instrument_hits(
@@ -224,23 +280,20 @@ def pin_supersession_edges(
     *,
     page_lookup,
 ) -> list[tuple[Document, float]]:
-    """Pin declaring pages for (1) instruments named in the query and (2) superseded
-    instruments that already appear in classic top hits (topical currentness)."""
+    """Order hits by what is still in force, and pin replacement pages for named instruments.
+
+    1. Retrieved texts that replace or amend another retrieved text are labelled with it.
+    2. Wholly replaced texts go below the texts still in force, unless the question asks for
+       the time before a circular ("avant la circulaire X"): then the old texts are the answer.
+    3. A question that names an instrument ("la circulaire 2016-01 est-elle en vigueur ?") gets
+       the page that declares its replacement pinned in front.
+    """
     if not edges or not ranked:
         return ranked
-    picked: list[SupersessionEdge] = []
-    seen_edge: set[tuple] = set()
-    candidates = select_edges(edges, query, limit=2) + select_edges_from_hits(
-        edges, ranked, limit=3
-    )
-    for edge in candidates:
-        key = (edge.source_instrument, edge.target_instrument, edge.target_article, edge.source_page)
-        if key in seen_edge:
-            continue
-        seen_edge.add(key)
-        picked.append(edge)
-        if len(picked) >= 2:
-            break
+    ranked = label_successor_hits(ranked, edges)
+    if not is_historical_cutoff_query(query):
+        ranked = _demote_wholly_replaced(ranked, edges)
+    picked = select_edges(edges, query, limit=2)
     if not picked:
         return ranked
 
@@ -267,7 +320,6 @@ def pin_supersession_edges(
             extras.append((doc, 9000.0))
     combined = extras + working if extras else working
     combined = _prefer_successor_instrument_hits(combined, pinned_sources)
-    combined = _demote_fully_superseded(combined, edges, pinned_sources)
     # "Is X still in force?" wants the successor first; "Selon X" wants X itself first.
     if not is_temporal_rule_query(query):
         combined = prefer_named_instrument_hits(combined, query_instrument_refs(query))
@@ -283,11 +335,21 @@ class SupersessionPinBackend:
         self.page_lookup = page_lookup
         self.expand_pages = getattr(inner, "expand_pages", None)
 
-    def retrieve(self, query: str):
-        ranked = list(self.inner.retrieve(query))
-        return pin_supersession_edges(
-            ranked, query, self.edges, page_lookup=self.page_lookup
-        )
+    def retrieve(self, query: str, other_queries=()):
+        historical = is_historical_cutoff_query(query)
+        # "Avant la circulaire X": search inside the texts X replaced and put them first.
+        predecessors = predecessor_refs(self.edges, query) if historical else []
+        ranked = list(self.inner.retrieve(query, other_queries=other_queries, instruments=predecessors))
+        # A text that answers was later replaced: search inside its successors too, so the rule
+        # that applies now competes for the answer.
+        chain = [] if historical else replacement_chain(self.edges, ranked)
+        if chain:
+            successors = [_instrument_ref(instrument, "successor")
+                          for instrument in dict.fromkeys(edge.source_instrument for edge in chain)]
+            ranked = list(self.inner.retrieve(query, other_queries=other_queries, instruments=successors))
+        ranked = prefer_named_instrument_hits(ranked, predecessors)
+        ranked = pin_supersession_edges(ranked, query, self.edges, page_lookup=self.page_lookup)
+        return ranked + _declaring_pages(chain, ranked, self.page_lookup)
 
 
 def build_page_lookup_from_native(native_path: Path):

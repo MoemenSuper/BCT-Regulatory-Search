@@ -3,7 +3,9 @@ import re
 import unicodedata
 
 from query_currentness import is_relationship_query, is_temporal_rule_query
-from retrieval_selection import _ARABIC_RANGE as _AR, parse_query_identity, parse_source_identity
+from retrieval_selection import (
+    _ARABIC_RANGE as _AR, is_historical_cutoff_query, parse_query_identity, parse_source_identity,
+)
 
 
 _TYPOGRAPHY = str.maketrans({**{c: "-" for c in "‐‑‒–—−"}, "’": "'", "‘": "'",
@@ -23,8 +25,13 @@ _SENTENCE_END = re.compile(r"(?<=[.؟?!])[ \t]+(?=[A-ZÀ-ÖØ-Þ«\"(؀-ۿ])")
 _LONG_LINE = 400
 # Ingestion prefixes the PDF words found inside a picture's box with this mark. They help
 # retrieval find the page, but their order is the PDF's drawing order (a chart's number sits next
-# to the wrong label): such lines are never citable. The picture's visual reading is citable.
+# to the wrong label): such lines are never citable.
 IMAGE_WORDS = "[Mots de l'image]"
+# Ingestion prefixes every line the visual reader wrote for a picture with this mark. A reading
+# is a model looking at a chart: it can drop a decimal point, swap two labels or invent a month.
+# Its lines are citable, but their numbers count only when the PDF's own words inside the picture
+# (the IMAGE_WORDS line) contain them too (see confirmed_numbers).
+IMAGE_READING = "[Lecture de l'image]"
 
 
 def unit_spans(text):
@@ -49,18 +56,51 @@ def unit_spans(text):
     return spans
 
 
-def numeric_literals(text):
-    # Preserve leading zeroes and decimal scale. 10.000 may be a decimal or a
-    # thousands grouping: do not guess. The writer can copy the source notation.
+# How each language writes 146952,5:
+#   French and Arabic texts (every BCT document): "146.952,5" or "146 952,5", i.e. a dot or
+#   a space groups the thousands and a comma marks the decimals ("2,5 %");
+#   English: "146,952.5", i.e. a comma groups the thousands and a dot marks the decimals.
+# A group of thousands is exactly three digits after a first group of one to three digits.
+_SPACES = "   "
+_GROUPED = {
+    "fr": re.compile(rf"(?<![\d.,])(?P<whole>[1-9]\d{{0,2}}(?:[{_SPACES}.٬]\d{{3}}(?!\d))+)(?:[,٫](?P<decimals>\d+))?"),
+    # A dot before exactly three digits is still thousands in English answers: the model
+    # often copies the French source ("4.000 D"), and three-decimal values are rare here.
+    "en": re.compile(rf"(?<![\d.,])(?P<whole>[1-9]\d{{0,2}}(?:[{_SPACES},.]\d{{3}}(?!\d))+)(?:\.(?P<decimals>\d+))?"),
+}
+_PLAIN_NUMBER = re.compile(r"\d+(?:[.,٫]\d+)?")
+
+
+def _value(digits, decimals=""):
+    """One way to write a value, so "05", "5" and "5,0" all become "5"."""
+    digits = digits.lstrip("0") or "0"
+    decimals = decimals.rstrip("0")
+    return f"{digits}.{decimals}" if decimals else digits
+
+
+def numeric_literals(text, language="fr"):
+    """The values of the numbers written in a text (as strings such as "146952" or "2.5").
+
+    Values, not characters: "50.000 D" and "50 000 D" are the same amount, while "146,952 MDT"
+    in a French sentence is 146 dinars and some millimes, not 146 thousand.
+    language is the language of the text: "en" for an English answer, French rules otherwise.
+    """
     normalized = plain(text)
     normalized = "".join(str(unicodedata.decimal(c)) if c.isdecimal() else c for c in normalized)
-    normalized = re.sub(r"(?<!\d)\d{1,3}(?: \d{3})+(?!\d)",
-                        lambda m: m[0].replace(" ", ""), normalized)
-    return set(re.findall(r"\d+(?:[.,٫]\d+)?", normalized.replace(",", ".").replace("٫", ".")))
+    grouped = _GROUPED["en" if language == "en" else "fr"]
+    values = set()
+    for match in grouped.finditer(normalized):
+        values.add(_value(re.sub(r"\D", "", match["whole"]), match["decimals"] or ""))
+    # What is left are plain numbers: a comma or a dot inside them is a decimal mark.
+    rest = grouped.sub(" ", normalized)
+    for number in _PLAIN_NUMBER.findall(rest):
+        whole, _, decimals = number.replace(",", ".").replace("٫", ".").partition(".")
+        values.add(_value(whole, decimals))
+    return values
 
 
-def supported_numbers(text):
-    numbers = numeric_literals(text)
+def supported_numbers(text, language="fr"):
+    numbers = numeric_literals(text, language)
     # Common standalone word/digit equivalences, not arithmetic or unit conversion.
     words = (
         "zero zéro صفر", "one un une واحد واحدة", "two deux اثنان اثنين", "three trois ثلاثة ثلاث",
@@ -73,6 +113,44 @@ def supported_numbers(text):
         if re.search(r"(?<![\w-])(?:" + "|".join(aliases.split()) + r")(?![\w-])", folded):
             numbers.add(str(value))
     return numbers
+
+
+def confirmed_numbers(excerpt, page_text):
+    """Numbers an excerpt can prove. A line the visual reader wrote for a picture proves a number
+    only when the PDF's own words inside that picture have it: "Tunis 391" read from a chart whose
+    printed labels say 39,1 % proves nothing."""
+    printed = supported_numbers(" ".join(
+        line for line in page_text.split("\n") if line.startswith(IMAGE_WORDS)))
+    numbers = set()
+    for line in excerpt.split("\n"):
+        found = supported_numbers(line)
+        numbers |= (found & printed) if line.startswith(IMAGE_READING) else found
+    return numbers
+
+
+# "tableau 4-1", "article 12", "page 155", "الفصل 5": where a fact sits, not the fact itself.
+_STRUCTURE_REFERENCE = re.compile(
+    r"(?i)(?<!\w)(tableau|table|graphique|annexe|article|chapitre|section|page|الفصل|الجدول|الملحق|الصفحة)"
+    r"\s*(?:n\s*[°º]\s*)?(\d+(?:\s*-\s*\d+)?)(?!\d)"
+)
+
+
+def strip_structure_references(text, records):
+    """Remove the table, article or page references the cited pages really have.
+
+    "Selon le tableau 4-1" is fine when the cited page shows "Tableau 4-1"; "page 155" is fine
+    when a cited passage is page 155. A reference the pages do not have stays in the text, so the
+    number check still rejects it."""
+    def reference(match):
+        label, number = match[1].casefold(), re.sub(r"\s+", "", match[2])
+        for record in records:
+            if label in ("page", "الصفحة") and number == str(record["page"]):
+                return " "
+            written = re.escape(number).replace(r"\-", r"\s*-\s*")
+            if re.search(rf"(?i)(?<!\w){label}\w*\s*(?:n\s*[°º]\s*)?{written}(?!\d)", plain(record["text"])):
+                return " "
+        return match[0]
+    return _STRUCTURE_REFERENCE.sub(reference, plain(text))
 
 
 def explicit_identity(question):
@@ -89,6 +167,9 @@ def explicit_identity(question):
 def direct_identity(question):
     # A question about amendments, history or comparisons needs the related
     # documents too. A direct contents question must stay on its named instrument.
+    # "Avant la circulaire X" asks for the texts X replaced, so X is not the one to answer from.
+    if is_historical_cutoff_query(question):
+        return None
     if is_temporal_rule_query(question) or is_relationship_query(question) or re.search(
         r"\b(?:compar\w*|entre|between|évolu\w*)\b|مقارنة|بين|تعديل|تغيير|استبدل",
         question, re.I,
@@ -270,7 +351,8 @@ _NEGATIVE_AMENDMENT_CLAIM = re.compile(
     r"nothing\s+(?:later|subsequent)\s+(?:modifies|amends)|"
     r"no\s+later\s+text|"
     r"لا\s+يوجد\s+(?:أي\s+)?نص\s+(?:لاحق|معدل)|"
-    r"لم\s+(?:يعدل|تعد|يلغ|تعدل)"
+    # Not "لم تعد": that is "no longer" ("لم تعد صالحة", no longer valid), not "not amended".
+    r"لم\s+(?:يعدل|يلغ|تعدل)"
     r")"
 )
 

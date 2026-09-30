@@ -54,3 +54,5 @@ Thumbs.db
 frontend/public/bct-logo-white-full.png
 /tmp
 /backend/tmp
+backend/tests/benchmark/suite_retrieval/questions.json
+backend/tests/benchmark/suite_retrieval/run.py

@@ -92,7 +92,7 @@ def main() -> int:
     edges = load_edges(resolved) if resolved else []
     # Prove maybe_wrap_backend sees the regenerated file (dummy inner backend).
     class _Dummy:
-        def retrieve(self, query):
+        def retrieve(self, query, other_queries=(), instruments=()):
             return []
 
     wrapped = maybe_wrap_backend(_Dummy(), active)
