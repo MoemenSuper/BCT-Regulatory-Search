@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from retrieval_selection import ARABIC, _ascii_fold
-from graph_contract import is_temporal_rule_query
+from query_currentness import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, unit_spans, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,

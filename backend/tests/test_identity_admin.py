@@ -328,7 +328,7 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
         conversation_id="c-rate",
         user_id="u1",
         user_email="analyst@bct.gov.tn",
-        question="Rate limited ?",
+        question="=HYPERLINK(1) Rate limited ?",
         answer_status="search_results",
         reason="provider:RateLimitError",
         diagnostics=["provider:RateLimitError"],
@@ -358,7 +358,7 @@ def test_admin_exports_full_answer_refusals_csv(auth_client):
     assert "attachment" in response.headers["content-disposition"]
     body_csv = response.text
     assert "created_at,user_email,user_id,answer_status" in body_csv
-    assert "Rate limited ?" in body_csv
+    assert "'=HYPERLINK(1) Rate limited ?" in body_csv
     assert "Question 0 ?" not in body_csv
     assert "Rate limit" in body_csv
 
@@ -408,3 +408,42 @@ def test_thumbs_down_feedback_lands_in_answer_refusals(auth_client):
     assert item["reason_bucket"] == "user_thumbs_down"
     assert item["question"] == "Au-delà de quel délai ?"
     assert item["answer_status"] == "answered"
+
+
+def test_login_is_throttled_per_email_and_ip_after_repeated_failures(auth_client):
+    for _ in range(5):
+        wrong = auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "wrong-pass"})
+        assert wrong.status_code == 401
+    blocked = auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+    assert blocked.status_code == 429
+
+
+def test_attempt_limiter_counts_before_the_check_and_uncounts_successes():
+    from identity import AttemptLimiter
+
+    limiter = AttemptLimiter(limit=2, window_seconds=60)
+    assert limiter.hit("admin|1.2.3.4") and limiter.hit("admin|1.2.3.4")
+    assert not limiter.hit("admin|1.2.3.4")  # a third parallel attempt is refused
+    assert limiter.hit("admin|5.6.7.8")  # the owner's own address is unaffected
+    limiter.release("admin|5.6.7.8")
+    assert limiter.hit("admin|5.6.7.8") and limiter.hit("admin|5.6.7.8")
+
+
+def test_old_scrypt_hashes_still_verify_and_are_upgraded_at_login(tmp_path):
+    import hashlib
+    import secrets as _secrets
+
+    from identity import SCRYPT_N
+
+    store = AuthStore(tmp_path / "auth.sqlite3")
+    user = store.create_user(email="old@bct.tn", password="Password123")
+    salt = _secrets.token_bytes(16)
+    digest = hashlib.scrypt(b"Password123", salt=salt, n=2**12, r=8, p=1, dklen=32)
+    store._conn.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                        (f"scrypt${2**12}${salt.hex()}${digest.hex()}", user.id))
+    store._conn.commit()
+    assert store.authenticate("old@bct.tn", "Password123") is not None
+    stored = store._conn.execute("SELECT password_hash FROM users WHERE id = ?", (user.id,)).fetchone()[0]
+    assert stored.startswith(f"scrypt${SCRYPT_N}$")
+    assert store.authenticate("missing@bct.tn", "Password123") is None
+    store.close()

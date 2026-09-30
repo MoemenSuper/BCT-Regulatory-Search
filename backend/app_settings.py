@@ -8,6 +8,7 @@ import threading
 import time
 from pathlib import Path
 
+from sqlite_local import thread_connection
 from runtime_profiles import RuntimeProfile, parse_profile, profile_options
 
 # Keys administrators may set. Values are applied into os.environ for the process.
@@ -56,11 +57,7 @@ class AppSettingsStore:
 
     @property
     def _conn(self) -> sqlite3.Connection:
-        # One connection per thread: a shared sqlite3 connection races under FastAPI's threadpool.
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
-            conn = self._local.conn = sqlite3.connect(self.path, timeout=30)
-        return conn
+        return thread_connection(self._local, self.path)
 
     def close(self) -> None:
         self._conn.close()

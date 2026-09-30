@@ -2,11 +2,33 @@ import json
 import os
 from pathlib import Path
 import re
-import sqlite3
+import threading
+from typing import TypedDict
 from uuid import uuid4
 
+from sqlite_local import thread_connection
 
-def new_memory_state():
+
+class Turn(TypedDict):
+    """One question and its answer, as the assistant remembers it."""
+
+    user_message: str  # what the user typed
+    standalone_query: str  # the question rewritten to stand alone; this is what was searched
+    answer: str
+    sources: list[dict]  # the answer's citations: {"file", "page", "score", "excerpt"}
+    answer_status: str | None  # answered, partial_answer, search_results, ...
+
+
+class MemoryState(TypedDict):
+    """What the assistant remembers of one conversation (stored as JSON with it)."""
+
+    topics: list[str]  # every topic discussed, in order
+    first_topic: str | None
+    current_topic: str | None  # the topic a follow-up like "et en 2020 ?" refers to
+    turns: list[Turn]  # the most recent turns only
+
+
+def new_memory_state() -> MemoryState:
     return {
         "topics": [],
         "first_topic": None,
@@ -91,6 +113,7 @@ class ConversationStore:
         self.path = Path(path)
         self.max_turns = max_turns
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._local = threading.local()
         with self._connect() as connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute(
@@ -287,7 +310,6 @@ class ConversationStore:
             params.extend(selected_reasons)
         query += " ORDER BY created_at DESC, rowid DESC"
         with self._connect() as connection:
-            connection.row_factory = sqlite3.Row
             # ponytail: bucket filter in Python; admin log stays small enough
             rows = connection.execute(query, params).fetchall()
         items = []
@@ -396,7 +418,6 @@ class ConversationStore:
         owner = self._require_user_id(user_id)
         limit = max(1, min(int(limit), 500))
         with self._connect() as connection:
-            connection.row_factory = sqlite3.Row
             rows = connection.execute(
                 """
                 WITH ranked AS (
@@ -459,7 +480,6 @@ class ConversationStore:
     def get_turn(self, conversation_id, turn_id, *, user_id: str):
         owner = self._require_user_id(user_id)
         with self._connect() as connection:
-            connection.row_factory = sqlite3.Row
             owned = connection.execute(
                 "SELECT 1 FROM conversation_sessions "
                 "WHERE conversation_id = ? AND user_id = ?",
@@ -492,7 +512,6 @@ class ConversationStore:
         if state is None:
             return None
         with self._connect() as connection:
-            connection.row_factory = sqlite3.Row
             title_row = connection.execute(
                 "SELECT title FROM conversation_sessions "
                 "WHERE conversation_id = ? AND user_id = ?",
@@ -534,7 +553,7 @@ class ConversationStore:
         }
 
     def _connect(self):
-        return sqlite3.connect(self.path, timeout=30)
+        return thread_connection(self._local, self.path)
 
     @staticmethod
     def _require_user_id(user_id: str) -> str:

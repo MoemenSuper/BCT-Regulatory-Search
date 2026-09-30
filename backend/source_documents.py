@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import time
 import unicodedata
 
 
@@ -174,7 +175,7 @@ def _tokens(value: str) -> list[str]:
     return [_normalize_text(token) for token in _TOKEN_RE.findall(value) if _normalize_text(token)]
 
 
-def _word_highlight_rects(page, quote: str):
+def _word_highlight_rects(page, quote: str, deadline: float | None = None):
     """Fallback fuzzy locator using real PDF word geometry.
 
     This never changes evidence text; it is only a visual locator when PDF.js/
@@ -204,46 +205,20 @@ def _word_highlight_rects(page, quote: str):
         return []
 
     page_tokens = [item[0] for item in words]
-    qn = len(quote_tokens)
-
-    # Exact normalized token subsequence first.
-    start_index = None
-    end_index = None
-    for start in range(0, max(0, len(page_tokens) - qn + 1)):
-        if page_tokens[start : start + qn] == quote_tokens:
-            start_index, end_index = start, start + qn
-            break
-
-    # Conservative fuzzy fallback. It is better to show no yellow overlay than
-    # highlight the wrong regulatory sentence.
-    if start_index is None:
-        best = (0.0, 0, 0)
-        min_len = max(1, qn - min(4, qn // 4))
-        max_len = min(len(page_tokens), qn + min(4, qn // 4))
-        quote_joined = " ".join(quote_tokens)
-        # Rank every window on cheap token-level similarity, then confirm only the
-        # best few with the character-level ratio that decides the threshold.
-        # Character ratios on every window took 5-50 s per page for long quotes.
-        scored = [
-            (
-                SequenceMatcher(None, quote_tokens, page_tokens[start : start + window], autojunk=False).ratio(),
-                start,
-                start + window,
-            )
-            for window in range(min_len, max_len + 1)
-            for start in range(0, len(page_tokens) - window + 1)
-        ]
-        for _score, start, end in heapq.nlargest(20, scored):
-            candidate = " ".join(page_tokens[start:end])
-            ratio = SequenceMatcher(None, quote_joined, candidate, autojunk=False).ratio()
-            if ratio > best[0]:
-                best = (ratio, start, end)
-        threshold = 0.78 if qn <= 5 else 0.72
-        if best[0] < threshold:
-            return []
-        start_index, end_index = best[1], best[2]
-
-    matched = [item[1] for item in words[start_index:end_index]]
+    # The quote comes from the request and the fuzzy pass costs about the square of its
+    # length per page window: locate a long quote piece by piece (pieces of at least half the
+    # chunk size, so a short tail cannot land on an unrelated repeat) and stop fuzzy
+    # matching once the time budget (shared by every quote segment) is spent. Exact
+    # matches stay cheap and always run.
+    pieces = -(-len(quote_tokens) // _FUZZY_CHUNK_TOKENS)
+    size = -(-len(quote_tokens) // pieces)
+    if deadline is None:
+        deadline = time.monotonic() + _FUZZY_BUDGET_SECONDS
+    matched = []
+    for start in range(0, len(quote_tokens), size):
+        span = _match_span(quote_tokens[start : start + size], page_tokens, deadline)
+        if span:
+            matched.extend(item[1] for item in words[span[0] : span[1]])
     if not matched:
         return []
 
@@ -267,6 +242,56 @@ def _word_highlight_rects(page, quote: str):
     return rects
 
 
+_FUZZY_CHUNK_TOKENS = 30
+_FUZZY_BUDGET_SECONDS = 2.0
+
+
+def _match_span(quote_tokens, page_tokens, deadline):
+    """(start, end) of the page tokens matching the quote tokens, or None."""
+    qn = len(quote_tokens)
+
+    # Exact normalized token subsequence first.
+    start_index = None
+    end_index = None
+    for start in range(0, max(0, len(page_tokens) - qn + 1)):
+        if page_tokens[start : start + qn] == quote_tokens:
+            start_index, end_index = start, start + qn
+            break
+
+    # Conservative fuzzy fallback. It is better to show no yellow overlay than
+    # highlight the wrong regulatory sentence.
+    if start_index is None:
+        best = (0.0, 0, 0)
+        min_len = max(1, qn - min(4, qn // 4))
+        max_len = min(len(page_tokens), qn + min(4, qn // 4))
+        quote_joined = " ".join(quote_tokens)
+        # Rank every window on cheap token-level similarity, then confirm only the
+        # best few with the character-level ratio that decides the threshold.
+        # Character ratios on every window took 5-50 s per page for long quotes.
+        scored = []
+        for window in range(min_len, max_len + 1):
+            if time.monotonic() > deadline:
+                return None
+            scored.extend(
+                (
+                    SequenceMatcher(None, quote_tokens, page_tokens[start : start + window], autojunk=False).ratio(),
+                    start,
+                    start + window,
+                )
+                for start in range(0, len(page_tokens) - window + 1)
+            )
+        for _score, start, end in heapq.nlargest(20, scored):
+            candidate = " ".join(page_tokens[start:end])
+            ratio = SequenceMatcher(None, quote_joined, candidate, autojunk=False).ratio()
+            if ratio > best[0]:
+                best = (ratio, start, end)
+        threshold = 0.78 if qn <= 5 else 0.72
+        if best[0] < threshold:
+            return None
+        start_index, end_index = best[1], best[2]
+    return start_index, end_index
+
+
 def _quote_segments(quote: str) -> list[str]:
     # answer_contract joins multiple exact quotes from the same physical page with
     # an ellipsis separator. Locate each original quote independently so the PDF
@@ -281,6 +306,7 @@ def _quote_segments(quote: str) -> list[str]:
 
 def locate_quote(page, quote: str):
     rects = []
+    deadline = time.monotonic() + _FUZZY_BUDGET_SECONDS
     for cleaned in _quote_segments(quote):
         # PyMuPDF recommends quads=True for text-marker annotations because it
         # preserves orientation information for rotated / non-horizontal text.
@@ -291,7 +317,7 @@ def locate_quote(page, quote: str):
         if direct:
             rects.extend(direct)
             continue
-        rects.extend(_word_highlight_rects(page, cleaned))
+        rects.extend(_word_highlight_rects(page, cleaned, deadline))
     return rects
 
 

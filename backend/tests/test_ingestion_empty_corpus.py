@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from langchain_core.documents import Document
 
+from cloud import voyage_index
 from ingestion import index as index_module
 from runtime_retrieval import _read_chunks, document_binding
 
@@ -34,7 +35,7 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
         def embed_document_chunks(self, texts, **_kwargs):
             return np.ones((len(texts), self.dimension), dtype=np.float32)
 
-    from runtime_retrieval import CloudEmbedSpec
+    from cloud.voyage_client import CloudEmbedSpec
 
     fake_spec = CloudEmbedSpec(
         key="voyage",
@@ -43,9 +44,9 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
         dimension=4,
         contextual=False,
     )
-    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
+    monkeypatch.setattr(voyage_index, "VOYAGE_SPEC", fake_spec)
     monkeypatch.setattr(
-        index_module, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
+        voyage_index, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
     )
     monkeypatch.setenv("BCT_INGEST_CLOUD_INDEX", "1")
 
@@ -55,7 +56,7 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
             metadata={"source": "Cir_2016_01_fr.pdf", "page": 1, "pages": [1]},
         )
     ]
-    staged, snapshot = index_module.stage_cloud_assets(
+    staged, snapshot = index_module.stage_assets(
         asset_root=root,
         new_primary=primary,
         new_visual=[],
@@ -88,7 +89,7 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
         calls["n"] += 1
         raise AssertionError("Voyage client must not be constructed on local_hybrid ingest")
 
-    from runtime_retrieval import CloudEmbedSpec
+    from cloud.voyage_client import CloudEmbedSpec
 
     fake_spec = CloudEmbedSpec(
         key="voyage",
@@ -99,10 +100,10 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
     )
     monkeypatch.setenv("BCT_DEFAULT_PROFILE", "local_hybrid")
     monkeypatch.delenv("BCT_INGEST_CLOUD_INDEX", raising=False)
-    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
-    monkeypatch.setattr(index_module, "create_cloud_runtime_client", boom)
+    monkeypatch.setattr(voyage_index, "VOYAGE_SPEC", fake_spec)
+    monkeypatch.setattr(voyage_index, "create_cloud_runtime_client", boom)
 
-    staged, snapshot = index_module.stage_cloud_assets(
+    staged, snapshot = index_module.stage_assets(
         asset_root=root,
         new_primary=[
             Document(
@@ -123,7 +124,7 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
 
 
 def test_load_bound_index_empty_documents_is_empty_array(tmp_path: Path):
-    from runtime_retrieval import VOYAGE_SPEC, _load_bound_index
+    from cloud.voyage_retrieval import VOYAGE_SPEC, _load_bound_index
 
     vectors = _load_bound_index(tmp_path, "arabic_ocr_secondary", [], VOYAGE_SPEC)
     assert vectors.shape == (0, VOYAGE_SPEC.dimension)

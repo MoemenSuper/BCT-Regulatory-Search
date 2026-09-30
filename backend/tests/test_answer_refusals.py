@@ -47,7 +47,7 @@ def test_chat_keeps_refusal_reason_without_user_facing_diagnostics(monkeypatch):
             "diagnostics": ["unknown_citation", "unknown_citation"],
         }
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",

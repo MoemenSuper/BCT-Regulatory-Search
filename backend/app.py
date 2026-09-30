@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
@@ -23,6 +23,7 @@ from conversation import chat
 from conversation_memory import open_conversation_store, summarize_conversation_title
 from identity import (
     SESSION_COOKIE,
+    AttemptLimiter,
     clear_session_cookie,
     open_auth_store,
     require_admin,
@@ -34,11 +35,10 @@ from langchain_core.callbacks import get_usage_metadata_callback
 
 from llm import PROVIDER_ERRORS, create_llm
 from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile, profile_options
-from runtime_retrieval import (
-    LocalRetrievalBackend,
-    create_voyage_backend_from_environment,
-    track_cloud_retrieval_usage,
-)
+from runtime_retrieval import create_local_backend
+# Optional cloud profile: only called when the cloud profile is selected.
+from cloud.voyage_client import track_cloud_retrieval_usage
+from cloud.voyage_retrieval import create_voyage_backend_from_environment
 from source_documents import SourceDocumentResolver, render_page_png, source_info
 
 
@@ -88,60 +88,13 @@ def create_runtime_profile_manager(local_backend=None):
     )
 
 
-def create_local_backend():
-    from embedding import create_embedding_model
-    from vector_store import load_vector_store
-    from reranker import create_reranker
-    from bm25 import load_documents_from_chroma, create_bm25
-
-    embedding_model = create_embedding_model()
-    vector_store = load_vector_store(embedding_model)
-    reranker = create_reranker()
-    documents = load_documents_from_chroma(vector_store)
-    bm25 = create_bm25(documents)
-
-    ocr_vector_store = None
-    ocr_documents = []
-    ocr_bm25 = None
-    if os.environ.get("BCT_OCR_CHROMA_DB"):
-        ocr_vector_store = load_vector_store(
-            embedding_model,
-            persist_directory=os.environ["BCT_OCR_CHROMA_DB"],
-            collection_name=os.environ.get("BCT_OCR_CHROMA_COLLECTION", "bct_arabic_ocr_secondary_v1"),
-        )
-        ocr_documents = load_documents_from_chroma(ocr_vector_store)
-        ocr_bm25 = create_bm25(ocr_documents)
-    if not documents:
-        # Valid before the first ingest, but a wrong --assets root looks identical.
-        print(
-            f"WARNING: local corpus is empty (collection {os.environ.get('BCT_CHROMA_COLLECTION')!r} "
-            f"in {os.environ.get('BCT_CHROMA_DB')!r}); every question will find no evidence.",
-            flush=True,
-        )
-    backend = LocalRetrievalBackend(
-        vector_store,
-        reranker,
-        bm25,
-        documents,
-        ocr_vector_store=ocr_vector_store,
-        ocr_bm25=ocr_bm25,
-        ocr_documents=ocr_documents,
-    )
-    from jsonl_supersession import maybe_wrap_backend
-
-    native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
-    return maybe_wrap_backend(backend, Path(native).resolve().parent if native else None)
-
-
 def supersession_status() -> dict[str, object]:
     """JSONL SUPERSEDES index readiness for health / admin overview."""
     try:
         from jsonl_supersession import load_edges, resolve_edges_path
         from ingestion.index import resolve_active_assets
 
-        root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT") or os.environ.get(
-            "BCT_VOYAGE_PROVIDER_ROOT"
-        )
+        root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
         if not root_value:
             return {"ready": False, "edge_count": 0}
         root = Path(root_value)
@@ -192,12 +145,7 @@ def _start_enrichment(app: FastAPI):
     if interrupted:
         logger.warning("Marked %d interrupted ingestion(s) as failed.", interrupted)
 
-    def refresh_search() -> None:
-        _refresh_runtime_asset_environment()
-        app.state.profile_manager.reset()
-        app.state.source_resolver.refresh()
-
-    worker = EnrichmentWorker(config, on_activated=refresh_search)
+    worker = EnrichmentWorker(config, on_activated=lambda: _reload_corpus(app))
     worker.start()
     return worker
 
@@ -217,6 +165,10 @@ async def lifespan(app: FastAPI):
     auth_store.bootstrap_admin()
     app.state.auth_store = auth_store
     app.state.settings_store = settings_store
+    # Failed logins per email+client IP pair and per client IP; registrations per client IP.
+    app.state.login_pair_limiter = AttemptLimiter(limit=5, window_seconds=15 * 60)
+    app.state.login_ip_limiter = AttemptLimiter(limit=50, window_seconds=15 * 60)
+    app.state.register_limiter = AttemptLimiter(limit=20, window_seconds=60 * 60)
     app.state.profile_manager = create_runtime_profile_manager()
     conversation_store = open_conversation_store()
     app.state.conversation_store = conversation_store
@@ -297,9 +249,22 @@ class DocumentsDeleteRequest(BaseModel):
     document_ids: list[str] = Field(min_length=1, max_length=500)
 
 
+def _too_many_attempts() -> HTTPException:
+    return HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+
+def _client_ip(request: Request) -> str:
+    # Uvicorn rewrites the peer from X-Forwarded-For when the proxy is trusted
+    # (FORWARDED_ALLOW_IPS, default 127.0.0.1 — the Vite dev proxy). A proxy it does not
+    # trust, or Docker Desktop's port NAT, makes every client share one key.
+    return request.client.host if request.client else "unknown"
+
+
 @app.post("/auth/register")
 def register(payload: RegisterRequest, request: Request):
     store = request.app.state.auth_store
+    if not request.app.state.register_limiter.hit(_client_ip(request)):
+        raise _too_many_attempts()
     try:
         user = store.create_user(email=payload.email, password=payload.password, role="user", status="pending")
     except ValueError as error:
@@ -313,9 +278,23 @@ def register(payload: RegisterRequest, request: Request):
 @app.post("/auth/login")
 def login(payload: LoginRequest, request: Request, response: Response):
     store = request.app.state.auth_store
+    # Attempts are counted before the password check so parallel requests cannot all slip
+    # under the limit; a success uncounts itself. Keyed per email+IP so a stranger's
+    # failures cannot lock the owner out from another address.
+    pair_limiter = request.app.state.login_pair_limiter
+    ip_limiter = request.app.state.login_ip_limiter
+    ip = _client_ip(request)
+    pair = f"{payload.email.strip().casefold()}|{ip}"
+    if not ip_limiter.hit(ip):
+        raise _too_many_attempts()
+    if not pair_limiter.hit(pair):
+        ip_limiter.release(ip)
+        raise _too_many_attempts()
     user = store.authenticate(payload.email, payload.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+    pair_limiter.reset(pair)
+    ip_limiter.release(ip)
     token = store.create_session(user.id)
     set_session_cookie(response, token)
     return {"user": user.public_dict()}
@@ -429,6 +408,12 @@ def admin_answer_refusals(
     }
 
 
+def _csv_cell(value) -> str:
+    """Users type the questions: a leading = + - @ would run as a spreadsheet formula."""
+    text = str(value)
+    return "'" + text if text.startswith(("=", "+", "-", "@", "\t", "\r")) else text
+
+
 @app.get("/admin/answer-refusals/export")
 def admin_export_answer_refusals(
     request: Request,
@@ -457,7 +442,7 @@ def admin_export_answer_refusals(
         "refusal_id",
     ])
     for item in items:
-        writer.writerow([
+        writer.writerow(_csv_cell(value) for value in [
             item.get("created_at") or "",
             item.get("user_email") or "",
             item.get("user_id") or "",
@@ -726,7 +711,7 @@ def post_chat(
             question,
             str(result.get("answer") or ""),
         )
-        user = auth_store.consume_cloud_usage(
+        user = auth_store.consume_usage(
             user.id,
             llm=llm_tokens,
             embed=embed_tokens,
@@ -754,7 +739,7 @@ def post_chat(
         if title_tokens <= 0 and runtime.answer_provider == "groq":
             title_tokens = _estimate_tokens(payload.question)
         if title_tokens and runtime.answer_provider == "groq":
-            user = auth_store.consume_cloud_usage(user.id, llm=title_tokens)
+            user = auth_store.consume_usage(user.id, llm=title_tokens)
     return {
         "conversation_id": conversation_id,
         "profile": runtime.spec.value.value,
@@ -923,189 +908,194 @@ def _refresh_runtime_asset_environment() -> None:
     configure_runtime_assets(root_value)
 
 
-def _install_ingestion_routes(target: FastAPI) -> None:
-    @target.post("/documents")
-    async def ingest_document(
-        request: Request,
-        file: UploadFile = File(...),
-        doc_kind: str = Form("regulatory"),
-        related_to: str = Form(""),
-        admin=Depends(require_admin),
-    ):
-        # Filename is the listing title; doc_kind chooses primary vs secondary grounding.
-        filename = (file.filename or "").strip()
-        if not filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
-        content_type = (file.content_type or "").lower()
-        if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
-            raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
-        from document_authority import normalize_doc_kind
+def _reload_corpus(app: FastAPI) -> None:
+    """After an ingest or removal: point search and the PDF viewer at the new active asset version."""
+    _refresh_runtime_asset_environment()
+    app.state.profile_manager.reset()
+    app.state.source_resolver.refresh()
 
-        metadata = {
-            "title": Path(filename).stem or filename or "document",
-            "doc_kind": normalize_doc_kind(doc_kind),
-        }
-        related = (related_to or "").strip()
-        if related:
-            metadata["related_to"] = related[:300]
 
-        max_bytes = int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024)))
-        temporary_path = None
-        size = 0
-        try:
-            with NamedTemporaryFile(delete=False, suffix=".pdf") as handle:
-                temporary_path = Path(handle.name)
-                while True:
-                    chunk = await file.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    size += len(chunk)
-                    if size > max_bytes:
-                        raise HTTPException(status_code=413, detail="PDF exceeds the configured size limit.")
-                    handle.write(chunk)
-            if size == 0:
-                raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+# Admin PDF upload, listing and removal. A router (not @app) so tests can mount these
+# routes on a bare FastAPI app without the full startup.
+documents_router = APIRouter()
 
-            from ingestion.pipeline import IngestionConfig, IngestionPipeline
 
-            if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
-                raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+@documents_router.post("/documents")
+async def ingest_document(
+    request: Request,
+    file: UploadFile = File(...),
+    doc_kind: str = Form("regulatory"),
+    related_to: str = Form(""),
+    admin=Depends(require_admin),
+):
+    # Filename is the listing title; doc_kind chooses primary vs secondary grounding.
+    filename = (file.filename or "").strip()
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
+    content_type = (file.content_type or "").lower()
+    if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
+        raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
+    from document_authority import normalize_doc_kind
 
-            from langfuse import propagate_attributes
+    metadata = {
+        "title": Path(filename).stem or filename or "document",
+        "doc_kind": normalize_doc_kind(doc_kind),
+    }
+    related = (related_to or "").strip()
+    if related:
+        metadata["related_to"] = related[:300]
 
-            config = IngestionConfig.from_environment()
-            pipeline = IngestionPipeline(config)
-            try:
-                with propagate_attributes(user_id=admin.id):
-                    report = await run_in_threadpool(
-                        pipeline.ingest,
-                        temporary_path,
-                        original_filename=filename or "document.pdf",
-                        metadata=metadata,
-                    )
-            finally:
-                pipeline.close()
-            _refresh_runtime_asset_environment()
-            await run_in_threadpool(request.app.state.profile_manager.reset)
-            request.app.state.source_resolver.refresh()
-            worker = getattr(request.app.state, "enrichment", None)
-            if worker is not None and report.get("status") == "enriching":
-                worker.wake()
-            return report
-        except HTTPException:
-            raise
-        except Exception as error:
-            # Surface unexpected ingest failures to the admin UI with the PDF name.
-            label = Path(filename).name if filename else "document.pdf"
-            logger.exception("Document ingestion failed for %s.", label)
-            detail = str(error).strip() or "Document ingestion failed."
-            if label not in detail:
-                detail = f"{label}: {detail}"
-            raise HTTPException(status_code=422, detail=detail) from error
-        finally:
-            await file.close()
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
+    max_bytes = int(os.environ.get("BCT_MAX_PDF_BYTES", str(50 * 1024 * 1024)))
+    temporary_path = None
+    size = 0
+    try:
+        with NamedTemporaryFile(delete=False, suffix=".pdf") as handle:
+            temporary_path = Path(handle.name)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_bytes:
+                    raise HTTPException(status_code=413, detail="PDF exceeds the configured size limit.")
+                handle.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
-    @target.get("/documents")
-    def list_documents(
-        request: Request,
-        limit: int = 100,
-        _admin=Depends(require_admin),
-    ):
-        from ingestion.pipeline import IngestionConfig
-        from ingestion.registry import IngestionRegistry
-
-        config = IngestionConfig.from_environment()
-        registry = IngestionRegistry(config.registry_path)
-        try:
-            return registry.list_ready(limit=limit)
-        finally:
-            registry.close()
-
-    @target.get("/documents/enrichment")
-    def enrichment_status(request: Request, _admin=Depends(require_admin)):
-        worker = getattr(request.app.state, "enrichment", None)
-        return worker.snapshot() if worker is not None else {"state": "disabled"}
-
-    @target.post("/documents/{document_id}/retry-enrichment")
-    def retry_enrichment(document_id: str, request: Request, _admin=Depends(require_admin)):
-        from ingestion.pipeline import IngestionConfig
-        from ingestion.registry import IngestionRegistry
-
-        registry = IngestionRegistry(IngestionConfig.from_environment().registry_path)
-        try:
-            known = registry.get(document_id)
-            if known is None or known.get("status") not in {"enriching", "ready_degraded"}:
-                raise HTTPException(status_code=404, detail="No document awaiting page reading with that id.")
-            requeued = registry.retry_failed_pages(document_id)
-            progress = registry.progress(document_id)
-        finally:
-            registry.close()
-        worker = getattr(request.app.state, "enrichment", None)
-        if worker is not None:
-            worker.wake(reset_cooldown=True)
-        return {"document_id": document_id, "requeued_pages": requeued, "enrichment": progress}
-
-    @target.delete("/documents/{document_id}", status_code=200)
-    async def delete_document(
-        document_id: str,
-        request: Request,
-        _admin=Depends(require_admin),
-    ):
         from ingestion.pipeline import IngestionConfig, IngestionPipeline
 
         if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
             raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+
+        from langfuse import propagate_attributes
+
         config = IngestionConfig.from_environment()
         pipeline = IngestionPipeline(config)
         try:
+            with propagate_attributes(user_id=admin.id):
+                report = await run_in_threadpool(
+                    pipeline.ingest,
+                    temporary_path,
+                    original_filename=filename or "document.pdf",
+                    metadata=metadata,
+                )
+        finally:
+            pipeline.close()
+        await run_in_threadpool(_reload_corpus, request.app)
+        worker = getattr(request.app.state, "enrichment", None)
+        if worker is not None and report.get("status") == "enriching":
+            worker.wake()
+        return report
+    except HTTPException:
+        raise
+    except Exception as error:
+        # Surface unexpected ingest failures to the admin UI with the PDF name.
+        label = Path(filename).name if filename else "document.pdf"
+        logger.exception("Document ingestion failed for %s.", label)
+        detail = str(error).strip() or "Document ingestion failed."
+        if label not in detail:
+            detail = f"{label}: {detail}"
+        raise HTTPException(status_code=422, detail=detail) from error
+    finally:
+        await file.close()
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+@documents_router.get("/documents")
+def list_documents(
+    request: Request,
+    limit: int = 100,
+    _admin=Depends(require_admin),
+):
+    from ingestion.pipeline import IngestionConfig
+    from ingestion.registry import IngestionRegistry
+
+    config = IngestionConfig.from_environment()
+    registry = IngestionRegistry(config.registry_path)
+    try:
+        return registry.list_ready(limit=limit)
+    finally:
+        registry.close()
+
+@documents_router.get("/documents/enrichment")
+def enrichment_status(request: Request, _admin=Depends(require_admin)):
+    worker = getattr(request.app.state, "enrichment", None)
+    return worker.snapshot() if worker is not None else {"state": "disabled"}
+
+@documents_router.post("/documents/{document_id}/retry-enrichment")
+def retry_enrichment(document_id: str, request: Request, _admin=Depends(require_admin)):
+    from ingestion.pipeline import IngestionConfig
+    from ingestion.registry import IngestionRegistry
+
+    registry = IngestionRegistry(IngestionConfig.from_environment().registry_path)
+    try:
+        known = registry.get(document_id)
+        if known is None or known.get("status") not in {"enriching", "ready_degraded"}:
+            raise HTTPException(status_code=404, detail="No document awaiting page reading with that id.")
+        requeued = registry.retry_failed_pages(document_id)
+        progress = registry.progress(document_id)
+    finally:
+        registry.close()
+    worker = getattr(request.app.state, "enrichment", None)
+    if worker is not None:
+        worker.wake(reset_cooldown=True)
+    return {"document_id": document_id, "requeued_pages": requeued, "enrichment": progress}
+
+@documents_router.delete("/documents/{document_id}", status_code=200)
+async def delete_document(
+    document_id: str,
+    request: Request,
+    _admin=Depends(require_admin),
+):
+    from ingestion.pipeline import IngestionConfig, IngestionPipeline
+
+    if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+        raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+    config = IngestionConfig.from_environment()
+    pipeline = IngestionPipeline(config)
+    try:
+        try:
+            report = await run_in_threadpool(pipeline.remove, document_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except Exception as error:
+            logger.exception("Document removal failed for %s.", document_id)
+            detail = str(error).strip() or "Document removal failed."
+            raise HTTPException(status_code=422, detail=detail) from error
+        await run_in_threadpool(_reload_corpus, request.app)
+        return report
+    finally:
+        pipeline.close()
+
+@documents_router.post("/documents/delete", status_code=200)
+async def delete_documents(
+    body: DocumentsDeleteRequest,
+    request: Request,
+    _admin=Depends(require_admin),
+):
+    """Remove several PDFs, then reload the search index once."""
+    from ingestion.pipeline import IngestionConfig, IngestionPipeline
+
+    if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+        raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
+    pipeline = IngestionPipeline(IngestionConfig.from_environment())
+    removed: list[str] = []
+    failed: list[dict[str, str]] = []
+    try:
+        for document_id in dict.fromkeys(body.document_ids):
             try:
-                report = await run_in_threadpool(pipeline.remove, document_id)
-            except KeyError as error:
-                raise HTTPException(status_code=404, detail=str(error)) from error
-            except ValueError as error:
-                raise HTTPException(status_code=400, detail=str(error)) from error
+                await run_in_threadpool(pipeline.remove, document_id)
+                removed.append(document_id)
             except Exception as error:
                 logger.exception("Document removal failed for %s.", document_id)
-                detail = str(error).strip() or "Document removal failed."
-                raise HTTPException(status_code=422, detail=detail) from error
-            _refresh_runtime_asset_environment()
-            await run_in_threadpool(request.app.state.profile_manager.reset)
-            request.app.state.source_resolver.refresh()
-            return report
-        finally:
-            pipeline.close()
-
-    @target.post("/documents/delete", status_code=200)
-    async def delete_documents(
-        body: DocumentsDeleteRequest,
-        request: Request,
-        _admin=Depends(require_admin),
-    ):
-        """Remove several PDFs, then reload the search index once."""
-        from ingestion.pipeline import IngestionConfig, IngestionPipeline
-
-        if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
-            raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
-        pipeline = IngestionPipeline(IngestionConfig.from_environment())
-        removed: list[str] = []
-        failed: list[dict[str, str]] = []
-        try:
-            for document_id in dict.fromkeys(body.document_ids):
-                try:
-                    await run_in_threadpool(pipeline.remove, document_id)
-                    removed.append(document_id)
-                except Exception as error:
-                    logger.exception("Document removal failed for %s.", document_id)
-                    failed.append({"document_id": document_id, "error": str(error).strip() or "Document removal failed."})
-            if removed:
-                _refresh_runtime_asset_environment()
-                await run_in_threadpool(request.app.state.profile_manager.reset)
-                request.app.state.source_resolver.refresh()
-            return {"removed": removed, "failed": failed}
-        finally:
-            pipeline.close()
+                failed.append({"document_id": document_id, "error": str(error).strip() or "Document removal failed."})
+        if removed:
+            await run_in_threadpool(_reload_corpus, request.app)
+        return {"removed": removed, "failed": failed}
+    finally:
+        pipeline.close()
 
 
-_install_ingestion_routes(app)
+app.include_router(documents_router)

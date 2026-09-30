@@ -5,12 +5,10 @@ import numpy as np
 import pytest
 
 import runtime_retrieval
-from runtime_retrieval import (
-    LocalRetrievalBackend,
-    VoyageRetrievalBackend,
-    VoyageRuntimeClient,
-    load_voyage_backend,
-)
+from cloud import voyage_retrieval
+from cloud.voyage_client import VoyageRuntimeClient
+from cloud.voyage_retrieval import VoyageRetrievalBackend, load_voyage_backend
+from runtime_retrieval import LocalRetrievalBackend
 
 
 def _doc(text, source, page):
@@ -316,7 +314,7 @@ def test_index_rejects_changed_citation_or_temporal_metadata(tmp_path, field, va
     _write_bound_index(tmp_path, "native", documents, np.asarray([[1, 0]], dtype=np.float32))
     documents[0].metadata[field] = value
     with pytest.raises(ValueError, match="metadata binding mismatch"):
-        runtime_retrieval._load_bound_index(tmp_path, "native", documents)
+        voyage_retrieval._load_bound_index(tmp_path, "native", documents)
 
 
 def test_index_rejects_legacy_manifest_without_metadata_binding(tmp_path):
@@ -327,7 +325,7 @@ def test_index_rejects_legacy_manifest_without_metadata_binding(tmp_path):
     del value["documents_sha256"]
     path.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="metadata binding mismatch"):
-        runtime_retrieval._load_bound_index(tmp_path, "native", documents)
+        voyage_retrieval._load_bound_index(tmp_path, "native", documents)
 
 
 def test_voyage_runtime_client_rotates_once_and_reuses_its_exact_cache(
@@ -445,7 +443,7 @@ def test_voyage_runtime_client_cools_down_and_retries_after_all_keys_rate_limit(
         monkeypatch.delenv(f"VOYAGE_API_KEY_{index}", raising=False)
     monkeypatch.setenv("BCT_VOYAGE_RETRY_SLEEP_SECONDS", "0")
     monkeypatch.setattr(
-        "cloud_embed_clients.time.sleep",
+        "cloud.voyage_client.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
     client = VoyageRuntimeClient(tmp_path, request_post=post)

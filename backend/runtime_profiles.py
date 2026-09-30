@@ -116,9 +116,7 @@ class RuntimeProfileManager:
         profile = parse_profile(value)
         spec = PROFILE_SPECS[profile]
         if profile is RuntimeProfile.CLOUD:
-            retrieval_backend = self._lazy(
-                "_cloud_retrieval_backend", self._cloud_retrieval_factory
-            )
+            retrieval_backend = self._cloud_backend()
         else:
             retrieval_backend = self._local_backend()
         return ProfileRuntime(
@@ -127,22 +125,24 @@ class RuntimeProfileManager:
             answer_provider=spec.answer,
         )
 
-    def _lazy(self, attr: str, factory: Callable[[], Any]) -> Any:
-        value = getattr(self, attr)
-        if value is None:
+    # Both backends are built on first use. The check-lock-check pattern keeps the usual
+    # case (already built) lock-free, and the lock stops two requests building it twice.
+
+    def _cloud_backend(self) -> Any:
+        if self._cloud_retrieval_backend is None:
             with self._lock:
-                value = getattr(self, attr)
-                if value is None:
-                    value = factory()
-                    setattr(self, attr, value)
-        return value
+                if self._cloud_retrieval_backend is None:
+                    self._cloud_retrieval_backend = self._cloud_retrieval_factory()
+        return self._cloud_retrieval_backend
 
     def _local_backend(self) -> Any:
-        if self._local_retrieval_backend is not None:
-            return self._local_retrieval_backend
-        if self._local_retrieval_factory is None:
-            raise RuntimeError("Local retrieval is not configured")
-        return self._lazy("_local_retrieval_backend", self._local_retrieval_factory)
+        if self._local_retrieval_backend is None:
+            if self._local_retrieval_factory is None:
+                raise RuntimeError("Local retrieval is not configured")
+            with self._lock:
+                if self._local_retrieval_backend is None:
+                    self._local_retrieval_backend = self._local_retrieval_factory()
+        return self._local_retrieval_backend
 
     def reset(self) -> None:
         """Point retrieval at the newly activated corpus after ingest or removal.

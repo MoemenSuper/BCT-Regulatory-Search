@@ -2,7 +2,7 @@
 import re
 import unicodedata
 
-from graph_contract import is_relationship_query, is_temporal_rule_query
+from query_currentness import is_relationship_query, is_temporal_rule_query
 from retrieval_selection import _ARABIC_RANGE as _AR, parse_query_identity, parse_source_identity
 
 

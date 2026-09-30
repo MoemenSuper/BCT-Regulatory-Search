@@ -21,5 +21,5 @@ from answer_draft import (  # noqa: F401
     search_response,
     select_evidence,
     try_supersession_partial_answer,
-    _annotate_graph_supersession,
+    _annotate_supersession,
 )

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
-from graph_contract import is_temporal_rule_query
+from query_currentness import is_temporal_rule_query
 from retrieval_selection import (
     prefer_historical_hits,
     prefer_named_instrument_hits,

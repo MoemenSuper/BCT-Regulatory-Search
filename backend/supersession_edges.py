@@ -24,6 +24,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from ingestion.models import Page
+
 logger = logging.getLogger(__name__)
 
 INSTR = re.compile(
@@ -433,12 +435,6 @@ def rebuild_supersession_edges_from_documents(
     if not root.is_dir():
         raise FileNotFoundError(f"Documents directory not found: {root}")
 
-    class _Page:
-        def __init__(self, page_number: int, raw_text: str):
-            self.page_number = page_number
-            self.raw_text = raw_text
-            self.metadata = {}
-
     edges: list[SupersessionEdge] = []
     pdf_count = 0
     for pdf in sorted(root.rglob("*.pdf")):
@@ -446,7 +442,7 @@ def rebuild_supersession_edges_from_documents(
             continue
         pdf_count += 1
         try:
-            pages = [_Page(n, text) for n, text in _pdf_page_texts(pdf)]
+            pages = [Page(page_number=n, raw_text=text) for n, text in _pdf_page_texts(pdf)]
         except Exception as error:
             logger.warning("Supersession rebuild skipped %s: %s", pdf.name, error)
             continue

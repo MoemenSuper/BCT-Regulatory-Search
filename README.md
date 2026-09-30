@@ -47,6 +47,7 @@ This package is the consolidated build: FastAPI runtime, React UI, incremental P
 
 ```text
 backend/     FastAPI · RAG · JSONL supersession · PDF viewer · ingestion
+backend/cloud/  optional cloud profile only (Voyage search, Gemini page reading)
 frontend/    React + TypeScript UI (Vite)
 docs/        README icons and crest
 ```

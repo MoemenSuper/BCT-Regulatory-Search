@@ -2,9 +2,8 @@ import numpy as np
 import pytest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
-import runtime_retrieval
-
-from runtime_retrieval import VoyageRuntimeClient
+from cloud import voyage_client
+from cloud.voyage_client import VoyageRuntimeClient
 
 
 class Response:
@@ -44,11 +43,11 @@ def test_reranker_rejects_nonfinite_boolean_or_duplicate_results(tmp_path, monke
 
 def test_concurrent_identical_requests_write_one_valid_cache(tmp_path, monkeypatch):
     ready = Barrier(2)
-    replace = runtime_retrieval.os.replace
+    replace = voyage_client.os.replace
     def synchronized_replace(source, destination):
         ready.wait(timeout=5)
         replace(source, destination)
-    monkeypatch.setattr(runtime_retrieval.os, "replace", synchronized_replace)
+    monkeypatch.setattr(voyage_client.os, "replace", synchronized_replace)
     provider = client(tmp_path, monkeypatch, {"data": [{"index": 0, "relevance_score": 0.8}]})
     with ThreadPoolExecutor(max_workers=2) as workers:
         calls = [workers.submit(provider.rerank, "question", ["evidence"]) for _ in range(2)]

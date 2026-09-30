@@ -17,10 +17,11 @@ from .index import (
     discard_staged_local_collections,
     prune_versions,
     resolve_active_assets,
-    stage_cloud_assets,
+    stage_assets,
     stage_local_collections,
 )
 from .registry import SEARCHABLE, IngestionRegistry
+from runtime_retrieval import _read_chunks
 from source_metadata import safe_pdf_filename
 
 
@@ -36,7 +37,7 @@ class IngestionConfig:
     @classmethod
     def from_environment(cls, *, asset_root: str | Path | None = None) -> "IngestionConfig":
         if asset_root is None:
-            value = os.environ.get("BCT_RUNTIME_ASSET_ROOT") or os.environ.get("BCT_VOYAGE_PROVIDER_ROOT")
+            value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
             if not value:
                 raise RuntimeError("BCT_RUNTIME_ASSET_ROOT or --assets is required for ingestion")
             asset_root = value
@@ -204,6 +205,48 @@ def _restore_active_pointer(root: Path, previous: bytes | None) -> None:
     os.replace(temporary, pointer)
 
 
+@dataclass(frozen=True)
+class ActivatedVersion:
+    """A new asset version that is now live (returned by _stage_and_activate)."""
+
+    version: str  # folder name under versions/, e.g. 20260930T101500Z-ab12cd34ef-1a2b3c
+    snapshot: dict  # the version's snapshot.json (chunk counts, parent version, ...)
+    pointer: dict  # the new ACTIVE.json content
+    local_index: dict  # local Chroma collection names for this version ({} when not built)
+    supersession: dict  # what happened to supersession_edges.jsonl (counts or warning)
+
+
+def _stage_supersession_edges(active_before: Path, staged_version: Path, filename: str, pages, asset_root: Path) -> dict:
+    """Write the staged version's SUPERSEDES edges: the old edges minus this PDF's, plus the
+    edges found in pages (none for a removal). Written before activation, so a failed
+    activation also rolls the edges back."""
+    from jsonl_supersession import load_prior_edges, merge_supersession_edges_for_ingest, write_edges
+
+    report: dict[str, object] = {"enabled": True}
+    try:
+        report.update(merge_supersession_edges_for_ingest(
+            active_before=active_before,
+            staged_version=staged_version,
+            filename=filename,
+            pages=pages,
+            asset_root=asset_root,
+        ))
+    except Exception as error:
+        report["warning"] = f"{type(error).__name__}: {error}"
+        # Never activate a version that silently drops the prior edge list.
+        try:
+            write_edges(staged_version / "supersession_edges.jsonl", load_prior_edges(active_before, asset_root=asset_root))
+            report["fallback"] = "copied_prior_edges"
+        except Exception as copy_error:
+            report["fallback_error"] = f"{type(copy_error).__name__}: {copy_error}"
+    get_client().create_event(
+        name="merge-supersession-edges",
+        output=report,
+        **({"level": "WARNING", "status_message": str(report["warning"])} if "warning" in report else {}),
+    )
+    return report
+
+
 class IngestionPipeline:
     def __init__(self, config: IngestionConfig) -> None:
         self.config = config
@@ -274,12 +317,8 @@ class IngestionPipeline:
             lock.release()
 
     def _activate(self, content_hash: str, filename: str, immutable_pdf: Path, metadata: dict, *, quick: bool) -> dict:
-        """Extract (visual results from the page ledger), chunk, stage and activate. Caller holds the lock."""
+        """Extract (visual results from the page ledger), chunk, then stage and activate. Caller holds the lock."""
         immutable_dir = immutable_pdf.parent
-        staged_version: Path | None = None
-        pointer_path = self.config.asset_root / "ACTIVE.json"
-        previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
-        activation_committed = False
         try:
             with _step("extract-document", input={"pdf": filename, "quick": quick}) as span:
                 visual_results, visual_model = self._visual_results(content_hash)
@@ -332,147 +371,135 @@ class IngestionPipeline:
                     # Nothing readable natively (scanned PDF): searchable once enrichment reads it.
                     return self._commit_unindexed(content_hash, filename, immutable_pdf, metadata, structured, progress)
                 span.update(output={"native_chunks": len(primary), "visual_chunks": len(visual)})
-            active_before = resolve_active_assets(self.config.asset_root)
+
+            def record(activated: ActivatedVersion) -> dict:
+                report = {
+                    "status": status,
+                    "searchable": True,
+                    "enrichment": progress,
+                    "duplicate": False,
+                    "filename": filename,
+                    "title": metadata.get("title") or filename,
+                    "administrator_metadata": metadata,
+                    "content_sha256": content_hash,
+                    "stored_pdf": str(immutable_pdf),
+                    "structured_document": str(structured_path),
+                    "language": structured.language,
+                    "pages": len(structured.pages),
+                    "visual_pages": int(structured.metadata.get("visual_page_count", 0)),
+                    "native_chunks_added": len(primary),
+                    "visual_chunks_added": len(visual),
+                    "asset_version": activated.version,
+                    "active_pointer": activated.pointer,
+                    "local_indexed": bool(activated.local_index.get("local_collection")),
+                    "supersession": activated.supersession,
+                }
+                self.registry.ready(
+                    content_hash,
+                    stored_path=str(immutable_pdf),
+                    asset_version=activated.version,
+                    report=report,
+                    status=status,
+                )
+                return report
+
+            return self._stage_and_activate(
+                content_hash=content_hash,
+                filename=filename,
+                new_primary=primary,
+                new_visual=visual,
+                pages=structured.pages,
+                record=record,
+            )
+        except Exception as error:
+            if quick:
+                # A failed first ingest is recorded; a failed enrichment batch keeps the
+                # document live on its prior version.
+                self.registry.fail(content_hash, f"{type(error).__name__}: {error}")
+            raise
+
+    def _stage_and_activate(
+        self,
+        *,
+        content_hash: str,
+        filename: str,
+        new_primary: list,
+        new_visual: list,
+        pages: list,
+        record,
+        removal: bool = False,
+    ) -> dict:
+        """Build a new asset version, make it live, then call record(activated) to note it in
+        the registry; returns what record returns.
+
+        Shared by ingest (new chunks and the PDF's pages) and removal (none of either).
+        Nothing is final until record() succeeds: on any error before that the previous
+        version is made live again and the staged files are deleted, so the old corpus
+        keeps serving (staged activation).
+        """
+        root = self.config.asset_root
+        pointer_path = root / "ACTIVE.json"
+        previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
+        staged_version: Path | None = None
+        local_index: dict[str, object] = {}
+        try:
+            active_before = resolve_active_assets(root)
             base_snapshot = _read_snapshot(active_before)
             with _step("stage-assets", input={"active_before": active_before.name}) as span:
-                staged_version, staged_snapshot = stage_cloud_assets(
-                    asset_root=self.config.asset_root,
-                    new_primary=primary,
-                    new_visual=visual,
+                staged_version, staged_snapshot = stage_assets(
+                    asset_root=root,
+                    new_primary=new_primary,
+                    new_visual=new_visual,
                     content_sha256=content_hash,
                     source_filename=filename,
+                    allow_empty=removal,
+                    removal=removal,
                 )
                 span.update(output=staged_snapshot)
+            version = staged_snapshot["version"]
 
-            snapshot_updates: dict[str, object] = {}
             if self.config.build_local:
-                from runtime_retrieval import _read_chunks
-
-                with _step("stage-local-index", input={"version": staged_snapshot["version"]}) as span:
-                    all_primary = _read_chunks(staged_version / "native.jsonl")
-                    all_visual = _read_chunks(staged_version / "arabic_ocr_secondary.jsonl")
-                    local = stage_local_collections(
-                        asset_root=self.config.asset_root,
-                        version_id=staged_snapshot["version"],
-                        all_primary=all_primary,
-                        all_visual=all_visual,
-                        new_primary=primary,
-                        new_visual=visual,
+                with _step("stage-local-index", input={"version": version}) as span:
+                    local_index = stage_local_collections(
+                        asset_root=root,
+                        version_id=version,
+                        all_primary=_read_chunks(staged_version / "native.jsonl"),
+                        all_visual=_read_chunks(staged_version / "arabic_ocr_secondary.jsonl"),
+                        new_primary=new_primary,
+                        new_visual=new_visual,
                         base_snapshot=base_snapshot,
                         source_filename=filename,
                     )
                     span.update(
-                        output=local or {"skipped": True},
-                        **({} if local else {"level": "WARNING", "status_message": "local Chroma index not updated"}),
+                        output=local_index or {"skipped": True},
+                        **({} if local_index else {"level": "WARNING", "status_message": "local Chroma index not updated"}),
                     )
-                snapshot_updates.update(local)
 
-            # Flat SUPERSEDES edges for topical/force currentness. Written into
-            # the staged version before activate so a failed activation rolls back.
-            supersession_report: dict[str, object] = {"enabled": True}
+            supersession = _stage_supersession_edges(active_before, staged_version, filename, pages, root)
+
+            with _step("activate-version", input={"version": version}):
+                pointer = activate_assets(root, staged_version, snapshot_updates=local_index)
+            activated = ActivatedVersion(version, staged_snapshot, pointer, local_index, supersession)
             try:
-                from jsonl_supersession import merge_supersession_edges_for_ingest
-
-                supersession_report.update(
-                    merge_supersession_edges_for_ingest(
-                        active_before=active_before,
-                        staged_version=staged_version,
-                        filename=filename,
-                        pages=structured.pages,
-                        asset_root=self.config.asset_root,
-                    )
-                )
-            except Exception as supersession_error:
-                supersession_report["warning"] = (
-                    f"{type(supersession_error).__name__}: {supersession_error}"
-                )
-                # Never activate a version that silently drops the prior edge list.
-                try:
-                    from jsonl_supersession import (
-                        load_prior_edges,
-                        write_edges,
-                    )
-
-                    write_edges(
-                        staged_version / "supersession_edges.jsonl",
-                        load_prior_edges(
-                            active_before, asset_root=self.config.asset_root
-                        ),
-                    )
-                    supersession_report["fallback"] = "copied_prior_edges"
-                except Exception as copy_error:
-                    supersession_report["fallback_error"] = (
-                        f"{type(copy_error).__name__}: {copy_error}"
-                    )
-            get_client().create_event(
-                name="merge-supersession-edges",
-                output=supersession_report,
-                **({"level": "WARNING", "status_message": str(supersession_report["warning"])}
-                   if "warning" in supersession_report else {}),
-            )
-
-            with _step("activate-version", input={"version": staged_snapshot["version"]}):
-                pointer = activate_assets(
-                    self.config.asset_root,
-                    staged_version,
-                    snapshot_updates=snapshot_updates,
-                )
-
-            report = {
-                "status": status,
-                "searchable": True,
-                "enrichment": progress,
-                "duplicate": False,
-                "filename": filename,
-                "title": metadata.get("title") or filename,
-                "administrator_metadata": metadata,
-                "content_sha256": content_hash,
-                "stored_pdf": str(immutable_pdf),
-                "structured_document": str(structured_path),
-                "language": structured.language,
-                "pages": len(structured.pages),
-                "gemini_visual_pages": int(structured.metadata.get("visual_page_count", 0)),
-                "visual_pages": int(structured.metadata.get("visual_page_count", 0)),
-                "native_chunks_added": len(primary),
-                "visual_chunks_added": len(visual),
-                "asset_version": staged_snapshot["version"],
-                "active_pointer": pointer,
-                "local_indexed": bool(snapshot_updates.get("local_collection")),
-                "supersession": supersession_report,
-            }
-            try:
-                self.registry.ready(
-                    content_hash,
-                    stored_path=str(immutable_pdf),
-                    asset_version=staged_snapshot["version"],
-                    report=report,
-                    status=status,
-                )
+                result = record(activated)
             except Exception:
-                _restore_active_pointer(self.config.asset_root, previous_pointer)
+                _restore_active_pointer(root, previous_pointer)
                 raise
-            activation_committed = True
-            _prune(self.config.asset_root)
-            return report
-        except Exception as error:
-            if staged_version is not None and not activation_committed:
-                # A pre-commit failure must not leave the new version selected
-                # or orphan versioned local collections that can never become
-                # active. Cleanup is best-effort; the old active corpus remains
-                # authoritative either way.
+        except Exception:
+            if staged_version is not None:
+                # Cleanup is best-effort; the old active corpus remains authoritative either way.
                 try:
-                    _restore_active_pointer(self.config.asset_root, previous_pointer)
+                    _restore_active_pointer(root, previous_pointer)
                 except Exception:
                     pass
-                discard_staged_local_collections(snapshot_updates)
+                discard_staged_local_collections(local_index)
                 shutil.rmtree(staged_version, ignore_errors=True)
-            if quick and not activation_committed:
-                # An enrichment batch failing keeps the document live on its prior version.
-                self.registry.fail(content_hash, f"{type(error).__name__}: {error}")
             raise
+        _prune(root)
+        return result
 
     def _visual_results(self, content_hash: str) -> tuple[dict, str | None]:
-        from .gemini_visual import VisualPage
+        from .models import VisualPage
 
         results: dict = {}
         models: set[str] = set()
@@ -553,114 +580,32 @@ class IngestionPipeline:
                 raise KeyError(f"Ready document not found: {content_hash}")
             filename = _safe_filename(str(known.get("original_filename") or filename))
 
-            staged_version: Path | None = None
-            pointer_path = self.config.asset_root / "ACTIVE.json"
-            previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
-            activation_committed = False
-            snapshot_updates: dict[str, object] = {}
-            try:
-                active_before = resolve_active_assets(self.config.asset_root)
-                base_snapshot = _read_snapshot(active_before)
-                staged_version, staged_snapshot = stage_cloud_assets(
-                    asset_root=self.config.asset_root,
-                    new_primary=[],
-                    new_visual=[],
-                    content_sha256=content_hash,
-                    source_filename=filename,
-                    allow_empty=True,
-                    removal=True,
-                )
-
-                if self.config.build_local:
-                    from runtime_retrieval import _read_chunks
-
-                    all_primary = _read_chunks(staged_version / "native.jsonl")
-                    all_visual = _read_chunks(staged_version / "arabic_ocr_secondary.jsonl")
-                    local = stage_local_collections(
-                        asset_root=self.config.asset_root,
-                        version_id=staged_snapshot["version"],
-                        all_primary=all_primary,
-                        all_visual=all_visual,
-                        new_primary=[],
-                        new_visual=[],
-                        base_snapshot=base_snapshot,
-                        source_filename=filename,
-                    )
-                    snapshot_updates.update(local)
-
-                supersession_report: dict[str, object] = {"enabled": True}
-                try:
-                    from jsonl_supersession import (
-                        load_prior_edges,
-                        write_edges,
-                    )
-
-                    prior = load_prior_edges(active_before, asset_root=self.config.asset_root)
-                    basename = Path(filename).name.casefold()
-                    kept = [
-                        edge
-                        for edge in prior
-                        if Path(edge.source_file).name.casefold() != basename
-                    ]
-                    write_edges(staged_version / "supersession_edges.jsonl", kept)
-                    supersession_report.update(
-                        {"prior": len(prior), "kept": len(kept), "from_pdf": 0, "total": len(kept)}
-                    )
-                except Exception as supersession_error:
-                    supersession_report["warning"] = (
-                        f"{type(supersession_error).__name__}: {supersession_error}"
-                    )
-                    try:
-                        from jsonl_supersession import load_prior_edges, write_edges
-
-                        write_edges(
-                            staged_version / "supersession_edges.jsonl",
-                            load_prior_edges(active_before, asset_root=self.config.asset_root),
-                        )
-                        supersession_report["fallback"] = "copied_prior_edges"
-                    except Exception as copy_error:
-                        supersession_report["fallback_error"] = (
-                            f"{type(copy_error).__name__}: {copy_error}"
-                        )
-
-                pointer = activate_assets(
-                    self.config.asset_root,
-                    staged_version,
-                    snapshot_updates=snapshot_updates,
-                )
-                try:
-                    self.registry.mark_removed(
-                        content_hash, asset_version=staged_snapshot["version"]
-                    )
-                except Exception:
-                    _restore_active_pointer(self.config.asset_root, previous_pointer)
-                    raise
-                activation_committed = True
-                _prune(self.config.asset_root)
-
-                stored = str(known.get("stored_path") or "").strip()
-                if stored:
-                    stored_path = Path(stored)
-                    # Immutable dir is documents_dir / sha256 / file.pdf
-                    immutable_dir = stored_path.parent
-                    if immutable_dir.is_dir() and immutable_dir.parent == self.config.documents_dir:
-                        shutil.rmtree(immutable_dir, ignore_errors=True)
-
+            def record(activated: ActivatedVersion) -> dict:
+                self.registry.mark_removed(content_hash, asset_version=activated.version)
                 return {
                     "status": "removed",
                     "document_id": content_hash,
                     "filename": filename,
-                    "asset_version": staged_snapshot["version"],
-                    "active_pointer": pointer,
-                    "native_chunks_remaining": staged_snapshot.get("native_chunks", 0),
-                    "supersession": supersession_report,
+                    "asset_version": activated.version,
+                    "active_pointer": activated.pointer,
+                    "native_chunks_remaining": activated.snapshot.get("native_chunks", 0),
+                    "supersession": activated.supersession,
                 }
-            except Exception:
-                if staged_version is not None and not activation_committed:
-                    try:
-                        _restore_active_pointer(self.config.asset_root, previous_pointer)
-                    except Exception:
-                        pass
-                    discard_staged_local_collections(snapshot_updates)
-                    shutil.rmtree(staged_version, ignore_errors=True)
-                raise
+
+            report = self._stage_and_activate(
+                content_hash=content_hash,
+                filename=filename,
+                new_primary=[],
+                new_visual=[],
+                pages=[],
+                record=record,
+                removal=True,
+            )
+
+            stored = str(known.get("stored_path") or "").strip()
+            if stored:
+                # Immutable dir is documents_dir / sha256 / file.pdf
+                immutable_dir = Path(stored).parent
+                if immutable_dir.is_dir() and immutable_dir.parent == self.config.documents_dir:
+                    shutil.rmtree(immutable_dir, ignore_errors=True)
+            return report

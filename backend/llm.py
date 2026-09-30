@@ -97,11 +97,6 @@ def _groq_api_keys():
     return keys
 
 
-def _groq_api_key():
-    keys = _groq_api_keys()
-    return keys[0] if keys else None
-
-
 def _groq_rate_limited(error: BaseException) -> bool:
     text = str(error).casefold()
     return any(

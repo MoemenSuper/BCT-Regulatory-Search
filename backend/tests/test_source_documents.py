@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from source_documents import SourceDocumentResolver, _word_highlight_rects, render_page_png
+from source_documents import SourceDocumentResolver, _word_highlight_rects, locate_quote, render_page_png
 
 
 @pytest.fixture
@@ -90,3 +90,25 @@ def test_arabic_quote_is_located_despite_visual_word_order():
     assert len(rects) == 2  # one merged highlight per line
     assert _word_highlight_rects(FakePage(), "مذكرة إلى البنوك") != []
     assert _word_highlight_rects(FakePage(), "نص غير موجود في هذه الصفحة") == []
+
+
+def test_long_quote_is_located_in_pieces_within_a_bounded_time():
+    pytest.importorskip("pymupdf")
+    import time
+
+    # A repetitive page is the fuzzy matcher's worst case; a 2000-char request quote must not
+    # pin a worker for minutes, and a long real quote is still highlighted piece by piece.
+    page_words = ("de la banque centrale " * 150).split()
+    line = [(10.0 * i, 100.0 + i // 20 * 12, 10.0 * i + 8, 112.0 + i // 20 * 12, w, 0, i // 20, i)
+            for i, w in enumerate(page_words)]
+
+    class FakePage:
+        def get_text(self, kind, sort=False):
+            return list(line)
+
+    started = time.monotonic()
+    assert _word_highlight_rects(FakePage(), ("la de " * 330)[:2000]) is not None
+    # "…" splits a quote into segments; they share one budget instead of one each.
+    assert locate_quote(FakePage(), " … ".join(["la banque de la "] * 120)[:2000]) is not None
+    assert time.monotonic() - started < 10
+    assert _word_highlight_rects(FakePage(), " ".join(page_words[:100])) != []

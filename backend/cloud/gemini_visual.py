@@ -7,9 +7,8 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Literal
 
-from pydantic import BaseModel, Field
+from ingestion.models import VisualPage
 
 
 PROMPT_VERSION = "bct-faithful-page-transcription-v3-charts"
@@ -22,28 +21,6 @@ DEFAULT_MODEL_CHAIN = (
     "gemini-3.6-flash",
     "gemini-3.5-flash",
 )
-
-
-class SensitiveLiteral(BaseModel):
-    literal: str
-    kind: Literal["number", "date", "time", "percentage", "amount", "identifier", "other"]
-    context: str
-    uncertain: bool = False
-
-
-class VisualPage(BaseModel):
-    transcription: str = Field(description="Faithful verbatim transcription of all visible text in reading order.")
-    items: list[SensitiveLiteral] = Field(default_factory=list)
-    uncertain_regions: list[str] = Field(default_factory=list)
-    complete: bool
-    contains_chart: bool = Field(
-        default=False,
-        description="True when the page shows a chart, graph, plot, or similar figure (image or drawing).",
-    )
-    chart_notes: str = Field(
-        default="",
-        description="Visible chart title, legend, axis labels, and readable data values only; empty if no chart.",
-    )
 
 
 _PROMPT = """You are transcribing one page of a Tunisian Central Bank PDF (regulatory, statistical, or internal).

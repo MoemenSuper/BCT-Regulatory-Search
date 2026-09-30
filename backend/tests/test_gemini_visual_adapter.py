@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ingestion.gemini_visual import GeminiVisualTranscriber
+from cloud.gemini_visual import GeminiVisualTranscriber
 
 
 class FakeInteractions:
@@ -78,7 +78,7 @@ def test_gemini_adapter_marks_literal_not_present_in_transcription_uncertain(tmp
 
 
 def test_gemini_json_falls_back_to_36_when_primary_quota_exhausted(monkeypatch):
-    import ingestion.gemini_visual as gv
+    import cloud.gemini_visual as gv
 
     models_used = []
 
@@ -131,7 +131,7 @@ def test_gemini_json_falls_back_to_36_when_primary_quota_exhausted(monkeypatch):
 
 
 def test_gemini_json_rotates_to_next_key_on_quota(monkeypatch):
-    import ingestion.gemini_visual as gv
+    import cloud.gemini_visual as gv
 
     calls = []
     created = []

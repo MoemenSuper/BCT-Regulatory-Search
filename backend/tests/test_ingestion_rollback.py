@@ -54,7 +54,7 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
 
     staged_holder = {}
 
-    def fake_stage_cloud_assets(*, asset_root, new_primary, new_visual, content_sha256, source_filename):
+    def fake_stage_assets(*, asset_root, new_primary, new_visual, content_sha256, source_filename, **_flags):
         staged = Path(asset_root) / "versions" / "new"
         staged.mkdir(parents=True, exist_ok=False)
         (staged / "snapshot.json").write_text(json.dumps({"version": "new"}), encoding="utf-8")
@@ -69,7 +69,7 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
     monkeypatch.setenv("BCT_VISUAL_BACKEND", "off")
     monkeypatch.setattr(pipeline_module, "PdfExtractor", FakeExtractor)
     monkeypatch.setattr(pipeline_module, "build_runtime_chunks", fake_chunks)
-    monkeypatch.setattr(pipeline_module, "stage_cloud_assets", fake_stage_cloud_assets)
+    monkeypatch.setattr(pipeline_module, "stage_assets", fake_stage_assets)
     monkeypatch.setattr(pipeline_module, "activate_assets", fake_activate)
 
     config = IngestionConfig(

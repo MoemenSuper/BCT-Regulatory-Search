@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import logging
 import os
@@ -11,32 +10,12 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
 from langchain_core.documents import Document
 from langfuse import get_client
 
-from runtime_retrieval import (
-    _load_bound_index,
-    _read_chunks,
-    VOYAGE_SPEC,
-    create_cloud_runtime_client,
-    document_binding,
-)
+from runtime_retrieval import _read_chunks
 
 logger = logging.getLogger(__name__)
-
-
-def ingest_cloud_embed_enabled() -> bool:
-    """Whether admin/CLI ingest should call the Voyage embed API.
-
-    local / local_hybrid retrieve from Chroma (e5); cloud embeds are only needed for
-    the cloud profile. Override with BCT_INGEST_CLOUD_INDEX=0|1.
-    """
-    configured = os.environ.get("BCT_INGEST_CLOUD_INDEX")
-    if configured is not None and str(configured).strip() != "":
-        return str(configured).strip() == "1"
-    profile = (os.environ.get("BCT_DEFAULT_PROFILE") or "local_hybrid").strip().casefold()
-    return profile == "cloud"
 
 
 def resolve_active_assets(root: str | Path) -> Path:
@@ -116,77 +95,21 @@ def _jsonl(path: Path, documents: list[Document]) -> None:
             )
 
 
-def _array_bytes(vectors: np.ndarray) -> bytes:
-    buffer = io.BytesIO()
-    np.save(buffer, np.asarray(vectors, dtype=np.float32), allow_pickle=False)
-    return buffer.getvalue()
+def _keep_indices(documents: list[Document], source_key: str) -> list[int]:
+    """Positions of the chunks that do not come from source_key (the PDF being replaced)."""
+    return [
+        index
+        for index, document in enumerate(documents)
+        if Path(str(document.metadata.get("source", ""))).name.casefold() != source_key
+    ]
 
 
-def _write_bound_index(root: Path, representation: str, documents: list[Document], vectors: np.ndarray, *, spec=None) -> None:
-    spec = spec or VOYAGE_SPEC
-    vectors = np.asarray(vectors, dtype=np.float32)
-    if vectors.shape != (len(documents), spec.dimension):
-        raise ValueError(f"Invalid {representation} vector shape: {vectors.shape}")
-    if not np.isfinite(vectors).all() or (len(vectors) and np.any(np.linalg.norm(vectors, axis=1) <= 0)):
-        raise ValueError(f"Invalid {representation} vectors")
-    texts = [hashlib.sha256(document.page_content.encode("utf-8")).hexdigest() for document in documents]
-    binding = document_binding(documents)
-    array = _array_bytes(vectors)
-    index_dir = root / "indexes"
-    index_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{spec.model}-{representation}-{binding[:16]}"
-    npy_path = index_dir / f"{stem}.npy"
-    json_path = index_dir / f"{stem}.json"
-    npy_path.write_bytes(array)
-    manifest = {
-        "provider": spec.provider,
-        "model": spec.model,
-        "task": "document",
-        "representation": representation,
-        "contextual": spec.contextual,
-        "texts": texts,
-        "documents_sha256": binding,
-        "array_sha256": hashlib.sha256(array).hexdigest().upper(),
-        "dimension": spec.dimension,
-        "shape": [len(documents), spec.dimension],
-        "dtype": "float32",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    json_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
-
-
-def _load_old(active: Path, representation: str, filename: str, *, spec=None):
-    """Load chunks + matching provider vectors. Missing provider index ⇒ vectors None (re-embed)."""
-    spec = spec or VOYAGE_SPEC
+def _read_active(active: Path, filename: str) -> list[Document]:
     path = active / filename
-    if not path.exists():
-        return [], np.empty((0, spec.dimension), dtype=np.float32)
-    documents = _read_chunks(path)
-    try:
-        vectors = _load_bound_index(active, representation, documents, spec)
-    except ValueError as error:
-        if "No bound" in str(error) and "not interchangeable" in str(error):
-            # First build for this provider (or wrong provider indexes only).
-            return documents, None
-        raise
-    return documents, vectors
+    return _read_chunks(path) if path.exists() else []
 
 
-def _embed_new(client, documents: list[Document]) -> np.ndarray:
-    dimension = int(getattr(client, "dimension", VOYAGE_SPEC.dimension))
-    if not documents:
-        return np.empty((0, dimension), dtype=np.float32)
-    texts = [document.page_content for document in documents]
-    with get_client().start_as_current_observation(
-        name="embed-chunks",
-        as_type="embedding",
-        model=str(getattr(client, "model", "") or VOYAGE_SPEC.model),
-        input={"chunks": len(texts), "chars": sum(map(len, texts))},
-    ):
-        return client.embed_document_chunks(texts)
-
-
-def stage_cloud_assets(
+def stage_assets(
     *,
     asset_root: str | Path,
     new_primary: list[Document],
@@ -197,67 +120,20 @@ def stage_cloud_assets(
     removal: bool = False,
     embed_cloud: bool | None = None,
 ) -> tuple[Path, dict]:
-    """Build a complete new asset version (JSONL + optional cloud embeddings).
-
-    When embed_cloud is False (default for local / local_hybrid), JSONL is still
-    updated and local Chroma can be staged separately — Voyage is not called.
+    """Build a complete new asset version: the JSONL chunks, plus the cloud profile's
+    Voyage indexes (cloud/voyage_index.py; embeds only when embed_cloud is on).
     """
     root = Path(asset_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     active = resolve_active_assets(root)
-    spec = VOYAGE_SPEC
-    if embed_cloud is None:
-        embed_cloud = ingest_cloud_embed_enabled()
-    old_primary, old_primary_vectors = _load_old(active, "native", "native.jsonl", spec=spec)
-    old_visual, old_visual_vectors = _load_old(
-        active, "arabic_ocr_secondary", "arabic_ocr_secondary.jsonl", spec=spec
-    )
     source_key = Path(source_filename).name.casefold()
 
-    def without_replaced_source(documents, vectors):
-        keep = [
-            index
-            for index, document in enumerate(documents)
-            if Path(str(document.metadata.get("source", ""))).name.casefold() != source_key
-        ]
-        if len(keep) == len(documents):
-            return documents, vectors
-        if vectors is None:
-            return [documents[index] for index in keep], None
-        return (
-            [documents[index] for index in keep],
-            vectors[keep] if keep else np.empty((0, spec.dimension), dtype=np.float32),
-        )
+    def merged(filename, new_docs):
+        old = _read_active(active, filename)
+        return [old[index] for index in _keep_indices(old, source_key)] + list(new_docs)
 
-    old_primary, old_primary_vectors = without_replaced_source(old_primary, old_primary_vectors)
-    old_visual, old_visual_vectors = without_replaced_source(old_visual, old_visual_vectors)
-
-    def merge_docs(old_docs, new_docs):
-        return list(old_docs) + list(new_docs)
-
-    if embed_cloud:
-        client = create_cloud_runtime_client(root)
-
-        def merge(old_docs, old_vectors, new_docs):
-            if old_vectors is None:
-                combined = merge_docs(old_docs, new_docs)
-                return combined, _embed_new(client, combined)
-            new_vectors = _embed_new(client, new_docs)
-            combined = merge_docs(old_docs, new_docs)
-            if len(old_vectors):
-                return combined, np.vstack([old_vectors, new_vectors])
-            return combined, new_vectors
-
-        all_primary, all_primary_vectors = merge(old_primary, old_primary_vectors, new_primary)
-        all_visual, all_visual_vectors = merge(old_visual, old_visual_vectors, new_visual)
-    else:
-        all_primary = merge_docs(old_primary, new_primary)
-        all_visual = merge_docs(old_visual, new_visual)
-        # Carry forward prior cloud vectors only when no new chunks need embedding
-        # (e.g. removal). Otherwise leave cloud indexes stale; local Chroma is enough.
-        all_primary_vectors = old_primary_vectors if not new_primary else None
-        all_visual_vectors = old_visual_vectors if not new_visual else None
-
+    all_primary = merged("native.jsonl", new_primary)
+    all_visual = merged("arabic_ocr_secondary.jsonl", new_visual)
     if not all_primary and not allow_empty:
         raise ValueError(
             f"Ingestion of {source_filename!r} produced no native searchable chunks "
@@ -274,42 +150,22 @@ def stage_cloud_assets(
     try:
         _jsonl(staging / "native.jsonl", all_primary)
         _jsonl(staging / "arabic_ocr_secondary.jsonl", all_visual)
-        if all_primary_vectors is not None:
-            _write_bound_index(staging, "native", all_primary, all_primary_vectors, spec=spec)
-        if all_visual_vectors is not None:
-            _write_bound_index(
-                staging, "arabic_ocr_secondary", all_visual, all_visual_vectors, spec=spec
-            )
-        # Preserve the Voyage indexes when this build skipped embedding (stale vs jsonl).
-        indexes_src = active / "indexes"
-        if indexes_src.is_dir():
-            indexes_dst = staging / "indexes"
-            indexes_dst.mkdir(parents=True, exist_ok=True)
-            for manifest_path in indexes_src.glob("*.json"):
-                try:
-                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                except (OSError, json.JSONDecodeError):
-                    continue
-                provider = manifest.get("provider")
-                model = manifest.get("model")
-                keep_stale = (
-                    not embed_cloud
-                    and all_primary_vectors is None
-                    and provider == spec.provider
-                    and model == spec.model
-                )
-                if not keep_stale:
-                    continue
-                npy_path = manifest_path.with_suffix(".npy")
-                if npy_path.is_file():
-                    shutil.copy2(manifest_path, indexes_dst / manifest_path.name)
-                    shutil.copy2(npy_path, indexes_dst / npy_path.name)
+        from cloud.voyage_index import stage_voyage_indexes
+
+        cloud_fields = stage_voyage_indexes(
+            root=root,
+            active=active,
+            staging=staging,
+            source_key=source_key,
+            new_primary=new_primary,
+            new_visual=new_visual,
+            embed=embed_cloud,
+        )
         snapshot = {
             "version": version_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "parent": str(active.relative_to(root)) if active != root else "legacy-root",
-            "cloud_retrieval_provider": spec.key,
-            "cloud_embed": bool(embed_cloud),
+            **cloud_fields,
             "native_chunks": len(all_primary),
             "arabic_visual_chunks": len(all_visual),
         }

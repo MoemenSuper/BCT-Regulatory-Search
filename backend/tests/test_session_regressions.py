@@ -5,7 +5,7 @@ from langchain_core.runnables import RunnableLambda
 from answer_contract import generate_grounded_answer, safe_response
 from source_metadata import normalize_page
 from retrieval_selection import parse_query_identity
-from runtime_retrieval import VoyageRetrievalBackend
+from cloud.voyage_retrieval import VoyageRetrievalBackend
 import numpy as np
 import conversation
 import pytest
@@ -109,7 +109,7 @@ def test_followup_preserves_original_answer_language_when_router_translates(monk
     original = "وما هو تاريخها؟ أجب بالعربية."
     resolved = "Quelle est la date de la circulaire BCT n° 2020-03 ?"
     observed = {}
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: {
         "intent": "FOLLOW_UP", "rewrite_query": resolved,
         "current_topic": "circulaire BCT n° 2020-03",

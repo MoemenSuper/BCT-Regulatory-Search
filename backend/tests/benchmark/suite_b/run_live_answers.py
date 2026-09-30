@@ -418,7 +418,7 @@ def main() -> int:
     from conversation import chat
     from ingestion.index import configure_runtime_assets
     from jsonl_supersession import clear_supersession_cache
-    from runtime_retrieval import create_voyage_backend_from_environment
+    from cloud.voyage_retrieval import create_voyage_backend_from_environment
 
     clear_supersession_cache()
     configure_runtime_assets(ASSETS, validate=True)

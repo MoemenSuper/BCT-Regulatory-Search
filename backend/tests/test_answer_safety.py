@@ -164,7 +164,7 @@ def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
             return [(chunks[0], 0.9)]
         def expand_pages(self, ranked):
             return expand_ranked_pages(ranked, pages)
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     def answer(_llm, _question, evidence, *_args, **_kwargs):
         assert "7 ans" in evidence[0][0].page_content
@@ -186,7 +186,7 @@ def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monk
     # Both drafts cite a unit that does not exist: no model is pushed further, the pages are listed.
     assert result["status"] == "search_results"
     assert result["diagnostics"][:2] == ["unknown_citation", "unknown_citation"]
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(intent="NEW_TOPIC", rewrite_query="", new_topic="t", current_topic="t"))
     monkeypatch.setattr(conversation, "generate_grounded_answer", lambda *a, **k: result)
     class Backend:
@@ -593,7 +593,7 @@ def test_named_document_is_the_only_candidate_for_direct_contents_question():
     "Quel est le dernier plafond applicable ?", "ما أحدث سقف؟", "What is the latest ceiling?",
 ])
 def test_currentness_detection_in_both_answer_entrypoints(question):
-    from graph_contract import is_temporal_rule_query
+    from query_currentness import is_temporal_rule_query
     assert is_temporal_rule_query(question)
     assert parse(draft(), [record()], question)["status"] == "partial_answer"
 
@@ -774,7 +774,7 @@ def test_search_fallback_preserves_original_top5_not_currentness_answer_order(mo
     class Backend:
         def retrieve(self, query):
             return docs
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: dict(
         intent="NEW_TOPIC", rewrite_query="", new_topic="plafond", current_topic="plafond"))
     def answer(_llm, _question, evidence, *_args, **_kwargs):

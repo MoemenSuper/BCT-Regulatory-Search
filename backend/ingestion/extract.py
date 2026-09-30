@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from answer_evidence import evidence_warning
 
-from .gemini_visual import VisualPage
+from .models import VisualPage
 from .models import Block, Page, StructuredDocument
 from .quality import arabic_character_ratio, assess_page_quality, contains_sensitive_literals
 

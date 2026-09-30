@@ -36,7 +36,7 @@ def _client(monkeypatch, tmp_path):
     api.state.profile_manager = SimpleNamespace(reset=lambda: resets.append(1))
     api.state.source_resolver = SimpleNamespace(refresh=lambda: None)
     api.dependency_overrides[require_admin] = lambda: None
-    app_module._install_ingestion_routes(api)
+    api.include_router(app_module.documents_router)
     return TestClient(api), resets
 
 

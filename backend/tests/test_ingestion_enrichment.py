@@ -10,7 +10,7 @@ import pytest
 
 from ingestion import enrichment as enrichment_module
 from ingestion.enrichment import EnrichmentWorker, Foreground
-from ingestion.gemini_visual import VisualPage
+from ingestion.models import VisualPage
 from ingestion.pipeline import IngestionConfig, IngestionPipeline
 from runtime_retrieval import _read_chunks
 
@@ -311,7 +311,7 @@ def test_admin_api_lists_progress_and_retries_degraded_pages(config, tmp_path, m
         wake=lambda **kw: wakes.append(kw), snapshot=lambda: {"state": "reading", "page": 2}
     )
     api.dependency_overrides[require_admin] = lambda: None
-    app_module._install_ingestion_routes(api)
+    api.include_router(app_module.documents_router)
     client = TestClient(api)
 
     [listed] = client.get("/documents").json()

@@ -5,7 +5,7 @@ import app as app_module
 from app import app
 from conversation_memory import ConversationStore
 from identity import require_admin, require_approved_user, require_user
-from runtime_retrieval import track_cloud_retrieval_usage, _record_voyage_usage
+from cloud.voyage_client import track_cloud_retrieval_usage, _record_voyage_usage
 
 
 @pytest.fixture()
@@ -46,7 +46,7 @@ def test_admin_can_set_and_reset_token_quota(auth_client):
     )
     assert limited.status_code == 200
     assert limited.json()["user"]["token_limit"] == 250
-    auth_client.app.state.auth_store.consume_cloud_usage(
+    auth_client.app.state.auth_store.consume_usage(
         registered["id"], llm=40, embed=10, rerank=5
     )
     users = auth_client.get("/admin/users").json()
@@ -70,7 +70,7 @@ def test_chat_blocked_when_token_quota_exhausted(auth_client, monkeypatch):
     auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
     auth_client.post(f"/admin/users/{registered['id']}/approve")
     auth_client.put(f"/admin/users/{registered['id']}/token-limit", json={"token_limit": 10})
-    auth_client.app.state.auth_store.consume_tokens(registered["id"], 10)
+    auth_client.app.state.auth_store.consume_usage(registered["id"], llm=10)
     auth_client.post("/auth/logout")
     auth_client.post("/auth/login", json={"email": "spent@bct.tn", "password": "Password123"})
     monkeypatch.setattr(

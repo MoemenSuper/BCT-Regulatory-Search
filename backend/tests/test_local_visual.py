@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ingestion.gemini_visual import VisualPage
+from ingestion.models import VisualPage
 from ingestion.local_visual import LocalVisualRouter, build_visual_transcriber, visual_backend_name
 
 

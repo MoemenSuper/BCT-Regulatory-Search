@@ -42,8 +42,6 @@ def _voyage_credential_names() -> tuple[str, ...]:
             names.append(name)
     return tuple(names)
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass(frozen=True)
 class CloudEmbedSpec:

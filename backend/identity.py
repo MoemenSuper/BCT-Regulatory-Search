@@ -1,4 +1,4 @@
-﻿"""User accounts, password hashing, and server-side sessions."""
+"""User accounts, password hashing, and server-side sessions."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import Cookie, HTTPException, Request, Response
+
+from sqlite_local import thread_connection
 
 Role = Literal["user", "admin"]
 Status = Literal["pending", "approved", "rejected"]
@@ -64,12 +66,60 @@ def default_auth_database_path() -> Path:
     return root / "BCT-Regulatory-Search" / "auth.sqlite3"
 
 
+# Stored hashes carry their own n, so older 2**12 hashes still verify and are upgraded at login.
+SCRYPT_N = 2**14
+
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
-    # ponytail: scrypt n=2**12 is enough for this local admin tool; raise if facing online attacks
-    n = 2**12
-    digest = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=n, r=8, p=1, dklen=32)
-    return f"{_HASH_PREFIX}${n}${salt.hex()}${digest.hex()}"
+    digest = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=SCRYPT_N, r=8, p=1, dklen=32)
+    return f"{_HASH_PREFIX}${SCRYPT_N}${salt.hex()}${digest.hex()}"
+
+
+# Unknown emails still pay one scrypt, so login time does not reveal which accounts exist.
+_DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
+
+
+class AttemptLimiter:
+    """Sliding-window count of attempts per key (an email+IP pair or a client IP).
+
+    ponytail: per-process memory — resets on restart and is not shared between workers;
+    move it into the auth DB if the API ever runs several workers.
+    """
+
+    _SWEEP_ABOVE = 10_000  # keys; expired ones are dropped once the map grows past this
+
+    def __init__(self, limit: int, window_seconds: float) -> None:
+        self.limit = limit
+        self.window = window_seconds
+        self._hits: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def hit(self, key: str) -> bool:
+        """Count one attempt. False, counting nothing, when the key is already at its limit."""
+        with self._lock:
+            now = time.monotonic()
+            if len(self._hits) > self._SWEEP_ABOVE:
+                self._hits = {k: v for k, v in self._hits.items() if now - v[-1] < self.window}
+            hits = [t for t in self._hits.get(key, []) if now - t < self.window]
+            if len(hits) >= self.limit:
+                self._hits[key] = hits
+                return False
+            self._hits[key] = hits + [now]
+            return True
+
+    def release(self, key: str) -> None:
+        """Uncount one attempt (it succeeded)."""
+        with self._lock:
+            hits = self._hits.get(key)
+            if hits:
+                hits.pop()
+            if not hits:
+                self._hits.pop(key, None)
+
+    def reset(self, key: str) -> None:
+        with self._lock:
+            self._hits.pop(key, None)
 
 
 def verify_password(password: str, encoded: str) -> bool:
@@ -149,14 +199,7 @@ class AuthStore:
 
     @property
     def _conn(self) -> sqlite3.Connection:
-        # One connection per thread: a shared sqlite3 connection races under FastAPI's threadpool.
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
-            conn = sqlite3.connect(self.path, timeout=30)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA foreign_keys = ON")
-            self._local.conn = conn
-        return conn
+        return thread_connection(self._local, self.path)
 
     def close(self) -> None:
         self._conn.close()
@@ -285,8 +328,17 @@ class AuthStore:
             "SELECT * FROM users WHERE email = ?",
             (email.strip().casefold(),),
         ).fetchone()
-        if row is None or not verify_password(password, row["password_hash"]):
+        if row is None:
+            verify_password(password, _DUMMY_HASH)
             return None
+        if not verify_password(password, row["password_hash"]):
+            return None
+        if not row["password_hash"].startswith(f"{_HASH_PREFIX}${SCRYPT_N}$"):
+            self._conn.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (hash_password(password), row["id"]),
+            )
+            self._conn.commit()
         return self._row_to_user(row)
 
     def get_by_id(self, user_id: str) -> UserRecord | None:
@@ -377,11 +429,7 @@ class AuthStore:
         assert user is not None
         return user
 
-    def consume_tokens(self, user_id: str, tokens: int) -> UserRecord:
-        # Legacy helper: treat unspecified usage as LLM (Groq) tokens.
-        return self.consume_cloud_usage(user_id, llm=tokens)
-
-    def consume_cloud_usage(
+    def consume_usage(
         self,
         user_id: str,
         *,

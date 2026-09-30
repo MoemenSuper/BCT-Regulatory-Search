@@ -2,14 +2,11 @@
 
 from inspect import signature
 
-from app import _install_ingestion_routes
-from fastapi import FastAPI
+from app import documents_router
 
 
 def test_documents_upload_accepts_file_only():
-    app = FastAPI()
-    _install_ingestion_routes(app)
-    route = next(route for route in app.routes if getattr(route, "path", None) == "/documents" and "POST" in getattr(route, "methods", set()))
+    route = next(route for route in documents_router.routes if getattr(route, "path", None) == "/documents" and "POST" in getattr(route, "methods", set()))
     params = signature(route.endpoint).parameters
     assert "file" in params
     assert "title" not in params

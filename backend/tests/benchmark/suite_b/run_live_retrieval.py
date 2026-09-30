@@ -69,8 +69,8 @@ def main() -> int:
     os.environ["BCT_DEFAULT_PROFILE"] = args.profile
 
     from ingestion.index import configure_runtime_assets
-    from app import create_local_backend
-    from runtime_retrieval import create_voyage_backend_from_environment
+    from runtime_retrieval import create_local_backend
+    from cloud.voyage_retrieval import create_voyage_backend_from_environment
 
     active = configure_runtime_assets(assets, validate=True)
     print(f"assets={assets}")

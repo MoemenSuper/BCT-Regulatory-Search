@@ -6,6 +6,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlite_local import thread_connection
+
 
 # Statuses whose chunks are live in the active asset version.
 SEARCHABLE = ("enriching", "ready", "ready_degraded")
@@ -59,13 +61,7 @@ class IngestionRegistry:
 
     @property
     def connection(self) -> sqlite3.Connection:
-        # One connection per thread: request handlers and the enrichment worker share this registry.
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
-            conn = sqlite3.connect(self.path, timeout=30)
-            conn.row_factory = sqlite3.Row
-            self._local.conn = conn
-        return conn
+        return thread_connection(self._local, self.path)
 
     def close(self) -> None:
         self.connection.close()

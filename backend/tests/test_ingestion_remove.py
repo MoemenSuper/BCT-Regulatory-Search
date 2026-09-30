@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from langchain_core.documents import Document
 
-from ingestion import index as index_module
+from cloud import voyage_index
 from ingestion.pipeline import IngestionConfig, IngestionPipeline
 from ingestion.registry import IngestionRegistry
 from runtime_retrieval import _read_chunks
@@ -97,7 +97,7 @@ def test_pipeline_remove_strips_source_and_keeps_peers(tmp_path: Path, monkeypat
         def embed_document_chunks(self, texts, **_kwargs):
             return np.ones((len(texts), self.dimension), dtype=np.float32)
 
-    from runtime_retrieval import CloudEmbedSpec
+    from cloud.voyage_client import CloudEmbedSpec
 
     fake_spec = CloudEmbedSpec(
         key="voyage",
@@ -106,9 +106,9 @@ def test_pipeline_remove_strips_source_and_keeps_peers(tmp_path: Path, monkeypat
         dimension=4,
         contextual=False,
     )
-    monkeypatch.setattr(index_module, "VOYAGE_SPEC", fake_spec)
+    monkeypatch.setattr(voyage_index, "VOYAGE_SPEC", fake_spec)
     monkeypatch.setattr(
-        index_module, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
+        voyage_index, "create_cloud_runtime_client", lambda *a, **k: FakeClient()
     )
     monkeypatch.setenv("BCT_VISUAL_BACKEND", "off")
 

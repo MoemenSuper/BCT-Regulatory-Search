@@ -100,7 +100,7 @@ def test_graph_relationship_note_is_surfaced_for_drafting():
 
 def test_graph_supersession_keeps_both_sides_and_marks_roles():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records, _annotate_graph_supersession
+    from answer_contract import evidence_records, _annotate_supersession
 
     docs = [
         (
@@ -124,7 +124,7 @@ def test_graph_supersession_keeps_both_sides_and_marks_roles():
             0.85,
         ),
     ]
-    records = _annotate_graph_supersession(evidence_records(docs))
+    records = _annotate_supersession(evidence_records(docs))
     by_source = {r["source"]: r for r in records}
     assert by_source["Cir_2021_03_fr.pdf"]["graph_role"] == "successor"
     assert by_source["Cir_2016_01_fr.pdf"]["graph_role"] == "superseded"
@@ -134,7 +134,7 @@ def test_graph_supersession_keeps_both_sides_and_marks_roles():
 
 def test_jsonl_amends_edge_marks_successor_for_topical_drafting():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records, _annotate_graph_supersession
+    from answer_contract import evidence_records, _annotate_supersession
 
     docs = [
         (
@@ -158,7 +158,7 @@ def test_jsonl_amends_edge_marks_successor_for_topical_drafting():
             0.8,
         ),
     ]
-    records = _annotate_graph_supersession(evidence_records(docs))
+    records = _annotate_supersession(evidence_records(docs))
     by_source = {r["source"]: r for r in records}
     assert by_source["Cir_2020_03_fr.pdf"]["graph_role"] == "successor"
     assert by_source["Cir_2016_08_fr.pdf"]["graph_role"] == "superseded"

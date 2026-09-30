@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from ingestion.extract import PdfExtractor
-from ingestion.gemini_visual import VisualPage
+from ingestion.models import VisualPage
 
 
 class FakeVisualTranscriber:

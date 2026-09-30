@@ -8,7 +8,6 @@ import { type UiLocale } from './uiLocale';
 import App from './App';
 import './loginPageStyle.css';
 import './adminStyles.css';
-import './adminAppleStyles.css';
 
 type Gate =
   | { kind: 'loading' }

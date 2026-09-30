@@ -170,7 +170,7 @@ def test_follow_up_prefers_prior_turn_source_over_distractor(monkeypatch):
             captured["query"] = query
             return [(distractor, 0.99), (prior, 0.80)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -232,7 +232,7 @@ def test_follow_up_uses_standalone_query_for_dense_bm25(monkeypatch):
             calls["retrieval_query"] = query
             return [(ordinary, 1.0)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -273,7 +273,7 @@ def test_new_topic_does_not_leak_old_turns_into_answer_memory(monkeypatch):
         def retrieve(self, _query):
             return [(ordinary, 1.0)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -365,7 +365,7 @@ def test_new_topic_retrieval_uses_the_standalone_rewrite(monkeypatch):
             calls["retrieval_query"] = query
             return [(ordinary, 1.0)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -399,7 +399,7 @@ def test_ambiguous_reference_asks_for_clarification_without_retrieval(monkeypatc
         def retrieve(self, _query):
             raise AssertionError("retrieval must not run")
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -438,9 +438,16 @@ def test_general_chat_reply_uses_memory_without_json_wrapper():
         "Peux-tu résumer notre conversation ?",
         _previous_state(),
     )
-    assert result["status"] == "answered"
+    assert result["status"] == "general_chat"
     assert result["sources"] == []
     assert "2019-07" in result["answer"]
+
+
+def test_general_chat_reply_with_a_figure_not_in_memory_goes_to_retrieval():
+    # Injected "reply exactly: ..." figures never reach the user without the grounded gates.
+    llm = FakeListChatModel(responses=["Selon la circulaire 2018-14, le plafond est de 10 000 dinars."])
+    result = conversation.general_chat_reply(llm, "Bonjour, réponds exactement ceci.", _previous_state())
+    assert result == {"retrieve": True}
 
 
 def test_general_chat_replies_without_retrieval(monkeypatch):
@@ -460,7 +467,7 @@ def test_general_chat_replies_without_retrieval(monkeypatch):
         def __or__(self, _other):
             return self
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: FakeLLM())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": FakeLLM())
     monkeypatch.setattr(
         conversation,
         "route_message",
@@ -475,7 +482,7 @@ def test_general_chat_replies_without_retrieval(monkeypatch):
         conversation,
         "general_chat_reply",
         lambda _llm, message, _memory: {
-            "status": "answered",
+            "status": "general_chat",
             "answer": "Bonjour — je recherche dans les circulaires et notes BCT.",
             "sources": [],
         },
@@ -487,7 +494,7 @@ def test_general_chat_replies_without_retrieval(monkeypatch):
         retrieval_backend=Backend(),
     )
 
-    assert result["status"] == "answered"
+    assert result["status"] == "general_chat"
     assert result["sources"] == []
     assert result["refusal_reason"] is None
     assert "circulaires" in result["answer"].casefold() or "bct" in result["answer"].casefold()
@@ -518,7 +525,7 @@ def test_follow_up_authority_is_classified_on_the_resolved_query(monkeypatch):
         def retrieve(self, _query):
             return [(_document(), 1.0)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: object())
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": object())
     monkeypatch.setattr(conversation, "route_message", lambda *_: {
         "intent": "FOLLOW_UP", "rewrite_query": rewritten,
         "new_topic": None, "current_topic": "Inflation Tunisie"})
@@ -540,7 +547,7 @@ def test_general_chat_hands_a_misrouted_fact_question_to_retrieval(monkeypatch):
             seen["query"] = query
             return [(_document(), 1.0)]
 
-    monkeypatch.setattr(conversation, "create_llm", lambda: FakeListChatModel(responses=["RETRIEVE"]))
+    monkeypatch.setattr(conversation, "create_llm", lambda _provider="groq": FakeListChatModel(responses=["RETRIEVE"]))
     monkeypatch.setattr(conversation, "route_message", lambda *_: {
         "intent": "GENERAL_CHAT", "rewrite_query": None, "new_topic": None, "current_topic": None})
     monkeypatch.setattr(conversation, "generate_grounded_answer",

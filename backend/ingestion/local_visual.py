@@ -9,7 +9,7 @@ from pathlib import Path
 
 from langfuse import get_client
 
-from .gemini_visual import VisualPage
+from .models import VisualPage
 
 ENGINE_EASY = "easyocr-ar-v1"
 ENGINE_PADDLE = "paddleocr-vl-1.6-v1"
@@ -425,7 +425,7 @@ def build_visual_transcriber(cache_dir: str | Path, *, profile: str | None = Non
     if backend == "off":
         return None
     if backend == "gemini":
-        from .gemini_visual import GeminiVisualTranscriber
+        from cloud.gemini_visual import GeminiVisualTranscriber
 
         return GeminiVisualTranscriber(cache_dir)
     # local (default for local / local_hybrid)
