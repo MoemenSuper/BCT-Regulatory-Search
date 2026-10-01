@@ -57,4 +57,3 @@ frontend/public/bct-logo-white-full.png
 backend/tests/benchmark/suite_retrieval/questions.json
 backend/tests/benchmark/suite_retrieval/run.py
 docs/report-brief-redesign-2026-09.md
-frontend/src/components/admin/AuditPage.tsx
