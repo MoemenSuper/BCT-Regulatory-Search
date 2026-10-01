@@ -27,7 +27,7 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Visual ingest (EasyOCR / PaddleOCR-VL; `VisualPage` in `models.py`) | `backend/ingestion/local_visual.py`, `extract.py` |
 | Optional cloud profile (Voyage search + index staging, Gemini page reading) | `backend/cloud/` — only called when the cloud profile, `BCT_INGEST_CLOUD_INDEX=1`, or `BCT_VISUAL_BACKEND=gemini` is on |
 | HTTP surface | `backend/app.py`, `backend/run_api.py` |
-| Auth / sessions / roles | `backend/identity.py` |
+| Auth / sessions / roles / admin audit log | `backend/identity.py` (audit rows written by `_audit` in `app.py`) |
 | App profile + provider secrets | `backend/app_settings.py` |
 | UI turn presentation | `frontend/src/` (`ResearchNote`, `EvidencePanel`, `api/chat.ts`) |
 | Login / admin UI | `frontend/src/Root.tsx`, `LoginPage`, `AdminDashboard` |

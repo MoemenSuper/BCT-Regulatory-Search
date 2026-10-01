@@ -1,20 +1,18 @@
 // PDF upload, the indexed document list and background page reading status.
 import { useEffect, useState, type FormEvent } from 'react';
-import { FileText, FileUp, Loader2, RotateCcw, Trash2, X } from 'lucide-react';
+import { FileText, FileUp, Loader2, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { type EnrichmentProgress, type EnrichmentWorkerState, type IndexedDocument } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
-import { isPdfFile, type DocKind, type UploadEntryStatus, type UploadProgress } from './shared';
+import { DOC_KINDS, docKindLabel, isPdfFile, type DocKind, type UploadEntryStatus, type UploadProgress } from './shared';
 import { BlockSkeleton } from './Skeletons';
-
-const DOC_KINDS: DocKind[] = ['regulatory', 'statistical', 'internal'];
-const docKindLabel: Record<DocKind, string> = {
-  regulatory: 'admin.docKindRegulatory',
-  statistical: 'admin.docKindStatistical',
-  internal: 'admin.docKindInternal',
-};
 
 function documentKind(doc: IndexedDocument): DocKind {
   return doc.doc_kind === 'statistical' || doc.doc_kind === 'internal' ? doc.doc_kind : 'regulatory';
+}
+
+// Lower-case and drop accents so "circulaire" finds "Circulaire_réglementaire.pdf".
+function searchable(text: string) {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 }
 
 function uploadEntryLabel(locale: UiLocale, status: UploadEntryStatus) {
@@ -269,8 +267,14 @@ function DocumentsList({
   onDelete: (documentIds: string[], label: string) => void;
 }) {
   const [kind, setKind] = useState<DocKind>('regulatory');
+  const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const rows = documents.filter((doc) => documentKind(doc) === kind);
+  // The search runs first; the tabs then split the matches by kind (their counts follow the search).
+  const needle = searchable(query.trim());
+  const matches = needle
+    ? documents.filter((doc) => searchable(`${doc.title} ${doc.filename}`).includes(needle))
+    : documents;
+  const rows = matches.filter((doc) => documentKind(doc) === kind);
   const rowIds = rows.map((doc) => doc.document_id || '').filter(Boolean);
   const selectedIds = rowIds.filter((id) => selected.has(id));
   const allSelected = rowIds.length > 0 && selectedIds.length === rowIds.length;
@@ -293,10 +297,20 @@ function DocumentsList({
           {DOC_KINDS.map((value) => (
             <button key={value} type="button" role="tab" aria-selected={kind === value} onClick={() => showKind(value)}>
               {t(locale, docKindLabel[value])}
-              <em>{documents.filter((doc) => documentKind(doc) === value).length}</em>
+              <em>{matches.filter((doc) => documentKind(doc) === value).length}</em>
             </button>
           ))}
         </div>
+      </div>
+      <div className="admin-search">
+        <Search aria-hidden="true" size={16} />
+        <input
+          type="search"
+          value={query}
+          placeholder={t(locale, 'admin.searchPdf')}
+          aria-label={t(locale, 'admin.searchPdf')}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
       {rows.some((doc) => doc.status === 'enriching') ? (
         <p className="admin-enrich-notice" role="status">
@@ -307,7 +321,9 @@ function DocumentsList({
       {loading ? (
         <BlockSkeleton label={t(locale, 'admin.loading')} />
       ) : rows.length === 0 ? (
-        <p className="admin-empty">{t(locale, 'admin.indexedEmptyKind')}</p>
+        <p className="admin-empty">
+          {needle ? t(locale, 'admin.searchEmpty', { query: query.trim() }) : t(locale, 'admin.indexedEmptyKind')}
+        </p>
       ) : (
         <>
           <div className="admin-doc-toolbar">

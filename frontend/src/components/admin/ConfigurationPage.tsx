@@ -5,13 +5,14 @@ import { type AdminConfig } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
 import { BlockSkeleton } from './Skeletons';
 
-export function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets }: {
+export function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets, onClearSecret }: {
   config: AdminConfig | null;
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
   onProfile: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onSecrets: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onClearSecret: (key: string) => Promise<void>;
 }) {
   if (loading || !config) {
     return (
@@ -64,18 +65,29 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
                 <span className={`admin-secret-state${secret.configured ? ' is-set' : ''}`}>
                   {secret.configured ? <CheckCircle2 aria-hidden="true" size={13} /> : null}
                   {secret.configured
-                    ? t(locale, 'admin.configured', { source: secret.source, masked: secret.masked || '' })
+                    ? t(locale, 'admin.configured', {
+                        source: t(locale, secret.source === 'store' ? 'admin.sourceStore' : 'admin.sourceEnvironment'),
+                        masked: (secret.secret ? secret.masked : secret.value) || '',
+                      })
                     : t(locale, 'admin.notConfigured')}
                 </span>
               </div>
-              <input
-                id={`secret-${secret.key}`}
-                name={secret.key}
-                type="password"
-                autoComplete="off"
-                placeholder={secret.configured ? t(locale, 'admin.replaceValue') : t(locale, 'admin.enterValue')}
-                aria-describedby={`secret-${secret.key}-hint`}
-              />
+              <div className="admin-secret-input">
+                <input
+                  id={`secret-${secret.key}`}
+                  name={secret.key}
+                  type={secret.secret ? 'password' : 'text'}
+                  autoComplete="off"
+                  placeholder={secret.configured ? t(locale, 'admin.replaceValue') : t(locale, 'admin.enterValue')}
+                  aria-describedby={`secret-${secret.key}-hint`}
+                />
+                {/* Only a value saved here can be removed; .env values are edited in the file. */}
+                {secret.source === 'store' ? (
+                  <button type="button" className="admin-btn" disabled={busy} onClick={() => void onClearSecret(secret.key)}>
+                    {t(locale, 'admin.clearSecret')}
+                  </button>
+                ) : null}
+              </div>
               <p className="admin-help" id={`secret-${secret.key}-hint`}>{t(locale, `admin.secretHint.${secret.key}`)}</p>
             </div>
           ))}

@@ -21,6 +21,9 @@ MANAGED_SECRET_KEYS = (
     "BCT_LOCAL_LLM_MODEL",
 )
 
+# Settings that are not secret (a model name, a local address) are shown in full.
+PLAIN_SETTING_KEYS = ("BCT_GROQ_MODEL", "BCT_LOCAL_LLM_URL", "BCT_LOCAL_LLM_MODEL")
+
 ACTIVE_PROFILE_KEY = "active_profile"
 
 
@@ -53,6 +56,9 @@ class AppSettingsStore:
             """
         )
         self._conn.commit()
+        # What the server started with (.env or the real environment), before saved
+        # values override it. Removing a saved value falls back to this.
+        self._started_with = {key: os.environ.get(key) for key in MANAGED_SECRET_KEYS}
         self.apply_to_environment()
 
     @property
@@ -109,11 +115,14 @@ class AppSettingsStore:
             stored = self.get(key)
             env_value = os.environ.get(key)
             effective = stored if stored is not None else env_value
+            secret = key not in PLAIN_SETTING_KEYS
             secrets.append(
                 {
                     "key": key,
+                    "secret": secret,
                     "configured": bool(effective),
-                    "masked": mask_secret(effective),
+                    "masked": mask_secret(effective) if secret else None,
+                    "value": None if secret else effective,
                     "source": "store" if stored is not None else ("environment" if env_value else "unset"),
                 }
             )
@@ -129,7 +138,12 @@ class AppSettingsStore:
                 raise ValueError(f"Unsupported configuration key: {key}")
             if value is None or value.strip() == "":
                 self.delete(key)
-                # Leave existing process env alone if clearing store override.
+                # Fall back to the value the server started with, or to nothing.
+                original = self._started_with.get(key)
+                if original:
+                    os.environ[key] = original
+                else:
+                    os.environ.pop(key, None)
                 continue
             cleaned = value.strip()
             self.set(key, cleaned)

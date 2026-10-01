@@ -224,6 +224,18 @@ class AuthStore:
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+            -- Who did what in the admin dashboard. The email is copied so the line
+            -- stays readable after the account is deleted.
+            CREATE TABLE IF NOT EXISTS admin_audit (
+                audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at REAL NOT NULL,
+                actor_id TEXT NOT NULL,
+                actor_email TEXT NOT NULL,
+                action TEXT NOT NULL,
+                target TEXT NOT NULL DEFAULT '',
+                detail TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit(created_at DESC);
             """
         )
         columns = {
@@ -486,6 +498,27 @@ class AuthStore:
         self._conn.commit()
         if cur.rowcount == 0:
             raise KeyError(user_id)
+
+    def record_audit(self, actor: UserRecord, action: str, target: str = "", detail: str = "") -> None:
+        """Append one admin action. Never pass secret values here."""
+        self._conn.execute(
+            """
+            INSERT INTO admin_audit(created_at, actor_id, actor_email, action, target, detail)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (time.time(), actor.id, actor.email, action, target[:300], detail[:500]),
+        )
+        self._conn.commit()
+
+    def list_audit(self, limit: int = 500) -> list[dict]:
+        rows = self._conn.execute(
+            """
+            SELECT audit_id, created_at, actor_email, action, target, detail
+            FROM admin_audit ORDER BY created_at DESC, audit_id DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 5000)),),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def update_profile(
         self,

@@ -1186,7 +1186,96 @@ a.admin-doc-link:hover strong {
   font-size: 12px;
 }
 
+/* Expandable refusal rows. */
+.admin-expand svg {
+  transition: transform 0.16s ease;
+}
+
+.admin-expand[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.admin-shell[dir="rtl"] .admin-expand[aria-expanded="true"] svg {
+  transform: scaleX(-1) rotate(90deg);
+}
+
+.admin-table tr.is-open td {
+  border-bottom-color: transparent;
+}
+
+.admin-table tr.admin-detail-row,
+.admin-table tr.admin-detail-row:hover {
+  background: var(--admin-surface-2);
+}
+
+.admin-detail {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px 20px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-detail dt {
+  color: var(--admin-muted);
+  font-weight: 600;
+}
+
+.admin-detail dd {
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-detail ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Search box above a list. */
+.admin-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--admin-line-soft);
+  color: var(--admin-muted);
+}
+
+.admin-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  padding: 0;
+  color: var(--admin-ink);
+  background: transparent;
+  font: inherit;
+  outline: none;
+}
+
+.admin-search:focus-within {
+  box-shadow: inset 0 -2px 0 var(--admin-blue);
+}
+
 /* ——— Configuration ——— */
+
+.admin-secret-input {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-secret-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-secret-input .admin-btn {
+  min-height: 38px;
+}
 
 .admin-configuration {
   display: grid;

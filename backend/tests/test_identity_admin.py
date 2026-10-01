@@ -1,3 +1,5 @@
+import os
+
 from fastapi.testclient import TestClient
 import pytest
 
@@ -225,6 +227,39 @@ def test_settings_store_masks_and_applies(tmp_path, monkeypatch):
     assert secret["masked"] != "abcd1234secret"
     assert store.get("GROQ_API_KEY") == "abcd1234secret"
     store.close()
+
+
+def test_removing_a_saved_key_falls_back_to_the_env_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_from_dotenv_123456")
+    monkeypatch.setenv("BCT_GROQ_MODEL", "openai/gpt-oss-120b")
+    store = AppSettingsStore(tmp_path / "settings.sqlite3")
+    store.update_secrets({"GROQ_API_KEY": "gsk_from_dashboard_999"})
+    store.update_secrets({"GROQ_API_KEY": None})
+    public = {item["key"]: item for item in store.public_configuration()["secrets"]}
+    assert public["GROQ_API_KEY"]["source"] == "environment"
+    assert os.environ["GROQ_API_KEY"] == "gsk_from_dotenv_123456"
+    # A model name is not a secret, so it is shown in full.
+    assert public["BCT_GROQ_MODEL"]["value"] == "openai/gpt-oss-120b"
+    assert public["BCT_GROQ_MODEL"]["masked"] is None
+    store.close()
+
+
+def test_admin_actions_are_audited_without_secret_values(auth_client, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "restored-after-test")
+    registered = auth_client.post(
+        "/auth/register",
+        json={"email": "audited@bct.tn", "password": "Password123"},
+    ).json()["user"]
+    auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+    auth_client.post(f"/admin/users/{registered['id']}/approve")
+    auth_client.put("/admin/config/secrets", json={"secrets": {"GROQ_API_KEY": "super-secret-key-value"}})
+
+    items = auth_client.get("/admin/audit").json()["items"]
+    actions = [(item["action"], item["target"]) for item in items]
+    assert ("user.approve", "audited@bct.tn") in actions
+    assert ("config.secret_set", "GROQ_API_KEY") in actions
+    assert all(item["actor_email"] == "admin@bct.tn" for item in items)
+    assert "super-secret" not in str(items)
 
 
 def test_user_can_update_profile_and_password(auth_client):

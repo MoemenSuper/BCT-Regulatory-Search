@@ -1,6 +1,6 @@
 // Answers the assistant declined, filterable and exportable as CSV.
-import { useEffect, useRef, useState } from 'react';
-import { Download, ListFilter } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { ChevronRight, Download, ListFilter } from 'lucide-react';
 import { type AnswerRefusal, type AnswerRefusalOption, type AnswerRefusalsPage } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
 import { formatWhen } from './shared';
@@ -24,6 +24,8 @@ export function RefusalsPage({
   onExport: () => void;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
+  // The row opened to read its full question and diagnostics.
+  const [openId, setOpenId] = useState<string | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const items = page?.items ?? [];
   const total = page?.total ?? 0;
@@ -139,6 +141,7 @@ export function RefusalsPage({
           <table className="admin-table">
             <thead>
               <tr>
+                <th><span className="sr-only">{t(locale, 'admin.showDetails')}</span></th>
                 <th>{t(locale, 'admin.refusalWhen')}</th>
                 <th>{t(locale, 'admin.refusalQuestion')}</th>
                 <th>{t(locale, 'admin.refusalReason')}</th>
@@ -148,16 +151,58 @@ export function RefusalsPage({
               </tr>
             </thead>
             <tbody>
-              {items.map((item: AnswerRefusal) => (
-                <tr key={item.refusal_id}>
-                  <td className="num admin-muted">{formatWhen(item.created_at, locale)}</td>
-                  <td><span className="admin-question" title={item.question}>{item.question}</span></td>
-                  <td><span className="admin-reason" title={item.reason}>{item.reason_title || item.reason}</span></td>
-                  <td>{item.user_email || '—'}</td>
-                  <td className="admin-code">{item.answer_status}</td>
-                  <td className="admin-code">{item.profile || '—'}</td>
-                </tr>
-              ))}
+              {items.map((item: AnswerRefusal) => {
+                const open = openId === item.refusal_id;
+                // The reason is the diagnostics joined with " | "; show them one per line.
+                const diagnostics = item.diagnostics?.length ? item.diagnostics : [item.reason];
+                return (
+                  <Fragment key={item.refusal_id}>
+                    <tr className={open ? 'is-open' : undefined}>
+                      <td>
+                        <button
+                          type="button"
+                          className="admin-icon-btn admin-expand"
+                          aria-expanded={open}
+                          aria-label={t(locale, 'admin.showDetails')}
+                          title={t(locale, 'admin.showDetails')}
+                          onClick={() => setOpenId(open ? null : item.refusal_id)}
+                        >
+                          <ChevronRight aria-hidden="true" size={16} className="admin-flip" />
+                        </button>
+                      </td>
+                      <td className="num admin-muted">{formatWhen(item.created_at, locale)}</td>
+                      <td><span className="admin-question" title={item.question}>{item.question}</span></td>
+                      <td><span className="admin-reason" title={item.reason}>{item.reason_title || item.reason}</span></td>
+                      <td>{item.user_email || '—'}</td>
+                      <td className="admin-code">{item.answer_status}</td>
+                      <td className="admin-code">{item.profile || '—'}</td>
+                    </tr>
+                    {open ? (
+                      <tr className="admin-detail-row">
+                        <td />
+                        <td colSpan={6}>
+                          <dl className="admin-detail">
+                            <dt>{t(locale, 'admin.refusalQuestion')}</dt>
+                            <dd>{item.question}</dd>
+                            <dt>{t(locale, 'admin.refusalDiagnostics')}</dt>
+                            <dd>
+                              <ul className="admin-code">
+                                {diagnostics.map((line, index) => <li key={index}>{line}</li>)}
+                              </ul>
+                            </dd>
+                            {item.conversation_id ? (
+                              <>
+                                <dt>{t(locale, 'admin.refusalConversation')}</dt>
+                                <dd className="admin-code">{item.conversation_id}</dd>
+                              </>
+                            ) : null}
+                          </dl>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

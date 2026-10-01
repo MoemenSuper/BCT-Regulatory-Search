@@ -465,6 +465,18 @@ def admin_export_answer_refusals(
     )
 
 
+def _audit(request: Request, admin, action: str, target: str = "", detail: str = "") -> None:
+    """Record a successful admin action. Bare test apps (no auth store, no admin) skip it."""
+    store = getattr(request.app.state, "auth_store", None)
+    if store is not None and admin is not None:
+        store.record_audit(admin, action, target, detail)
+
+
+@app.get("/admin/audit")
+def admin_audit_log(request: Request, limit: int = Query(default=500, ge=1, le=5000), _admin=Depends(require_admin)):
+    return {"items": request.app.state.auth_store.list_audit(limit=limit)}
+
+
 @app.get("/admin/users")
 def admin_list_users(request: Request, _admin=Depends(require_admin)):
     return [user.public_dict() for user in request.app.state.auth_store.list_users()]
@@ -478,6 +490,7 @@ def admin_approve_user(user_id: str, request: Request, admin=Depends(require_adm
         user = request.app.state.auth_store.set_status(user_id, "approved")
     except KeyError as error:
         raise HTTPException(status_code=404, detail="User not found.") from error
+    _audit(request, admin, "user.approve", user.email)
     return {"user": user.public_dict()}
 
 
@@ -489,6 +502,7 @@ def admin_reject_user(user_id: str, request: Request, admin=Depends(require_admi
         user = request.app.state.auth_store.set_status(user_id, "rejected")
     except KeyError as error:
         raise HTTPException(status_code=404, detail="User not found.") from error
+    _audit(request, admin, "user.reject", user.email)
     return {"user": user.public_dict()}
 
 
@@ -503,6 +517,7 @@ def admin_promote_user(user_id: str, request: Request, admin=Depends(require_adm
         raise HTTPException(status_code=404, detail="User not found.") from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    _audit(request, admin, "user.promote", user.email)
     return {"user": user.public_dict()}
 
 
@@ -511,7 +526,7 @@ def admin_set_token_limit(
     user_id: str,
     payload: TokenLimitRequest,
     request: Request,
-    _admin=Depends(require_admin),
+    admin=Depends(require_admin),
 ):
     try:
         user = request.app.state.auth_store.set_token_limit(user_id, payload.token_limit)
@@ -519,15 +534,17 @@ def admin_set_token_limit(
         raise HTTPException(status_code=404, detail="User not found.") from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    _audit(request, admin, "user.token_limit", user.email, str(payload.token_limit))
     return {"user": user.public_dict()}
 
 
 @app.post("/admin/users/{user_id}/reset-tokens")
-def admin_reset_token_usage(user_id: str, request: Request, _admin=Depends(require_admin)):
+def admin_reset_token_usage(user_id: str, request: Request, admin=Depends(require_admin)):
     try:
         user = request.app.state.auth_store.reset_token_usage(user_id)
     except KeyError as error:
         raise HTTPException(status_code=404, detail="User not found.") from error
+    _audit(request, admin, "user.reset_tokens", user.email)
     return {"user": user.public_dict()}
 
 
@@ -535,12 +552,15 @@ def admin_reset_token_usage(user_id: str, request: Request, _admin=Depends(requi
 def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admin)):
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+    # Read the email first: the account is gone afterwards.
+    target = request.app.state.auth_store.get_by_id(user_id)
     try:
         request.app.state.auth_store.delete_user(user_id)
     except KeyError as error:
         raise HTTPException(status_code=404, detail="User not found.") from error
     except PermissionError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    _audit(request, admin, "user.delete", target.email if target else user_id)
 
 
 @app.get("/admin/config")
@@ -549,14 +569,15 @@ def admin_get_config(request: Request, _admin=Depends(require_admin)):
 
 
 @app.put("/admin/config/profile")
-def admin_set_profile(payload: ProfileUpdateRequest, request: Request, _admin=Depends(require_admin)):
+def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Depends(require_admin)):
     profile = request.app.state.settings_store.set_active_profile(payload.profile)
     request.app.state.profile_manager.reset()
+    _audit(request, admin, "config.profile", profile.value)
     return {"active_profile": profile.value}
 
 
 @app.put("/admin/config/secrets")
-def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, _admin=Depends(require_admin)):
+def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Depends(require_admin)):
     try:
         config = request.app.state.settings_store.update_secrets(payload.secrets)
     except ValueError as error:
@@ -564,6 +585,10 @@ def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, _admin=De
     request.app.state.profile_manager.reset()
     # Cached Groq/Ollama clients keep the old API key until cleared.
     create_llm.cache_clear()
+    # Only the key name is recorded, never the value.
+    for key, value in payload.secrets.items():
+        cleared = value is None or not value.strip()
+        _audit(request, admin, "config.secret_clear" if cleared else "config.secret_set", key)
     return config
 
 
@@ -988,6 +1013,8 @@ async def ingest_document(
         worker = getattr(request.app.state, "enrichment", None)
         if worker is not None and report.get("status") == "enriching":
             worker.wake()
+        if not report.get("duplicate"):
+            _audit(request, admin, "document.upload", filename, metadata["doc_kind"])
         return report
     except HTTPException:
         raise
@@ -1026,7 +1053,7 @@ def enrichment_status(request: Request, _admin=Depends(require_admin)):
     return worker.snapshot() if worker is not None else {"state": "disabled"}
 
 @documents_router.post("/documents/{document_id}/retry-enrichment")
-def retry_enrichment(document_id: str, request: Request, _admin=Depends(require_admin)):
+def retry_enrichment(document_id: str, request: Request, admin=Depends(require_admin)):
     from ingestion.pipeline import IngestionConfig
     from ingestion.registry import IngestionRegistry
 
@@ -1042,13 +1069,14 @@ def retry_enrichment(document_id: str, request: Request, _admin=Depends(require_
     worker = getattr(request.app.state, "enrichment", None)
     if worker is not None:
         worker.wake(reset_cooldown=True)
+    _audit(request, admin, "document.retry_reading", str(known.get("original_filename") or document_id))
     return {"document_id": document_id, "requeued_pages": requeued, "enrichment": progress}
 
 @documents_router.delete("/documents/{document_id}", status_code=200)
 async def delete_document(
     document_id: str,
     request: Request,
-    _admin=Depends(require_admin),
+    admin=Depends(require_admin),
 ):
     from ingestion.pipeline import IngestionConfig, IngestionPipeline
 
@@ -1068,6 +1096,7 @@ async def delete_document(
             detail = str(error).strip() or "Document removal failed."
             raise HTTPException(status_code=422, detail=detail) from error
         await run_in_threadpool(_reload_corpus, request.app)
+        _audit(request, admin, "document.delete", report.get("filename") or document_id)
         return report
     finally:
         pipeline.close()
@@ -1076,7 +1105,7 @@ async def delete_document(
 async def delete_documents(
     body: DocumentsDeleteRequest,
     request: Request,
-    _admin=Depends(require_admin),
+    admin=Depends(require_admin),
 ):
     """Remove several PDFs, then reload the search index once."""
     from ingestion.pipeline import IngestionConfig, IngestionPipeline
@@ -1089,8 +1118,9 @@ async def delete_documents(
     try:
         for document_id in dict.fromkeys(body.document_ids):
             try:
-                await run_in_threadpool(pipeline.remove, document_id)
+                report = await run_in_threadpool(pipeline.remove, document_id)
                 removed.append(document_id)
+                _audit(request, admin, "document.delete", (report or {}).get("filename") or document_id)
             except Exception as error:
                 logger.exception("Document removal failed for %s.", document_id)
                 failed.append({"document_id": document_id, "error": str(error).strip() or "Document removal failed."})

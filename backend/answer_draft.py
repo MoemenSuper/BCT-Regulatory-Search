@@ -842,7 +842,9 @@ _RETRY_HINTS = {
     "unknown_citation": "Cite only unit IDs shown in the evidence, such as E2.14. "
                         "If no shown unit states a fact, omit that claim and keep the supported ones. ",
     "unsupported_claim_number": "Every number in a claim except the cited instrument's year must appear "
-                                "inside that claim's cited units; cite the unit that states it, drop the number, "
+                                "inside that claim's cited units, written exactly as the unit writes it: in "
+                                "French, 75.966 MDT (thousands) is not 75,966 MDT (a decimal). Cite the unit that "
+                                "states it, drop the number, "
                                 "or omit that claim while keeping other supported claims. Prefer dropping the "
                                 "unsupported number and keeping the qualitative condition. ",
     "unsupported_claim_anchor": "Do not restate a distinctive question word (actor, operation, product) "

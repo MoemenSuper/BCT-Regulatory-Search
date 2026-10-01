@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { CheckCircle2, CircleAlert, FileText, Gauge, Moon, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
+import { CheckCircle2, CircleAlert, FileText, Gauge, Moon, ScrollText, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
+import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listAudit, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AuditEntry, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu } from './ProfileMenu';
@@ -12,6 +12,7 @@ import { RefusalsPage } from './admin/RefusalsPage';
 import { UsersPage } from './admin/UsersPage';
 import { DocumentsPage } from './admin/DocumentsPage';
 import { ConfigurationPage } from './admin/ConfigurationPage';
+import { AuditPage } from './admin/AuditPage';
 
 type AdminTheme = 'light' | 'dark';
 
@@ -45,6 +46,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [recentRefusals, setRecentRefusals] = useState<AnswerRefusal[]>([]);
   const [refusalBuckets, setRefusalBuckets] = useState<string[]>([]);
   const [config, setConfig] = useState<AdminConfig | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,6 +62,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     { id: 'users' as const, label: t(locale, 'admin.users'), icon: UsersRound },
     { id: 'documents' as const, label: t(locale, 'admin.documents'), icon: FileText },
     { id: 'refusals' as const, label: t(locale, 'admin.refusals'), icon: CircleAlert },
+    { id: 'audit' as const, label: t(locale, 'admin.audit'), icon: ScrollText },
     { id: 'configuration' as const, label: t(locale, 'admin.configuration'), icon: Settings2 },
   ];
 
@@ -83,6 +86,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         else if (tab === 'users') { const data = await listUsers(); if (!cancelled) setUsers(data); }
         else if (tab === 'documents') { const data = await listDocuments(); if (!cancelled) setDocuments(data); }
         else if (tab === 'refusals') { const data = await listAnswerRefusals(5000, refusalBuckets); if (!cancelled) setRefusals(data); }
+        else if (tab === 'audit') { const data = await listAudit(); if (!cancelled) setAudit(data.items); }
         else { const data = await getConfig(); if (!cancelled) setConfig(data); }
       } catch (err) { if (!cancelled) setError(err instanceof Error && err.message ? err.message : t(locale, 'admin.loadFailed')); }
       finally { if (!cancelled) setLoading(false); }
@@ -132,6 +136,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
       if (tab === 'users') setUsers(await listUsers());
       if (tab === 'documents') setDocuments(await listDocuments());
       if (tab === 'refusals') setRefusals(await listAnswerRefusals(5000, refusalBuckets));
+      if (tab === 'audit') setAudit((await listAudit()).items);
       if (tab === 'configuration') setConfig(await getConfig());
     } catch { setError(t(locale, 'admin.refreshFailed')); }
     finally { setLoading(false); }
@@ -220,6 +225,20 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   }
 
   async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); setMessage(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
+  async function handleClearSecret(key: string) {
+    if (!window.confirm(t(locale, 'admin.clearSecretConfirm', { key }))) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      setConfig(await setSecrets({ [key]: null }));
+      setMessage(t(locale, 'admin.secretCleared', { key }));
+    } catch {
+      setError(t(locale, 'admin.configFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function handleSecrets(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -432,7 +451,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             onExport={() => void handleExportRefusals()}
           />
         ) : null}
-        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} /> : null}
+        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} onClearSecret={handleClearSecret} /> : null}
+        {tab === 'audit' ? <AuditPage entries={audit} loading={loading} locale={locale} /> : null}
       </main>
     </div>
   </div>;

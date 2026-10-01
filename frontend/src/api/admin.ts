@@ -76,9 +76,12 @@ export interface AnswerRefusalsPage {
 
 export interface SecretInfo {
   key: string;
+  /** False for a model name or local address: those are shown in full in `value`. */
+  secret: boolean;
   configured: boolean;
   masked: string | null;
-  source: string;
+  value: string | null;
+  source: 'store' | 'environment' | 'unset';
 }
 
 export interface AdminConfig {
@@ -164,6 +167,19 @@ export function resetUserTokens(userId: string): Promise<{ user: AuthUser }> {
   return request(`/api/admin/users/${encodeURIComponent(userId)}/reset-tokens`, { method: 'POST' });
 }
 
+export interface AuditEntry {
+  audit_id: number;
+  created_at: number;
+  actor_email: string;
+  action: string;
+  target: string;
+  detail: string;
+}
+
+export function listAudit(limit = 500): Promise<{ items: AuditEntry[] }> {
+  return request(`/api/admin/audit?limit=${limit}`);
+}
+
 export function getConfig(): Promise<AdminConfig> {
   return request('/api/admin/config');
 }
@@ -213,8 +229,9 @@ export interface EnrichmentWorkerState {
   cooldown_seconds?: number;
 }
 
+// The server returns 100 documents unless asked; 1000 is its maximum.
 export function listDocuments(): Promise<IndexedDocument[]> {
-  return request('/api/documents');
+  return request('/api/documents?limit=1000');
 }
 
 export function getEnrichmentState(): Promise<EnrichmentWorkerState> {
