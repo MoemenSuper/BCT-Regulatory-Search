@@ -78,7 +78,7 @@ export function noteFromConversationTurn(
       month: 'long',
       year: 'numeric',
     }),
-    analyst: 'Rechercheur BCT',
+    analyst: 'Chercheur BCT',
     reference: conversationId
       ? `RR-${conversationId.replace(/-/g, '').slice(0, 10).toUpperCase()}`
       : '—',

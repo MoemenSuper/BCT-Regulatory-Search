@@ -66,7 +66,7 @@ One command starts the **UI + API**.
 - Detects the hardware at run time: CPU anywhere, the NVIDIA GPU when started with `docker-compose.gpu.yml`
 - Builds the React UI into the API image
 - Bakes the local `documents/` PDF corpus into the image (~100 MB)
-- Bakes a slim local Chroma runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 445 PDFs
+- Bakes a slim local Chroma runtime index (`baked-runtime-assets/`) and seeds it into the assets volume on first boot so search works without re-uploading the 454 PDFs
 - Serves the app at **http://localhost:8080**
 
 ### What you must do

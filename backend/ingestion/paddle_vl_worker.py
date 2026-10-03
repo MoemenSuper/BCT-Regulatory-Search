@@ -125,7 +125,8 @@ def main() -> int:
                 json.dumps(
                     {
                         "ok": True,
-                        "transcription": flat or text.strip(),
+                        # Markup alone (an <img> placeholder for a picture without text) reads as nothing.
+                        "transcription": flat,
                         "contains_chart": has_chart,
                         "chart_notes": flat if has_chart else "",
                     },
