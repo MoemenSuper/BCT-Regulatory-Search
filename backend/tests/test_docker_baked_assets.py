@@ -37,21 +37,49 @@ def test_ensure_runtime_assets_seeds_from_baked_corpus(tmp_path: Path, monkeypat
     assert '"documents": 1' in (active / "snapshot.json").read_text(encoding="utf-8")
 
 
-def test_ensure_runtime_assets_keeps_existing_volume(tmp_path: Path, monkeypatch):
-    baked = tmp_path / "baked"
-    assets = tmp_path / "assets"
-    _write_baked(baked)
+def _old_volume(assets: Path) -> None:
     assets.mkdir()
     (assets / "ACTIVE.json").write_text(
         json.dumps({"active_version": ".", "activated_at": "already"}),
         encoding="utf-8",
     )
     (assets / "native.jsonl").write_text("keep-me\n", encoding="utf-8")
+
+
+def test_ensure_runtime_assets_replaces_an_empty_stub_volume(tmp_path: Path, monkeypatch):
+    """An image without a baked index left empty stubs: every question found nothing."""
+    baked = tmp_path / "baked"
+    assets = tmp_path / "assets"
+    monkeypatch.setenv("BCT_BAKED_ASSETS_DIR", str(tmp_path / "missing-baked"))
+    docker_serve.ensure_runtime_assets(assets)
+    _write_baked(baked)
     monkeypatch.setenv("BCT_BAKED_ASSETS_DIR", str(baked))
 
-    docker_serve.ensure_runtime_assets(assets)
+    assert docker_serve.ensure_runtime_assets(assets) is True
 
-    assert (assets / "native.jsonl").read_text(encoding="utf-8") == "keep-me\n"
+    active = docker_serve.resolve_active_assets(assets)
+    assert "hello" in (active / "native.jsonl").read_text(encoding="utf-8")
+
+
+def test_ensure_runtime_assets_replaces_an_older_index(tmp_path: Path, monkeypatch):
+    baked = tmp_path / "baked"
+    assets = tmp_path / "assets"
+    _write_baked(baked)
+    _old_volume(assets)
+    monkeypatch.setenv("BCT_BAKED_ASSETS_DIR", str(baked))
+
+    assert docker_serve.ensure_runtime_assets(assets) is True
+
+    active = docker_serve.resolve_active_assets(assets)
+    assert "hello" in (active / "native.jsonl").read_text(encoding="utf-8")
+    assert (assets / docker_serve.SEEDED_FROM).read_text(encoding="utf-8") == "versions/baked-active"
+    # The old index is set aside, not deleted.
+    [kept] = list(assets.glob("replaced-*"))
+    assert (kept / "native.jsonl").read_text(encoding="utf-8") == "keep-me\n"
+
+    # Next boot with the same image: nothing to do.
+    assert docker_serve.ensure_runtime_assets(assets) is False
+    assert len(list(assets.glob("replaced-*"))) == 1
 
 
 def test_ensure_runtime_assets_falls_back_to_empty_stub(tmp_path: Path, monkeypatch):

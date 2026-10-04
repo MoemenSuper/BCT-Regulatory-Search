@@ -104,10 +104,20 @@ docker compose up -d --build
 ```
 
 5. Open **http://localhost:8080**, sign in with the bootstrap admin account.
-6. Optional: ingest additional PDFs in the admin UI (incremental). With baked assets, the corpus is already searchable.
+6. Optional: upload more PDFs in the admin UI. The 454 PDFs baked into the image are already searchable (the Overview counts them); upload only new ones.
 7. Approve other user accounts when they register.
 
-If you previously started Compose with an empty `bct-assets` volume and want the baked corpus, remove that volume once (`docker volume rm …`) so first boot can seed again. To override PDFs with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
+**Rebuilt image, old volume.** The index lives in the `bct-assets` volume, which outlives the image (Docker names volumes after the project folder, so a fresh clone in a folder of the same name reuses them). On start, an image that ships a different index replaces the volume's one (the old one is kept aside in `replaced-…`), and PDFs uploaded earlier are queued again and indexed on top in the background. Nothing to delete by hand. To override PDFs with a host folder, set `BCT_DOCUMENTS_HOST` and uncomment the bind mount in `docker-compose.yml`.
+
+**Something wrong?** Every question (status, reason, seconds), upload and failure is logged, never key values. Send this file to the developer:
+
+```powershell
+docker compose logs app > bct-log.txt
+```
+
+The same lines are kept in `/data/state/logs/bct.log` in the app-data volume, so they survive a restart.
+
+If the log says *the GPU driver was reset* (Windows laptops under heavy load), restart the app: a process cannot use the GPU again after a driver reset.
 
 ### NVIDIA GPU server
 
@@ -121,7 +131,7 @@ This builds torch and PaddleOCR-VL with CUDA and gives the container the GPUs; s
 
 ### Memory
 
-Search and answers run in about 3 GB. Reading pictures and scans with PaddleOCR-VL on **CPU** needs about 8 GB of free memory on top, so give Docker at least **12–16 GB** (Docker Desktop: Settings → Resources). With less, the app keeps running: the reader does not start, uploads stay searchable from their PDF text, and the admin page lists those pages as not read visually (`BCT_PADDLE_MIN_FREE_GB` changes the threshold). On a GPU server the model loads into the graphics card instead.
+Search and answers run in about 3 GB. Indexing an uploaded PDF starts the Docling layout reader, which needs about **4 GB free** on top: give Docker at least **8 GB**. With less, uploads wait in the queue (the admin Documents page says how much memory is free and how much is needed) instead of crashing the server (`BCT_DOCLING_MIN_FREE_GB` changes the threshold). Reading pictures and scans with PaddleOCR-VL on **CPU** needs about 8 GB of free memory on top, so give Docker at least **12–16 GB** (Docker Desktop: Settings → Resources). With less, the app keeps running: the reader does not start, uploads stay searchable from their PDF text, and the admin page lists those pages as not read visually (`BCT_PADDLE_MIN_FREE_GB` changes the threshold). On a GPU server the model loads into the graphics card instead.
 
 ### Servers without internet
 
@@ -178,7 +188,7 @@ python run_api.py `
   --documents "C:\path\to\your\BCT-PDF-corpus"
 ```
 
-API default: `http://127.0.0.1:8000`
+API default: `http://127.0.0.1:8000`. Add `--enable-ingestion` to allow PDF uploads from the admin page. The log is in `<data dir>/logs/bct.log` (`.demo-data` by default).
 
 Authentication uses httpOnly session cookies. New registrations start as `role=user` / `status=pending` until an administrator approves them. PDF upload and runtime configuration live in the administrator dashboard (same login page as normal users).
 
@@ -206,10 +216,13 @@ python ingest.py "C:\path\to\new_circular.pdf" --assets "C:\path\to\runtime-asse
 Flow:
 
 ```text
-Quick pass (seconds, inside the upload request)
-PDF → validate → PyMuPDF native text → StructuredDocument (visual pages marked pending)
-   → page-local chunks → Voyage + Chroma + BM25
-   → merge supersession_edges.jsonl → activate new asset version      status: enriching (searchable)
+Upload (seconds): validate → keep the PDF → queue it                        status: queued
+
+Indexing (background worker in the API process, up to 25 queued PDFs per batch)
+each PDF: Docling layout + PDF text → StructuredDocument (visual pages marked pending) → chunks
+   (a PDF that fails is marked failed with its reason; the rest of the batch goes on)
+then once per batch: Chroma + BM25 + supersession_edges.jsonl → activate one new asset version
+                                                                          status: enriching / ready
 
 Enrichment (background worker in the API process, one page at a time)
 pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tables·hard pages) locally,
@@ -218,13 +231,13 @@ pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tab
    → status: ready, or ready_degraded when pages failed after 3 attempts (admin "Re-read" re-queues them)
 ```
 
-- HTTP upload returns as soon as the quick pass is live; the admin Documents tab shows progress and an ETA, polling while anything is `enriching`.
+- HTTP upload returns as soon as the PDF is queued, so hundreds of PDFs upload in minutes; the index is rebuilt once per batch, not once per PDF. The admin Documents tab lists queued, indexing and failed PDFs (with the reason) and polls while anything is queued or `enriching`. A PDF being indexed when the server stops is queued again; one interrupted twice is marked failed. Queued or failed PDFs can be deleted from the list.
 - Chat has priority: the worker waits between pages while a question is answered. A page already on the GPU finishes first (PaddleOCR-VL ≈ 100–140 s per chart page on an 8 GB laptop GPU), so a question asked mid-page can be slower.
 - Restarts are safe: read pages are checkpointed, the worker resumes with the next pending page, and the PaddleOCR-VL worker process exits with its parent (no orphan holding GPU memory).
 - Any hardware: one PaddleOCR-VL worker per API, capped with `FLAGS_gpu_memory_limit_mb` (default total VRAM − 1 GB; `BCT_PADDLE_GPU_MEMORY_MB` overrides, `0` = no cap). The model needs ~7 GB; when the GPU worker cannot start (small GPU, no CUDA) it falls back to CPU — same model, ≈ 11 min per chart page instead of ≈ 1.5–2 min. EasyOCR also falls back to CPU. Models are released when the queue is empty.
 - Circuit breaker: 3 consecutive page failures (e.g. the OCR worker crashing on VRAM exhaustion) pause visual reading for 10 minutes and free the models; the PDF stays searchable meanwhile.
 - CLI: `python ingest.py …` runs the quick pass and then enriches inline; `--quick-only` leaves the pending pages to a running API started with `--enable-ingestion`. Restart the API after a CLI ingest so it loads the new asset version.
-- Tuning: `BCT_ENRICH_BATCH_PAGES` (20), `BCT_ENRICH_BATCH_SECONDS` (600), `BCT_ENRICH_IDLE_SECONDS` (3, quiet time after a chat), `BCT_ENRICH_MAX_ATTEMPTS` (3), `BCT_ENRICH_BREAKER_FAILURES` (3), `BCT_ENRICH_COOLDOWN_SECONDS` (600); `BCT_ENRICHMENT=0` disables the worker.
+- Tuning: `BCT_INGEST_BATCH` (25 PDFs per index rebuild), `BCT_ENRICH_BATCH_PAGES` (20), `BCT_ENRICH_BATCH_SECONDS` (600), `BCT_ENRICH_IDLE_SECONDS` (3, quiet time after a chat), `BCT_ENRICH_MAX_ATTEMPTS` (3), `BCT_ENRICH_BREAKER_FAILURES` (3), `BCT_ENRICH_COOLDOWN_SECONDS` (600); `BCT_ENRICHMENT=0` disables the worker.
 - Tracing (optional): set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL`. Each PDF version is one Langfuse session (`ingest-<sha256>`): the `ingest-document` quick-pass trace, one `enrich-page` trace per page (engine, seconds, chat wait, cold start), `activate-enrichment` per batch, and `open-circuit-breaker` warnings.
 - A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by the active visual backend and the transcription becomes the page's text (`native_replaced_by_visual`). The garbled native text stays in `structured.json` only.
 

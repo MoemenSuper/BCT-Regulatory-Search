@@ -61,7 +61,7 @@ def test_stage_cloud_allows_french_first_with_empty_visual(tmp_path: Path, monke
         new_primary=primary,
         new_visual=[],
         content_sha256="abc123def456",
-        source_filename="Cir_2016_01_fr.pdf",
+        source_filenames=["Cir_2016_01_fr.pdf"],
     )
     assert staged.is_dir()
     assert snapshot["native_chunks"] == 1
@@ -113,7 +113,7 @@ def test_stage_skips_voyage_embed_on_local_hybrid(tmp_path: Path, monkeypatch):
         ],
         new_visual=[],
         content_sha256="stathash001",
-        source_filename="BSF_fr.pdf",
+        source_filenames=["BSF_fr.pdf"],
     )
     assert calls["n"] == 0
     assert snapshot.get("cloud_embed") is False

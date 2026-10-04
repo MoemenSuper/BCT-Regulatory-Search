@@ -95,7 +95,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     return () => { cancelled = true; };
   }, [tab, locale, refusalBuckets]);
 
-  const enrichingCount = documents.filter((doc) => doc.status === 'enriching').length;
+  // Refresh while uploads wait in the queue, are indexed, or have pages being read.
+  const enrichingCount = documents.filter((doc) => ['queued', 'processing', 'enriching'].includes(doc.status)).length;
   useEffect(() => {
     if (tab !== 'documents' || !enrichingCount) return;
     let cancelled = false;
@@ -299,6 +300,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     let ok = 0;
     let duplicates = 0;
     let enriching = 0;
+    let queued = 0;
     const failures: string[] = [];
     try {
       for (let index = 0; index < selected.length; index += 1) {
@@ -327,6 +329,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
           if (report.duplicate) duplicates += 1;
           else ok += 1;
           if (!report.duplicate && report.status === 'enriching') enriching += 1;
+          if (!report.duplicate && report.status === 'queued') queued += 1;
           flushSync(() => {
             setUploadProgress((prev) => {
               if (!prev) return prev;
@@ -335,7 +338,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
                   ? {
                       ...entry,
                       status,
-                      detail: report.duplicate ? t(locale, 'admin.duplicate') : undefined,
+                      detail: report.duplicate ? t(locale, 'admin.duplicate')
+                        : report.status === 'queued' ? t(locale, 'admin.uploadQueued') : undefined,
                     }
                   : entry
               ));
@@ -367,6 +371,8 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
         setError(failures[0]);
       } else if (selected.length === 1 && duplicates === 1) {
         setMessage(t(locale, 'admin.duplicate'));
+      } else if (queued) {
+        setMessage(t(locale, 'admin.uploadQueuedDone', { count: queued }));
       } else if (enriching) {
         setMessage(t(locale, 'admin.uploadEnriching', { count: enriching }));
       } else if (selected.length === 1) {

@@ -54,7 +54,7 @@ def test_failed_ledger_commit_restores_previous_active_version(tmp_path: Path, m
 
     staged_holder = {}
 
-    def fake_stage_assets(*, asset_root, new_primary, new_visual, content_sha256, source_filename, **_flags):
+    def fake_stage_assets(*, asset_root, new_primary, new_visual, content_sha256, source_filenames, **_flags):
         staged = Path(asset_root) / "versions" / "new"
         staged.mkdir(parents=True, exist_ok=False)
         (staged / "snapshot.json").write_text(json.dumps({"version": "new"}), encoding="utf-8")

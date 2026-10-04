@@ -138,7 +138,7 @@ def test_paddle_on_cpu_refuses_to_start_without_enough_memory(tmp_path, monkeypa
 
     from ingestion import local_visual
 
-    monkeypatch.setattr(local_visual, "_available_memory_gb", lambda: 5.0)
+    monkeypatch.setattr(local_visual, "memory_gb", lambda: (16.0, 5.0))
     reader = local_visual.PaddleVlVisual(tmp_path)
     reader._device = "cpu"
     with pytest.raises(RuntimeError, match="needs about 8 GB of free memory; 5.0 GB free"):

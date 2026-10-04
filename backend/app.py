@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from functools import lru_cache
+import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -111,19 +114,17 @@ def supersession_status() -> dict[str, object]:
 
 def _warm_start(profile_manager, settings_store) -> None:
     """Load the active profile's search models and index before serving requests."""
-    import time
-
     profile = settings_store.active_profile()
-    print(f"Loading search models for profile '{profile.value}'...", flush=True)
+    logger.info(f"Loading search models for profile {profile.value!r}...")
     started = time.monotonic()
     try:
         profile_manager.get(profile)
     except Exception:
         # A broken backend must not block login/admin; the first chat reports the error.
         logger.exception("Warm start failed for profile %s.", profile.value)
-        print("Search models failed to load; they will retry on the first question.", flush=True)
+        logger.warning("Search models failed to load; they will retry on the first question.")
         return
-    print(f"Search models ready in {time.monotonic() - started:.1f}s.", flush=True)
+    logger.info(f"Search models ready in {time.monotonic() - started:.1f}s.")
 
 
 def _start_enrichment(app: FastAPI):
@@ -139,11 +140,11 @@ def _start_enrichment(app: FastAPI):
     config = IngestionConfig.from_environment()
     registry = IngestionRegistry(config.registry_path)
     try:
-        interrupted = registry.fail_interrupted()
+        interrupted = registry.requeue_interrupted()
     finally:
         registry.close()
     if interrupted:
-        logger.warning("Marked %d interrupted ingestion(s) as failed.", interrupted)
+        logger.warning("%d PDF(s) were being indexed when the server stopped; queued again.", interrupted)
 
     worker = EnrichmentWorker(config, on_activated=lambda: _reload_corpus(app))
     worker.start()
@@ -352,6 +353,24 @@ def profiles(_user=Depends(require_approved_user)):
     return profile_options()
 
 
+@lru_cache(maxsize=1)
+def _indexed_pdfs(native_chunks: str, _mtime: float) -> int:
+    """Distinct PDFs in the live index: the ones shipped with the app plus the uploaded ones."""
+    sources = set()
+    with open(native_chunks, encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                sources.add(json.loads(line)["metadata"]["source"])
+    return len(sources)
+
+
+def indexed_pdf_count() -> int:
+    path = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
+    if not path or not os.path.isfile(path):
+        return 0
+    return _indexed_pdfs(path, os.path.getmtime(path))
+
+
 @app.get("/admin/overview")
 def admin_overview(request: Request, _admin=Depends(require_admin)):
     users = request.app.state.auth_store.list_users()
@@ -379,7 +398,7 @@ def admin_overview(request: Request, _admin=Depends(require_admin)):
         "users_pending": sum(1 for user in users if user.status == "pending"),
         "users_approved": sum(1 for user in users if user.status == "approved"),
         "users_rejected": sum(1 for user in users if user.status == "rejected"),
-        "documents_ready": len(docs),
+        "documents_ready": indexed_pdf_count(),
         "documents_enriching": sum(1 for doc in docs if doc.get("status") == "enriching"),
         "active_profile": settings["active_profile"],
         "answer_refusals_total": refusals_total,
@@ -682,6 +701,7 @@ def post_chat(
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
     for question in _sub_questions(payload.question):
+        started = time.monotonic()
         try:
             auth_store.ensure_token_budget(user)
         except PermissionError as error:
@@ -714,13 +734,20 @@ def post_chat(
                 status_code=503,
                 detail="Le service de réponse est temporairement indisponible. Réessayez dans un instant.",
             )
-        except (OSError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError) as error:
             logger.exception("Runtime profile is unavailable.")
+            if "CUDA error" in str(error):
+                logger.error("The GPU driver was reset; this process cannot use the GPU again. Restart the server.")
             raise HTTPException(status_code=503, detail="Selected runtime is unavailable.")
         except Exception:
             logger.exception("Chat request failed.")
             raise HTTPException(status_code=500, detail="Chat service failed.")
 
+        logger.info(
+            "chat status=%s seconds=%.1f sources=%d refusal=%s diagnostics=%s question=%r",
+            result.get("status"), time.monotonic() - started, len(result.get("sources") or []),
+            result.get("refusal_reason"), (result.get("refusal_diagnostics") or [])[:5], question[:120],
+        )
         memory_state = result["memory_state"]
         store.save_with_turn(
             conversation_id,
@@ -999,20 +1026,24 @@ async def ingest_document(
 
         config = IngestionConfig.from_environment()
         pipeline = IngestionPipeline(config)
+        worker = getattr(request.app.state, "enrichment", None)
         try:
             with propagate_attributes(user_id=admin.id):
+                # With the background worker the PDF is only stored and queued: it is indexed with
+                # the next batch, so a large upload never rebuilds the index once per PDF.
                 report = await run_in_threadpool(
-                    pipeline.ingest,
+                    pipeline.queue if worker is not None else pipeline.ingest,
                     temporary_path,
                     original_filename=filename or "document.pdf",
                     metadata=metadata,
                 )
         finally:
             pipeline.close()
-        await run_in_threadpool(_reload_corpus, request.app)
-        worker = getattr(request.app.state, "enrichment", None)
-        if worker is not None and report.get("status") == "enriching":
+        if worker is not None:
             worker.wake()
+        else:
+            await run_in_threadpool(_reload_corpus, request.app)
+        logger.info("upload %s: %s%s", filename, report.get("status"), " (duplicate)" if report.get("duplicate") else "")
         if not report.get("duplicate"):
             _audit(request, admin, "document.upload", filename, metadata["doc_kind"])
         return report
@@ -1043,7 +1074,7 @@ def list_documents(
     config = IngestionConfig.from_environment()
     registry = IngestionRegistry(config.registry_path)
     try:
-        return registry.list_ready(limit=limit)
+        return registry.list_ready(limit=limit, include_pending=True)
     finally:
         registry.close()
 

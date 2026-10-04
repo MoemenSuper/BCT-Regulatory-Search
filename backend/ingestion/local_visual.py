@@ -9,6 +9,8 @@ from pathlib import Path
 
 from langfuse import get_client
 
+from hardware import memory_gb, torch_device
+
 from .models import VisualPage
 
 ENGINE_EASY = "easyocr-ar-v1"
@@ -110,22 +112,6 @@ class EasyOcrVisual:
             return _traced(generation, page, cache_hit=False, model_cold_start=cold)
 
 
-def _available_memory_gb() -> float | None:
-    """Memory the machine (or container VM) can still hand out; None where it cannot be read."""
-    try:
-        for line in Path("/proc/meminfo").read_text().splitlines():
-            if line.startswith("MemAvailable:"):
-                return int(line.split()[1]) / 2**20
-    except OSError:
-        pass
-    try:
-        import psutil
-
-        return psutil.virtual_memory().available / 2**30
-    except Exception:
-        return None
-
-
 def _paddle_gpu_cap_mb() -> int | None:
     """Hard Paddle allocator cap so the OCR worker cannot starve the API's search models of VRAM.
 
@@ -157,7 +143,9 @@ class PaddleVlVisual:
         self.cache_dir = Path(cache_dir)
         self._proc = None
         self._lock = None
-        self._device = os.environ.get("BCT_PADDLE_DEVICE", "gpu")
+        # GPU only where there is one: the CPU-only image would otherwise start "on gpu", run on the
+        # CPU anyway and skip the free-memory check below (it loaded ~7 GB and was killed).
+        self._device = os.environ.get("BCT_PADDLE_DEVICE") or ("gpu" if torch_device() == "cuda" else "cpu")
         self.killed = False
 
     def _ensure_lock(self):
@@ -189,7 +177,8 @@ class PaddleVlVisual:
         import sys
 
         if self._device == "cpu":
-            free_gb, needed_gb = _available_memory_gb(), float(os.environ.get("BCT_PADDLE_MIN_FREE_GB", "8"))
+            memory, needed_gb = memory_gb(), float(os.environ.get("BCT_PADDLE_MIN_FREE_GB", "8"))
+            free_gb = memory[1] if memory else None
             if free_gb is not None and free_gb < needed_gb:
                 # Loading the 0.9B model on CPU on a small machine (an 8 GB Docker Desktop) runs it
                 # out of memory. The page stays readable from its PDF text and is marked unread.

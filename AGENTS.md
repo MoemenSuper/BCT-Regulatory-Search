@@ -23,7 +23,9 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Retrieval + evidence selection | `backend/runtime_retrieval.py` (local backend + `create_local_backend`), `backend/retrieval_selection.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |
 | Ingest → stage → activate | `backend/ingest.py`, `backend/ingestion/` |
-| Quick pass + background enrichment (page ledger, chat priority, statuses) | `backend/ingestion/pipeline.py`, `enrichment.py`, `registry.py` |
+| Upload queue, batched indexing (one asset version per batch), background enrichment (page ledger, chat priority, statuses) | `backend/ingestion/pipeline.py`, `enrichment.py`, `registry.py` |
+| Docker volume seeding from the baked index (`SEEDED_FROM.txt`) | `backend/docker_serve.py` |
+| Server log file | `backend/server_logging.py` |
 | Visual ingest (EasyOCR / PaddleOCR-VL; `VisualPage` in `models.py`) | `backend/ingestion/local_visual.py`, `extract.py` |
 | Optional cloud profile (Voyage search + index staging, Gemini page reading) | `backend/cloud/` — only called when the cloud profile, `BCT_INGEST_CLOUD_INDEX=1`, or `BCT_VISUAL_BACKEND=gemini` is on |
 | HTTP surface | `backend/app.py`, `backend/run_api.py` |

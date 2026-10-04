@@ -14,10 +14,8 @@ from supersession_edges import (  # noqa: F401
     load_prior_edges,
     merge_edge_lists,
     merge_supersession_edges_for_ingest,
-    rebuild_supersession_edges_from_documents,
     resolve_edges_path,
     write_edges,
-    _pdf_page_texts,
 )
 from supersession_pin import (  # noqa: F401
     SupersessionPinBackend,

@@ -36,6 +36,6 @@ class _Embedder:
 def test_unreadable_embeddings_are_re_embedded_and_removed_pdf_is_skipped(monkeypatch):
     monkeypatch.setattr(embedding_module, "create_embedding_model", lambda: _Embedder())
     rows = [(f"id{i}", "x" * (i + 1), {"source": "keep.pdf" if i != 3 else "drop.pdf"}, [0.5]) for i in range(5)]
-    got = _read_collection(_Collection(rows, broken_from=2), batch_size=2, exclude_source="drop.pdf")
+    got = _read_collection(_Collection(rows, broken_from=2), batch_size=2, exclude_sources=["drop.pdf"])
     assert [row[0] for row in got] == ["id0", "id1", "id2", "id4"]
     assert [row[3] for row in got] == [[0.5], [0.5], [3.0], [5.0]]

@@ -4,6 +4,7 @@ Speed only: every device gives the same results, a weaker machine is just slower
 NVIDIA CUDA > Apple MPS > Intel XPU > CPU. On CPU, torch already uses all physical cores.
 """
 from functools import lru_cache
+from pathlib import Path
 
 
 @lru_cache(maxsize=1)
@@ -40,3 +41,32 @@ def batch_size(gpu_8gb: int) -> int:
     if device in {"mps", "xpu"}:
         return max(1, gpu_8gb // 4)  # unified / shared memory: stay modest
     return max(1, gpu_8gb // 8)  # CPU: small batches keep latency flat
+
+
+def memory_gb() -> tuple[float, float] | None:
+    """(total, free) memory in GB this machine, or this container, can still hand out.
+
+    Linux (Docker): /proc/meminfo, narrowed by the container's own memory limit when it has one
+    (cgroup v2). Elsewhere psutil when installed. None when it cannot be read.
+    """
+    try:
+        info = {}
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            name, value = line.split(":", 1)
+            info[name] = int(value.split()[0]) / 2**20
+        total, free = info["MemTotal"], info["MemAvailable"]
+        limit = Path("/sys/fs/cgroup/memory.max")
+        if limit.is_file() and limit.read_text().strip() != "max":
+            cap = int(limit.read_text()) / 2**30
+            used = int(Path("/sys/fs/cgroup/memory.current").read_text()) / 2**30
+            total, free = min(total, cap), min(free, cap - used)
+        return total, free
+    except (OSError, KeyError, ValueError):
+        pass
+    try:
+        import psutil
+
+        memory = psutil.virtual_memory()
+        return memory.total / 2**30, memory.available / 2**30
+    except Exception:
+        return None

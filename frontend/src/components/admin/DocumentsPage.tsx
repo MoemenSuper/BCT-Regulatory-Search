@@ -232,6 +232,7 @@ function formatEta(seconds: number): string {
 }
 
 function enrichmentLine(doc: IndexedDocument, locale: UiLocale): string {
+  if (doc.status === 'failed') return doc.error || t(locale, 'admin.uploadFailed');
   const progress: EnrichmentProgress | undefined = doc.enrichment;
   if (!progress?.total) return '';
   if (doc.status === 'ready_degraded') return t(locale, 'admin.enrichDegraded', { count: progress.failed, total: progress.total });
@@ -245,6 +246,8 @@ function enrichmentLine(doc: IndexedDocument, locale: UiLocale): string {
 
 function enrichmentNotice(state: EnrichmentWorkerState | null, locale: UiLocale): string {
   if (!state) return '';
+  if (state.state === 'indexing') return t(locale, 'admin.enrichIndexing', { name: state.document ?? '', count: state.queued ?? 0 });
+  if (state.state === 'waiting_for_memory') return t(locale, 'admin.enrichWaitingMemory', { detail: state.detail ?? '' });
   if (state.state === 'reading') return t(locale, 'admin.enrichReading', { page: state.page ?? '', name: state.document ?? '' });
   if (state.state === 'waiting_for_chat') return t(locale, 'admin.enrichPausedChat');
   if (state.state === 'activating') return t(locale, 'admin.enrichActivating');
@@ -312,7 +315,7 @@ function DocumentsList({
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      {rows.some((doc) => doc.status === 'enriching') ? (
+      {rows.some((doc) => ['queued', 'processing', 'enriching'].includes(doc.status)) ? (
         <p className="admin-enrich-notice" role="status">
           <Loader2 aria-hidden="true" size={14} className={enrichment?.state === 'reading' ? 'admin-spin' : undefined} />
           <span>{t(locale, 'admin.enrichNotice')}{enrichmentNotice(enrichment, locale) ? ` ${enrichmentNotice(enrichment, locale)}` : ''}</span>
@@ -435,7 +438,15 @@ function DocumentsList({
   );
 }
 
+const STATUS_BADGE: Record<string, [string, string]> = {
+  queued: ['admin.docQueued', 'pending'],
+  processing: ['admin.docIndexing', 'enriching'],
+  failed: ['admin.docFailed', 'rejected'],
+  enriching: ['admin.docEnriching', 'enriching'],
+  ready_degraded: ['admin.docDegraded', 'pending'],
+};
+
 function DocumentStatusBadge({ status, locale }: { status: string; locale: UiLocale }) {
-  const key = status === 'enriching' ? 'admin.docEnriching' : status === 'ready_degraded' ? 'admin.docDegraded' : 'admin.docReady';
-  return <span className={`admin-status ${status === 'enriching' ? 'enriching' : status === 'ready_degraded' ? 'pending' : 'approved'}`}><i aria-hidden="true" />{t(locale, key)}</span>;
+  const [key, tone] = STATUS_BADGE[status] ?? ['admin.docReady', 'approved'];
+  return <span className={`admin-status ${tone}`}><i aria-hidden="true" />{t(locale, key)}</span>;
 }

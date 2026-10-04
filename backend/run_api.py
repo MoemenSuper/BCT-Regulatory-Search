@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import uvicorn
 
 from ingestion.index import configure_runtime_assets
+from server_logging import configure_logging
 
 
 def main() -> None:
@@ -27,6 +28,7 @@ def main() -> None:
     active = configure_runtime_assets(asset_root, validate=True)
     data = args.data_dir.resolve()
     data.mkdir(parents=True, exist_ok=True)
+    print(f"BCT log file: {configure_logging(data)}")
     os.environ.setdefault("BCT_DEFAULT_PROFILE", "local_hybrid")
     os.environ.setdefault("BCT_INGEST_LOCAL_INDEX", "1")
     os.environ.setdefault("BCT_WARM_START", "1")

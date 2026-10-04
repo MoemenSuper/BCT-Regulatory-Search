@@ -471,48 +471,6 @@ def test_no_operative_amendment_means_no_edge():
     assert edges == []
 
 
-def test_rebuild_writes_edges_and_resolve_path_uses_them(tmp_path: Path):
-    from jsonl_supersession import (
-        rebuild_supersession_edges_from_documents,
-        resolve_edges_path,
-        load_edges,
-        clear_supersession_cache,
-    )
-
-    docs = tmp_path / "documents"
-    docs.mkdir()
-    # Minimal stand-in PDF is heavy; drive rebuild via monkeypatched page reader.
-    pdf = docs / "Cir_2024_14_fr.pdf"
-    pdf.write_bytes(b"%PDF-1.4 fake")
-
-    text = (
-        "Décide :\n"
-        "Article 2- La présente circulaire annule et remplace toutes dispositions "
-        "antérieures contraires, notamment la circulaire n°2007-18 du 5 juillet 2007."
-    )
-
-    import supersession_edges as edges_mod
-
-    original = edges_mod._pdf_page_texts
-    edges_mod._pdf_page_texts = lambda _path: [(1, text)]
-    try:
-        active = tmp_path / "versions" / "v1"
-        active.mkdir(parents=True)
-        out = active / "supersession_edges.jsonl"
-        report = rebuild_supersession_edges_from_documents(docs, out)
-        clear_supersession_cache()
-        assert report["edges"] >= 1
-        resolved = resolve_edges_path(active)
-        assert resolved == out
-        edges = load_edges(resolved)
-        assert any(
-            e.source_instrument == "cir:2024:14" and e.target_instrument == "cir:2007:18"
-            for e in edges
-        )
-    finally:
-        edges_mod._pdf_page_texts = original
-
-
 def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
     active = tmp_path / "active"
     staged = tmp_path / "staged"

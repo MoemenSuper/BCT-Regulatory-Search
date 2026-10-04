@@ -17,16 +17,12 @@ Edges path (first hit wins):
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
-from ingestion.models import Page
-
-logger = logging.getLogger(__name__)
 
 INSTR = re.compile(
     r"(?P<kind>circulaire|note|cir|منشور)\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})",
@@ -423,69 +419,6 @@ def extract_edges_from_pages(filename: str, pages: Iterable) -> list[Supersessio
             )
         )
     return merge_edge_lists(found)
-
-
-def _pdf_page_texts(pdf_path: Path) -> list[tuple[int, str]]:
-    """Best-effort page text for offline rebuild (PyMuPDF, else pypdf)."""
-    try:
-        import pymupdf
-    except ImportError:
-        pymupdf = None
-    if pymupdf is not None:
-        doc = pymupdf.open(pdf_path)
-        try:
-            return [
-                (i + 1, (doc.load_page(i).get_text("text") or ""))
-                for i in range(doc.page_count)
-            ]
-        finally:
-            doc.close()
-    from pypdf import PdfReader
-
-    reader = PdfReader(str(pdf_path))
-    out: list[tuple[int, str]] = []
-    for i, page in enumerate(reader.pages):
-        out.append((i + 1, page.extract_text() or ""))
-    return out
-
-
-def rebuild_supersession_edges_from_documents(
-    documents_dir: str | Path,
-    output_path: str | Path,
-) -> dict[str, int]:
-    """Scan a PDF corpus and write a fresh supersession_edges.jsonl.
-
-    Fail-closed: pages without explicit operative amendment language contribute
-    no edges. Clears the in-process pin cache so the next resolve/load sees the
-    new file.
-    """
-    root = Path(documents_dir)
-    output = Path(output_path)
-    if not root.is_dir():
-        raise FileNotFoundError(f"Documents directory not found: {root}")
-
-    edges: list[SupersessionEdge] = []
-    pdf_count = 0
-    for pdf in sorted(root.rglob("*.pdf")):
-        if instrument_from_filename(pdf.name) is None:
-            continue
-        pdf_count += 1
-        try:
-            pages = [Page(page_number=n, raw_text=text) for n, text in _pdf_page_texts(pdf)]
-        except Exception as error:
-            logger.warning("Supersession rebuild skipped %s: %s", pdf.name, error)
-            continue
-        edges.extend(extract_edges_from_pages(pdf.name, pages))
-    merged = merge_edge_lists(edges)
-    write_edges(output, merged)
-    from supersession_pin import clear_supersession_cache
-
-    clear_supersession_cache()
-    return {
-        "pdfs": pdf_count,
-        "edges": len(merged),
-        "output": str(output.resolve()),
-    }
 
 
 def load_prior_edges(active_before: Path, asset_root: Path | None = None) -> list[SupersessionEdge]:

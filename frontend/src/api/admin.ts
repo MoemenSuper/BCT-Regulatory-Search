@@ -209,13 +209,14 @@ export interface EnrichmentProgress {
   eta_seconds: number | null;
 }
 
-export type DocumentStatus = 'enriching' | 'ready' | 'ready_degraded';
+export type DocumentStatus = 'queued' | 'processing' | 'failed' | 'enriching' | 'ready' | 'ready_degraded';
 
 export interface IndexedDocument {
   document_id: string;
   filename: string;
   title: string;
   status: DocumentStatus;
+  error?: string | null;
   searchable: boolean;
   pages: number | null;
   doc_kind: string;
@@ -223,8 +224,10 @@ export interface IndexedDocument {
 }
 
 export interface EnrichmentWorkerState {
-  state: 'idle' | 'waiting_for_chat' | 'reading' | 'activating' | 'cooldown' | 'disabled';
+  state: 'idle' | 'indexing' | 'waiting_for_memory' | 'waiting_for_chat' | 'reading' | 'activating' | 'cooldown' | 'disabled';
   document?: string;
+  queued?: number;
+  detail?: string;
   page?: number;
   cooldown_seconds?: number;
 }
@@ -253,12 +256,21 @@ export function deleteDocuments(documentIds: string[]): Promise<{
   });
 }
 
+// A server restart (or a proxy hiccup) mid-batch must not fail the rest of a large upload:
+// network errors and 502/503/504 are retried for about a minute before the file counts as failed.
 export async function uploadDocument(form: FormData): Promise<unknown> {
-  const response = await fetch('/api/documents', {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-  });
-  if (!response.ok) throw new Error(await readError(response));
-  return response.json();
+  for (let attempt = 1; ; attempt += 1) {
+    let response: Response | null = null;
+    try {
+      response = await fetch('/api/documents', { method: 'POST', credentials: 'include', body: form });
+    } catch (error) {
+      if (attempt >= 6) throw error;
+    }
+    if (response && ![502, 503, 504].includes(response.status)) {
+      if (!response.ok) throw new Error(await readError(response));
+      return response.json();
+    }
+    if (response && attempt >= 6) throw new Error(await readError(response));
+    await new Promise((resolve) => window.setTimeout(resolve, attempt * 4000));
+  }
 }

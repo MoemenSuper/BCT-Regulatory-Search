@@ -4,6 +4,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 from dotenv import load_dotenv
 from functools import lru_cache
+import logging
 import os
 import threading
 import requests
@@ -12,6 +13,7 @@ from typing import Any, Optional
 
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # Answer-model transport failures (Groq API errors, Ollama HTTP errors). Callers must not turn
 # these into refusals or weaker answers: the API reports them as a temporary outage (503).
@@ -107,6 +109,10 @@ def _groq_rate_limited(error: BaseException) -> bool:
             "ratelimit",
             "too_many_requests",
             "quota",
+            # HTTP 413 "Request too large ... tokens per minute": the per-key minute budget, so
+            # another key can still take the request.
+            "413",
+            "rate_limit_exceeded",
         )
     )
 
@@ -152,7 +158,10 @@ class _RotatingGroqLLM(Runnable):
             except Exception as error:  # noqa: BLE001 - rotate only on quota
                 last_error = error
                 if _groq_rate_limited(error) and offset + 1 < len(self._keys):
+                    logger.warning("Groq key %d of %d rate-limited, trying the next one: %s",
+                                   (start + offset) % len(self._keys) + 1, len(self._keys), str(error)[:200])
                     continue
+                logger.warning("Groq call failed (%d key(s) configured): %s", len(self._keys), str(error)[:300])
                 raise
         raise RuntimeError(f"Groq unavailable after trying configured keys: {last_error}")
 

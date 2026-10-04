@@ -113,14 +113,14 @@ def stage_voyage_indexes(
     root: Path,
     active: Path,
     staging: Path,
-    source_key: str,
+    source_keys: set[str],
     new_primary: list[Document],
     new_visual: list[Document],
     embed: bool | None = None,
 ) -> dict:
     """Write the staged version's Voyage indexes; return its snapshot fields.
 
-    The staged chunks are the active ones minus source_key, then the new ones, in the
+    The staged chunks are the active ones minus source_keys, then the new ones, in the
     same order stage_assets writes the JSONL. Without embedding, old vectors carry over
     only when nothing new needs a vector (a removal); otherwise the old indexes are
     kept as they were (stale against the JSONL) so the cloud profile still has them.
@@ -135,7 +135,7 @@ def stage_voyage_indexes(
         ("arabic_ocr_secondary", "arabic_ocr_secondary.jsonl", new_visual),
     ):
         old_docs, old_vectors = _load_old(active, representation, filename, spec=spec)
-        keep = _keep_indices(old_docs, source_key)
+        keep = _keep_indices(old_docs, source_keys)
         if len(keep) != len(old_docs):
             old_docs = [old_docs[index] for index in keep]
             if old_vectors is not None:

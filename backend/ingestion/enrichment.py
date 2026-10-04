@@ -1,9 +1,10 @@
-"""Background enrichment: visually read pending pages, then re-activate in batches.
+"""Background ingestion: index uploaded PDFs in batches, then visually read pending pages.
 
-Upload does a quick native pass (document searchable in minutes). This worker then
-reads chart / scanned / garbled pages with the profile's visual backend (EasyOCR +
-PaddleOCR-VL locally, Gemini in cloud), one page at a time, yielding to chat.
-Each read page is checkpointed in the ingestion registry, so a restart resumes.
+An upload only stores the PDF and queues it. This worker first indexes the queue, up to
+BCT_INGEST_BATCH PDFs per new asset version (one index rebuild per batch, not per PDF), so the
+PDFs become searchable from their text. Then it reads chart / scanned / garbled pages with the
+profile's visual backend (EasyOCR + PaddleOCR-VL locally, Gemini in cloud), one page at a time.
+It always yields to chat, and checkpoints in the ingestion registry, so a restart resumes.
 """
 
 from __future__ import annotations
@@ -20,8 +21,10 @@ from langfuse import get_client, propagate_attributes
 
 from .extract import load_layout, page_regions, read_page_visual
 from .local_visual import build_visual_transcriber
+from . import docling_layout
+from .docling_layout import NotEnoughMemory
 from .pipeline import IngestionConfig, IngestionPipeline, ingest_session_id
-from .registry import IngestionRegistry
+from .registry import SEARCHABLE, IngestionRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +85,8 @@ class EnrichmentWorker:
         self.max_attempts = int(_env_float("BCT_ENRICH_MAX_ATTEMPTS", 3))
         self.breaker_failures = int(_env_float("BCT_ENRICH_BREAKER_FAILURES", 3))
         self.cooldown_seconds = _env_float("BCT_ENRICH_COOLDOWN_SECONDS", 600)
+        self.batch_documents = int(_env_float("BCT_INGEST_BATCH", 25))
+        self.memory_wait_seconds = _env_float("BCT_INGEST_MEMORY_WAIT_SECONDS", 120)
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
@@ -121,7 +126,7 @@ class EnrichmentWorker:
 
     def snapshot(self) -> dict:
         state = dict(self._state)
-        if self._cooldown_until > time.monotonic():
+        if self._cooldown_until > time.monotonic() and state.get("state") != "waiting_for_memory":
             state["state"] = "cooldown"
             state["cooldown_seconds"] = int(self._cooldown_until - time.monotonic())
         return state
@@ -134,6 +139,8 @@ class EnrichmentWorker:
                     self._release_models()
                     self._wake.wait(self._cooldown_until - time.monotonic())
                     self._wake.clear()
+                    continue
+                if self._index_queued(registry):
                     continue
                 if not self._round(registry):
                     self._state = {"state": "idle"}
@@ -169,6 +176,45 @@ class EnrichmentWorker:
             seen.add(str(job["content_sha256"]))
             self.enrich_document(registry, job)
         return bool(seen)
+
+    def _index_queued(self, registry: IngestionRegistry) -> bool:
+        """Index one batch of queued uploads; False when the queue is empty."""
+        if not registry.next_queued(1):
+            return False
+        self._release_models()  # the page readers' memory goes to the layout reader
+        waiting = registry.connection.execute("SELECT count(*) FROM ingestion_documents WHERE status='queued'").fetchone()[0]
+        self._state = {"state": "indexing", "queued": waiting}
+        pipeline = IngestionPipeline(self.config)
+        try:
+            reports = pipeline.ingest_queued(self.batch_documents, before_each=self._before_indexing)
+        except Exception:
+            logger.exception("Indexing a batch of uploads failed.")
+            self._cooldown_until = time.monotonic() + 60
+            return True
+        finally:
+            pipeline.close()
+        if any(report.get("status") in SEARCHABLE for report in reports.values()) and self.on_activated is not None:
+            try:
+                self.on_activated()
+            except Exception:
+                logger.exception("Runtime refresh after indexing failed.")
+        if not reports:
+            # Nothing could start (not enough memory): try again later, never crash the server.
+            try:
+                docling_layout.check_memory()
+                detail = ""
+            except NotEnoughMemory as error:
+                detail = str(error)
+            self._state = {"state": "waiting_for_memory", "queued": waiting, "detail": detail}
+            self._cooldown_until = time.monotonic() + self.memory_wait_seconds
+        return True
+
+    def _before_indexing(self, job: dict) -> None:
+        """Before each PDF of a batch: chat first."""
+        self._state = {**self._state, "document": str(job.get("original_filename") or "")}
+        self.foreground.wait_idle(self._stop, self.idle_grace)
+        if self._stop.is_set():
+            raise NotEnoughMemory("server stopping")
 
     def _release_models(self) -> None:
         closer = getattr(self._transcriber, "close", None)

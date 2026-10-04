@@ -78,6 +78,40 @@ class IngestionRegistry:
             value["report"] = json.loads(value["report_json"])
         return value
 
+    def queue(self, content_sha256: str, filename: str, stored_path: str, metadata: dict) -> None:
+        """An uploaded PDF waiting for the background worker to index it (with the next batch)."""
+        now = datetime.now(timezone.utc).isoformat()
+        report = json.dumps({"administrator_metadata": metadata, "title": metadata.get("title") or filename},
+                            ensure_ascii=False, sort_keys=True)
+        self.connection.execute(
+            """
+            INSERT INTO ingestion_documents (
+                content_sha256, original_filename, stored_path, status, report_json, created_at
+            ) VALUES (?, ?, ?, 'queued', ?, ?)
+            ON CONFLICT(content_sha256) DO UPDATE SET
+                original_filename=excluded.original_filename, stored_path=excluded.stored_path,
+                status='queued', report_json=excluded.report_json, error=NULL, created_at=excluded.created_at
+            """,
+            (content_sha256, filename, stored_path, report, now),
+        )
+        self.connection.commit()
+
+    def requeue_indexed(self) -> int:
+        """Every searchable upload goes back to the queue (the index they were in was replaced).
+        Their kept PDF, layout and page readings are reused, so only the indexing runs again."""
+        cursor = self.connection.execute(
+            "UPDATE ingestion_documents SET status='queued', asset_version=NULL WHERE status IN " + _SEARCHABLE_SQL
+        )
+        self.connection.commit()
+        return cursor.rowcount
+
+    def next_queued(self, limit: int) -> list[dict]:
+        rows = self.connection.execute(
+            "SELECT content_sha256 FROM ingestion_documents WHERE status='queued' ORDER BY created_at LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [self.get(row[0]) for row in rows]
+
     def start(self, content_sha256: str, filename: str, stored_path: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self.connection.execute(
@@ -147,6 +181,15 @@ class IngestionRegistry:
             (error[:4000], content_sha256),
         )
         self.connection.commit()
+
+    def drop_unindexed(self, content_sha256: str) -> bool:
+        """Forget a queued or failed upload (it never reached the index)."""
+        cursor = self.connection.execute(
+            "UPDATE ingestion_documents SET status='removed', error=NULL WHERE content_sha256=? AND status IN ('queued', 'failed')",
+            (content_sha256,),
+        )
+        self.connection.commit()
+        return cursor.rowcount == 1
 
     def mark_removed(self, content_sha256: str, *, asset_version: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
@@ -274,26 +317,41 @@ class IngestionRegistry:
                 return self.get(row[0])
         return None
 
-    def fail_interrupted(self) -> int:
-        """A quick pass killed mid-way (process exit) never finished; say so."""
-        cursor = self.connection.execute(
-            "UPDATE ingestion_documents SET status='failed', error='Interrupted: the server stopped during ingestion' "
-            "WHERE status='processing'"
-        )
+    def requeue_interrupted(self) -> int:
+        """PDFs the server stopped indexing (restart, crash) go back to the queue. One interrupted
+        twice is failed instead: it may be what stops the server (out of memory)."""
+        rows = self.connection.execute(
+            "SELECT content_sha256, report_json FROM ingestion_documents WHERE status='processing'"
+        ).fetchall()
+        for content_sha256, report_json in rows:
+            report = json.loads(report_json or "{}")
+            report["interrupted"] = int(report.get("interrupted", 0)) + 1
+            if report["interrupted"] >= 2:
+                self.connection.execute(
+                    "UPDATE ingestion_documents SET status='failed', error=? WHERE content_sha256=?",
+                    ("Interrupted twice: the server stopped while indexing this PDF (out of memory?)", content_sha256),
+                )
+            else:
+                self.connection.execute(
+                    "UPDATE ingestion_documents SET status='queued', report_json=? WHERE content_sha256=?",
+                    (json.dumps(report, ensure_ascii=False, sort_keys=True), content_sha256),
+                )
         self.connection.commit()
-        return cursor.rowcount
+        return len(rows)
 
-    def list_ready(self, limit: int = 100) -> list[dict]:
+    def list_ready(self, limit: int = 100, *, include_pending: bool = False) -> list[dict]:
+        """Searchable uploads; with include_pending also the queued, indexing and failed ones."""
+        statuses = _SEARCHABLE_SQL[:-1] + ", 'queued', 'processing', 'failed')" if include_pending else _SEARCHABLE_SQL
         rows = self.connection.execute(
             """
             SELECT content_sha256, original_filename, stored_path, status, asset_version,
-                   report_json, created_at, activated_at
+                   report_json, error, created_at, activated_at
             FROM ingestion_documents
-            WHERE status IN """ + _SEARCHABLE_SQL + """
-            ORDER BY activated_at DESC
+            WHERE status IN """ + statuses + """
+            ORDER BY coalesce(activated_at, created_at) DESC
             LIMIT ?
             """,
-            (max(1, min(int(limit), 1000)),),
+            (max(1, min(int(limit), 5000)),),
         ).fetchall()
         documents = []
         for row in rows:
@@ -328,7 +386,9 @@ class IngestionRegistry:
                     "filename": item["original_filename"],
                     "title": title or item["original_filename"],
                     "status": item["status"],
-                    "searchable": bool(report.get("searchable", True)) if isinstance(report, dict) else True,
+                    "error": item["error"],
+                    "searchable": item["status"] in SEARCHABLE and (
+                        bool(report.get("searchable", True)) if isinstance(report, dict) else True),
                     "asset_version": item["asset_version"],
                     "activated_at": item["activated_at"],
                     "pages": report.get("pages") if isinstance(report, dict) else None,

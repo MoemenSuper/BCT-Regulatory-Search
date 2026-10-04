@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,9 +21,15 @@ from .index import (
     stage_assets,
     stage_local_collections,
 )
+from .docling_layout import NotEnoughMemory
 from .registry import SEARCHABLE, IngestionRegistry
 from runtime_retrieval import _read_chunks
 from source_metadata import safe_pdf_filename
+
+
+logger = logging.getLogger(__name__)
+# A CLI ingest takes everything queued along with its own PDF, in batches of at most this.
+_MAX_BATCH = 25
 
 
 @dataclass(frozen=True)
@@ -216,6 +223,32 @@ class ActivatedVersion:
     supersession: dict  # what happened to supersession_edges.jsonl (counts or warning)
 
 
+@dataclass(frozen=True)
+class PdfChange:
+    """One PDF's part of a new asset version: its new chunks and pages (none for a removal)."""
+
+    content_hash: str
+    filename: str
+    primary: list
+    visual: list
+    pages: list
+
+
+@dataclass(frozen=True)
+class _Prepared:
+    """A PDF read and chunked, waiting to go live with its batch."""
+
+    content_hash: str
+    filename: str
+    immutable_pdf: Path
+    metadata: dict
+    structured: object
+    structured_path: Path
+    primary: list
+    visual: list
+    progress: dict
+
+
 def _stage_supersession_edges(active_before: Path, staged_version: Path, filename: str, pages, asset_root: Path) -> dict:
     """Write the staged version's SUPERSEDES edges: the old edges minus this PDF's, plus the
     edges found in pages (none for a removal). Written before activation, so a failed
@@ -277,6 +310,21 @@ class IngestionPipeline:
         )
 
     def _ingest(self, pdf_path: str | Path, *, original_filename: str | None = None, metadata: dict | None = None) -> dict:
+        """Index one PDF now (CLI, tests): queue it, then run the queue."""
+        queued = self.queue(pdf_path, original_filename=original_filename, metadata=metadata)
+        if queued.get("duplicate"):
+            return queued
+        reports, errors = self._ingest_batch(self.registry.next_queued(_MAX_BATCH))
+        if queued["content_sha256"] in errors:
+            raise errors[queued["content_sha256"]]
+        return reports[queued["content_sha256"]]
+
+    def queue(self, pdf_path: str | Path, *, original_filename: str | None = None, metadata: dict | None = None) -> dict:
+        """Keep an uploaded PDF and queue it for indexing; returns at once.
+
+        The background worker indexes queued PDFs in batches (ingest_queued). A PDF already
+        searchable with the same bytes is a duplicate; one already queued stays queued.
+        """
         source_path = Path(pdf_path).resolve(strict=True)
         filename = _safe_filename(original_filename or source_path.name)
         metadata = _clean_metadata(metadata)
@@ -284,155 +332,209 @@ class IngestionPipeline:
             validate_pdf_file(source_path, max_bytes=self.config.max_pdf_bytes)
             content_hash = sha256_file(source_path)
             span.update(output={"content_sha256": content_hash})
-        # Groups this quick pass with the background enrichment traces of the same PDF.
-        with propagate_attributes(session_id=ingest_session_id(content_hash)):
-            return self._ingest_hashed(source_path, content_hash, filename, metadata)
-
-    def _ingest_hashed(self, source_path: Path, content_hash: str, filename: str, metadata: dict) -> dict:
         known = self.registry.get(content_hash)
         if known and known.get("status") in SEARCHABLE and known.get("report"):
             return {**known["report"], "duplicate": True}
+        if known and known.get("status") in ("queued", "processing"):
+            return {"status": known["status"], "duplicate": False, "filename": filename, "content_sha256": content_hash}
+        immutable_dir = self.config.documents_dir / content_hash
+        immutable_dir.mkdir(parents=True, exist_ok=True)
+        immutable_pdf = immutable_dir / filename
+        if immutable_pdf.exists() and sha256_file(immutable_pdf) != content_hash:
+            raise ValueError("Immutable document path already contains different bytes")
+        if not immutable_pdf.exists():
+            shutil.copy2(source_path, immutable_pdf)
+        self.registry.queue(content_hash, filename, str(immutable_pdf), metadata)
+        return {"status": "queued", "duplicate": False, "filename": filename, "content_sha256": content_hash}
 
-        # One ingest at a time. Wait for the holder instead of failing parallel admin uploads in 5s.
+    def ingest_queued(self, limit: int = _MAX_BATCH, *, before_each=None) -> dict[str, dict]:
+        """Index up to `limit` queued PDFs with ONE new asset version (background worker).
+
+        Each PDF is read on its own: one that fails is marked failed with its reason and the
+        others go on. Then the whole batch is staged and activated once, so a PDF costs its own
+        reading, not a copy of the whole index. before_each(job) runs before a PDF is read (the
+        worker waits there for chat). NotEnoughMemory leaves that PDF and the rest queued.
+        Returns content_sha256 -> report.
+        """
+        with _step("ingest-batch", input={"limit": limit}) as span:
+            reports, _errors = self._ingest_batch(self.registry.next_queued(limit), before_each=before_each)
+            span.update(output={content_hash: report.get("status") for content_hash, report in reports.items()})
+        return reports
+
+    def _ingest_batch(self, jobs: list[dict], *, before_each=None) -> tuple[dict[str, dict], dict[str, Exception]]:
         lock = FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30)
         with _step("wait-ingestion-lock", input={"timeout_s": lock.timeout}):
             lock.acquire()
+        reports: dict[str, dict] = {}
+        errors: dict[str, Exception] = {}
+        prepared: list[_Prepared] = []
         try:
-            # Check again after acquiring the cross-process lock.
-            known = self.registry.get(content_hash)
-            if known and known.get("status") in SEARCHABLE and known.get("report"):
-                return {**known["report"], "duplicate": True}
+            names: set[str] = set()
+            for job in jobs:
+                content_hash = str(job["content_sha256"])
+                filename = str(job["original_filename"])
+                if filename.casefold() in names:
+                    continue  # two versions of one PDF: the newer one goes in the next batch
+                metadata = dict((job.get("report") or {}).get("administrator_metadata") or {})
+                stored = Path(str(job["stored_path"]))
+                started = time.monotonic()
+                try:
+                    if before_each is not None:
+                        before_each(job)
+                    self.registry.start(content_hash, filename, str(stored))
+                    with propagate_attributes(session_id=ingest_session_id(content_hash)):
+                        prepared.append(self._prepare(content_hash, filename, stored, metadata))
+                except NotEnoughMemory as error:
+                    self.registry.queue(content_hash, filename, str(stored), metadata)
+                    logger.warning("Not enough memory to read %s; it stays queued: %s", filename, error)
+                    break
+                except Exception as error:
+                    errors[content_hash] = error
+                    message = f"{type(error).__name__}: {error}"
+                    self.registry.fail(content_hash, message)
+                    reports[content_hash] = {"status": "failed", "filename": filename, "error": message,
+                                             "content_sha256": content_hash, "duplicate": False}
+                    logger.warning("Indexing failed for %s: %s", filename, message)
+                    continue
+                names.add(filename.casefold())
+                logger.info("Read %s in %.1fs", filename, time.monotonic() - started)
+            if prepared:
+                from . import docling_layout
 
-            immutable_dir = self.config.documents_dir / content_hash
-            immutable_dir.mkdir(parents=True, exist_ok=True)
-            immutable_pdf = immutable_dir / filename
-            if immutable_pdf.exists() and sha256_file(immutable_pdf) != content_hash:
-                raise ValueError("Immutable document path already contains different bytes")
-            if not immutable_pdf.exists():
-                shutil.copy2(source_path, immutable_pdf)
-            self.registry.start(content_hash, filename, str(immutable_pdf))
-
-            return self._activate(content_hash, filename, immutable_pdf, metadata, quick=True)
+                docling_layout.release()  # give its memory back before the index is rebuilt
+                try:
+                    reports.update(self._activate_prepared(prepared))
+                except Exception as error:
+                    for item in prepared:
+                        errors[item.content_hash] = error
+                        self.registry.fail(item.content_hash, f"Activation failed: {type(error).__name__}: {error}")
+                    logger.exception("Activating a batch of %d PDF(s) failed; the previous index stays live.", len(prepared))
+                    raise
+                logger.info("Indexed a batch of %d PDF(s)", len(prepared))
+            return reports, errors
         finally:
             lock.release()
 
-    def _activate(self, content_hash: str, filename: str, immutable_pdf: Path, metadata: dict, *, quick: bool) -> dict:
-        """Extract (visual results from the page ledger), chunk, then stage and activate. Caller holds the lock."""
+    def _prepare(self, content_hash: str, filename: str, immutable_pdf: Path, metadata: dict) -> "_Prepared":
+        """Extract one PDF (visual results from the page ledger) and chunk it."""
         immutable_dir = immutable_pdf.parent
-        try:
-            with _step("extract-document", input={"pdf": filename, "quick": quick}) as span:
-                visual_results, visual_model = self._visual_results(content_hash)
-                structured = PdfExtractor(visual_model=visual_model).extract(
-                    immutable_pdf, visual_results=visual_results, layout_cache=immutable_dir / "docling-layout.json"
-                )
-                summary = _extract_summary(structured)
-                span.update(
-                    output=summary,
-                    **({"level": "WARNING", "status_message": f"{summary['degraded_count']} degraded pages"}
-                       if summary["degraded_count"] else {}),
-                )
-            from document_authority import authority_for_kind, resolve_doc_kind
-
-            doc_kind = resolve_doc_kind(
-                explicit=metadata.get("doc_kind") or metadata.get("type"),
-                filename=filename,
+        with _step("extract-document", input={"pdf": filename}) as span:
+            visual_results, visual_model = self._visual_results(content_hash)
+            structured = PdfExtractor(visual_model=visual_model).extract(
+                immutable_pdf, visual_results=visual_results, layout_cache=immutable_dir / "docling-layout.json"
             )
-            metadata["doc_kind"] = doc_kind
-            metadata["authority"] = authority_for_kind(doc_kind)
-            structured.document_number = metadata.get("document_number")
-            structured.publication_date = metadata.get("publication_date")
-            structured.metadata["administrator_metadata"] = metadata
-            structured.metadata["doc_kind"] = doc_kind
-            structured.metadata["authority"] = metadata["authority"]
-            if metadata.get("related_to"):
-                structured.metadata["related_to"] = metadata["related_to"]
-            structured_path = immutable_dir / "structured.json"
-            structured_path.write_text(
-                json.dumps(structured.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
-                encoding="utf-8",
+            summary = _extract_summary(structured)
+            span.update(
+                output=summary,
+                **({"level": "WARNING", "status_message": f"{summary['degraded_count']} degraded pages"}
+                   if summary["degraded_count"] else {}),
             )
-            self.registry.seed_pages(
-                content_hash,
-                [
-                    {"page": page.page_number, **page.metadata["visual_plan"]}
-                    for page in structured.pages
-                    if "visual_pending" in page.quality_flags
-                ],
-            )
-            progress = self.registry.progress(content_hash)
-            status = "enriching" if progress["pending"] else "ready_degraded" if progress["failed"] else "ready"
+        from document_authority import authority_for_kind, resolve_doc_kind
 
-            with _step("chunk-document") as span:
-                try:
-                    primary, visual = build_runtime_chunks(structured)
-                except ValueError:
-                    if not progress["pending"]:
-                        raise
-                    # Nothing readable natively (scanned PDF): searchable once enrichment reads it.
-                    return self._commit_unindexed(content_hash, filename, immutable_pdf, metadata, structured, progress)
-                span.update(output={"native_chunks": len(primary), "visual_chunks": len(visual)})
+        doc_kind = resolve_doc_kind(
+            explicit=metadata.get("doc_kind") or metadata.get("type"),
+            filename=filename,
+        )
+        metadata["doc_kind"] = doc_kind
+        metadata["authority"] = authority_for_kind(doc_kind)
+        structured.document_number = metadata.get("document_number")
+        structured.publication_date = metadata.get("publication_date")
+        structured.metadata["administrator_metadata"] = metadata
+        structured.metadata["doc_kind"] = doc_kind
+        structured.metadata["authority"] = metadata["authority"]
+        if metadata.get("related_to"):
+            structured.metadata["related_to"] = metadata["related_to"]
+        structured_path = immutable_dir / "structured.json"
+        structured_path.write_text(
+            json.dumps(structured.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        self.registry.seed_pages(
+            content_hash,
+            [
+                {"page": page.page_number, **page.metadata["visual_plan"]}
+                for page in structured.pages
+                if "visual_pending" in page.quality_flags
+            ],
+        )
+        progress = self.registry.progress(content_hash)
+        with _step("chunk-document") as span:
+            try:
+                primary, visual = build_runtime_chunks(structured)
+            except ValueError:
+                if not progress["pending"]:
+                    raise
+                # Nothing readable natively (scanned PDF): searchable once enrichment reads it.
+                primary, visual = [], []
+            span.update(output={"native_chunks": len(primary), "visual_chunks": len(visual)})
+        return _Prepared(content_hash, filename, immutable_pdf, metadata, structured, structured_path,
+                         primary, visual, progress)
 
-            def record(activated: ActivatedVersion) -> dict:
+    def _activate_prepared(self, prepared: list["_Prepared"]) -> dict[str, dict]:
+        """Make prepared PDFs live with one new asset version; returns content_sha256 -> report."""
+        reports = {
+            item.content_hash: self._commit_unindexed(item.content_hash, item.filename, item.immutable_pdf,
+                                                      item.metadata, item.structured, item.progress)
+            for item in prepared
+            if not item.primary
+        }
+        indexed = [item for item in prepared if item.primary]
+        if not indexed:
+            return reports
+
+        def record(activated: ActivatedVersion) -> dict:
+            done = {}
+            for item in indexed:
+                progress = item.progress
+                status = "enriching" if progress["pending"] else "ready_degraded" if progress["failed"] else "ready"
                 report = {
                     "status": status,
                     "searchable": True,
                     "enrichment": progress,
                     "duplicate": False,
-                    "filename": filename,
-                    "title": metadata.get("title") or filename,
-                    "administrator_metadata": metadata,
-                    "content_sha256": content_hash,
-                    "stored_pdf": str(immutable_pdf),
-                    "structured_document": str(structured_path),
-                    "language": structured.language,
-                    "pages": len(structured.pages),
-                    "visual_pages": int(structured.metadata.get("visual_page_count", 0)),
-                    "native_chunks_added": len(primary),
-                    "visual_chunks_added": len(visual),
+                    "filename": item.filename,
+                    "title": item.metadata.get("title") or item.filename,
+                    "administrator_metadata": item.metadata,
+                    "content_sha256": item.content_hash,
+                    "stored_pdf": str(item.immutable_pdf),
+                    "structured_document": str(item.structured_path),
+                    "language": item.structured.language,
+                    "pages": len(item.structured.pages),
+                    "visual_pages": int(item.structured.metadata.get("visual_page_count", 0)),
+                    "native_chunks_added": len(item.primary),
+                    "visual_chunks_added": len(item.visual),
                     "asset_version": activated.version,
                     "active_pointer": activated.pointer,
                     "local_indexed": bool(activated.local_index.get("local_collection")),
                     "supersession": activated.supersession,
                 }
                 self.registry.ready(
-                    content_hash,
-                    stored_path=str(immutable_pdf),
+                    item.content_hash,
+                    stored_path=str(item.immutable_pdf),
                     asset_version=activated.version,
                     report=report,
                     status=status,
                 )
-                return report
+                done[item.content_hash] = report
+            return done
 
-            return self._stage_and_activate(
-                content_hash=content_hash,
-                filename=filename,
-                new_primary=primary,
-                new_visual=visual,
-                pages=structured.pages,
-                record=record,
-            )
-        except Exception as error:
-            if quick:
-                # A failed first ingest is recorded; a failed enrichment batch keeps the
-                # document live on its prior version.
-                self.registry.fail(content_hash, f"{type(error).__name__}: {error}")
-            raise
+        reports.update(self._stage_and_activate(
+            changes=[PdfChange(item.content_hash, item.filename, item.primary, item.visual, item.structured.pages)
+                     for item in indexed],
+            record=record,
+        ))
+        return reports
 
-    def _stage_and_activate(
-        self,
-        *,
-        content_hash: str,
-        filename: str,
-        new_primary: list,
-        new_visual: list,
-        pages: list,
-        record,
-        removal: bool = False,
-    ) -> dict:
+    def _activate(self, content_hash: str, filename: str, immutable_pdf: Path, metadata: dict) -> dict:
+        """Re-extract one live PDF with the pages read so far and make it live (enrichment). Caller holds the lock."""
+        return self._activate_prepared([self._prepare(content_hash, filename, immutable_pdf, metadata)])[content_hash]
+
+    def _stage_and_activate(self, *, changes: list["PdfChange"], record, removal: bool = False):
         """Build a new asset version, make it live, then call record(activated) to note it in
         the registry; returns what record returns.
 
-        Shared by ingest (new chunks and the PDF's pages) and removal (none of either).
+        Shared by ingest (each PDF's new chunks and pages; one version for a whole batch) and
+        removal (one PDF, none of either).
         Nothing is final until record() succeeds: on any error before that the previous
         version is made live again and the staged files are deleted, so the old corpus
         keeps serving (staged activation).
@@ -442,6 +544,9 @@ class IngestionPipeline:
         previous_pointer = pointer_path.read_bytes() if pointer_path.exists() else None
         staged_version: Path | None = None
         local_index: dict[str, object] = {}
+        new_primary = [chunk for change in changes for chunk in change.primary]
+        new_visual = [chunk for change in changes for chunk in change.visual]
+        filenames = [change.filename for change in changes]
         try:
             active_before = resolve_active_assets(root)
             base_snapshot = _read_snapshot(active_before)
@@ -450,8 +555,8 @@ class IngestionPipeline:
                     asset_root=root,
                     new_primary=new_primary,
                     new_visual=new_visual,
-                    content_sha256=content_hash,
-                    source_filename=filename,
+                    content_sha256=changes[0].content_hash,
+                    source_filenames=filenames,
                     allow_empty=removal,
                     removal=removal,
                 )
@@ -468,14 +573,19 @@ class IngestionPipeline:
                         new_primary=new_primary,
                         new_visual=new_visual,
                         base_snapshot=base_snapshot,
-                        source_filename=filename,
+                        source_filenames=filenames,
                     )
                     span.update(
                         output=local_index or {"skipped": True},
                         **({} if local_index else {"level": "WARNING", "status_message": "local Chroma index not updated"}),
                     )
 
-            supersession = _stage_supersession_edges(active_before, staged_version, filename, pages, root)
+            # Each PDF's edges replace its old ones; the next PDF starts from the edges just staged.
+            supersession = {}
+            for index, change in enumerate(changes):
+                supersession = _stage_supersession_edges(
+                    active_before if index == 0 else staged_version, staged_version, change.filename, change.pages, root
+                )
 
             with _step("activate-version", input={"version": version}):
                 pointer = activate_assets(root, staged_version, snapshot_updates=local_index)
@@ -550,7 +660,7 @@ class IngestionPipeline:
             if not stored.is_file():
                 raise FileNotFoundError(f"Immutable PDF missing for {content_hash}")
             filename = str(known.get("original_filename") or stored.name)
-            return self._activate(content_hash, filename, stored, metadata, quick=False)
+            return self._activate(content_hash, filename, stored, metadata)
         finally:
             lock.release()
 
@@ -562,12 +672,24 @@ class IngestionPipeline:
             tags=["ingestion", "removal"],
         )
 
+    def _drop_unindexed(self, content_hash: str, known: dict) -> dict:
+        """A queued or failed upload never reached the index: forget it, no new asset version."""
+        with FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30):
+            if not self.registry.drop_unindexed(content_hash):
+                raise ValueError("This PDF is being indexed right now; delete it once it is done.")
+        stored = Path(str(known.get("stored_path") or ""))
+        if stored.parent.is_dir() and stored.parent.parent == self.config.documents_dir:
+            shutil.rmtree(stored.parent, ignore_errors=True)
+        return {"status": "removed", "document_id": content_hash, "filename": known.get("original_filename")}
+
     def _remove(self, content_sha256: str) -> dict:
         """Drop a ready PDF from the active index; failed activation keeps the prior corpus."""
         content_hash = (content_sha256 or "").strip().lower()
         if not content_hash or len(content_hash) < 16:
             raise ValueError("Invalid document id")
         known = self.registry.get(content_hash)
+        if known is not None and known.get("status") in ("queued", "failed"):
+            return self._drop_unindexed(content_hash, known)
         if known is None or known.get("status") not in SEARCHABLE:
             raise KeyError(f"Ready document not found: {content_hash}")
         filename = _safe_filename(str(known.get("original_filename") or "document.pdf"))
@@ -593,13 +715,7 @@ class IngestionPipeline:
                 }
 
             report = self._stage_and_activate(
-                content_hash=content_hash,
-                filename=filename,
-                new_primary=[],
-                new_visual=[],
-                pages=[],
-                record=record,
-                removal=True,
+                changes=[PdfChange(content_hash, filename, [], [], [])], record=record, removal=True,
             )
 
             stored = str(known.get("stored_path") or "").strip()

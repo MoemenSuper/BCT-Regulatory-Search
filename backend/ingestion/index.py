@@ -95,12 +95,12 @@ def _jsonl(path: Path, documents: list[Document]) -> None:
             )
 
 
-def _keep_indices(documents: list[Document], source_key: str) -> list[int]:
-    """Positions of the chunks that do not come from source_key (the PDF being replaced)."""
+def _keep_indices(documents: list[Document], source_keys: set[str]) -> list[int]:
+    """Positions of the chunks that do not come from source_keys (the PDFs being replaced)."""
     return [
         index
         for index, document in enumerate(documents)
-        if Path(str(document.metadata.get("source", ""))).name.casefold() != source_key
+        if Path(str(document.metadata.get("source", ""))).name.casefold() not in source_keys
     ]
 
 
@@ -115,28 +115,32 @@ def stage_assets(
     new_primary: list[Document],
     new_visual: list[Document],
     content_sha256: str,
-    source_filename: str,
+    source_filenames: list[str],
     allow_empty: bool = False,
     removal: bool = False,
     embed_cloud: bool | None = None,
 ) -> tuple[Path, dict]:
     """Build a complete new asset version: the JSONL chunks, plus the cloud profile's
     Voyage indexes (cloud/voyage_index.py; embeds only when embed_cloud is on).
+
+    source_filenames: the PDFs added (or removed) in this version, one or a whole upload batch;
+    their old chunks are replaced by new_primary / new_visual.
     """
     root = Path(asset_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     active = resolve_active_assets(root)
-    source_key = Path(source_filename).name.casefold()
+    source_keys = {Path(name).name.casefold() for name in source_filenames}
+    sources = ", ".join(source_filenames)
 
     def merged(filename, new_docs):
         old = _read_active(active, filename)
-        return [old[index] for index in _keep_indices(old, source_key)] + list(new_docs)
+        return [old[index] for index in _keep_indices(old, source_keys)] + list(new_docs)
 
     all_primary = merged("native.jsonl", new_primary)
     all_visual = merged("arabic_ocr_secondary.jsonl", new_visual)
     if not all_primary and not allow_empty:
         raise ValueError(
-            f"Ingestion of {source_filename!r} produced no native searchable chunks "
+            f"Ingestion of {sources!r} produced no native searchable chunks "
             "(and the active corpus has none either)"
         )
     # Arabic visual/OCR secondary may stay empty for French-first corpora.
@@ -156,7 +160,7 @@ def stage_assets(
             root=root,
             active=active,
             staging=staging,
-            source_key=source_key,
+            source_keys=source_keys,
             new_primary=new_primary,
             new_visual=new_visual,
             embed=embed_cloud,
@@ -173,7 +177,7 @@ def stage_assets(
             snapshot.update(
                 {
                     "removed_document_sha256": content_sha256,
-                    "removed_source": source_filename,
+                    "removed_source": sources,
                     "added_native_chunks": 0,
                     "added_visual_chunks": 0,
                 }
@@ -182,7 +186,7 @@ def stage_assets(
             snapshot.update(
                 {
                     "added_document_sha256": content_sha256,
-                    "added_source": source_filename,
+                    "added_source": sources,
                     "added_native_chunks": len(new_primary),
                     "added_visual_chunks": len(new_visual),
                 }
@@ -253,14 +257,14 @@ def _collection_exists(client, name: str) -> bool:
         return False
 
 
-def _read_collection(source, *, batch_size: int = 500, exclude_source: str | None = None) -> list[tuple]:
-    """Return (id, document, metadata, embedding) rows, skipping one source PDF.
+def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str] = ()) -> list[tuple]:
+    """Return (id, document, metadata, embedding) rows, skipping the exclude_sources PDFs.
 
     Chroma 1.5 can lose the not-yet-flushed tail of a collection's HNSW index
     ("Error finding id" / "Nothing found on disk") while documents and metadata
     stay readable; those pages are re-embedded from their text.
     """
-    excluded = Path(exclude_source).name.casefold() if exclude_source else None
+    excluded = {Path(name).name.casefold() for name in exclude_sources}
     rows: list[tuple] = []
     count = source.count()
     offset = 0
@@ -285,7 +289,7 @@ def _read_collection(source, *, batch_size: int = 500, exclude_source: str | Non
         kept = [
             index
             for index, metadata in enumerate(metadatas)
-            if excluded is None or Path(str((metadata or {}).get("source", ""))).name.casefold() != excluded
+            if Path(str((metadata or {}).get("source", ""))).name.casefold() not in excluded
         ]
         if embeddings is None and kept:
             embeddings = dict(zip(kept, _embed_local([documents[i] for i in kept])))
@@ -324,7 +328,7 @@ def stage_local_collections(
     new_primary: list[Document],
     new_visual: list[Document],
     base_snapshot: dict,
-    source_filename: str,
+    source_filenames: list[str],
 ) -> dict[str, str]:
     """Create versioned Chroma collections, copying old embeddings when possible."""
     try:
@@ -362,12 +366,12 @@ def stage_local_collections(
         input={"chroma_db": str(db_path), "primary": old_primary_name, "visual": old_visual_name},
     ) as copy_span:
         old_primary_rows = (
-            _read_collection(client.get_collection(old_primary_name), exclude_source=source_filename)
+            _read_collection(client.get_collection(old_primary_name), exclude_sources=source_filenames)
             if has_old_primary
             else []
         )
         old_visual_rows = (
-            _read_collection(client.get_collection(old_visual_name), exclude_source=source_filename)
+            _read_collection(client.get_collection(old_visual_name), exclude_sources=source_filenames)
             if has_old_visual
             else []
         )

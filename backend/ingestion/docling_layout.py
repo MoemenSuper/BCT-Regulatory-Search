@@ -18,6 +18,7 @@ replaces the worker and retries. Models load once per worker.
 """
 from __future__ import annotations
 
+import os
 import re
 import threading
 from concurrent.futures import ProcessPoolExecutor
@@ -45,6 +46,47 @@ _pool_lock = threading.Lock()
 _idle_timer: threading.Timer | None = None
 
 
+class NotEnoughMemory(RuntimeError):
+    """Too little free memory to start the Docling worker; the PDF waits instead of crashing the server."""
+
+
+def _memory():
+    from hardware import memory_gb
+
+    return memory_gb(), float(os.environ.get("BCT_DOCLING_MIN_FREE_GB", "4"))
+
+
+def check_memory() -> None:
+    """The worker needs ~4 GB beside the API's search models (measured 4.3 GB on a 7.5 GB Docker
+    Desktop, where starting it anyway got the API killed). BCT_DOCLING_MIN_FREE_GB changes it."""
+    memory, needed = _memory()
+    if memory is not None and memory[1] < needed:
+        raise NotEnoughMemory(
+            f"reading PDF layouts needs about {needed:g} GB of free memory; {memory[1]:.1f} GB free "
+            f"of {memory[0]:.1f} GB. Close other programs, or give Docker more memory (Docker Desktop: "
+            "Settings > Resources)."
+        )
+
+
+def _worker_start() -> None:
+    """In the worker: if memory still runs out, Linux kills this process, not the API."""
+    try:
+        Path("/proc/self/oom_score_adj").write_text("1000")
+    except OSError:
+        pass  # not Linux
+
+
+def release() -> None:
+    """Stop the worker now and give its ~4 GB back (before an index rebuild)."""
+    global _pool
+    with _pool_lock:
+        pool, _pool = _pool, None
+        if _idle_timer is not None:
+            _idle_timer.cancel()
+    if pool is not None:
+        pool.shutdown(wait=True)
+
+
 def _shutdown_if_idle(pool) -> None:
     global _pool
     with _pool_lock:
@@ -59,13 +101,19 @@ def page_blocks(pdf_path: str | Path, raw_cache: Path | None = None) -> dict[int
     skips the models, so a change to how blocks are assembled never needs a new Docling run."""
     global _pool, _idle_timer
     for attempt in range(1, _ATTEMPTS + 1):
+        memory, needed = _memory()
+        if _pool is not None and memory is not None and memory[1] < needed:
+            release()  # it grows with every PDF it reads: restart it before it runs the server out of memory
         with _pool_lock:
             if _idle_timer is not None:
                 _idle_timer.cancel()
             if _pool is None:
                 import multiprocessing
 
-                _pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"))
+                check_memory()
+                _pool = ProcessPoolExecutor(
+                    max_workers=1, mp_context=multiprocessing.get_context("spawn"), initializer=_worker_start
+                )
             pool = _pool
         try:
             return pool.submit(_convert, str(pdf_path), str(raw_cache) if raw_cache else None).result()
@@ -74,7 +122,10 @@ def page_blocks(pdf_path: str | Path, raw_cache: Path | None = None) -> dict[int
                 if _pool is pool:
                     _pool = None
             if attempt == _ATTEMPTS:
-                raise RuntimeError(f"Docling worker crashed {_ATTEMPTS} times on {Path(pdf_path).name}")
+                raise RuntimeError(
+                    f"the layout reader (Docling) stopped {_ATTEMPTS} times on {Path(pdf_path).name}, "
+                    "most likely out of memory"
+                )
         finally:
             with _pool_lock:
                 if _pool is pool:
@@ -103,10 +154,13 @@ def _pipeline_options():
     opts = PdfPipelineOptions()
     opts.do_ocr = False  # scanned pages go to the visual backend
     opts.table_structure_options.mode = TableFormerMode.ACCURATE
-    from hardware import batch_size
+    from hardware import batch_size, gpu_memory_gb
 
-    # AUTO picks the same device order as hardware.torch_device (CUDA > MPS > XPU > CPU).
-    opts.accelerator_options = AcceleratorOptions(device=AcceleratorDevice.AUTO, num_threads=os.cpu_count() or 4)
+    # AUTO picks the same device order as hardware.torch_device (CUDA > MPS > XPU > CPU), but a GPU
+    # under 12 GB is left to the search models: Docling beside them on an 8 GB laptop GPU reset the
+    # Windows driver (event 153), which broke the API's GPU until a restart. Same text, slower.
+    device = AcceleratorDevice.AUTO if gpu_memory_gb() == 0 or gpu_memory_gb() >= 12 else AcceleratorDevice.CPU
+    opts.accelerator_options = AcceleratorOptions(device=device, num_threads=os.cpu_count() or 4)
     opts.layout_batch_size = batch_size(64)
     return opts
 
