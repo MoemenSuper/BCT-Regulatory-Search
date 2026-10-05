@@ -11,18 +11,35 @@ from pathlib import Path
 from sqlite_local import thread_connection
 from runtime_profiles import RuntimeProfile, parse_profile, profile_options
 
-# Keys administrators may set. Values are applied into os.environ for the process.
+# Keys administrators may set, in the order the Configuration page shows them. Values are
+# applied into os.environ for the process. The answer model: BCT_ANSWER_PROVIDER picks one
+# (empty = the first provider with a key), each provider has its key and an optional model.
 MANAGED_SECRET_KEYS = (
-    "GROQ_API_KEY",
-    "VOYAGE_API_KEY",
+    "BCT_ANSWER_PROVIDER",
+    "BCT_SPEED_MODE",
+    "OPENAI_API_KEY",
+    "BCT_OPENAI_MODEL",
+    "ANTHROPIC_API_KEY",
+    "BCT_ANTHROPIC_MODEL",
     "GEMINI_API_KEY",
+    "BCT_GEMINI_ANSWER_MODEL",
+    "GROQ_API_KEY",
     "BCT_GROQ_MODEL",
+    "VOYAGE_API_KEY",
     "BCT_LOCAL_LLM_URL",
     "BCT_LOCAL_LLM_MODEL",
 )
 
-# Settings that are not secret (a model name, a local address) are shown in full.
-PLAIN_SETTING_KEYS = ("BCT_GROQ_MODEL", "BCT_LOCAL_LLM_URL", "BCT_LOCAL_LLM_MODEL")
+# Settings that are not secret (a provider or model name, a local address) are shown in full.
+PLAIN_SETTING_KEYS = (
+    "BCT_ANSWER_PROVIDER", "BCT_SPEED_MODE", "BCT_OPENAI_MODEL", "BCT_ANTHROPIC_MODEL", "BCT_GEMINI_ANSWER_MODEL",
+    "BCT_GROQ_MODEL", "BCT_LOCAL_LLM_URL", "BCT_LOCAL_LLM_MODEL",
+)
+# Settings with a fixed list of values (a dropdown in Admin > Configuration).
+CHOICES = {
+    "BCT_ANSWER_PROVIDER": ("openai", "anthropic", "gemini", "groq"),
+    "BCT_SPEED_MODE": ("auto", "fast"),
+}
 
 ACTIVE_PROFILE_KEY = "active_profile"
 
@@ -124,12 +141,17 @@ class AppSettingsStore:
                     "masked": mask_secret(effective) if secret else None,
                     "value": None if secret else effective,
                     "source": "store" if stored is not None else ("environment" if env_value else "unset"),
+                    "choices": list(CHOICES.get(key, ())) or None,
                 }
             )
+        from llm import answer_provider
+
         return {
             "active_profile": self.active_profile().value,
             "profiles": profile_options(),
             "secrets": secrets,
+            # What the app answers with now (the choice, or the first provider with a key).
+            "answer_provider": answer_provider(),
         }
 
     def update_secrets(self, updates: dict[str, str | None]) -> dict:
@@ -146,6 +168,10 @@ class AppSettingsStore:
                     os.environ.pop(key, None)
                 continue
             cleaned = value.strip()
+            if key in CHOICES:
+                cleaned = cleaned.casefold()
+                if cleaned not in CHOICES[key]:
+                    raise ValueError(f"{key} must be one of: {', '.join(CHOICES[key])}")
             self.set(key, cleaned)
             os.environ[key] = cleaned
         self.apply_to_environment()

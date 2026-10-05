@@ -55,13 +55,15 @@ def _is_arabic_text(text):
     return arabic_character_ratio(text) >= 0.20
 
 
-def best_scores(score, query, other_queries, documents):
-    """Each chunk's reranker score against the wordings written in its own script, best one kept.
+def script_scores(score, query, other_queries, documents):
+    """Each chunk's reranker score against one wording written in its own script.
 
     score(wording, documents) returns one score per document. A French chunk is compared with the
-    Latin-script wordings (the French one, or the English question), an Arabic chunk with the
-    Arabic ones: comparing every chunk with every wording would multiply the reranker's work
-    (four wordings took 10 s instead of 1 s on a laptop GPU) without finding anything more.
+    first Latin-script wording (the question, or its French version), an Arabic chunk with the
+    first Arabic one. The other wordings still find candidates (each search lane), but scoring
+    every chunk against every same-script wording too cost 2.3x the reranker work for the same
+    result (retrieval benchmark: 82 % top-5 both ways; 7.7k instead of 18k pairs). The reranker
+    is 97 % of an answer's time on a CPU server.
     """
     wordings = [query, *other_queries]
     scores = [None] * len(documents)
@@ -69,11 +71,9 @@ def best_scores(score, query, other_queries, documents):
         indices = [i for i, document in enumerate(documents) if _is_arabic_text(document.page_content) == arabic]
         if not indices:
             continue
-        same_script = [wording for wording in wordings if is_arabic_query(wording) == arabic] or [query]
-        chunks = [documents[i] for i in indices]
-        for wording in same_script:
-            for i, value in zip(indices, score(wording, chunks)):
-                scores[i] = float(value) if scores[i] is None else max(scores[i], float(value))
+        wording = next((w for w in wordings if is_arabic_query(w) == arabic), query)
+        for i, value in zip(indices, score(wording, [documents[i] for i in indices])):
+            scores[i] = float(value)
     return scores
 
 
@@ -196,7 +196,7 @@ class LocalRetrievalBackend:
             parse_query_identity(query),
         )
         # An Arabic question and a French page are compared through the French wording.
-        scores = best_scores(
+        scores = script_scores(
             lambda wording, chunks: score_documents(self.reranker, wording, chunks),
             query, other_queries, reranker_documents,
         )

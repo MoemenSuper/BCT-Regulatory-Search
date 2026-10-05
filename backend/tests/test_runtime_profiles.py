@@ -17,9 +17,9 @@ def test_profile_options_describe_the_three_coherent_deployment_choices():
     assert options["local"]["answer"] == "ollama"
     assert options["local"]["qualification"] == "experimental_rejected"
     assert options["local_hybrid"]["retrieval"] == "local_e5_bge"
-    assert options["local_hybrid"]["answer"] == "groq"
+    assert options["local_hybrid"]["answer"] == "api"
     assert options["cloud"]["retrieval"] == "cloud_embed_rerank"
-    assert options["cloud"]["answer"] == "groq"
+    assert options["cloud"]["answer"] == "api"
 
 
 def test_manager_shares_local_retrieval_and_lazily_builds_cloud_retrieval():

@@ -91,9 +91,10 @@ Edit `.env` and set at least:
 | --- | --- |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` | First admin login email |
 | `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Strong password for that admin |
-| `GROQ_API_KEY` | Answer model (required for `local_hybrid` / `cloud`) |
+| `OPENAI_API_KEY` **or** `ANTHROPIC_API_KEY` **or** `GEMINI_API_KEY` **or** `GROQ_API_KEY` | The answer model. **One key is enough**: the app answers with the first provider that has a key (OpenAI, Claude, Groq, then Gemini), or the one set in `BCT_ANSWER_PROVIDER`. Provider, keys and models can all be changed later in **Admin → Configuration**. |
 | `VOYAGE_API_KEY` | Cloud-profile search / rerank only (optional for local_hybrid) |
-| `GEMINI_API_KEY` | Cloud-profile visual repair only (optional for local_hybrid; Docker uses EasyOCR + Paddle) |
+
+Default models: OpenAI `gpt-6.1-sol`, Claude `claude-sonnet-5-5`, Gemini `gemini-3.8-flash`, Groq `openai/gpt-oss-120b` (override with `BCT_OPENAI_MODEL`, `BCT_ANTHROPIC_MODEL`, `BCT_GEMINI_ANSWER_MODEL`, `BCT_GROQ_MODEL`). Every model call (routing the question, picking the evidence, writing the answer, naming the conversation) uses the chosen provider.
 
 Recipients who only pull/run a pre-built image do **not** need a separate PDF folder or a multi-hour ingest — documents and local indexes ship in the image.
 
@@ -129,6 +130,19 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 
 This builds torch and PaddleOCR-VL with CUDA and gives the container the GPUs; search, reranking, EasyOCR and Docling pick the GPU up by themselves. Without a GPU, the default command above runs everything on CPU (same answers; reading scanned or picture-heavy uploads is slower).
 
+### Relations between texts (abrogations, replacements)
+
+When a PDF says it abrogates, replaces or modifies another text, the app records that relation and search uses it at once (an answer about the old text also brings up the new one). **Admin → Relations between texts** lists every relation as *To review*, with the page that states it opened and the sentence highlighted. The admin approves or rejects each one, and can add a missing one (new text, page, type, old text): the app checks that the page names the old text and keeps that sentence as the proof. Decisions are stored apart from the index, so re-uploading a PDF or shipping a new index keeps them; every decision is in the audit log. A relation proves "X replaced Y", never "X is in force".
+
+### Speed on a server without GPU
+
+On CPU almost all of an answer's time is the reranker (about 0.4–0.9 s per passage; the answer model itself takes a few seconds). Two things keep it down:
+
+- Each candidate passage is reranked once, against the question's wording in its own script (French/Latin or Arabic), instead of against every wording. Same retrieval benchmark result (82 % top-5), 2.3× fewer passages to rerank. Always on.
+- **Admin → Configuration → `BCT_SPEED_MODE`**: *Automatic* (default, best quality) or *Fast* (the reranker in 8 bits on CPU: about 2× faster again, but 77 % instead of 82 % on the benchmark). No effect on a GPU server.
+
+Measured on a laptop CPU (no GPU), same questions: a typical question took 104–141 s before, 25–31 s in Automatic and 13–19 s in Fast; a question naming a circular (which adds that circular's passages) 526 s before, 94 s and 40 s.
+
 ### Memory
 
 Search and answers run in about 3 GB. Indexing an uploaded PDF starts the Docling layout reader, which needs about **4 GB free** on top: give Docker at least **8 GB**. With less, uploads wait in the queue (the admin Documents page says how much memory is free and how much is needed) instead of crashing the server (`BCT_DOCLING_MIN_FREE_GB` changes the threshold). Reading pictures and scans with PaddleOCR-VL on **CPU** needs about 8 GB of free memory on top, so give Docker at least **12–16 GB** (Docker Desktop: Settings → Resources). With less, the app keeps running: the reader does not start, uploads stay searchable from their PDF text, and the admin page lists those pages as not read visually (`BCT_PADDLE_MIN_FREE_GB` changes the threshold). On a GPU server the model loads into the graphics card instead.
@@ -137,8 +151,35 @@ Search and answers run in about 3 GB. Indexing an uploaded PDF starts the Doclin
 
 Build the image on a connected machine, then move it: `docker save bct-regulatory-search:pilot -o bct.tar`, copy `bct.tar`, `docker load -i bct.tar` on the server, and start it with `docker compose up -d` (no `--build`).
 
+### Behind Nginx (Red Hat server)
+
+The container is published on `127.0.0.1:8080` only, so on a server the way in is the server's Nginx, which adds HTTPS and one address for everyone (`https://recherche.bct.tn` in the example).
+
+1. Start the app as above (`docker compose up -d`, or `--no-build` with a loaded image).
+2. Copy [`deploy/nginx/bct-regulatory-search.conf`](deploy/nginx/bct-regulatory-search.conf) to `/etc/nginx/conf.d/`, and set `server_name` and the two certificate paths to the real ones.
+3. Red Hat runs SELinux, which forbids Nginx to open connections by default (users would get *502 Bad Gateway*). Allow it once, then check and reload Nginx:
+   ```bash
+   sudo setsebool -P httpd_can_network_connect 1
+   ```
+   ```bash
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+4. Open HTTPS in the firewall if it is not already: `sudo firewall-cmd --permanent --add-service=https && sudo firewall-cmd --reload`.
+5. In `.env`, set `BCT_COOKIE_SECURE=1` (session cookies only travel over HTTPS), then `docker compose up -d`.
+
+What the Nginx file sets for this app, and why (each one breaks something if left at Nginx's default):
+
+| Setting | Value | Without it |
+| --- | --- | --- |
+| `proxy_read_timeout` | 300 s | answers longer than 60 s (CPU servers: 1–2 min) fail with *504 Gateway Timeout* |
+| `client_max_body_size` | 50 MB | PDF uploads over 1 MB fail with *413 Request Entity Too Large* |
+| `X-Forwarded-For` / `X-Real-IP` | the user's address | every user shares Nginx's address, so 5 wrong passwords from anyone lock everyone out for 15 minutes |
+| `proxy_request_buffering off` | | large uploads are first written to Nginx's own disk |
+
+The compose file sets `FORWARDED_ALLOW_IPS: "*"` so the app trusts the address Nginx forwards; that is safe because only the server itself can reach port 8080.
+
 ### Optional later
-- Behind HTTPS, set `BCT_COOKIE_SECURE=1` in `.env` and restart.
+- To open port 8080 to the network without Nginx (a quick test on a LAN), set `BCT_PUBLISH_ADDRESS=0.0.0.0` in `.env`.
 
 ---
 
@@ -159,9 +200,8 @@ pip install -r requirements-ingestion.txt
 Create `backend/.env` and fill what you use:
 
 ```text
-GROQ_API_KEY=...
-VOYAGE_API_KEY=...
-GEMINI_API_KEY=...
+OPENAI_API_KEY=...        (or ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY: one is enough)
+VOYAGE_API_KEY=...        (cloud profile only)
 BCT_DOCUMENTS_DIR=C:\path\to\your\BCT-PDF-corpus
 BCT_DEFAULT_PROFILE=local_hybrid
 BCT_BOOTSTRAP_ADMIN_EMAIL=admin@bct.tn
@@ -170,9 +210,9 @@ BCT_BOOTSTRAP_ADMIN_PASSWORD=change-me-now
 
 | Key | Used for |
 | --- | --- |
-| `GROQ_API_KEY` | Answer model |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `GROQ_API_KEY` | Answer model: the first provider with a key, or `BCT_ANSWER_PROVIDER`; changeable in Admin → Configuration |
 | `VOYAGE_API_KEY` | Cloud retrieval / rerank |
-| `GEMINI_API_KEY` | Cloud-profile visual repair on hard / Arabic / chart pages |
+| `GEMINI_API_KEY` | Also: cloud-profile reading of hard / Arabic / chart pages |
 | `BCT_DOCUMENTS_DIR` | Root of original public BCT PDFs |
 | `BCT_BOOTSTRAP_ADMIN_EMAIL` / `BCT_BOOTSTRAP_ADMIN_PASSWORD` | Creates the first approved administrator on API startup |
 
@@ -260,8 +300,8 @@ Set `BCT_DEFAULT_PROFILE` before startup:
 
 | Profile | Retrieval | Answer |
 | --- | --- | --- |
-| `cloud` | `BCT_CLOUD_RETRIEVAL_PROVIDER=voyage` (Context-4 + Voyage rerank) or `google` (Gemini embed + Vertex Ranking); indexes are separate | Groq |
-| `local_hybrid` | Local E5/BGE | Groq |
+| `cloud` | `BCT_CLOUD_RETRIEVAL_PROVIDER=voyage` (Context-4 + Voyage rerank) or `google` (Gemini embed + Vertex Ranking); indexes are separate | the chosen answer model (OpenAI, Claude, Gemini or Groq) |
+| `local_hybrid` | Local E5/BGE | the chosen answer model (OpenAI, Claude, Gemini or Groq) |
 | `local` | Local E5/BGE | Ollama (experimental) |
 
 ---

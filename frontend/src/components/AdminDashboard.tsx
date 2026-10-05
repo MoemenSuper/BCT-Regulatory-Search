@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { CheckCircle2, CircleAlert, FileText, Gauge, Moon, ScrollText, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
+import { CheckCircle2, CircleAlert, FileText, Gauge, GitCompareArrows, Moon, ScrollText, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
 import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listAudit, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AuditEntry, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -13,6 +13,7 @@ import { UsersPage } from './admin/UsersPage';
 import { DocumentsPage } from './admin/DocumentsPage';
 import { ConfigurationPage } from './admin/ConfigurationPage';
 import { AuditPage } from './admin/AuditPage';
+import { RelationsPage } from './admin/RelationsPage';
 
 type AdminTheme = 'light' | 'dark';
 
@@ -62,6 +63,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     { id: 'users' as const, label: t(locale, 'admin.users'), icon: UsersRound },
     { id: 'documents' as const, label: t(locale, 'admin.documents'), icon: FileText },
     { id: 'refusals' as const, label: t(locale, 'admin.refusals'), icon: CircleAlert },
+    { id: 'relations' as const, label: t(locale, 'admin.relations'), icon: GitCompareArrows },
     { id: 'audit' as const, label: t(locale, 'admin.audit'), icon: ScrollText },
     { id: 'configuration' as const, label: t(locale, 'admin.configuration'), icon: Settings2 },
   ];
@@ -458,6 +460,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
           />
         ) : null}
         {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} onClearSecret={handleClearSecret} /> : null}
+        {tab === 'relations' ? <RelationsPage locale={locale} /> : null}
         {tab === 'audit' ? <AuditPage entries={audit} loading={loading} locale={locale} /> : null}
       </main>
     </div>

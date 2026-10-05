@@ -292,6 +292,13 @@ class ConversationStore:
             )
         return refusal_id
 
+    def delete_answer_refusals(self, *, reason, user_id):
+        """Remove one user's refusal rows with this exact reason (a thumbs-down taken back)."""
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM answer_refusals WHERE reason = ? AND user_id = ?", (reason, user_id)
+            )
+
     def list_answer_refusals(self, *, limit=100, reasons=None, buckets=None):
         from answer_contract import refusal_reason_bucket, refusal_reason_title
 

@@ -22,7 +22,7 @@ from retrieval_selection import (
     query_instrument_refs,
     source_matches_identity,
 )
-from runtime_retrieval import _identity_diversified_rank, _read_chunks, best_scores, dedupe, document_binding
+from runtime_retrieval import _identity_diversified_rank, _read_chunks, dedupe, document_binding, script_scores
 
 
 def _provider_candidates(
@@ -127,8 +127,8 @@ class VoyageRetrievalBackend:
         reranker_documents = build_identity_reranker_documents(
             documents, parse_query_identity(query)
         )
-        # Each chunk against the wordings in its own script, as in the local backend.
-        scores = best_scores(
+        # Each chunk against one wording in its own script, as in the local backend.
+        scores = script_scores(
             lambda wording, chunks: self.client.rerank(wording, [chunk.page_content for chunk in chunks]),
             query, other_queries, reranker_documents,
         )

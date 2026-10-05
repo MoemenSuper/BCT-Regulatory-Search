@@ -444,6 +444,16 @@ def test_thumbs_down_feedback_lands_in_answer_refusals(auth_client):
     assert item["question"] == "Au-delà de quel délai ?"
     assert item["answer_status"] == "answered"
 
+    # Changing one's mind: another thumbs-down adds nothing, a thumbs-up or "none" takes it back.
+    url = f"/conversations/{conversation_id}/turns/{turn_id}/feedback"
+    assert auth_client.post(url, json={"rating": "down"}).status_code == 200
+    assert store.count_answer_refusals() == 1
+    assert auth_client.post(url, json={"rating": "up"}).status_code == 200
+    assert store.count_answer_refusals() == 0
+    auth_client.post(url, json={"rating": "down"})
+    assert auth_client.post(url, json={"rating": "none"}).status_code == 200
+    assert store.count_answer_refusals() == 0
+
 
 def test_login_is_throttled_per_email_and_ip_after_repeated_failures(auth_client):
     for _ in range(5):

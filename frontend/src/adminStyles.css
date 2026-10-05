@@ -1447,3 +1447,88 @@ a.admin-doc-link:hover strong {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Relations between texts: one row per relation, the stating page opens under it. */
+.admin-relation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-relation {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--admin-line-soft);
+}
+
+.admin-relation-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.admin-relation-main blockquote {
+  margin: 6px 0;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--admin-line);
+  color: var(--admin-ink);
+  font-size: 13px;
+}
+
+.admin-relation .admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-relation-page img {
+  display: block;
+  max-width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+}
+
+.admin-relation-page p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.admin-relation-page a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--admin-blue);
+}
+
+.admin-relation-add {
+  padding: 16px 20px;
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-relation-add h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+}
+
+.admin-relation-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.admin-relation-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+.admin-error {
+  margin: 8px 20px;
+  color: var(--admin-red);
+}

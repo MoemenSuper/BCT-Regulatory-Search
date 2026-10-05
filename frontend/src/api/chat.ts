@@ -78,7 +78,7 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 export async function postTurnFeedback(
   conversationId: string,
   turnId: string,
-  rating: 'up' | 'down',
+  rating: 'up' | 'down' | 'none',
 ): Promise<void> {
   const response = await fetch(
     `/api/conversations/${encodeURIComponent(conversationId)}/turns/${encodeURIComponent(turnId)}/feedback`,

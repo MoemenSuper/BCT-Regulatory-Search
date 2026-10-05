@@ -58,6 +58,7 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
         </div>
         <div className="admin-panel-body">
           <p className="admin-help">{t(locale, 'admin.credentialsHelp')}</p>
+          <p className="admin-help"><strong>{t(locale, 'admin.answeringWith', { provider: t(locale, `admin.choice.${config.answer_provider}`) })}</strong></p>
           {config.secrets.map((secret) => (
             <div className="admin-field" key={secret.key}>
               <div className="admin-secret-head">
@@ -73,14 +74,22 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
                 </span>
               </div>
               <div className="admin-secret-input">
-                <input
-                  id={`secret-${secret.key}`}
-                  name={secret.key}
-                  type={secret.secret ? 'password' : 'text'}
-                  autoComplete="off"
-                  placeholder={secret.configured ? t(locale, 'admin.replaceValue') : t(locale, 'admin.enterValue')}
-                  aria-describedby={`secret-${secret.key}-hint`}
-                />
+                {secret.choices ? (
+                  // An empty choice changes nothing; "Remove" goes back to the .env value or the default.
+                  <select id={`secret-${secret.key}`} name={secret.key} defaultValue="" aria-describedby={`secret-${secret.key}-hint`}>
+                    <option value="">{t(locale, 'admin.providerKeep')}</option>
+                    {secret.choices.map((value) => <option key={value} value={value}>{t(locale, `admin.choice.${value}`)}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    id={`secret-${secret.key}`}
+                    name={secret.key}
+                    type={secret.secret ? 'password' : 'text'}
+                    autoComplete="off"
+                    placeholder={secret.configured ? t(locale, 'admin.replaceValue') : t(locale, 'admin.enterValue')}
+                    aria-describedby={`secret-${secret.key}-hint`}
+                  />
+                )}
                 {/* Only a value saved here can be removed; .env values are edited in the file. */}
                 {secret.source === 'store' ? (
                   <button type="button" className="admin-btn" disabled={busy} onClick={() => void onClearSecret(secret.key)}>

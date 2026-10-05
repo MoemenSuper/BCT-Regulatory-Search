@@ -1,5 +1,8 @@
-from groq import APIError
+import anthropic
+from google.genai import errors as gemini_errors
+import groq
 from langchain_groq import ChatGroq
+import openai
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 from dotenv import load_dotenv
@@ -15,12 +18,19 @@ from typing import Any, Optional
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Answer-model transport failures (Groq API errors, Ollama HTTP errors). Callers must not turn
-# these into refusals or weaker answers: the API reports them as a temporary outage (503).
-PROVIDER_ERRORS = (APIError, requests.RequestException)
+# Answer-model transport failures (any provider's API errors, Ollama HTTP errors). Callers must
+# not turn these into refusals or weaker answers: the API reports them as a temporary outage (503).
+PROVIDER_ERRORS = (
+    groq.APIError, openai.APIError, anthropic.APIError, gemini_errors.APIError, requests.RequestException,
+)
+_TIMEOUT = float(os.environ.get("BCT_LLM_TIMEOUT_SECONDS", "180"))
+_MAX_TOKENS = 8192
 
 
-def _ollama_messages(value):
+def _chat_messages(value):
+    """A LangChain prompt (or a plain string) as [{"role", "content"}] for any chat API."""
+    if isinstance(value, str):
+        return [{"role": "user", "content": value}]
     messages = value.to_messages() if hasattr(value, "to_messages") else value
     roles = {"human": "user", "ai": "assistant", "system": "system"}
     return [
@@ -50,7 +60,7 @@ def _create_ollama_llm():
         # unless think is disabled; keep that off by default for structured routing.
         payload = {
             "model": model,
-            "messages": _ollama_messages(value),
+            "messages": _chat_messages(value),
             "stream": False,
             "think": os.environ.get("BCT_LOCAL_LLM_THINK", "0") == "1",
             "options": {
@@ -73,6 +83,129 @@ def _create_ollama_llm():
         content = message.get("content")
         # An empty reply is an unusable draft for the answer ladder, not a server outage.
         return AIMessage(content=content if isinstance(content, str) else "")
+
+    return RunnableLambda(invoke)
+
+
+# The answer model, chosen by the administrator. Every model call (routing, evidence selection,
+# drafting, titles) goes through create_llm(answer_provider()), so one key is enough.
+# provider: (key variable, model variable, default model)
+ANSWER_PROVIDERS = {
+    "openai": ("OPENAI_API_KEY", "BCT_OPENAI_MODEL", "gpt-6.1-sol"),
+    "anthropic": ("ANTHROPIC_API_KEY", "BCT_ANTHROPIC_MODEL", "claude-sonnet-5-5"),
+    "groq": ("GROQ_API_KEY", "BCT_GROQ_MODEL", "openai/gpt-oss-120b"),
+    # Last: a Gemini key may be there only to read scanned pages (cloud profile).
+    "gemini": ("GEMINI_API_KEY", "BCT_GEMINI_ANSWER_MODEL", "gemini-3.8-flash"),
+}
+
+
+def answer_provider() -> str:
+    """BCT_ANSWER_PROVIDER, else the first provider (in the order above) that has a key."""
+    chosen = (os.environ.get("BCT_ANSWER_PROVIDER") or "").strip().casefold()
+    if chosen:
+        return chosen
+    for name, (key, _model, _default) in ANSWER_PROVIDERS.items():
+        if (os.environ.get(key) or "").strip():
+            return name
+    return "groq"
+
+
+def _model(provider: str) -> str:
+    _key, variable, default = ANSWER_PROVIDERS[provider]
+    return (os.environ.get(variable) or "").strip() or default
+
+
+def _api_key(provider: str) -> str:
+    key = (os.environ.get(ANSWER_PROVIDERS[provider][0]) or "").strip()
+    if not key:
+        raise RuntimeError(f"{ANSWER_PROVIDERS[provider][0]} is required for the {provider} answer model")
+    return key
+
+
+def _split_system(value) -> tuple[str, list[dict]]:
+    """System instructions apart (each API takes them in their own field), then the turns."""
+    messages = _chat_messages(value)
+    system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+    return system, [m for m in messages if m["role"] != "system"]
+
+
+def _create_openai_llm():
+    from openai import OpenAI
+
+    client = OpenAI(api_key=_api_key("openai"), timeout=_TIMEOUT)
+    model = _model("openai")
+    effort = os.environ.get("BCT_OPENAI_REASONING_EFFORT", "low").strip()
+
+    def invoke(value):
+        system, turns = _split_system(value)
+        response = client.responses.create(
+            model=model,
+            instructions=system or None,
+            input=turns,
+            max_output_tokens=_MAX_TOKENS,
+            **({"reasoning": {"effort": effort}} if effort else {}),
+        )
+        return AIMessage(content=response.output_text or "")
+
+    return RunnableLambda(invoke)
+
+
+def _create_anthropic_llm():
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=_api_key("anthropic"), timeout=_TIMEOUT)
+    model = _model("anthropic")
+    # Routing, picking evidence and writing a short grounded answer: low effort keeps each of
+    # the 3-4 calls per question fast. Claude's newest models take no temperature setting.
+    effort = os.environ.get("BCT_ANTHROPIC_EFFORT", "low").strip()
+
+    def invoke(value):
+        system, turns = _split_system(value)
+        response = client.beta.messages.create(
+            model=model,
+            max_tokens=16000,
+            messages=turns,
+            **({"system": system} if system else {}),
+            output_config={"effort": effort},
+            # A declined request is re-run on Anthropic's recommended fallback model.
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+        )
+        if response.stop_reason == "refusal":
+            raise RuntimeError(f"Claude declined the request ({getattr(response.stop_details, 'category', None)})")
+        return AIMessage(content="".join(block.text for block in response.content if block.type == "text"))
+
+    return RunnableLambda(invoke)
+
+
+def _create_gemini_llm():
+    from google import genai
+    from google.genai import types
+
+    # Like the OpenAI and Anthropic clients (2 retries by default), retry "high demand" (503) and
+    # rate limits (429) instead of failing the question at once. Timeout is in milliseconds here.
+    client = genai.Client(api_key=_api_key("gemini"), http_options=types.HttpOptions(
+        timeout=int(_TIMEOUT * 1000),
+        retry_options=types.HttpRetryOptions(attempts=4, initial_delay=2, http_status_codes=[429, 500, 503]),
+    ))
+    model = _model("gemini")
+    thinking = os.environ.get("BCT_GEMINI_THINKING_LEVEL", "low").strip()
+
+    def invoke(value):
+        system, turns = _split_system(value)
+        response = client.models.generate_content(
+            model=model,
+            contents=[{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+                      for m in turns],
+            config=types.GenerateContentConfig(
+                system_instruction=system or None,
+                temperature=0,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),  # no tools here
+                max_output_tokens=_MAX_TOKENS,
+                **({"thinking_config": types.ThinkingConfig(thinking_level=thinking)} if thinking else {}),
+            ),
+        )
+        return AIMessage(content=response.text or "")
 
     return RunnableLambda(invoke)
 
@@ -119,7 +252,7 @@ def _groq_rate_limited(error: BaseException) -> bool:
 
 def _chat_groq(api_key: str) -> ChatGroq:
     return ChatGroq(
-        model=os.environ.get("BCT_GROQ_MODEL", "openai/gpt-oss-120b"),
+        model=_model("groq"),
         groq_api_key=api_key,
         temperature=0,
         # Medium reasoning + a tight max_tokens often yields empty message.content
@@ -166,10 +299,18 @@ class _RotatingGroqLLM(Runnable):
         raise RuntimeError(f"Groq unavailable after trying configured keys: {last_error}")
 
 
-@lru_cache(maxsize=3)
-def create_llm(provider="groq"):
-    if provider == "ollama":
-        return _create_ollama_llm()
-    if provider != "groq":
+_FACTORIES = {
+    "ollama": _create_ollama_llm,
+    "openai": _create_openai_llm,
+    "anthropic": _create_anthropic_llm,
+    "gemini": _create_gemini_llm,
+    "groq": _RotatingGroqLLM,
+}
+
+
+@lru_cache(maxsize=5)
+def create_llm(provider: str):
+    """The chat model for one provider (cached; admin.set_secrets clears the cache on key changes)."""
+    if provider not in _FACTORIES:
         raise ValueError(f"Unsupported answer provider: {provider}")
-    return _RotatingGroqLLM()
+    return _FACTORIES[provider]()

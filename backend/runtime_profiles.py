@@ -41,23 +41,23 @@ PROFILE_SPECS = {
         value=RuntimeProfile.LOCAL_HYBRID,
         label="Local hybrid",
         retrieval="local_e5_bge",
-        answer="groq",
+        answer="api",
         qualification="development",
         description=(
             "Search: local multilingual-e5-small (no cloud API). "
-            "Answer: Groq API (model via BCT_GROQ_MODEL). "
+            "Answer: the answer model chosen in Configuration (OpenAI, Claude, Gemini or Groq). "
             "PDF ingestion: EasyOCR (Arabic) + PaddleOCR-VL (charts/tables/hard pages)."
         ),
     ),
     RuntimeProfile.CLOUD: ProfileSpec(
         value=RuntimeProfile.CLOUD,
-        label="Cloud (Voyage + Groq)",
+        label="Cloud (Voyage)",
         retrieval="cloud_embed_rerank",
-        answer="groq",
+        answer="api",
         qualification="development_not_legally_qualified",
         description=(
             "Search: Voyage Context-4 embeddings + Voyage rerank. "
-            "Answer: Groq. PDF ingestion: Gemini VLM for hard photo/scan/chart pages."
+            "Answer: the answer model chosen in Configuration. PDF ingestion: Gemini VLM for hard photo/scan/chart pages."
         ),
     ),
 }
@@ -119,10 +119,13 @@ class RuntimeProfileManager:
             retrieval_backend = self._cloud_backend()
         else:
             retrieval_backend = self._local_backend()
+        from llm import answer_provider
+
         return ProfileRuntime(
             spec=spec,
             retrieval_backend=retrieval_backend,
-            answer_provider=spec.answer,
+            # "api": whichever answer model the administrator chose (llm.answer_provider).
+            answer_provider=spec.answer if spec.answer == "ollama" else answer_provider(),
         )
 
     # Both backends are built on first use. The check-lock-check pattern keeps the usual

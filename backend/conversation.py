@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from llm import PROVIDER_ERRORS, create_llm
+from llm import PROVIDER_ERRORS, answer_provider, create_llm
 from answer_contract import (
     format_refusal_reason,
     generate_grounded_answer,
@@ -504,11 +504,11 @@ def chat(
     memory_state: MemoryState,
     *,
     retrieval_backend,
-    llm_provider="groq",
+    llm_provider=None,
 ):
     import chat_tracing
 
-    llm = chat_tracing.traced_llm(create_llm(llm_provider))
+    llm = chat_tracing.traced_llm(create_llm(llm_provider or answer_provider()))
 
     with chat_tracing.span("route-message", input={"message": message, "memory": render_memory_state(memory_state)}) as s:
         route = route_message(llm, message, memory_state)

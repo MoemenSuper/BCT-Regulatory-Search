@@ -16,8 +16,11 @@ services:
     image: bct-regulatory-search:pilot
     container_name: bct-regulatory-search
     restart: unless-stopped
+    # Published on this machine only (127.0.0.1): users come in through Nginx
+    # (deploy/nginx/bct-regulatory-search.conf), or a browser on the same machine. Set
+    # BCT_PUBLISH_ADDRESS=0.0.0.0 in .env to open the port to the network without Nginx.
     ports:
-      - "${BCT_PUBLISH_PORT:-8080}:8000"
+      - "${BCT_PUBLISH_ADDRESS:-127.0.0.1}:${BCT_PUBLISH_PORT:-8080}:8000"
     env_file:
       - .env
     environment:
@@ -28,6 +31,9 @@ services:
       BCT_STATIC_DIR: /app/static
       BCT_INGEST_LOCAL_INDEX: "1"
       BCT_DEFAULT_PROFILE: local_hybrid
+      # Trust the client address Nginx forwards (X-Forwarded-For). Safe because only this
+      # machine can reach the port; failed-login limits then apply per user, not to Nginx.
+      FORWARDED_ALLOW_IPS: "*"
 
     volumes:
       - bct-assets:/data/assets

@@ -27,9 +27,10 @@ function readRating(turnId: string): Rating | null {
   }
 }
 
-function writeRating(turnId: string, rating: Rating) {
+function writeRating(turnId: string, rating: Rating | null) {
   try {
-    sessionStorage.setItem(feedbackKey(turnId), rating);
+    if (rating) sessionStorage.setItem(feedbackKey(turnId), rating);
+    else sessionStorage.removeItem(feedbackKey(turnId));
   } catch {
     /* ignore */
   }
@@ -46,12 +47,14 @@ export function ResearchNote({
   const [rating, setRating] = useState<Rating | null>(() => readRating(turnId));
   const [busy, setBusy] = useState(false);
 
-  async function sendFeedback(event: MouseEvent, next: Rating) {
+  // Clicking the other button switches the rating; clicking the active one takes it back.
+  async function sendFeedback(event: MouseEvent, clicked: Rating) {
     event.stopPropagation();
-    if (busy || rating) return;
+    if (busy) return;
+    const next = rating === clicked ? null : clicked;
     setBusy(true);
     try {
-      await postTurnFeedback(conversationId, turnId, next);
+      await postTurnFeedback(conversationId, turnId, next ?? 'none');
       writeRating(turnId, next);
       setRating(next);
     } catch {
@@ -147,7 +150,7 @@ export function ResearchNote({
           aria-pressed={rating === 'up'}
           aria-label="Réponse utile"
           title="Réponse utile"
-          disabled={busy || rating !== null}
+          disabled={busy}
           onClick={(event) => void sendFeedback(event, 'up')}
         >
           <ThumbsUp size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -158,7 +161,7 @@ export function ResearchNote({
           aria-pressed={rating === 'down'}
           aria-label="Signaler une réponse incorrecte"
           title="Signaler une réponse incorrecte"
-          disabled={busy || rating !== null}
+          disabled={busy}
           onClick={(event) => void sendFeedback(event, 'down')}
         >
           <ThumbsDown size={16} strokeWidth={1.8} aria-hidden="true" />

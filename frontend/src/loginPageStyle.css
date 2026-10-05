@@ -77,7 +77,8 @@
   right: 0;
   bottom: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--bct-navy) 0%, var(--bct-navy) 62%, var(--bct-red) 62%, var(--bct-red) 100%);
+  /* Navy, then the light BCT blue of the eyebrow dash (no red on the photo). */
+  background: linear-gradient(90deg, var(--bct-navy) 0%, var(--bct-navy) 62%, #8cb4e8 62%, #8cb4e8 100%);
   z-index: 7;
 }
 
@@ -108,8 +109,14 @@
   content: '';
   width: 28px;
   height: 3px;
-  background: var(--bct-red);
+  /* Light BCT blue: the navy would vanish on the dark photo. */
+  background: #8cb4e8;
   border-radius: 2px;
+}
+
+/* Arabic letters join: letter-spacing would pull each word apart. */
+.login-page[dir='rtl'] .eyebrow {
+  letter-spacing: 0;
 }
 
 .hero h1 {

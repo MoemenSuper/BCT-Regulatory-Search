@@ -2,7 +2,7 @@
 import { parseServerDate } from '../../data/presentation';
 import { type UiLocale } from '../../uiLocale';
 
-export type AdminTab = 'overview' | 'users' | 'documents' | 'refusals' | 'audit' | 'configuration';
+export type AdminTab = 'overview' | 'users' | 'documents' | 'relations' | 'refusals' | 'audit' | 'configuration';
 
 export type DocKind = 'regulatory' | 'statistical' | 'internal';
 export const DOC_KINDS: DocKind[] = ['regulatory', 'statistical', 'internal'];

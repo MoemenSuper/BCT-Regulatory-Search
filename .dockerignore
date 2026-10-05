@@ -17,3 +17,6 @@ backend/chroma_db
 *.pdf
 docs
 output
+
+# A saved image (bct.tar) in the project folder must not enter the build context
+*.tar

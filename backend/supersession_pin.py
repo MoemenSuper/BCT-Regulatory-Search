@@ -331,24 +331,32 @@ class SupersessionPinBackend:
 
     def __init__(self, inner, edges: list[SupersessionEdge], page_lookup):
         self.inner = inner
-        self.edges = edges
+        self.found_edges = edges
         self.page_lookup = page_lookup
         self.expand_pages = getattr(inner, "expand_pages", None)
 
+    @property
+    def edges(self) -> list[SupersessionEdge]:
+        """The edges found in the PDFs, with the administrator's decisions applied (read per question)."""
+        from supersession_review import effective_edges
+
+        return effective_edges(self.found_edges)
+
     def retrieve(self, query: str, other_queries=()):
+        edges = self.edges
         historical = is_historical_cutoff_query(query)
         # "Avant la circulaire X": search inside the texts X replaced and put them first.
-        predecessors = predecessor_refs(self.edges, query) if historical else []
+        predecessors = predecessor_refs(edges, query) if historical else []
         ranked = list(self.inner.retrieve(query, other_queries=other_queries, instruments=predecessors))
         # A text that answers was later replaced: search inside its successors too, so the rule
         # that applies now competes for the answer.
-        chain = [] if historical else replacement_chain(self.edges, ranked)
+        chain = [] if historical else replacement_chain(edges, ranked)
         if chain:
             successors = [_instrument_ref(instrument, "successor")
                           for instrument in dict.fromkeys(edge.source_instrument for edge in chain)]
             ranked = list(self.inner.retrieve(query, other_queries=other_queries, instruments=successors))
         ranked = prefer_named_instrument_hits(ranked, predecessors)
-        ranked = pin_supersession_edges(ranked, query, self.edges, page_lookup=self.page_lookup)
+        ranked = pin_supersession_edges(ranked, query, edges, page_lookup=self.page_lookup)
         return ranked + _declaring_pages(chain, ranked, self.page_lookup)
 
 
@@ -438,7 +446,6 @@ def maybe_wrap_backend(backend, runtime_assets: Path | None):
     except OSError as error:
         logger.warning("Supersession edges unavailable: %s", error)
         return backend
-    if not edges:
-        return backend
+    # Wrapped even with no edges found: an administrator may add some (supersession_review).
     logger.info("Supersession pin enabled (%s edges from %s)", len(edges), edges_path)
     return SupersessionPinBackend(backend, edges, lookup)

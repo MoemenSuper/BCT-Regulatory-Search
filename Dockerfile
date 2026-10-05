@@ -39,7 +39,7 @@ RUN if [ "$DEVICE" = "gpu" ]; then \
         pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu ; \
     fi \
     && pip install --no-cache-dir -r requirements-local.txt \
-    && pip install --no-cache-dir "google-genai>=2.20.0,<3" "filelock>=3.18,<4" "docling>=2.130,<3" \
+    && pip install --no-cache-dir "filelock>=3.18,<4" "docling>=2.130,<3" \
     && pip uninstall -y opencv-python \
     && pip install --no-cache-dir --force-reinstall --no-deps \
         "opencv-python-headless==$(python -c 'import importlib.metadata as m; print(m.version("opencv-python-headless"))')"

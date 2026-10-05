@@ -82,6 +82,7 @@ export interface SecretInfo {
   masked: string | null;
   value: string | null;
   source: 'store' | 'environment' | 'unset';
+  choices: string[] | null;
 }
 
 export interface AdminConfig {
@@ -95,6 +96,7 @@ export interface AdminConfig {
     description: string;
   }>;
   secrets: SecretInfo[];
+  answer_provider: string;
 }
 
 export function getOverview(): Promise<AdminOverview> {
@@ -174,6 +176,46 @@ export interface AuditEntry {
   action: string;
   target: string;
   detail: string;
+}
+
+// Relations between texts (supersession edges) and the admin's decisions on them.
+export type RelationStatus = 'review' | 'approved' | 'rejected' | 'added';
+
+export interface Relation {
+  id: string;
+  source_instrument: string;
+  source_file: string;
+  source_page: number;
+  action: string;
+  target_instrument: string;
+  target_article: string | null;
+  quote: string;
+  status: RelationStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  target_file: string | null;
+}
+
+export function listRelations(): Promise<{ items: Relation[]; sources: string[] }> {
+  return request('/api/admin/relations');
+}
+
+export function decideRelation(id: string, status: 'approved' | 'rejected' | 'review'): Promise<unknown> {
+  return request(`/api/admin/relations/${encodeURIComponent(id)}/decision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function addRelation(body: {
+  source_file: string; source_page: number; action: string; target: string; target_article: string | null;
+}): Promise<Relation> {
+  return request('/api/admin/relations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 export function listAudit(limit = 500): Promise<{ items: AuditEntry[] }> {

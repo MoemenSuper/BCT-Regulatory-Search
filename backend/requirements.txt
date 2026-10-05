@@ -1,9 +1,13 @@
 # Core cloud runtime + source viewer.
-# Install this for the Voyage + Groq profile and the React evidence/PDF API.
+# Install this for the Voyage profile and the React evidence/PDF API.
 fastapi==0.141.1
 uvicorn==0.51.0
 langchain-core==1.4.9
 langchain-groq==1.1.3
+# Answer model providers (llm.py): one key of any of them is enough.
+openai>=1.109,<3
+anthropic>=1.11,<2
+google-genai>=2.20.0,<3
 numpy==2.3.1
 rank-bm25==0.2.2
 snowballstemmer>=3,<4

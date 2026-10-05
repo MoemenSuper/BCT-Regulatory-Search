@@ -354,21 +354,25 @@ def profiles(_user=Depends(require_approved_user)):
 
 
 @lru_cache(maxsize=1)
-def _indexed_pdfs(native_chunks: str, _mtime: float) -> int:
+def _indexed_sources(native_chunks: str, _mtime: float) -> frozenset[str]:
     """Distinct PDFs in the live index: the ones shipped with the app plus the uploaded ones."""
     sources = set()
     with open(native_chunks, encoding="utf-8") as handle:
         for line in handle:
             if line.strip():
-                sources.add(json.loads(line)["metadata"]["source"])
-    return len(sources)
+                sources.add(Path(json.loads(line)["metadata"]["source"]).name)
+    return frozenset(sources)
+
+
+def indexed_sources() -> frozenset[str]:
+    path = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
+    if not path or not os.path.isfile(path):
+        return frozenset()
+    return _indexed_sources(path, os.path.getmtime(path))
 
 
 def indexed_pdf_count() -> int:
-    path = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
-    if not path or not os.path.isfile(path):
-        return 0
-    return _indexed_pdfs(path, os.path.getmtime(path))
+    return len(indexed_sources())
 
 
 @app.get("/admin/overview")
@@ -491,6 +495,97 @@ def _audit(request: Request, admin, action: str, target: str = "", detail: str =
         store.record_audit(admin, action, target, detail)
 
 
+# ---- Relations between texts (supersession edges): review, approve, reject, add by hand ----
+
+
+class RelationDecisionRequest(BaseModel):
+    # "review" takes a decision back (an added relation is then removed).
+    status: str = Field(pattern="^(approved|rejected|review)$")
+
+
+class RelationAddRequest(BaseModel):
+    source_file: str = Field(min_length=5, max_length=300)
+    source_page: int = Field(ge=1, le=5000)
+    action: str = Field(pattern="^(REPLACE|ABROGATE|MODIFY)$")
+    target: str = Field(min_length=4, max_length=120)  # the old text: "Cir 2021-01", "note 2016-08"
+    target_article: str | None = Field(default=None, max_length=40)
+
+
+def _found_edges():
+    """Edges the PDFs of the live index give (supersession_edges.jsonl of the active version)."""
+    from jsonl_supersession import load_edges, resolve_edges_path
+
+    native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
+    path = resolve_edges_path(Path(native).parent) if native else None
+    return load_edges(path) if path else []
+
+
+def _relation_row(edge_id: str) -> dict:
+    from supersession_review import listing
+
+    row = next((row for row in listing(_found_edges()) if row["id"] == edge_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Relation not found.")
+    return row
+
+
+@app.get("/admin/relations")
+def admin_relations(_admin=Depends(require_admin)):
+    from supersession_edges import instrument_from_filename
+    from supersession_review import listing
+
+    # The old text's PDF when the index has it, so the admin can open both sides.
+    by_instrument = {instrument_from_filename(name): name for name in sorted(indexed_sources())}
+    items = listing(_found_edges())
+    for item in items:
+        item["target_file"] = by_instrument.get(item["target_instrument"])
+    # Every indexed PDF, for the "add a relation" form's file picker.
+    return {"items": items, "sources": sorted(indexed_sources())}
+
+
+@app.post("/admin/relations/{edge_id}/decision")
+def admin_relation_decision(edge_id: str, payload: RelationDecisionRequest, request: Request,
+                            admin=Depends(require_admin)):
+    from supersession_edges import SupersessionEdge
+    from supersession_review import decide
+
+    row = _relation_row(edge_id)
+    edge = SupersessionEdge(**{key: row[key] for key in SupersessionEdge.__dataclass_fields__})
+    decide(edge, None if payload.status == "review" else payload.status, admin.email)
+    _audit(request, admin, f"relation.{payload.status}",
+           f"{row['source_file']} p.{row['source_page']} -> {row['target_instrument']}")
+    return _relation_row(edge_id) if not (payload.status == "review" and row["status"] == "added") else {"removed": True}
+
+
+@app.post("/admin/relations")
+def admin_relation_add(payload: RelationAddRequest, request: Request, admin=Depends(require_admin)):
+    """A relation the PDFs did not give. The page must name the old text: its sentence is the proof."""
+    from supersession_edges import SupersessionEdge, instrument_from_filename, instruments_from_text
+    from supersession_review import decide, declaring_sentence, edge_id, page_text
+
+    source_file = Path(payload.source_file).name
+    if source_file not in indexed_sources():
+        raise HTTPException(status_code=400, detail=f"{source_file} is not in the search index.")
+    source_instrument = instrument_from_filename(source_file)
+    if source_instrument is None:
+        raise HTTPException(status_code=400, detail=f"The file name {source_file} does not give a circular or note number.")
+    targets = sorted(instruments_from_text(payload.target) or instruments_from_text(f"circulaire {payload.target}"))
+    if len(targets) != 1:
+        raise HTTPException(status_code=400, detail="Write the old text as e.g. Cir 2021-01 or Note 2016-08.")
+    text = page_text(Path(os.environ["BCT_NATIVE_CHUNKS_PATH"]), source_file, payload.source_page)
+    if not text:
+        raise HTTPException(status_code=400, detail=f"Page {payload.source_page} of {source_file} is not in the index.")
+    quote = declaring_sentence(text, targets[0])
+    if quote is None:
+        raise HTTPException(status_code=400, detail=f"Page {payload.source_page} of {source_file} does not mention {payload.target}.")
+    edge = SupersessionEdge(source_instrument=source_instrument, source_file=source_file,
+                            source_page=payload.source_page, action=payload.action, target_instrument=targets[0],
+                            target_article=(payload.target_article or "").strip() or None, quote=quote)
+    decide(edge, "added", admin.email)
+    _audit(request, admin, "relation.added", f"{source_file} p.{payload.source_page} -> {targets[0]}")
+    return _relation_row(edge_id(edge))
+
+
 @app.get("/admin/audit")
 def admin_audit_log(request: Request, limit: int = Query(default=500, ge=1, le=5000), _admin=Depends(require_admin)):
     return {"items": request.app.state.auth_store.list_audit(limit=limit)}
@@ -601,6 +696,10 @@ def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Dep
         config = request.app.state.settings_store.update_secrets(payload.secrets)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    if "BCT_SPEED_MODE" in payload.secrets:
+        from reranker import create_reranker
+
+        create_reranker.cache_clear()  # the search below is rebuilt with the new reranker
     request.app.state.profile_manager.reset()
     # Cached Groq/Ollama clients keep the old API key until cleared.
     create_llm.cache_clear()
@@ -663,11 +762,11 @@ def _tokens_from_usage(usage_by_model: dict) -> int:
 
 
 def _billable_llm_tokens(usage_by_model: dict, provider: str, *fallback_parts: str) -> int:
-    """Cloud LLM only. Local Ollama is not metered."""
+    """Cloud answer models only (estimated when the provider reports no usage). Local Ollama is not metered."""
     used = _tokens_from_usage(usage_by_model)
     if used > 0:
         return used
-    if provider == "groq":
+    if provider != "ollama":
         return _estimate_tokens(*fallback_parts)
     return 0
 
@@ -791,9 +890,9 @@ def post_chat(
                 user_id=user.id,
             )
             title_tokens = _tokens_from_usage(usage_cb.usage_metadata)
-        if title_tokens <= 0 and runtime.answer_provider == "groq":
+        if title_tokens <= 0 and runtime.answer_provider != "ollama":
             title_tokens = _estimate_tokens(payload.question)
-        if title_tokens and runtime.answer_provider == "groq":
+        if title_tokens and runtime.answer_provider != "ollama":
             user = auth_store.consume_usage(user.id, llm=title_tokens)
     return {
         "conversation_id": conversation_id,
@@ -867,7 +966,8 @@ def delete_conversation(
 
 
 class TurnFeedbackRequest(BaseModel):
-    rating: str = Field(pattern="^(up|down)$")
+    # "none" takes a rating back; a user can change their mind as often as they like.
+    rating: str = Field(pattern="^(up|down|none)$")
 
 
 @app.post("/conversations/{conversation_id}/turns/{turn_id}/feedback")
@@ -882,15 +982,18 @@ def post_turn_feedback(
     turn = store.get_turn(conversation_id, turn_id, user_id=user.id)
     if turn is None:
         raise HTTPException(status_code=404, detail="Turn not found.")
-    if payload.rating == "up":
-        return {"ok": True, "rating": "up"}
+    # A thumbs-down is one row in the admin's refusal log; any new rating replaces it.
+    reason = f"user_thumbs_down:turn:{turn_id}"
+    store.delete_answer_refusals(reason=reason, user_id=user.id)
+    if payload.rating != "down":
+        return {"ok": True, "rating": payload.rating}
     store.record_answer_refusal(
         conversation_id=conversation_id,
         user_id=user.id,
         user_email=user.email,
         question=turn["question"],
         answer_status=turn.get("answer_status") or "answered",
-        reason=f"user_thumbs_down:turn:{turn_id}",
+        reason=reason,
         diagnostics=[f"user_thumbs_down:{turn_id}"],
         profile=turn.get("profile"),
     )

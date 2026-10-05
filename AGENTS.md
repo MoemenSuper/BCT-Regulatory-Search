@@ -18,9 +18,13 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Answer shape, claim/quote gates, answer statuses | `backend/answer_contract.py` (facade); gates in `answer_gates.py`, draft ladder in `answer_draft.py` |
 | Currentness classifiers (`is_temporal_rule_query`, `is_relationship_query`) | `backend/query_currentness.py` |
 | JSONL SUPERSEDES pin / ingest merge | `backend/jsonl_supersession.py` (facade); edges IO in `supersession_edges.py`, retrieve pin in `supersession_pin.py` |
+| Admin review of relations (approve / reject / add by hand; decisions kept outside the index) | `backend/supersession_review.py`, `/admin/relations` in `app.py`, `frontend/src/components/admin/RelationsPage.tsx` |
 | Conversation routing and follow-ups | `backend/conversation.py` |
 | Profiles `cloud` / `local_hybrid` / `local` | `backend/runtime_profiles.py` |
+| Answer model provider (OpenAI / Claude / Gemini / Groq / Ollama; one key is enough) | `backend/llm.py` (`answer_provider`, `create_llm`) |
+| Nginx in front of the container | `deploy/nginx/bct-regulatory-search.conf` |
 | Retrieval + evidence selection | `backend/runtime_retrieval.py` (local backend + `create_local_backend`), `backend/retrieval_selection.py` |
+| Search speed on CPU (one reranker wording per script, `BCT_SPEED_MODE` 8-bit reranker) | `backend/runtime_retrieval.py` (`script_scores`), `backend/reranker.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |
 | Ingest → stage → activate | `backend/ingest.py`, `backend/ingestion/` |
 | Upload queue, batched indexing (one asset version per batch), background enrichment (page ledger, chat priority, statuses) | `backend/ingestion/pipeline.py`, `enrichment.py`, `registry.py` |
