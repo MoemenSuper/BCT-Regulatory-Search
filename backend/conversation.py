@@ -262,6 +262,8 @@ def route_message(llm, message: str, memory_state: MemoryState) -> dict:
         - Any question asking for a fact, rule, rate, price, figure, date, time or procedure is NEW_TOPIC.
           When unsure between GENERAL_CHAT and NEW_TOPIC, choose NEW_TOPIC: the answer step refuses
           safely, general chat cannot cite anything.
+        - A request for an opinion, judgement or comparison about a BCT text or policy ("que penses-tu
+          de la circulaire X", "compare X et Y") is NEW_TOPIC: the answer gives what the texts say.
         - If the message refers to "this/that operation", "pour ça", "cette opération", or similar
           without a resolvable antecedent in memory, use AMBIGUOUS — never GENERAL_CHAT and never invent
           a topic. Do not greet the user as if they only said hello.
@@ -493,7 +495,8 @@ with citations or declines it."""),
         return safe_response(message, "out_of_scope")
     # No gate checks this reply against page text, so a figure not already in the
     # conversation (e.g. an injected "the rate is 7 %") goes to grounded search instead.
-    if answer.strip(" .\"'").upper() == "RETRIEVE" or numeric_literals(answer) - numeric_literals(memory_text):
+    # startswith: a model sometimes repeats the whole instruction ("RETRIEVE — the search step...").
+    if answer.lstrip(" \"'").upper().startswith("RETRIEVE") or numeric_literals(answer) - numeric_literals(memory_text):
         return {"retrieve": True}
     # Its own status: an uncited reply is never an `answered` legal answer.
     return {"status": "general_chat", "answer": answer, "sources": []}

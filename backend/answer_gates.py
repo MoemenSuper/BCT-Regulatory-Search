@@ -158,17 +158,17 @@ _MESSAGES = {
     "fr": {
         "insufficient_evidence": "Les passages disponibles ne permettent pas une réponse suffisamment étayée. Veuillez vérifier le document original.",
         "clarification_needed": "Veuillez préciser la circulaire, la note ou le type d’opération concerné.",
-        "out_of_scope": "Je peux vous aider à rechercher des informations dans les documents réglementaires de la BCT.",
+        "out_of_scope": "Cette question sort de mon périmètre : je réponds uniquement à partir des circulaires, notes et rapports de la BCT, avec citations. Exemple : « Quel est le plafond de l’allocation pour études à l’étranger ? »",
     },
     "ar": {
         "insufficient_evidence": "المقاطع المتاحة لا تكفي لتقديم إجابة موثقة. يرجى مراجعة الوثيقة الأصلية.",
         "clarification_needed": "يرجى تحديد المنشور أو المذكرة أو نوع العملية المقصودة.",
-        "out_of_scope": "يمكنني مساعدتك في البحث عن المعلومات في الوثائق التنظيمية للبنك المركزي التونسي.",
+        "out_of_scope": "هذا السؤال خارج نطاق عملي: أجيب فقط انطلاقًا من منشورات البنك المركزي التونسي ومذكراته وتقاريره، مع ذكر المصادر. مثال: «ما هو سقف المنحة للدراسة بالخارج؟»",
     },
     "en": {
         "insufficient_evidence": "The available passages do not sufficiently support an answer. Please check the original document.",
         "clarification_needed": "Please specify which circular, note, or type of operation you mean.",
-        "out_of_scope": "I can help you find information in BCT regulatory documents.",
+        "out_of_scope": "This question is outside my scope: I only answer from Central Bank of Tunisia circulars, notes and reports, with citations. For example: “What is the maximum allowance for studies abroad?”",
     },
 }
 

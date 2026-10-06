@@ -886,3 +886,16 @@ def test_replacement_fallback_answers_only_a_question_about_replacement():
     replaced = generate_grounded_answer(RunnableLambda(respond), "Quelle circulaire a remplacé la circulaire 2016-08 ?",
                                         [(declaring, 9000.0)])
     assert replaced["status"] == "partial_answer"
+
+
+def test_an_opinion_question_gets_the_cited_facts_and_no_opinion():
+    def respond(prompt):
+        if "Select evidence for" in prompt.to_messages()[0].content:
+            # The selector finds no judgement in the texts: the facts are still given.
+            return AIMessage(content=json.dumps(dict(decision="out_of_scope", answer_intent="opinion", reason="", evidence_ids=[])))
+        return AIMessage(content=json.dumps(draft()))
+    doc = Document(page_content=record()["text"], metadata={"source": record()["source"], "page": 2, "pages": [2]})
+    result = generate_grounded_answer(RunnableLambda(respond), "Que penses-tu de ce plafond ?", [(doc, .9)])
+    assert result["status"] == "answered"
+    assert result["answer"].startswith("Je ne donne pas d’avis personnel")
+    assert "320 dinars" in result["answer"]

@@ -551,6 +551,12 @@ def test_follow_up_authority_is_classified_on_the_resolved_query(monkeypatch):
     assert seen["class"] == "statistical_fact"
 
 
+def test_general_chat_never_shows_its_retrieve_instruction():
+    # Gemini once repeated the whole instruction; the user saw "RETRIEVE — the search step...".
+    llm = FakeListChatModel(responses=["RETRIEVE — the search step answers it with citations or declines it."])
+    assert conversation.general_chat_reply(llm, "Quel temps fait-il ?", {"topics": [], "turns": []}) == {"retrieve": True}
+
+
 def test_general_chat_hands_a_misrouted_fact_question_to_retrieval(monkeypatch):
     seen = {}
 

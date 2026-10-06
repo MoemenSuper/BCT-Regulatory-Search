@@ -692,6 +692,35 @@ ol {
   margin-top: 16px;
 }
 
+.example-questions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.example-questions button {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--sidebar-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--ui-duration) var(--ease-color);
+}
+
+.example-questions button:hover:not(:disabled) {
+  border-color: var(--accent-blue);
+}
+
+.example-questions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .thread-status {
   margin-top: 0;
 }

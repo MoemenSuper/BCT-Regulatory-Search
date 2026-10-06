@@ -33,6 +33,15 @@ import type {
 } from './types/ui';
 import './styles.css';
 
+// Shown on an empty conversation: one click shows what the tool does well (compare, summarise,
+// a figure, Arabic). Each one was checked to get a cited answer from the current corpus.
+const EXAMPLE_QUESTIONS = [
+  'Compare la circulaire 2025-07 et la circulaire 2026-01 : qu’est-ce qui a changé ?',
+  'Résume-moi la circulaire 2018-10.',
+  'Quel est le plafond de l’allocation pour études à l’étranger ?',
+  'كم مرة خفّض البنك المركزي نسبة الفائدة المديرية سنة 2025؟',
+];
+
 interface AppProps {
   user: AuthUser;
   locale: UiLocale;
@@ -234,6 +243,13 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
                   échanges précédents resteront visibles ici et pourront être rouverts depuis
                   l&apos;historique.
                 </p>
+                <div className="example-questions" aria-label="Exemples de questions">
+                  {EXAMPLE_QUESTIONS.map((question) => (
+                    <button key={question} type="button" dir="auto" disabled={busy} onClick={() => void runSearch(question)}>
+                      {question}
+                    </button>
+                  ))}
+                </div>
               </article>
             ) : null}
 
