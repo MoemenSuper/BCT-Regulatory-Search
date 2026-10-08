@@ -1,12 +1,14 @@
 import { LogOut, Moon, Sun } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 import type { Theme } from '../hooks/useTheme';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu } from './ProfileMenu';
-import type { UiLocale } from '../uiLocale';
+import { t, type UiLocale } from '../uiLocale';
 
 interface HeaderProps {
   user?: AuthUser;
   locale?: UiLocale;
+  onLocaleChange?: (locale: UiLocale) => void;
   onUserChange?: (user: AuthUser) => void;
   onLogout?: () => void;
   theme: Theme;
@@ -16,6 +18,7 @@ interface HeaderProps {
 export function Header({
   user,
   locale = 'fr',
+  onLocaleChange,
   onUserChange,
   onLogout,
   theme,
@@ -32,15 +35,16 @@ export function Header({
           className="bct-logo"
         />
         <span className="header-divider" aria-hidden="true" />
-        <h1 className="app-title">Espace Recherche Réglementaire</h1>
+        <h1 className="app-title">{t(locale, 'chat.title')}</h1>
       </div>
       <div className="header-actions">
+        {onLocaleChange ? <LanguageSwitcher locale={locale} onChange={onLocaleChange} /> : null}
         <button
           type="button"
           className="header-icon-btn"
           onClick={onToggleTheme}
-          aria-label={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-          title={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          aria-label={t(locale, dark ? 'chat.themeLight' : 'chat.themeDark')}
+          title={t(locale, dark ? 'chat.themeLight' : 'chat.themeDark')}
         >
           {dark ? <Sun size={18} strokeWidth={1.75} aria-hidden="true" /> : <Moon size={18} strokeWidth={1.75} aria-hidden="true" />}
         </button>
@@ -53,7 +57,7 @@ export function Header({
             theme={theme}
           />
         ) : onLogout ? (
-          <button type="button" className="header-icon-btn" onClick={onLogout} aria-label="Se déconnecter" title="Se déconnecter">
+          <button type="button" className="header-icon-btn" onClick={onLogout} aria-label={t(locale, 'auth.signOut')} title={t(locale, 'auth.signOut')}>
             <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : null}

@@ -23,7 +23,7 @@ import {
 } from './data/presentation';
 import { useWorkspacePanels } from './hooks/useWorkspacePanels';
 import { useChatTheme } from './hooks/useTheme';
-import type { UiLocale } from './uiLocale';
+import { languageDirection, t, type UiLocale } from './uiLocale';
 import type {
   ChatSource,
   ConversationDetail,
@@ -33,27 +33,23 @@ import type {
 } from './types/ui';
 import './styles.css';
 
-// Shown on an empty conversation: one click shows what the tool does well (compare, summarise,
-// a figure, Arabic). Each one was checked to get a cited answer from the current corpus.
-const EXAMPLE_QUESTIONS = [
-  'Compare la circulaire 2025-07 et la circulaire 2026-01 : qu’est-ce qui a changé ?',
-  'Résume-moi la circulaire 2018-10.',
-  'Quel est le plafond de l’allocation pour études à l’étranger ?',
-  'كم مرة خفّض البنك المركزي نسبة الفائدة المديرية سنة 2025؟',
-];
+// Shown on an empty conversation, in the interface language: one click shows what the tool does
+// well (compare, summarise, a figure). Each one was checked to get a cited answer from the corpus.
+const EXAMPLE_KEYS = ['chat.example1', 'chat.example2', 'chat.example3', 'chat.example4'];
 
 interface AppProps {
   user: AuthUser;
   locale: UiLocale;
+  onLocaleChange: (locale: UiLocale) => void;
   onUserChange: (user: AuthUser) => void;
   onLogout?: () => void;
 }
 
-export default function App({ user, locale, onUserChange, onLogout }: AppProps) {
+export default function App({ user, locale, onLocaleChange, onUserChange, onLogout }: AppProps) {
   const [activeTab, setActiveTab] = useState<EvidenceTab>('preuve');
   const [zoom, setZoom] = useState(100);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
-  const [conversationTitle, setConversationTitle] = useState('Note de recherche réglementaire');
+  const [conversationTitle, setConversationTitle] = useState('');
   const [selectedTurnIndex, setSelectedTurnIndex] = useState(0);
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
@@ -82,7 +78,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
   function applyDetail(id: string, detail: ConversationDetail) {
     setConversationId(id);
     setSelectedHistoryId(id);
-    setConversationTitle(detail.title || 'Note de recherche réglementaire');
+    setConversationTitle(detail.title || '');
     setTurns(detail.turns || []);
     setSelectedTurnIndex(Math.max(0, (detail.turns?.length || 1) - 1));
     setSelectedSourceIndex(0);
@@ -105,11 +101,11 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
     try {
       applyDetail(id, await getConversation(id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger cette recherche.");
+      setError(err instanceof Error ? err.message : t(locale, 'chat.openFailed'));
     } finally {
       setOpening(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (initialHistoryLoaded.current) return;
@@ -131,8 +127,8 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
       applyDetail(result.conversation_id, await getConversation(result.conversation_id));
       await refreshHistory();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Impossible de joindre le backend.';
-      setError(`${message} Vérifiez que FastAPI est démarré puis réessayez.`);
+      const message = err instanceof Error ? err.message : t(locale, 'chat.serverDown');
+      setError(t(locale, 'chat.retry', { message }));
     } finally {
       setPendingQuestion(null);
     }
@@ -141,7 +137,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
   function startNewSearch() {
     setConversationId(undefined);
     setSelectedHistoryId(null);
-    setConversationTitle('Note de recherche réglementaire');
+    setConversationTitle('');
     setTurns([]);
     setSelectedTurnIndex(0);
     setSelectedSourceIndex(0);
@@ -155,7 +151,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
       if (id === conversationId) setConversationTitle(title);
       await refreshHistory();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de renommer cette recherche.');
+      setError(err instanceof Error ? err.message : t(locale, 'chat.renameFailed'));
     }
   }
 
@@ -165,15 +161,15 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
       if (id === conversationId) startNewSearch();
       await refreshHistory();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de supprimer cette recherche.');
+      setError(err instanceof Error ? err.message : t(locale, 'chat.deleteFailed'));
     }
   }
 
   const busy = pendingQuestion !== null || opening;
-  const historyGroups = useMemo(() => historyGroupsFromConversations(history), [history]);
+  const historyGroups = useMemo(() => historyGroupsFromConversations(history, locale), [history, locale]);
   const activeTurn = turns[selectedTurnIndex];
   const sources: ChatSource[] = activeTurn?.sources || [];
-  const passage = evidenceFromSource(sources[selectedSourceIndex]);
+  const passage = evidenceFromSource(sources[selectedSourceIndex], locale);
   const {
     workspaceRef,
     leftCollapsed,
@@ -188,10 +184,11 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
   const { theme, toggleTheme } = useChatTheme();
 
   return (
-    <div className="app-shell" data-theme={theme}>
+    <div className="app-shell" data-theme={theme} lang={locale} dir={languageDirection(locale)}>
       <Header
         user={user}
         locale={locale}
+        onLocaleChange={onLocaleChange}
         onUserChange={onUserChange}
         onLogout={onLogout}
         theme={theme}
@@ -208,6 +205,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
         }
       >
         <HistorySidebar
+          locale={locale}
           groups={historyGroups}
           selectedId={selectedHistoryId}
           loading={historyLoading}
@@ -222,6 +220,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
         />
         <PanelResizeHandle
           side="left"
+          locale={locale}
           disabled={leftCollapsed}
           active={resizing === 'left'}
           onResizeStart={(event) => startResize('left', event)}
@@ -236,17 +235,14 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
                   <span className="note-icon-wrap" aria-hidden="true">
                     <FileText size={18} strokeWidth={1.75} />
                   </span>
-                  <h2 className="note-title">Note de recherche réglementaire</h2>
+                  <h2 className="note-title">{t(locale, 'chat.emptyTitle')}</h2>
                 </div>
-                <p className="note-body thread-empty-copy">
-                  Posez une question ci-dessous pour démarrer une discussion réglementaire. Les
-                  échanges précédents resteront visibles ici et pourront être rouverts depuis
-                  l&apos;historique.
-                </p>
-                <div className="example-questions" aria-label="Exemples de questions">
-                  {EXAMPLE_QUESTIONS.map((question) => (
-                    <button key={question} type="button" dir="auto" disabled={busy} onClick={() => void runSearch(question)}>
-                      {question}
+                <p className="note-body thread-empty-copy">{t(locale, 'chat.emptyBody')}</p>
+                <div className="example-questions" aria-label={t(locale, 'chat.examples')}>
+                  {EXAMPLE_KEYS.map((key) => t(locale, key)).map((question) => (
+                    <button key={question} type="button" disabled={busy} onClick={() => void runSearch(question)}>
+                      {/* Non-breaking hyphen on screen only, so "2026-01" never splits across lines. */}
+                      {question.replace(/-/g, '‑')}
                     </button>
                   ))}
                 </div>
@@ -259,6 +255,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
                   turn,
                   conversationId || turn.turn_id,
                   conversationTitle,
+                  locale,
                 );
                 const isActive = index === selectedTurnIndex;
                 return (
@@ -277,6 +274,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
                     }}
                   >
                     <ResearchNote
+                      locale={locale}
                       note={note}
                       conversationId={conversationId || turn.turn_id}
                       turnId={turn.turn_id}
@@ -305,6 +303,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
           </div>
 
           <Composer
+            locale={locale}
             onSubmit={(question) => void runSearch(question)}
             disabled={busy}
             hasConversation={Boolean(conversationId)}
@@ -313,12 +312,14 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
 
         <PanelResizeHandle
           side="right"
+          locale={locale}
           disabled={rightCollapsed}
           active={resizing === 'right'}
           onResizeStart={(event) => startResize('right', event)}
           onCollapse={() => setRightCollapsed(true)}
         />
         <EvidencePanel
+          locale={locale}
           searchResults={activeTurn?.answer_status === 'search_results'}
           passage={passage}
           activeTab={activeTab}
@@ -330,7 +331,7 @@ export default function App({ user, locale, onUserChange, onLogout }: AppProps) 
           onExpand={() => setRightCollapsed(false)}
         />
       </div>
-      <LegalFooter />
+      <LegalFooter locale={locale} />
     </div>
   );
 }

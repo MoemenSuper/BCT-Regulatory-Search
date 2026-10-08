@@ -279,6 +279,7 @@ def test_a_broad_answer_may_have_more_than_eight_claims():
     ("During Ramadan single session, what are the interbank FX market hours?", "en"),
     ("Tunisia inflation rate at end of 2025?", "en"),
     ("and in English please, what about the installation allowance?", "en"),
+    ("Summarise circular 2018-10.", "en"),
     ("Compare l'inflation en 2023, 2024 et 2025.", "fr"),
     ("chnowa el plafond mta3 allocation voyage d'affaires l'entreprise?", "fr"),
     ("ما هو المبلغ الأقصى لمنحة الإقامة؟", "ar"),

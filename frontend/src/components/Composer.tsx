@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
+import { t, type UiLocale } from '../uiLocale';
 
 function PaperPlaneIcon() {
   return (
@@ -30,12 +31,13 @@ function PaperPlaneIcon() {
 }
 
 interface ComposerProps {
+  locale: UiLocale;
   onSubmit: (value: string) => void;
   disabled?: boolean;
   hasConversation?: boolean;
 }
 
-export function Composer({ onSubmit, disabled = false, hasConversation = false }: ComposerProps) {
+export function Composer({ locale, onSubmit, disabled = false, hasConversation = false }: ComposerProps) {
   const [value, setValue] = useState('');
 
   return (
@@ -51,7 +53,7 @@ export function Composer({ onSubmit, disabled = false, hasConversation = false }
       }}
     >
       <label className="composer-label" htmlFor="composer-input">
-        {hasConversation ? 'Continuer la discussion' : 'Poser une question'}
+        {t(locale, hasConversation ? 'chat.continue' : 'chat.ask')}
       </label>
       <div className="composer-row">
         <Search size={18} strokeWidth={1.75} className="composer-icon" aria-hidden="true" />
@@ -62,16 +64,13 @@ export function Composer({ onSubmit, disabled = false, hasConversation = false }
           value={value}
           disabled={disabled}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={
-            hasConversation
-              ? 'Posez une question de suivi sur cette recherche…'
-              : 'Posez une question sur les circulaires et notes de la BCT…'
-          }
-          aria-label={hasConversation ? 'Question de suivi' : 'Nouvelle question réglementaire'}
+          dir="auto"
+          placeholder={t(locale, hasConversation ? 'chat.placeholderFollow' : 'chat.placeholder')}
+          aria-label={t(locale, hasConversation ? 'chat.followQuestion' : 'chat.newQuestion')}
         />
         <button type="submit" className="btn-poser" disabled={disabled || !value.trim()}>
           <PaperPlaneIcon />
-          <span>{disabled ? '…' : 'Poser'}</span>
+          <span>{disabled ? '…' : t(locale, 'chat.send')}</span>
         </button>
       </div>
     </form>

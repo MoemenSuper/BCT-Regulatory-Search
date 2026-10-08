@@ -81,10 +81,12 @@ export function useWorkspacePanels() {
       const originRight = rightWidth;
       const workspaceWidth = workspaceRef.current?.clientWidth ?? window.innerWidth;
       const chrome = HANDLE * 2 + GAP * 4;
+      // In Arabic the history is on the right: dragging left widens it, so the delta flips.
+      const rtlSign = workspaceRef.current && getComputedStyle(workspaceRef.current).direction === 'rtl' ? -1 : 1;
       setResizing(side);
 
       const onMove = (moveEvent: PointerEvent) => {
-        const delta = moveEvent.clientX - originX;
+        const delta = (moveEvent.clientX - originX) * rtlSign;
         const maxLeft = Math.min(
           LEFT_MAX,
           workspaceWidth - chrome - (rightCollapsed ? RAIL : originRight) - CENTER_MIN,

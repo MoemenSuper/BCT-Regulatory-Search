@@ -4,7 +4,7 @@ import { AccountStatusPage } from './components/AccountStatusPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
-import { type UiLocale } from './uiLocale';
+import { t, type UiLocale } from './uiLocale';
 import App from './App';
 import './loginPageStyle.css';
 import './adminStyles.css';
@@ -50,7 +50,7 @@ export default function Root() {
   }
 
   if (gate.kind === 'loading') {
-    return <div className="auth-loading">Chargement…</div>;
+    return <div className="auth-loading">{t(locale, 'admin.loading')}</div>;
   }
 
   if (gate.kind === 'login') {
@@ -94,6 +94,7 @@ export default function Root() {
     <App
       user={user}
       locale={locale}
+      onLocaleChange={handleLocaleChange}
       onUserChange={(next) => setGate({ kind: 'session', user: next })}
       onLogout={() => void handleLogout()}
     />

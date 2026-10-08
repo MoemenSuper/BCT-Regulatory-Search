@@ -549,6 +549,8 @@ Claims
   cites: the IDs of the units that state it (["E2.14"], or consecutive units ["E2.14","E2.15"]
   for a longer passage). Cite only units that state the fact; for a table value, cite the row.
   Do not copy page text into the claim itself.
+- Arabic claims are plain Arabic sentences with the Tunisian terms: منشور for a circulaire, مذكرة
+  for a note, البنك المركزي التونسي for the BCT. No French words mixed into the sentence.
 - Every number, date and unit in a claim must appear in its cited units, in the same notation. You
   may restate numbers the question gives and the cited instrument's year. Never convert units,
   compute, repair garbled digits, or fill a missing table cell.

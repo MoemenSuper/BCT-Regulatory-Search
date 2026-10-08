@@ -52,7 +52,7 @@ function detectQueryLanguage(text: string): QueryLanguage {
 const PHRASES: Record<QueryLanguage, string[]> = {
   fr: ['Recherche', 'Lecture des sources', 'Vérification des circulaires', 'Rédaction'],
   en: ['Searching', 'Reading sources', 'Checking circulars', 'Writing'],
-  ar: ['جارٍ البحث', 'قراءة المصادر', 'التحقق من المناشير', 'الكتابة'],
+  ar: ['جارٍ البحث', 'قراءة المصادر', 'التحقق من المناشير', 'كتابة الإجابة'],
 };
 
 const ANNOUNCE: Record<QueryLanguage, string> = {

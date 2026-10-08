@@ -382,7 +382,7 @@ ol {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-inline-end: 2px;
 }
 
 .history-group + .history-group {
@@ -410,7 +410,7 @@ ol {
   grid-template-columns: 18px 1fr 16px;
   gap: 8px;
   align-items: start;
-  text-align: left;
+  text-align: start;
   background: #fff;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
@@ -481,7 +481,7 @@ ol {
 .history-more {
   position: absolute;
   top: 6px;
-  right: 5px;
+  inset-inline-end: 5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -531,7 +531,7 @@ ol {
 .history-menu {
   position: absolute;
   top: 32px;
-  right: 5px;
+  inset-inline-end: 5px;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -572,7 +572,7 @@ ol {
   color: var(--text);
   font-size: 0.8rem;
   font-weight: 500;
-  text-align: left;
+  text-align: start;
   transition:
     background-color var(--ui-duration) var(--ease-color),
     color var(--ui-duration) var(--ease-color);
@@ -721,6 +721,28 @@ ol {
   cursor: not-allowed;
 }
 
+/* Arabic: the workspace grid mirrors by itself (history on the right); the panel icons follow. */
+.app-shell[dir="rtl"] .panel-rail-btn svg,
+.app-shell[dir="rtl"] .panel-collapse-btn svg {
+  transform: scaleX(-1);
+}
+
+.app-header .language-switcher {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.app-header .language-switcher button {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.app-header .language-switcher button[aria-pressed='true'] {
+  color: var(--bct-navy);
+  background: #fff;
+  box-shadow: none;
+}
+
 .thread-status {
   margin-top: 0;
 }
@@ -817,7 +839,7 @@ ol {
 }
 
 .note-turn-date {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-weight: 500;
   color: var(--text-soft);
 }
@@ -1095,7 +1117,7 @@ ol {
 }
 
 .evidence-collapse {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .evidence-tab {
@@ -1367,7 +1389,7 @@ ol {
   background: transparent;
   color: var(--text);
   padding: 6px 7px;
-  text-align: left;
+  text-align: start;
   line-height: 1.42;
   transition:
     background-color var(--ui-duration) var(--ease-color),

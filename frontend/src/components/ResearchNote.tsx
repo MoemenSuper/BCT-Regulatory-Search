@@ -2,8 +2,10 @@ import { useState, type MouseEvent } from 'react';
 import { FileText, MessageSquareText, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { postTurnFeedback } from '../api/chat';
 import type { ResearchNoteData } from '../types/ui';
+import { t, type UiLocale } from '../uiLocale';
 
 interface ResearchNoteProps {
+  locale: UiLocale;
   note: ResearchNoteData;
   conversationId: string;
   turnId: string;
@@ -37,6 +39,7 @@ function writeRating(turnId: string, rating: Rating | null) {
 }
 
 export function ResearchNote({
+  locale,
   note,
   conversationId,
   turnId,
@@ -72,45 +75,45 @@ export function ResearchNote({
             <span className="note-icon-wrap" aria-hidden="true">
               <FileText size={18} strokeWidth={1.75} />
             </span>
-            <h2 className="note-title">{note.title}</h2>
+            <h2 className="note-title" dir="auto">{note.title}</h2>
           </div>
         </div>
       ) : (
         <div className="note-turn-badge">
           <MessageSquareText size={14} strokeWidth={1.75} aria-hidden="true" />
-          <span>Échange suivant</span>
+          <span>{t(locale, 'chat.nextTurn')}</span>
           <span className="note-turn-date">{note.date}</span>
         </div>
       )}
 
       {!compact ? (
         <p className="note-meta">
-          Date : {note.date}
+          {t(locale, 'chat.date', { date: note.date })}
           <span className="meta-sep">|</span>
-          Analyste : {note.analyst}
+          {t(locale, 'chat.analyst')}
           <span className="meta-sep">|</span>
-          Référence interne : {note.reference}
+          {t(locale, 'chat.reference', { reference: note.reference })}
         </p>
       ) : null}
 
       <section className="note-section">
-        <h3>Question</h3>
-        <p className={`note-question${note.question ? '' : ' note-question-empty'}`}>
-          {note.question || 'Aucune question active.'}
+        <h3>{t(locale, 'chat.question')}</h3>
+        <p className={`note-question${note.question ? '' : ' note-question-empty'}`} dir="auto">
+          {note.question || t(locale, 'chat.noQuestion')}
         </p>
       </section>
 
       <section className="note-section">
-        <h3>{note.searchResults ? 'Recherche' : 'Réponse'}</h3>
+        <h3>{t(locale, note.searchResults ? 'chat.search' : 'chat.answer')}</h3>
         {note.synthesis.map((paragraph, index) => (
-          <p key={`${index}-${paragraph.slice(0, 24)}`} className="note-body">
+          <p key={`${index}-${paragraph.slice(0, 24)}`} className="note-body" dir="auto">
             {paragraph}
           </p>
         ))}
       </section>
 
       <section className="note-section">
-        <h3>{note.searchResults ? 'Résultats à examiner' : 'Sources'}</h3>
+        <h3>{t(locale, note.searchResults ? 'chat.resultsToCheck' : 'chat.sources')}</h3>
         {note.sources.length > 0 ? (
           <ol className="sources-list sources-list-live">
             {note.sources.map((source, index) => (
@@ -139,17 +142,17 @@ export function ResearchNote({
             ))}
           </ol>
         ) : (
-          <p className="note-body">Aucune source renvoyée pour cette réponse.</p>
+          <p className="note-body">{t(locale, 'chat.noSources')}</p>
         )}
       </section>
 
-      <div className="note-feedback" role="group" aria-label="Évaluation de la réponse">
+      <div className="note-feedback" role="group" aria-label={t(locale, 'chat.rate')}>
         <button
           type="button"
           className={`note-feedback-btn${rating === 'up' ? ' is-active' : ''}`}
           aria-pressed={rating === 'up'}
-          aria-label="Réponse utile"
-          title="Réponse utile"
+          aria-label={t(locale, 'chat.helpful')}
+          title={t(locale, 'chat.helpful')}
           disabled={busy}
           onClick={(event) => void sendFeedback(event, 'up')}
         >
@@ -159,8 +162,8 @@ export function ResearchNote({
           type="button"
           className={`note-feedback-btn${rating === 'down' ? ' is-active is-down' : ''}`}
           aria-pressed={rating === 'down'}
-          aria-label="Signaler une réponse incorrecte"
-          title="Signaler une réponse incorrecte"
+          aria-label={t(locale, 'chat.wrong')}
+          title={t(locale, 'chat.wrong')}
           disabled={busy}
           onClick={(event) => void sendFeedback(event, 'down')}
         >

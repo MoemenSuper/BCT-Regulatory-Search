@@ -29,7 +29,6 @@ export interface ResearchNoteData {
   searchResults?: boolean;
   title: string;
   date: string;
-  analyst: string;
   reference: string;
   question: string;
   synthesis: string[];

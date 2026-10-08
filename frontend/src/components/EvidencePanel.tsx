@@ -6,8 +6,10 @@ import {
   sourcePdfUrl,
 } from '../api/chat';
 import type { EvidencePassage, EvidenceTab, SourceInfo } from '../types/ui';
+import { t, type UiLocale } from '../uiLocale';
 
 interface EvidencePanelProps {
+  locale: UiLocale;
   searchResults?: boolean;
   passage: EvidencePassage | null;
   activeTab: EvidenceTab;
@@ -42,6 +44,7 @@ function PdfAcrobatIcon() {
 }
 
 export function EvidencePanel({
+  locale,
   searchResults = false,
   passage,
   activeTab,
@@ -84,13 +87,13 @@ export function EvidencePanel({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setViewerError(error instanceof Error ? error.message : 'PDF source indisponible.');
+          setViewerError(error instanceof Error ? error.message : t(locale, 'chat.pdfUnavailable'));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [filename]);
+  }, [filename, locale]);
 
   const pageImage = useMemo(() => {
     if (!passage) return '';
@@ -120,8 +123,8 @@ export function EvidencePanel({
         type="button"
         className="panel-rail-btn"
         onClick={onExpand}
-        aria-label="Afficher les sources"
-        title="Sources"
+        aria-label={t(locale, 'chat.showSources')}
+        title={t(locale, 'chat.sources')}
         tabIndex={collapsed ? 0 : -1}
         aria-hidden={!collapsed}
       >
@@ -136,7 +139,7 @@ export function EvidencePanel({
             onClick={() => onTabChange('preuve')}
             tabIndex={collapsed ? -1 : 0}
           >
-            {searchResults ? 'Passage' : 'Preuve'}
+            {t(locale, searchResults ? 'chat.passage' : 'chat.evidence')}
           </button>
           <button
             type="button"
@@ -144,14 +147,14 @@ export function EvidencePanel({
             onClick={() => onTabChange('document')}
             tabIndex={collapsed ? -1 : 0}
           >
-            Document
+            {t(locale, 'chat.document')}
           </button>
           {onCollapse ? (
             <button
               type="button"
               className="icon-ghost panel-collapse-btn evidence-collapse"
-              aria-label="Masquer le panneau des sources"
-              title="Masquer les sources"
+              aria-label={t(locale, 'chat.hideSources')}
+              title={t(locale, 'chat.hideSources')}
               onClick={onCollapse}
               tabIndex={collapsed ? -1 : 0}
             >
@@ -164,8 +167,8 @@ export function EvidencePanel({
           {!passage ? (
             <div className="document-tab-placeholder evidence-empty">
               <FileText size={30} strokeWidth={1.5} />
-              <p>Aucune preuve sélectionnée</p>
-              <span>Les pages PDF citées apparaîtront ici après une réponse sourcée.</span>
+              <p>{t(locale, 'chat.noEvidence')}</p>
+              <span>{t(locale, 'chat.noEvidenceHint')}</span>
             </div>
           ) : (
             <>
@@ -181,19 +184,19 @@ export function EvidencePanel({
 
               <div className="pdf-toolbar-row">
                 <span className="pdf-page-label">
-                  Page {passage.page}{totalPages ? ` / ${totalPages}` : ''}
+                  {t(locale, 'chat.pageOf', { page: passage.page })}{totalPages ? ` / ${totalPages}` : ''}
                 </span>
                 <div className="pdf-toolbar-actions">
                   <div className="zoom-control">
-                    <button type="button" aria-label="Zoom arrière" onClick={decreaseZoom} tabIndex={collapsed ? -1 : 0}>
+                    <button type="button" aria-label={t(locale, 'chat.zoomOut')} onClick={decreaseZoom} tabIndex={collapsed ? -1 : 0}>
                       <Minus size={14} strokeWidth={2} />
                     </button>
                     <span>{zoom}%</span>
-                    <button type="button" aria-label="Zoom avant" onClick={increaseZoom} tabIndex={collapsed ? -1 : 0}>
+                    <button type="button" aria-label={t(locale, 'chat.zoomIn')} onClick={increaseZoom} tabIndex={collapsed ? -1 : 0}>
                       <Plus size={14} strokeWidth={2} />
                     </button>
                   </div>
-                  <a className="pdf-expand" aria-label="Ouvrir le PDF" href={pdfUrl} target="_blank" rel="noreferrer" tabIndex={collapsed ? -1 : 0}>
+                  <a className="pdf-expand" aria-label={t(locale, 'chat.openPdf')} href={pdfUrl} target="_blank" rel="noreferrer" tabIndex={collapsed ? -1 : 0}>
                     <Expand size={15} strokeWidth={1.75} />
                   </a>
                 </div>
@@ -203,11 +206,11 @@ export function EvidencePanel({
 
               {activeTab === 'preuve' ? (
                 <div className="pdf-real-stage">
-                  {imageLoading ? <div className="pdf-loading">Chargement de la page…</div> : null}
+                  {imageLoading ? <div className="pdf-loading">{t(locale, 'chat.loadingPage')}</div> : null}
                   <img
                     key={pageImage}
                     src={pageImage}
-                    alt={`Page ${passage.page} de ${passage.filename}`}
+                    alt={t(locale, 'chat.pageAlt', { page: passage.page, file: passage.filename })}
                     className="pdf-real-page"
                     style={{ width: `${zoom}%` }}
                     onLoad={() => {
@@ -216,7 +219,7 @@ export function EvidencePanel({
                     }}
                     onError={() => {
                       setImageLoading(false);
-                      setViewerError("Impossible d'afficher cette page PDF. Vérifiez BCT_DOCUMENTS_DIR.");
+                      setViewerError(t(locale, 'chat.pageError'));
                     }}
                   />
                 </div>
@@ -225,16 +228,16 @@ export function EvidencePanel({
                   <iframe
                     className="pdf-document-frame"
                     src={pdfUrl}
-                    title={`Document ${passage.filename}`}
+                    title={passage.filename}
                     tabIndex={collapsed ? -1 : 0}
                   />
                 </div>
               )}
 
               <section className="selected-passage">
-                <h3>Passage sélectionné</h3>
-                <blockquote className={`selected-quote${quoteLong && !quoteExpanded ? ' is-collapsed' : ''}`}>
-                  {quote ? `“${quote}”` : 'Aucun extrait textuel fourni par le backend.'}
+                <h3>{t(locale, 'chat.selectedPassage')}</h3>
+                <blockquote className={`selected-quote${quoteLong && !quoteExpanded ? ' is-collapsed' : ''}`} dir="auto">
+                  {quote ? `“${quote}”` : t(locale, 'chat.noExcerpt')}
                 </blockquote>
                 {quoteLong ? (
                   <button
@@ -243,13 +246,13 @@ export function EvidencePanel({
                     onClick={() => setQuoteExpanded((open) => !open)}
                     tabIndex={collapsed ? -1 : 0}
                   >
-                    {quoteExpanded ? 'Réduire' : 'Développer'}
+                    {t(locale, quoteExpanded ? 'chat.showLess' : 'chat.showMore')}
                   </button>
                 ) : null}
                 <p className="selected-source">{passage.sourceLabel}</p>
                 <a className="btn-full-source" href={pdfUrl} target="_blank" rel="noreferrer" tabIndex={collapsed ? -1 : 0}>
                   <ExternalLink size={14} strokeWidth={1.75} />
-                  <span>Voir la source complète</span>
+                  <span>{t(locale, 'chat.fullSource')}</span>
                 </a>
               </section>
             </>

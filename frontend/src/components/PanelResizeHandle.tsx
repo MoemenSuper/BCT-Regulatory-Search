@@ -1,7 +1,9 @@
 import type { PointerEvent } from 'react';
+import { t, type UiLocale } from '../uiLocale';
 
 interface PanelResizeHandleProps {
   side: 'left' | 'right';
+  locale: UiLocale;
   disabled?: boolean;
   active?: boolean;
   onResizeStart: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -10,6 +12,7 @@ interface PanelResizeHandleProps {
 
 export function PanelResizeHandle({
   side,
+  locale,
   disabled = false,
   active = false,
   onResizeStart,
@@ -19,10 +22,7 @@ export function PanelResizeHandle({
     return <div className="panel-resize is-disabled" aria-hidden="true" />;
   }
 
-  const label =
-    side === 'left'
-      ? 'Redimensionner l’historique. Double-clic pour masquer.'
-      : 'Redimensionner le panneau des sources. Double-clic pour masquer.';
+  const label = t(locale, side === 'left' ? 'chat.resizeHistory' : 'chat.resizeSources');
 
   return (
     <button

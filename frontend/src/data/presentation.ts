@@ -5,6 +5,10 @@ import type {
   HistoryGroup,
   ResearchNoteData,
 } from '../types/ui';
+import { t, type UiLocale } from '../uiLocale';
+
+// Dates and times in the interface language (ar-TN keeps Latin digits, as BCT texts do).
+const DATE_LOCALES: Record<UiLocale, string> = { fr: 'fr-FR', ar: 'ar-TN', en: 'en-GB' };
 
 export function parseServerDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -19,32 +23,32 @@ function dayKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function historyLabel(date: Date): string {
+function historyLabel(date: Date, locale: UiLocale): string {
   const now = new Date();
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (dayKey(date) === dayKey(now)) return "AUJOURD'HUI";
-  if (dayKey(date) === dayKey(yesterday)) return 'HIER';
+  if (dayKey(date) === dayKey(now)) return t(locale, 'chat.today');
+  if (dayKey(date) === dayKey(yesterday)) return t(locale, 'chat.yesterday');
   return date
-    .toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    .toLocaleDateString(DATE_LOCALES[locale], { day: 'numeric', month: 'short', year: 'numeric' })
     .replace('.', '')
     .toUpperCase();
 }
 
-function pageLabel(file: string, page: number | string | null | undefined): string {
-  return `${file}${page != null && page !== '' ? ` — page ${page}` : ''}`;
+function pageLabel(file: string, page: number | string | null | undefined, locale: UiLocale): string {
+  return `${file}${page != null && page !== '' ? ` — ${t(locale, 'chat.page', { page })}` : ''}`;
 }
 
-export function historyGroupsFromConversations(items: ConversationSummary[]): HistoryGroup[] {
+export function historyGroupsFromConversations(items: ConversationSummary[], locale: UiLocale): HistoryGroup[] {
   const groups = new Map<string, HistoryGroup>();
   for (const item of items) {
     const date = parseServerDate(item.updated_at) ?? new Date();
-    const label = historyLabel(date);
+    const label = historyLabel(date, locale);
     if (!groups.has(label)) groups.set(label, { label, items: [] });
     groups.get(label)!.items.push({
       id: item.conversation_id,
-      title: item.title || item.last_question || 'Recherche réglementaire',
-      time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      title: item.title || item.last_question || t(locale, 'chat.untitled'),
+      time: date.toLocaleTimeString(DATE_LOCALES[locale], { hour: '2-digit', minute: '2-digit' }),
       turnCount: item.turn_count,
     });
   }
@@ -61,7 +65,8 @@ export function noteFromConversationTurn(
     turn_id: string;
   },
   conversationId: string,
-  conversationTitle?: string,
+  conversationTitle: string,
+  locale: UiLocale,
 ): ResearchNoteData {
   const sources = turn.sources || [];
   const paragraphs = turn.answer
@@ -72,13 +77,12 @@ export function noteFromConversationTurn(
 
   return {
     searchResults: turn.answer_status === 'search_results',
-    title: conversationTitle || 'Note de recherche réglementaire',
-    date: created.toLocaleDateString('fr-FR', {
+    title: conversationTitle || t(locale, 'chat.emptyTitle'),
+    date: created.toLocaleDateString(DATE_LOCALES[locale], {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     }),
-    analyst: 'Chercheur BCT',
     reference: conversationId
       ? `RR-${conversationId.replace(/-/g, '').slice(0, 10).toUpperCase()}`
       : '—',
@@ -91,18 +95,18 @@ export function noteFromConversationTurn(
         file: source.file,
         page,
         excerpt: source.excerpt || '',
-        citation: pageLabel(source.file, page),
+        citation: pageLabel(source.file, page, locale),
       };
     }),
   };
 }
 
-export function evidenceFromSource(source?: ChatSource | null): EvidencePassage | null {
+export function evidenceFromSource(source: ChatSource | null | undefined, locale: UiLocale): EvidencePassage | null {
   if (!source?.file) return null;
   const page = typeof source.page === 'number' ? source.page : Number(source.page) || 1;
   return {
     quote: source.excerpt || '',
-    sourceLabel: `Source : ${pageLabel(source.file, source.page)}.`,
+    sourceLabel: t(locale, 'chat.source', { source: pageLabel(source.file, source.page, locale) }),
     filename: source.file,
     page,
   };

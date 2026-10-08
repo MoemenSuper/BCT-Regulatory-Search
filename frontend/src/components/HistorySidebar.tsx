@@ -10,8 +10,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { HistoryGroup } from '../types/ui';
+import { t, type UiLocale } from '../uiLocale';
 
 interface HistorySidebarProps {
+  locale: UiLocale;
   groups: HistoryGroup[];
   selectedId: string | null;
   loading?: boolean;
@@ -26,6 +28,7 @@ interface HistorySidebarProps {
 }
 
 export function HistorySidebar({
+  locale,
   groups,
   selectedId,
   loading = false,
@@ -69,8 +72,8 @@ export function HistorySidebar({
         type="button"
         className="panel-rail-btn"
         onClick={onExpand}
-        aria-label="Afficher l’historique"
-        title="Historique"
+        aria-label={t(locale, 'chat.showHistory')}
+        title={t(locale, 'chat.history')}
         tabIndex={collapsed ? 0 : -1}
         aria-hidden={!collapsed}
       >
@@ -80,17 +83,17 @@ export function HistorySidebar({
       <div className="panel-expanded" aria-hidden={collapsed}>
         <button type="button" className="btn-new-search pressable" onClick={onNewSearch} tabIndex={collapsed ? -1 : 0}>
           <Plus size={18} strokeWidth={2.25} />
-          <span>Nouvelle recherche</span>
+          <span>{t(locale, 'chat.newSearch')}</span>
         </button>
 
         <div className="history-heading-row">
-          <h2 className="history-heading">HISTORIQUE DES RECHERCHES</h2>
+          <h2 className="history-heading">{t(locale, 'chat.historyTitle')}</h2>
           {onCollapse ? (
             <button
               type="button"
               className="icon-ghost panel-collapse-btn"
-              aria-label="Masquer l’historique"
-              title="Masquer l’historique"
+              aria-label={t(locale, 'chat.hideHistory')}
+              title={t(locale, 'chat.hideHistory')}
               onClick={onCollapse}
               tabIndex={collapsed ? -1 : 0}
             >
@@ -103,7 +106,7 @@ export function HistorySidebar({
           {total === 0 && !loading ? (
             <div className="history-empty">
               <FileText size={22} strokeWidth={1.5} />
-              <span>Aucune recherche enregistrée.</span>
+              <span>{t(locale, 'chat.noHistory')}</span>
             </div>
           ) : null}
 
@@ -123,16 +126,16 @@ export function HistorySidebar({
                       >
                         <FileText size={15} strokeWidth={1.75} className="history-doc-icon" />
                         <span className="history-card-text">
-                          <span className="history-card-title">{item.title}</span>
+                          <span className="history-card-title" dir="auto">{item.title}</span>
                           <span className="history-card-time">
-                            {item.time}{item.turnCount > 1 ? ` · ${item.turnCount} échanges` : ''}
+                            {item.time}{item.turnCount > 1 ? ` · ${t(locale, 'chat.turns', { count: item.turnCount })}` : ''}
                           </span>
                         </span>
                       </button>
                       <button
                         type="button"
                         className="history-more"
-                        aria-label="Options de la recherche"
+                        aria-label={t(locale, 'chat.searchOptions')}
                         aria-haspopup="menu"
                         aria-expanded={menuId === item.id}
                         tabIndex={collapsed ? -1 : 0}
@@ -149,23 +152,23 @@ export function HistorySidebar({
                             type="button"
                             role="menuitem"
                             onClick={() => {
-                              const title = window.prompt('Nouveau titre', item.title)?.trim();
+                              const title = window.prompt(t(locale, 'chat.newTitle'), item.title)?.trim();
                               if (title && title !== item.title) onRename(item.id, title);
                             }}
                           >
                             <Pencil size={14} strokeWidth={1.75} />
-                            Renommer
+                            {t(locale, 'chat.rename')}
                           </button>
                           <button
                             type="button"
                             role="menuitem"
                             className="danger"
                             onClick={() => {
-                              if (window.confirm('Supprimer définitivement cette recherche ?')) onDelete(item.id);
+                              if (window.confirm(t(locale, 'chat.deleteConfirm'))) onDelete(item.id);
                             }}
                           >
                             <Trash2 size={14} strokeWidth={1.75} />
-                            Supprimer
+                            {t(locale, 'chat.delete')}
                           </button>
                         </div>
                       ) : null}
@@ -179,7 +182,7 @@ export function HistorySidebar({
 
         <button type="button" className="btn-see-all pressable" onClick={onRefresh} tabIndex={collapsed ? -1 : 0}>
           <RefreshCw className={loading ? 'spin' : undefined} size={16} strokeWidth={1.75} />
-          <span>{loading ? 'Actualisation…' : 'Actualiser l’historique'}</span>
+          <span>{t(locale, loading ? 'chat.refreshing' : 'chat.refresh')}</span>
         </button>
       </div>
     </aside>

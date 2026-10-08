@@ -135,7 +135,8 @@ def _load_answer_payload(content):
 _ENGLISH_WORDS = set(
     "the is are was were what which who whom whose when where why how of for to in at and or "
     "does do did can could should would must this that these those with from by about please "
-    "tell me my our their it its be been has have per much many any there".split()
+    "tell me my our their it its be been has have per much many any there "
+    "summarise summarize explain give list show circular circulars".split()
 )
 _FRENCH_WORDS = set(
     "le la les l un une des du de d est sont quel quelle quels quelles que qu qui quoi pour "
