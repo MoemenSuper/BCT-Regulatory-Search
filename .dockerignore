@@ -17,6 +17,8 @@ backend/chroma_db
 *.pdf
 docs
 output
+# Nginx files and the HTTPS key never enter the app image's build
+deploy
 
 # A saved image (bct.tar) in the project folder must not enter the build context
 *.tar

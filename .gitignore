@@ -1,4 +1,6 @@
-# Local secrets / env
+# Local secrets / env (and the bundled Nginx's certificate)
+deploy/nginx/certs/*
+!deploy/nginx/certs/README.md
 .env
 .env.*
 **/.env

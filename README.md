@@ -72,7 +72,7 @@ One command starts the **UI + API**.
 ### What you must do
 
 1. Install **Docker Desktop** (or Docker Engine + Compose).
-2. Get the project (clone or unzip) **with `documents/` and `baked-runtime-assets/` present on the machine that builds the image** (both are gitignored: they are handed over with the project, not stored in git). To ship a newer corpus, bake it from a running asset root (only the live version and its search index; a previous bake is renamed, not deleted):
+2. Get the project folder **with `documents/` and `baked-runtime-assets/` in it** (both are gitignored: they are handed over with the project folder, not stored in git). Keep this folder on the server: it is the code, and the image is built from it. To ship a newer corpus, bake it from a running asset root (only the live version and its search index; a previous bake is renamed, not deleted):
 
 ```powershell
 cd backend
@@ -98,13 +98,21 @@ Default models: OpenAI `gpt-6.1-sol`, Claude `claude-sonnet-5-5`, Gemini `gemini
 
 Recipients who only pull/run a pre-built image do **not** need a separate PDF folder or a multi-hour ingest — documents and local indexes ship in the image.
 
-4. Start everything:
+4. Start everything. Two cases:
 
-```powershell
-docker compose up -d --build
-```
+   - **A. The server already runs Nginx** (most likely): start the app, then add the Nginx file as in [Behind Nginx](#behind-nginx-red-hat-server).
 
-5. Open **http://localhost:8080**, sign in with the bootstrap admin account.
+     ```bash
+     docker compose up -d --build
+     ```
+
+   - **B. Nothing is installed but Docker**: the same command with `--profile nginx` also starts an Nginx container in front of the app. See [Server with nothing installed](#server-with-nothing-installed-nginx-included).
+
+     ```bash
+     docker compose --profile nginx up -d --build
+     ```
+
+5. Open **http://localhost:8080** on the server itself (or the server's address in case B), sign in with the bootstrap admin account.
 6. Optional: upload more PDFs in the admin UI. The 454 PDFs baked into the image are already searchable (the Overview counts them); upload only new ones.
 7. Approve other user accounts when they register.
 
@@ -116,7 +124,11 @@ docker compose up -d --build
 docker compose logs app > bct-log.txt
 ```
 
-The same lines are kept in `/data/state/logs/bct.log` in the app-data volume, so they survive a restart.
+The same lines are kept in `/data/state/logs/bct.log` in the app-data volume, so they survive a restart and a re-created container (`docker compose cp app:/data/state/logs/bct.log .` copies it out). What to look for first:
+
+- `Startup check:` — written at every start. It names what is missing: no answer-model key, an empty index, no admin account, too little memory or disk.
+- `Unexpected error <reference>` — any crash, with its full error. The user sees the same reference on screen (*Unexpected server error (reference 3f9a2c1b)*): search the log for it.
+- `WARNING` and `ERROR` lines — a failed upload or page reading, an answer model that refused the key or was out of quota, an index that could not be updated.
 
 If the log says *the GPU driver was reset* (Windows laptops under heavy load), restart the app: a process cannot use the GPU again after a driver reset.
 
@@ -149,7 +161,7 @@ Search and answers run in about 3 GB. Indexing an uploaded PDF starts the Doclin
 
 ### Servers without internet
 
-Build the image on a connected machine, then move it: `docker save bct-regulatory-search:pilot -o bct.tar`, copy `bct.tar`, `docker load -i bct.tar` on the server, and start it with `docker compose up -d` (no `--build`).
+Building the image downloads Python packages, the models and the base images, so the server needs internet while it builds (afterwards it runs without). Only if it never has internet: build on a connected machine, `docker save bct-regulatory-search:pilot nginx:1.30-alpine -o bct.tar`, copy `bct.tar` with the project folder, `docker load -i bct.tar` on the server, and start without `--build`.
 
 ### Behind Nginx (Red Hat server)
 
@@ -177,6 +189,37 @@ What the Nginx file sets for this app, and why (each one breaks something if lef
 | `proxy_request_buffering off` | | large uploads are first written to Nginx's own disk |
 
 The compose file sets `FORWARDED_ALLOW_IPS: "*"` so the app trusts the address Nginx forwards; that is safe because only the server itself can reach port 8080.
+
+### Server with nothing installed (Nginx included)
+
+For a Red Hat server with no Nginx of its own: Docker runs both the app and an Nginx in front of it. Nothing else is installed on the server.
+
+1. Install Docker Engine with its Compose plugin (Red Hat's own `podman` does not run this compose file), then start it:
+   ```bash
+   sudo dnf -y install dnf-plugins-core
+   ```
+   ```bash
+   sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+   ```
+   ```bash
+   sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+   ```
+   ```bash
+   sudo systemctl enable --now docker
+   ```
+2. Copy the project folder to the server (with `documents/` and `baked-runtime-assets/`) and fill `.env` as in [What you must do](#what-you-must-do).
+3. HTTPS: put the server's certificate in `deploy/nginx/certs/` as `bct.crt` (with its chain) and `bct.key`, and set `BCT_COOKIE_SECURE=1` in `.env`. Without a certificate the Nginx serves plain HTTP (its log says so): keep `BCT_COOKIE_SECURE=0`, or nobody can sign in. Plain HTTP is for a first test only, since passwords then cross the network unencrypted.
+4. Open the web ports in the firewall:
+   ```bash
+   sudo firewall-cmd --permanent --add-service=http --add-service=https && sudo firewall-cmd --reload
+   ```
+5. Start, from the project folder:
+   ```bash
+   sudo docker compose --profile nginx up -d --build
+   ```
+6. Open `https://<server address>` (or `http://` without a certificate).
+
+The Nginx container uses the same settings as the file for a server's own Nginx (50 MB uploads, 5-minute answers, the user's real address), from `deploy/nginx/docker/`. If something else on the server already uses port 80 or 443, set `BCT_HTTP_PORT` / `BCT_HTTPS_PORT` in `.env`. `docker compose logs nginx` shows whether it started with HTTPS. To update later: replace the project folder (keep `.env` and `deploy/nginx/certs/`), then run the start command again.
 
 ### Optional later
 - To open port 8080 to the network without Nginx (a quick test on a LAN), set `BCT_PUBLISH_ADDRESS=0.0.0.0` in `.env`.
@@ -278,7 +321,6 @@ pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tab
 - Circuit breaker: 3 consecutive page failures (e.g. the OCR worker crashing on VRAM exhaustion) pause visual reading for 10 minutes and free the models; the PDF stays searchable meanwhile.
 - CLI: `python ingest.py …` runs the quick pass and then enriches inline; `--quick-only` leaves the pending pages to a running API started with `--enable-ingestion`. Restart the API after a CLI ingest so it loads the new asset version.
 - Tuning: `BCT_INGEST_BATCH` (25 PDFs per index rebuild), `BCT_ENRICH_BATCH_PAGES` (20), `BCT_ENRICH_BATCH_SECONDS` (600), `BCT_ENRICH_IDLE_SECONDS` (3, quiet time after a chat), `BCT_ENRICH_MAX_ATTEMPTS` (3), `BCT_ENRICH_BREAKER_FAILURES` (3), `BCT_ENRICH_COOLDOWN_SECONDS` (600); `BCT_ENRICHMENT=0` disables the worker.
-- Tracing (optional): set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL`. Each PDF version is one Langfuse session (`ingest-<sha256>`): the `ingest-document` quick-pass trace, one `enrich-page` trace per page (engine, seconds, chat wait, cold start), `activate-enrichment` per batch, and `open-circuit-breaker` warnings.
 - A page whose native text contradicts its filename (reversed / font-garbled digits, e.g. `لسنة 6112`) is re-read from the page image by the active visual backend and the transcription becomes the page's text (`native_replaced_by_visual`). The garbled native text stays in `structured.json` only.
 
 ---

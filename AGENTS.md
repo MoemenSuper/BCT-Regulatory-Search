@@ -22,7 +22,7 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Conversation routing and follow-ups | `backend/conversation.py` |
 | Profiles `cloud` / `local_hybrid` / `local` | `backend/runtime_profiles.py` |
 | Answer model provider (OpenAI / Claude / Gemini / Groq / Ollama; one key is enough) | `backend/llm.py` (`answer_provider`, `create_llm`) |
-| Nginx in front of the container | `deploy/nginx/bct-regulatory-search.conf` |
+| Nginx in front of the container | the server's own Nginx: `deploy/nginx/bct-regulatory-search.conf`; bundled Nginx (`docker compose --profile nginx`): `deploy/nginx/docker/` (same settings: change both) |
 | Retrieval + evidence selection | `backend/runtime_retrieval.py` (local backend + `create_local_backend`), `backend/retrieval_selection.py` |
 | Search speed on CPU (one reranker wording per script, `BCT_SPEED_MODE` 8-bit reranker) | `backend/runtime_retrieval.py` (`script_scores`), `backend/reranker.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |
