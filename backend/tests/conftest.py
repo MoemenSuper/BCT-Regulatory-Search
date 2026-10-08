@@ -1,14 +1,6 @@
-import os
-
 import pytest
 
-# Set before app/llm import: llm.py loads the developer's .env, and tests must never send traces
-# to Langfuse Cloud with those keys. Blank (not removed) so load_dotenv does not fill them back in;
-# tests that check tracing build their own in-memory client.
-for _key in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_HOST"):
-    os.environ[_key] = ""
-
-from app import app  # noqa: E402
+from app import app
 from identity import AuthStore, UserRecord, require_admin, require_approved_user, require_user
 
 _TEST_USER = UserRecord(

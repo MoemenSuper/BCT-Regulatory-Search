@@ -165,7 +165,7 @@ def main() -> None:
     logger.info(f"BCT runtime assets: {active}")
     logger.info(f"BCT documents: {documents}")
     logger.info(f"BCT UI: {static_dir}")
-    uvicorn.run(build_gateway(static_dir), host=host, port=port)
+    uvicorn.run(build_gateway(static_dir), host=host, port=port, log_config=None)  # uvicorn logs go to bct.log too
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ def main() -> None:
     print(f"BCT default profile: {os.environ.get('BCT_DEFAULT_PROFILE')}")
     print(f"BCT chroma: {os.environ.get('BCT_CHROMA_DB')}")
     print(f"BCT collection: {os.environ.get('BCT_CHROMA_COLLECTION')}")
-    uvicorn.run("app:app", host="127.0.0.1", port=args.port)
+    uvicorn.run("app:app", host="127.0.0.1", port=args.port, log_config=None)  # uvicorn logs go to bct.log too
 
 
 if __name__ == "__main__":

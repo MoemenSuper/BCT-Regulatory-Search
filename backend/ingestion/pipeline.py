@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from filelock import FileLock
-from langfuse import get_client, propagate_attributes
 
 from .chunk import build_runtime_chunks
 from .extract import ImageRegions, PdfExtractor, sha256_file
@@ -124,15 +123,6 @@ def _read_snapshot(active: Path) -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
-def ingest_session_id(content_sha256: str) -> str:
-    """Langfuse session: the quick pass plus every enrichment trace of one PDF version."""
-    return f"ingest-{content_sha256}"
-
-
-def _step(name: str, **kwargs):
-    return get_client().start_as_current_observation(name=name, **kwargs)
-
-
 def _memory_mb() -> dict[str, float]:
     try:
         import psutil
@@ -162,41 +152,22 @@ def _extract_summary(structured) -> dict:
     }
 
 
-def _traced(name: str, run, *, input: dict, tags: list[str]) -> dict:
-    """One Langfuse trace per ingest/remove; a no-op client when LANGFUSE_* keys are unset."""
-    langfuse = get_client()
-    with langfuse.start_as_current_observation(name=name, input=input) as root, propagate_attributes(
-        trace_name=name,
-        tags=tags,
-        metadata={"filename": str(input.get("filename", ""))[:200]},
-    ):
-        memory_before = _memory_mb()
-        try:
-            report = run()
-        except Exception as error:
-            root.update(
-                level="ERROR",
-                status_message=f"{type(error).__name__}: {error}"[:1000],
-                output={"status": "failed", "error": f"{type(error).__name__}: {error}"},
-                metadata={"memory_before": memory_before, "memory_after": _memory_mb()},
-            )
-            raise
-        report = {**report, "langfuse_trace_id": langfuse.get_current_trace_id()}
-        root.update(
-            output={key: report.get(key) for key in (
-                "status", "searchable", "enrichment", "duplicate", "pages", "visual_pages", "native_chunks_added",
-                "visual_chunks_added", "local_indexed", "asset_version", "native_chunks_remaining",
-            ) if key in report},
-            metadata={"memory_before": memory_before, "memory_after": _memory_mb()},
-        )
-        return report
+def _logged(name: str, run, *, subject: str) -> dict:
+    """Run an ingest or a removal and leave one log line: how it ended, or the error and memory use."""
+    memory_before = _memory_mb()
+    try:
+        report = run()
+    except Exception:
+        logger.exception("%s failed for %s (memory before %s, after %s)", name, subject, memory_before, _memory_mb())
+        raise
+    logger.info("%s %s: status=%s", name, subject, report.get("status"))
+    return report
 
 
 def _prune(root: Path) -> None:
     """Drop superseded asset versions; a cleanup failure never fails the committed activation."""
     try:
-        with _step("prune-versions") as span:
-            span.update(output=prune_versions(root))
+        prune_versions(root)
     except Exception:
         logging.getLogger(__name__).warning("Asset version pruning failed.", exc_info=True)
 
@@ -272,11 +243,8 @@ def _stage_supersession_edges(active_before: Path, staged_version: Path, filenam
             report["fallback"] = "copied_prior_edges"
         except Exception as copy_error:
             report["fallback_error"] = f"{type(copy_error).__name__}: {copy_error}"
-    get_client().create_event(
-        name="merge-supersession-edges",
-        output=report,
-        **({"level": "WARNING", "status_message": str(report["warning"])} if "warning" in report else {}),
-    )
+    if "warning" in report:
+        logger.warning("Relations between texts not updated for %s: %s", filename, report)
     return report
 
 
@@ -291,22 +259,10 @@ class IngestionPipeline:
         self.registry.close()
 
     def ingest(self, pdf_path: str | Path, *, original_filename: str | None = None, metadata: dict | None = None) -> dict:
-        from .local_visual import visual_backend_name
-
-        profile = (os.environ.get("BCT_DEFAULT_PROFILE") or "local_hybrid").strip().casefold()
-        trace_input = {
-            "filename": original_filename or Path(pdf_path).name,
-            "bytes": Path(pdf_path).stat().st_size if Path(pdf_path).exists() else None,
-            "metadata": metadata or {},
-            "profile": profile,
-            "visual_backend": visual_backend_name(),
-            "build_local_index": self.config.build_local,
-        }
-        return _traced(
+        return _logged(
             "ingest-document",
             lambda: self._ingest(pdf_path, original_filename=original_filename, metadata=metadata),
-            input=trace_input,
-            tags=["ingestion", profile, str((metadata or {}).get("doc_kind") or (metadata or {}).get("type") or "unspecified")],
+            subject=original_filename or Path(pdf_path).name,
         )
 
     def _ingest(self, pdf_path: str | Path, *, original_filename: str | None = None, metadata: dict | None = None) -> dict:
@@ -328,10 +284,8 @@ class IngestionPipeline:
         source_path = Path(pdf_path).resolve(strict=True)
         filename = _safe_filename(original_filename or source_path.name)
         metadata = _clean_metadata(metadata)
-        with _step("validate-pdf", input={"filename": filename}) as span:
-            validate_pdf_file(source_path, max_bytes=self.config.max_pdf_bytes)
-            content_hash = sha256_file(source_path)
-            span.update(output={"content_sha256": content_hash})
+        validate_pdf_file(source_path, max_bytes=self.config.max_pdf_bytes)
+        content_hash = sha256_file(source_path)
         known = self.registry.get(content_hash)
         if known and known.get("status") in SEARCHABLE and known.get("report"):
             return {**known["report"], "duplicate": True}
@@ -356,15 +310,12 @@ class IngestionPipeline:
         worker waits there for chat). NotEnoughMemory leaves that PDF and the rest queued.
         Returns content_sha256 -> report.
         """
-        with _step("ingest-batch", input={"limit": limit}) as span:
-            reports, _errors = self._ingest_batch(self.registry.next_queued(limit), before_each=before_each)
-            span.update(output={content_hash: report.get("status") for content_hash, report in reports.items()})
+        reports, _errors = self._ingest_batch(self.registry.next_queued(limit), before_each=before_each)
         return reports
 
     def _ingest_batch(self, jobs: list[dict], *, before_each=None) -> tuple[dict[str, dict], dict[str, Exception]]:
         lock = FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30)
-        with _step("wait-ingestion-lock", input={"timeout_s": lock.timeout}):
-            lock.acquire()
+        lock.acquire()
         reports: dict[str, dict] = {}
         errors: dict[str, Exception] = {}
         prepared: list[_Prepared] = []
@@ -382,8 +333,7 @@ class IngestionPipeline:
                     if before_each is not None:
                         before_each(job)
                     self.registry.start(content_hash, filename, str(stored))
-                    with propagate_attributes(session_id=ingest_session_id(content_hash)):
-                        prepared.append(self._prepare(content_hash, filename, stored, metadata))
+                    prepared.append(self._prepare(content_hash, filename, stored, metadata))
                 except NotEnoughMemory as error:
                     self.registry.queue(content_hash, filename, str(stored), metadata)
                     logger.warning("Not enough memory to read %s; it stays queued: %s", filename, error)
@@ -418,17 +368,14 @@ class IngestionPipeline:
     def _prepare(self, content_hash: str, filename: str, immutable_pdf: Path, metadata: dict) -> "_Prepared":
         """Extract one PDF (visual results from the page ledger) and chunk it."""
         immutable_dir = immutable_pdf.parent
-        with _step("extract-document", input={"pdf": filename}) as span:
-            visual_results, visual_model = self._visual_results(content_hash)
-            structured = PdfExtractor(visual_model=visual_model).extract(
-                immutable_pdf, visual_results=visual_results, layout_cache=immutable_dir / "docling-layout.json"
-            )
-            summary = _extract_summary(structured)
-            span.update(
-                output=summary,
-                **({"level": "WARNING", "status_message": f"{summary['degraded_count']} degraded pages"}
-                   if summary["degraded_count"] else {}),
-            )
+        visual_results, visual_model = self._visual_results(content_hash)
+        structured = PdfExtractor(visual_model=visual_model).extract(
+            immutable_pdf, visual_results=visual_results, layout_cache=immutable_dir / "docling-layout.json"
+        )
+        summary = _extract_summary(structured)
+        if summary["degraded_count"]:
+            logger.warning("%s: %d page(s) could not be read well: %s", filename, summary["degraded_count"],
+                           summary["degraded_pages"][:5])
         from document_authority import authority_for_kind, resolve_doc_kind
 
         doc_kind = resolve_doc_kind(
@@ -458,15 +405,13 @@ class IngestionPipeline:
             ],
         )
         progress = self.registry.progress(content_hash)
-        with _step("chunk-document") as span:
-            try:
-                primary, visual = build_runtime_chunks(structured)
-            except ValueError:
-                if not progress["pending"]:
-                    raise
-                # Nothing readable natively (scanned PDF): searchable once enrichment reads it.
-                primary, visual = [], []
-            span.update(output={"native_chunks": len(primary), "visual_chunks": len(visual)})
+        try:
+            primary, visual = build_runtime_chunks(structured)
+        except ValueError:
+            if not progress["pending"]:
+                raise
+            # Nothing readable natively (scanned PDF): searchable once enrichment reads it.
+            primary, visual = [], []
         return _Prepared(content_hash, filename, immutable_pdf, metadata, structured, structured_path,
                          primary, visual, progress)
 
@@ -550,35 +495,30 @@ class IngestionPipeline:
         try:
             active_before = resolve_active_assets(root)
             base_snapshot = _read_snapshot(active_before)
-            with _step("stage-assets", input={"active_before": active_before.name}) as span:
-                staged_version, staged_snapshot = stage_assets(
-                    asset_root=root,
-                    new_primary=new_primary,
-                    new_visual=new_visual,
-                    content_sha256=changes[0].content_hash,
-                    source_filenames=filenames,
-                    allow_empty=removal,
-                    removal=removal,
-                )
-                span.update(output=staged_snapshot)
+            staged_version, staged_snapshot = stage_assets(
+                asset_root=root,
+                new_primary=new_primary,
+                new_visual=new_visual,
+                content_sha256=changes[0].content_hash,
+                source_filenames=filenames,
+                allow_empty=removal,
+                removal=removal,
+            )
             version = staged_snapshot["version"]
 
             if self.config.build_local:
-                with _step("stage-local-index", input={"version": version}) as span:
-                    local_index = stage_local_collections(
-                        asset_root=root,
-                        version_id=version,
-                        all_primary=_read_chunks(staged_version / "native.jsonl"),
-                        all_visual=_read_chunks(staged_version / "arabic_ocr_secondary.jsonl"),
-                        new_primary=new_primary,
-                        new_visual=new_visual,
-                        base_snapshot=base_snapshot,
-                        source_filenames=filenames,
-                    )
-                    span.update(
-                        output=local_index or {"skipped": True},
-                        **({} if local_index else {"level": "WARNING", "status_message": "local Chroma index not updated"}),
-                    )
+                local_index = stage_local_collections(
+                    asset_root=root,
+                    version_id=version,
+                    all_primary=_read_chunks(staged_version / "native.jsonl"),
+                    all_visual=_read_chunks(staged_version / "arabic_ocr_secondary.jsonl"),
+                    new_primary=new_primary,
+                    new_visual=new_visual,
+                    base_snapshot=base_snapshot,
+                    source_filenames=filenames,
+                )
+                if not local_index:
+                    logger.warning("Search index (Chroma) not updated for version %s", version)
 
             # Each PDF's edges replace its old ones; the next PDF starts from the edges just staged.
             supersession = {}
@@ -587,8 +527,7 @@ class IngestionPipeline:
                     active_before if index == 0 else staged_version, staged_version, change.filename, change.pages, root
                 )
 
-            with _step("activate-version", input={"version": version}):
-                pointer = activate_assets(root, staged_version, snapshot_updates=local_index)
+            pointer = activate_assets(root, staged_version, snapshot_updates=local_index)
             activated = ActivatedVersion(version, staged_snapshot, pointer, local_index, supersession)
             try:
                 result = record(activated)
@@ -647,8 +586,7 @@ class IngestionPipeline:
     def enrich_activate(self, content_hash: str) -> dict:
         """Re-extract with every page read so far and make it live (background worker)."""
         lock = FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30)
-        with _step("wait-ingestion-lock", input={"timeout_s": lock.timeout}):
-            lock.acquire()
+        lock.acquire()
         try:
             # Checked under the lock: the document may have been removed while we waited.
             known = self.registry.get(content_hash)
@@ -665,12 +603,7 @@ class IngestionPipeline:
             lock.release()
 
     def remove(self, content_sha256: str) -> dict:
-        return _traced(
-            "remove-document",
-            lambda: self._remove(content_sha256),
-            input={"document_id": content_sha256},
-            tags=["ingestion", "removal"],
-        )
+        return _logged("remove-document", lambda: self._remove(content_sha256), subject=content_sha256)
 
     def _drop_unindexed(self, content_hash: str, known: dict) -> dict:
         """A queued or failed upload never reached the index: forget it, no new asset version."""

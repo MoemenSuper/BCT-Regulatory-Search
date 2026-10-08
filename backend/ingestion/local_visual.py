@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
-
-from langfuse import get_client
 
 from hardware import memory_gb, torch_device
 
 from .models import VisualPage
+
+logger = logging.getLogger(__name__)
 
 ENGINE_EASY = "easyocr-ar-v1"
 ENGINE_PADDLE = "paddleocr-vl-1.6-v1"
@@ -38,28 +39,6 @@ def _cache_put(cache_dir: Path, binding: dict, page: VisualPage) -> None:
         encoding="utf-8",
     )
     os.replace(tmp, path)
-
-
-def _ocr_generation(engine: str, page_number: int, image_png: bytes):
-    return get_client().start_as_current_observation(
-        name="transcribe-page",
-        as_type="generation",
-        model=engine,
-        input={"page": page_number, "image_bytes": len(image_png)},
-    )
-
-
-def _traced(generation, page: VisualPage, **metadata) -> VisualPage:
-    generation.update(
-        output={
-            "transcription": page.transcription[:2000],
-            "transcription_chars": len(page.transcription),
-            "chart_notes": (page.chart_notes or "")[:1000],
-            "contains_chart": page.contains_chart,
-        },
-        metadata=metadata,
-    )
-    return page
 
 
 def _binding(engine: str, image_png: bytes, pdf_sha: str, page_number: int) -> dict:
@@ -90,26 +69,24 @@ class EasyOcrVisual:
         return self._reader
 
     def transcribe(self, *, image_png: bytes, source_pdf_sha256: str, page_number: int, **_) -> VisualPage:
-        with _ocr_generation(self.model, page_number, image_png) as generation:
-            binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
-            hit = _cache_get(self.cache_dir, binding)
-            if hit is not None:
-                return _traced(generation, hit, cache_hit=True)
-            import tempfile
+        binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
+        hit = _cache_get(self.cache_dir, binding)
+        if hit is not None:
+            return hit
+        import tempfile
 
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
-                handle.write(image_png)
-                path = handle.name
-            try:
-                cold = self._reader is None
-                rows = self._get_reader().readtext(path, detail=0, paragraph=True)
-            finally:
-                Path(path).unlink(missing_ok=True)
-            text = "\n".join(rows) if isinstance(rows, list) else str(rows)
-            text = text.strip()
-            page = VisualPage(transcription=text, items=[], uncertain_regions=[], complete=True, contains_chart=False)
-            _cache_put(self.cache_dir, binding, page)
-            return _traced(generation, page, cache_hit=False, model_cold_start=cold)
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
+            handle.write(image_png)
+            path = handle.name
+        try:
+            rows = self._get_reader().readtext(path, detail=0, paragraph=True)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        text = "\n".join(rows) if isinstance(rows, list) else str(rows)
+        text = text.strip()
+        page = VisualPage(transcription=text, items=[], uncertain_regions=[], complete=True, contains_chart=False)
+        _cache_put(self.cache_dir, binding, page)
+        return page
 
 
 def _paddle_gpu_cap_mb() -> int | None:
@@ -200,34 +177,30 @@ class PaddleVlVisual:
         env.pop("PYTHONPATH", None)
         worker = Path(__file__).resolve().parent / "paddle_vl_worker.py"
         python = self._paddle_python()
-        with get_client().start_as_current_observation(
-            name="start-paddle-worker",
-            input={"python": python, "device": self._device, "gpu_memory_limit_mb": env.get("FLAGS_gpu_memory_limit_mb")},
-        ) as span:
-            self._proc = subprocess.Popen(
-                [python, "-u", str(worker)],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,  # avoid pipe-full deadlock while models load
-                text=True,
-                encoding="utf-8",
-                env=env,
-                bufsize=1,
-            )
-            assert self._proc.stdout is not None
-            ready = self._proc.stdout.readline()
-            if not ready:
-                try:
-                    exit_code = self._proc.wait(timeout=30)
-                except subprocess.TimeoutExpired:
-                    self._proc.kill()
-                    exit_code = "killed"
-                self._proc = None
-                raise RuntimeError(f"PaddleOCR-VL worker failed to start on {self._device} ({python}, exit={exit_code})")
-            payload = json.loads(ready)
-            if not payload.get("ok"):
-                raise RuntimeError(f"PaddleOCR-VL worker init failed: {payload}")
-            span.update(output={"pid": self._proc.pid, "ready": payload})
+        self._proc = subprocess.Popen(
+            [python, "-u", str(worker)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # avoid pipe-full deadlock while models load
+            text=True,
+            encoding="utf-8",
+            env=env,
+            bufsize=1,
+        )
+        assert self._proc.stdout is not None
+        ready = self._proc.stdout.readline()
+        if not ready:
+            try:
+                exit_code = self._proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                exit_code = "killed"
+            self._proc = None
+            raise RuntimeError(f"PaddleOCR-VL worker failed to start on {self._device} ({python}, exit={exit_code})")
+        payload = json.loads(ready)
+        if not payload.get("ok"):
+            raise RuntimeError(f"PaddleOCR-VL worker init failed: {payload}")
+        logger.info("PaddleOCR-VL worker started on %s (pid %s)", self._device, self._proc.pid)
 
     def _ask(self, request: dict) -> dict:
         with self._ensure_lock():
@@ -238,9 +211,7 @@ class PaddleVlVisual:
                     if not self._device.startswith("gpu"):
                         raise
                     # Not enough free VRAM (small GPU, or search models resident): same model on CPU.
-                    get_client().create_event(
-                        name="paddle-cpu-fallback", level="WARNING", status_message=str(error)[:1000]
-                    )
+                    logger.warning("PaddleOCR-VL could not start on the GPU; using the CPU: %s", str(error)[:1000])
                     self._device = "cpu"
                     self._start_worker()
             assert self._proc is not None and self._proc.stdin and self._proc.stdout
@@ -284,36 +255,34 @@ class PaddleVlVisual:
                 pass
 
     def transcribe(self, *, image_png: bytes, source_pdf_sha256: str, page_number: int, **_) -> VisualPage:
-        with _ocr_generation(self.model, page_number, image_png) as generation:
-            binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
-            hit = _cache_get(self.cache_dir, binding)
-            if hit is not None:
-                return _traced(generation, hit, cache_hit=True)
-            import shutil
-            import tempfile
+        binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
+        hit = _cache_get(self.cache_dir, binding)
+        if hit is not None:
+            return hit
+        import shutil
+        import tempfile
 
-            tmp = Path(tempfile.mkdtemp(prefix="bct-paddle-vl-"))
-            png_path = tmp / "page.png"
-            out_dir = tmp / "out"
-            out_dir.mkdir()
-            try:
-                png_path.write_bytes(image_png)
-                cold = self._proc is None or self._proc.poll() is not None
-                result = self._ask({"cmd": "predict", "png": str(png_path), "out_dir": str(out_dir)})
-                if not result.get("ok"):
-                    raise RuntimeError(result.get("error") or "PaddleOCR-VL worker error")
-                page = VisualPage(
-                    transcription=str(result.get("transcription") or "").strip(),
-                    items=[],
-                    uncertain_regions=[],
-                    complete=True,
-                    contains_chart=bool(result.get("contains_chart")),
-                    chart_notes=str(result.get("chart_notes") or ""),
-                )
-            finally:
-                shutil.rmtree(tmp, ignore_errors=True)
-            _cache_put(self.cache_dir, binding, page)
-            return _traced(generation, page, cache_hit=False, model_cold_start=cold)
+        tmp = Path(tempfile.mkdtemp(prefix="bct-paddle-vl-"))
+        png_path = tmp / "page.png"
+        out_dir = tmp / "out"
+        out_dir.mkdir()
+        try:
+            png_path.write_bytes(image_png)
+            result = self._ask({"cmd": "predict", "png": str(png_path), "out_dir": str(out_dir)})
+            if not result.get("ok"):
+                raise RuntimeError(result.get("error") or "PaddleOCR-VL worker error")
+            page = VisualPage(
+                transcription=str(result.get("transcription") or "").strip(),
+                items=[],
+                uncertain_regions=[],
+                complete=True,
+                contains_chart=bool(result.get("contains_chart")),
+                chart_notes=str(result.get("chart_notes") or ""),
+            )
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        _cache_put(self.cache_dir, binding, page)
+        return page
 
 
 class LocalVisualRouter:
@@ -357,12 +326,7 @@ class LocalVisualRouter:
             except Exception as error:
                 if getattr(self._paddle, "killed", False):
                     raise  # interrupted for chat: re-read the whole page later
-                get_client().create_event(
-                    name="skip-chart-notes",
-                    level="WARNING",
-                    status_message=f"{type(error).__name__}: {error}",
-                    metadata={"page": page_number},
-                )
+                logger.warning("Charts and tables of page %d not read: %s: %s", page_number, type(error).__name__, error)
                 return body
             self.last_model = f"{self._easy.model}+{self._paddle.model}"
             notes = (charts.chart_notes or charts.transcription or "").strip()

@@ -6,14 +6,16 @@ import json
 import logging
 import os
 import re
+import shutil
 import time
+import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
 import csv
@@ -21,7 +23,6 @@ import io
 from datetime import datetime, timezone
 
 from app_settings import open_app_settings
-import chat_tracing
 from conversation import chat
 from conversation_memory import open_conversation_store, summarize_conversation_title
 from identity import (
@@ -36,7 +37,8 @@ from identity import (
 )
 from langchain_core.callbacks import get_usage_metadata_callback
 
-from llm import PROVIDER_ERRORS, create_llm
+from hardware import memory_gb
+from llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm
 from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile, profile_options
 from runtime_retrieval import create_local_backend
 # Optional cloud profile: only called when the cloud profile is selected.
@@ -127,6 +129,32 @@ def _warm_start(profile_manager, settings_store) -> None:
     logger.info(f"Search models ready in {time.monotonic() - started:.1f}s.")
 
 
+def _startup_checks(auth_store) -> None:
+    """Settings an administrator must fix, as "Startup check" lines in the log (first deployments)."""
+    problems = []
+    provider = answer_provider()
+    key = ANSWER_PROVIDERS.get(provider, ("",))[0]
+    if key and not (os.environ.get(key) or "").strip():
+        problems.append(f"no key for the answer model ({provider}): set {key} in .env or Admin > Configuration; "
+                        "every question will fail")
+    pdfs = indexed_pdf_count()
+    if not pdfs:
+        problems.append("the search index has no PDF: every question will find nothing (bct-assets volume, "
+                        "BCT_RUNTIME_ASSET_ROOT)")
+    if not any(user.role == "admin" for user in auth_store.list_users()):
+        problems.append("no administrator account: set BCT_BOOTSTRAP_ADMIN_EMAIL and BCT_BOOTSTRAP_ADMIN_PASSWORD")
+    memory = memory_gb()
+    if memory and memory[0] < 8:
+        problems.append(f"only {memory[0]:.1f} GB of memory: search needs about 3 GB, indexing an upload 4 GB more")
+    root = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
+    if root and Path(root).exists() and shutil.disk_usage(root).free < 5 * 2**30:
+        problems.append(f"less than 5 GB of free disk for {root}: uploads may fail")
+    for problem in problems:
+        logger.warning("Startup check: %s.", problem)
+    if not problems:
+        logger.info("Startup check: OK (answer model %s, %d PDFs indexed).", provider, pdfs)
+
+
 def _start_enrichment(app: FastAPI):
     """Background visual reading of pages the quick ingest pass left pending."""
     if os.environ.get("BCT_ENABLE_INGESTION") != "1" or not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
@@ -174,6 +202,7 @@ async def lifespan(app: FastAPI):
     conversation_store = open_conversation_store()
     app.state.conversation_store = conversation_store
     app.state.source_resolver = SourceDocumentResolver()
+    _startup_checks(auth_store)
     status = supersession_status()
     print(
         f"Supersession edges\n  ready: {status['ready']}\n  edge_count: {status['edge_count']}",
@@ -195,6 +224,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def log_unexpected_errors(request: Request, call_next):
+    """Any error no route handled: its traceback in the log, and a reference the user can quote."""
+    try:
+        return await call_next(request)
+    except Exception:
+        reference = uuid.uuid4().hex[:8]
+        logger.exception("Unexpected error %s on %s %s", reference, request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": f"Unexpected server error (reference {reference})."})
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -807,9 +848,7 @@ def post_chat(
             raise HTTPException(status_code=402, detail=str(error)) from error
         try:
             # Groq usage via LangChain callback; Voyage embed/rerank via live API usage.
-            with track_cloud_retrieval_usage() as voyage_usage, chat_tracing.chat_turn(
-                question, conversation_id=conversation_id, user_id=user.id, profile=profile,
-            ) as turn_span:
+            with track_cloud_retrieval_usage() as voyage_usage:
                 with get_usage_metadata_callback() as usage_cb:
                     result = chat(
                         question,
@@ -818,13 +857,6 @@ def post_chat(
                         llm_provider=runtime.answer_provider,
                     )
                     turn_usage = dict(usage_cb.usage_metadata)
-                turn_span.update(
-                    output={"status": result.get("status"), "answer": result.get("answer"),
-                            "sources": result.get("sources")},
-                    metadata={"refusal_reason": result.get("refusal_reason"),
-                              "diagnostics": result.get("refusal_diagnostics"), "usage": turn_usage},
-                    level="WARNING" if result.get("refusal_reason") else "DEFAULT",
-                )
                 embed_tokens = int(voyage_usage.embed_tokens)
                 rerank_tokens = int(voyage_usage.rerank_tokens)
         except PROVIDER_ERRORS:
@@ -838,9 +870,6 @@ def post_chat(
             if "CUDA error" in str(error):
                 logger.error("The GPU driver was reset; this process cannot use the GPU again. Restart the server.")
             raise HTTPException(status_code=503, detail="Selected runtime is unavailable.")
-        except Exception:
-            logger.exception("Chat request failed.")
-            raise HTTPException(status_code=500, detail="Chat service failed.")
 
         logger.info(
             "chat status=%s seconds=%.1f sources=%d refusal=%s diagnostics=%s question=%r",
@@ -1125,21 +1154,18 @@ async def ingest_document(
         if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
             raise HTTPException(status_code=503, detail="Runtime asset root is not configured.")
 
-        from langfuse import propagate_attributes
-
         config = IngestionConfig.from_environment()
         pipeline = IngestionPipeline(config)
         worker = getattr(request.app.state, "enrichment", None)
         try:
-            with propagate_attributes(user_id=admin.id):
-                # With the background worker the PDF is only stored and queued: it is indexed with
-                # the next batch, so a large upload never rebuilds the index once per PDF.
-                report = await run_in_threadpool(
-                    pipeline.queue if worker is not None else pipeline.ingest,
-                    temporary_path,
-                    original_filename=filename or "document.pdf",
-                    metadata=metadata,
-                )
+            # With the background worker the PDF is only stored and queued: it is indexed with
+            # the next batch, so a large upload never rebuilds the index once per PDF.
+            report = await run_in_threadpool(
+                pipeline.queue if worker is not None else pipeline.ingest,
+                temporary_path,
+                original_filename=filename or "document.pdf",
+                metadata=metadata,
+            )
         finally:
             pipeline.close()
         if worker is not None:

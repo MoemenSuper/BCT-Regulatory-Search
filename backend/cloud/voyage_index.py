@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 from langchain_core.documents import Document
-from langfuse import get_client
 
 from cloud.voyage_client import VOYAGE_SPEC, create_cloud_runtime_client
 from cloud.voyage_retrieval import _load_bound_index
@@ -98,14 +97,7 @@ def _embed_new(client, documents: list[Document]) -> np.ndarray:
     dimension = int(getattr(client, "dimension", VOYAGE_SPEC.dimension))
     if not documents:
         return np.empty((0, dimension), dtype=np.float32)
-    texts = [document.page_content for document in documents]
-    with get_client().start_as_current_observation(
-        name="embed-chunks",
-        as_type="embedding",
-        model=str(getattr(client, "model", "") or VOYAGE_SPEC.model),
-        input={"chunks": len(texts), "chars": sum(map(len, texts))},
-    ):
-        return client.embed_document_chunks(texts)
+    return client.embed_document_chunks([document.page_content for document in documents])
 
 
 def stage_voyage_indexes(

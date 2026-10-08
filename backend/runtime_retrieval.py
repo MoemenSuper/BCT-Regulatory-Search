@@ -154,23 +154,19 @@ class LocalRetrievalBackend:
             retrieve_relevant_chunks(query, self.vector_store),
             retrieve_bm25(query, self.bm25, self.bm25_documents),
         ]
-        lanes = ["dense", "bm25"]
         agreed = []  # chunks both searches rank in their first three for one wording (see promote_agreed_hit)
         if is_arabic_query(query) and self.ocr_vector_store is not None:
             groups.append(retrieve_relevant_chunks(query, self.ocr_vector_store, k=5))
             groups.append(retrieve_bm25(query, self.ocr_bm25, self.ocr_documents, k=5))
-            lanes += ["ocr_dense", "ocr_bm25"]
         # The other wordings bring fewer candidates each: they add what the main query misses.
         for version in other_queries:
             groups.append(retrieve_relevant_chunks(version, self.vector_store, k=10))
             groups.append(retrieve_bm25(version, self.bm25, self.bm25_documents, k=8))
-            lanes += ["dense (other wording)", "bm25 (other wording)"]
             dense_top = {_doc_key(document) for document in groups[-2][:3]}
             agreed += [document for document in groups[-1][:3] if _doc_key(document) in dense_top]
             if is_arabic_query(version) and self.ocr_vector_store is not None:
                 groups.append(retrieve_relevant_chunks(version, self.ocr_vector_store, k=5))
                 groups.append(retrieve_bm25(version, self.ocr_bm25, self.ocr_documents, k=5))
-                lanes += ["ocr_dense (other wording)", "ocr_bm25 (other wording)"]
         identity_refs = query_instrument_refs(query) + list(instruments)
         for identity in identity_refs:
             # ponytail: first 40 chunks of each named instrument; the reranker picks among them
@@ -181,13 +177,6 @@ class LocalRetrievalBackend:
             ]
             if matched_docs:
                 groups.append(matched_docs[:40])
-                lanes.append(f"instrument {identity['year']}-{identity['number']}")
-        import chat_tracing
-
-        chat_tracing.event("retrieval-lanes", output=[
-            {"lane": name, "hits": chat_tracing.brief(group, limit=8)} for name, group in zip(lanes, groups)
-        ], metadata={"identity_refs": [str(r) for r in identity_refs], "pool": len(dedupe(*groups)),
-                     "other_queries": list(other_queries)})
         return promote_agreed_hit(self.rank(query, dedupe(*groups), other_queries), agreed)
 
     def rank(self, query, documents, other_queries=()):

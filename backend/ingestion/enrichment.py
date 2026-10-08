@@ -14,16 +14,13 @@ import os
 import threading
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from pathlib import Path
-
-from langfuse import get_client, propagate_attributes
 
 from .extract import load_layout, page_regions, read_page_visual
 from .local_visual import build_visual_transcriber
 from . import docling_layout
 from .docling_layout import NotEnoughMemory
-from .pipeline import IngestionConfig, IngestionPipeline, ingest_session_id
+from .pipeline import IngestionConfig, IngestionPipeline
 from .registry import SEARCHABLE, IngestionRegistry
 
 logger = logging.getLogger(__name__)
@@ -227,23 +224,6 @@ class EnrichmentWorker:
 
     # ---- one document ----
 
-    @contextmanager
-    def _trace(self, name: str, **observation):
-        """One short Langfuse trace per page / activation, grouped per document by session.
-
-        A multi-hour document-level root span would only export when it ends (or never, if
-        the process is killed); short traces show up live and survive restarts.
-        """
-        content_hash, filename = self._document
-        profile = (os.environ.get("BCT_DEFAULT_PROFILE") or "local_hybrid").strip().casefold()
-        with get_client().start_as_current_observation(name=name, **observation) as span, propagate_attributes(
-            session_id=ingest_session_id(content_hash),
-            trace_name=name,
-            tags=["ingestion", "enrichment", profile],
-            metadata={"filename": filename[:200]},
-        ):
-            yield span
-
     def enrich_document(self, registry: IngestionRegistry, job: dict) -> None:
         self._document = (str(job["content_sha256"]), str(job.get("original_filename") or ""))
         try:
@@ -284,7 +264,7 @@ class EnrichmentWorker:
                     break
                 self._preempted = False
                 self._state = {"state": "reading", "document": filename, "page": page_number}
-                outcome = self._read_page(registry, pdf, content_hash, plan, waited, layout)
+                outcome = self._read_page(registry, pdf, content_hash, plan, layout)
                 if outcome is None:
                     continue  # interrupted by chat: stays pending, not an attempt
                 if outcome:
@@ -310,63 +290,42 @@ class EnrichmentWorker:
             self._activate(content_hash)
         return {"pages_read": read, "pages_failed": failed, "waited_for_chat_s": round(waited_total, 1), "breaker": breaker}
 
-    def _read_page(self, registry: IngestionRegistry, pdf, content_hash: str, plan: dict, waited: float,
+    def _read_page(self, registry: IngestionRegistry, pdf, content_hash: str, plan: dict,
                    layout: dict) -> bool | None:
         page_number = int(plan["page_number"])
-        with self._trace(
-            "enrich-page",
-            as_type="chain",
-            input={
-                "page": page_number,
-                "language": plan["language"],
-                "image_regions": bool(plan["image_regions"]),
-                "priority": plan["priority"],
-                "attempt": int(plan["attempts"]) + 1,
-            },
-            metadata={"waited_for_chat_s": round(waited, 2)},
-        ) as span:
-            started = time.monotonic()
-            try:
-                visual = read_page_visual(
-                    self._transcriber,
-                    pdf.load_page(page_number - 1),
-                    content_hash=content_hash,
-                    page_number=page_number,
-                    language=plan["language"],
-                    regions=page_regions(layout, page_number) if plan["image_regions"] else [],
-                )
-            except Exception as error:
-                message = f"{type(error).__name__}: {error}"
-                if self._preempted:
-                    span.update(status_message=message[:1000], output={"read": False, "preempted_by_chat": True})
-                    return None
-                registry.page_failed(content_hash, page_number, error=message, max_attempts=self.max_attempts)
-                span.update(level="WARNING", status_message=message[:1000], output={"read": False})
-                return False
-            seconds = time.monotonic() - started
-            model = getattr(self._transcriber, "last_model", None) or getattr(self._transcriber, "model", None)
-            registry.page_done(
-                content_hash, page_number, result_json=visual.model_dump_json(), model=model, seconds=seconds
+        started = time.monotonic()
+        try:
+            visual = read_page_visual(
+                self._transcriber,
+                pdf.load_page(page_number - 1),
+                content_hash=content_hash,
+                page_number=page_number,
+                language=plan["language"],
+                regions=page_regions(layout, page_number) if plan["image_regions"] else [],
             )
-            span.update(
-                output={
-                    "read": True,
-                    "model": model,
-                    "seconds": round(seconds, 1),
-                    "chars": len(visual.model_dump_json()),
-                }
-            )
-            return True
+        except Exception as error:
+            if self._preempted:
+                return None  # a chat question stopped the reader; the page is read again later
+            message = f"{type(error).__name__}: {error}"
+            registry.page_failed(content_hash, page_number, error=message, max_attempts=self.max_attempts)
+            logger.warning("Reading page %d of %s failed (attempt %d): %s",
+                           page_number, self._document[1], int(plan["attempts"]) + 1, message)
+            return False
+        seconds = time.monotonic() - started
+        model = getattr(self._transcriber, "last_model", None) or getattr(self._transcriber, "model", None)
+        registry.page_done(
+            content_hash, page_number, result_json=visual.model_dump_json(), model=model, seconds=seconds
+        )
+        return True
 
     def _activate(self, content_hash: str) -> None:
         self._state = {**self._state, "state": "activating"}
-        with self._trace("activate-enrichment", input={"before": self._state}) as span:
-            pipeline = IngestionPipeline(self.config)
-            try:
-                report = pipeline.enrich_activate(content_hash)
-            finally:
-                pipeline.close()
-            span.update(output={key: report.get(key) for key in ("status", "enrichment", "asset_version", "native_chunks_added")})
+        pipeline = IngestionPipeline(self.config)
+        try:
+            report = pipeline.enrich_activate(content_hash)
+        finally:
+            pipeline.close()
+        logger.info("Pages read so far of %s are now searchable: status=%s", self._document[1], report.get("status"))
         if self.on_activated is not None:
             try:
                 self.on_activated()
@@ -377,13 +336,4 @@ class EnrichmentWorker:
         """Stop hammering a failing backend (e.g. OCR worker OOM crash); free its memory and retry later."""
         self._cooldown_until = time.monotonic() + self.cooldown_seconds
         self._release_models()
-        with self._trace(
-            "open-circuit-breaker",
-            level="WARNING",
-            status_message=reason[:1000],
-            metadata={
-                "cooldown_s": self.cooldown_seconds,
-                "until": datetime.fromtimestamp(time.time() + self.cooldown_seconds, timezone.utc).isoformat(),
-            },
-        ):
-            pass
+        logger.warning("Page reading paused for %d s after repeated failures: %s", self.cooldown_seconds, reason[:1000])

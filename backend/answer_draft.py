@@ -14,7 +14,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 from langchain_core.prompts import ChatPromptTemplate
 
-import chat_tracing
 from bm25 import tokenize
 from retrieval_selection import parse_source_identity
 from source_metadata import normalize_page
@@ -647,9 +646,6 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
             evidence_ids=[record["evidence_id"] for record in evidence],
         )
         selection_diagnostics.append(f"selection_error:{detail}")
-    chat_tracing.event("select-evidence", input=chat_tracing.brief(candidate_evidence),
-                       output={**selection.model_dump(), "kept": chat_tracing.brief(evidence)},
-                       metadata={"diagnostics": selection_diagnostics})
     selector_doubt = None
     usable = [record for record in candidate_evidence if not record.get("unusable_reason")]
     if selection.answer_intent == "opinion" and selection.decision not in {"answer", "partial"} and usable:
@@ -683,8 +679,6 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     # answer model abstain or return invalid JSON. Cap before drafting (selection order).
     evidence = _cap_draft_evidence(evidence, limit=3)
     selection = selection.model_copy(update={"evidence_ids": [record["evidence_id"] for record in evidence]})
-    chat_tracing.event("draft-evidence", output=chat_tracing.brief(evidence),
-                       metadata={"selection": selection.model_dump(), "chars": sum(len(str(r.get("text") or "")) for r in evidence)})
     payload = {
         "language": _LANGUAGE_NAMES[language_of(question)],
         "schema": ANSWER_SCHEMA_FOR_PROMPT,
@@ -736,8 +730,6 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         parsed = parse_answer(raw, question, evidence,
             temporal_unverified=temporal_unverified, diagnostics=diagnostics, query_class=query_class)
         accepted = None if diagnostics else _accept(parsed)
-        chat_tracing.event(f"draft-gate-{attempt + 1}", output={"status": parsed.get("status"), "diagnostics": diagnostics,
-                           "accepted": accepted is not None}, level="DEFAULT" if accepted is not None else "WARNING")
         if accepted is not None:
             return accepted
         if not diagnostics:

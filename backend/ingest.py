@@ -57,9 +57,6 @@ def main() -> int:
             report = known.get("report") or report
     finally:
         pipeline.close()
-        from langfuse import get_client
-
-        get_client().flush()
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

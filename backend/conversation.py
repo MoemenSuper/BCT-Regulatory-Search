@@ -509,13 +509,8 @@ def chat(
     retrieval_backend,
     llm_provider=None,
 ):
-    import chat_tracing
-
-    llm = chat_tracing.traced_llm(create_llm(llm_provider or answer_provider()))
-
-    with chat_tracing.span("route-message", input={"message": message, "memory": render_memory_state(memory_state)}) as s:
-        route = route_message(llm, message, memory_state)
-        s.update(output=route)
+    llm = create_llm(llm_provider or answer_provider())
+    route = route_message(llm, message, memory_state)
 
     # 1. Turns answered without searching: small talk, or a question too vague to search.
     if route["intent"] == RouteIntent.GENERAL_CHAT:
@@ -532,7 +527,6 @@ def chat(
         # A misrouted fact question: general chat cannot cite, so search instead.
         route = MessageRoute(intent=RouteIntent.NEW_TOPIC, rewrite_query=message,
                              new_topic=str(message).strip()[:160]).model_dump(mode="json")
-        chat_tracing.event("general-chat-retrieve", output=route)
     if route["intent"] == RouteIntent.AMBIGUOUS:
         clarification = safe_response(message, "clarification_needed")
         return {
@@ -556,17 +550,12 @@ def chat(
     from query_authority import classify_query_authority
 
     # Classify the resolved query: a fragment like "Et en 2024 ?" carries no authority cue.
-    with chat_tracing.span("classify-query-authority", input=search_query) as s:
-        query_authority = classify_query_authority(llm, search_query)
-        s.update(output=query_authority)
+    query_authority = classify_query_authority(llm, search_query)
     query_class = str(query_authority.get("query_class") or "uncertain")
 
-    with chat_tracing.span("retrieve", as_type="retriever", input=[search_query, *other_queries]) as s:
-        reranked_results = retrieval_backend.retrieve(search_query, other_queries=other_queries)
-        s.update(output=chat_tracing.brief(reranked_results))
+    reranked_results = retrieval_backend.retrieve(search_query, other_queries=other_queries)
     if route["intent"] == RouteIntent.FOLLOW_UP:
         reranked_results = _prefer_prior_turn_sources(reranked_results, memory_state)
-        chat_tracing.event("prefer-prior-turn-sources", output=chat_tracing.brief(reranked_results))
     # Retrieval is scored per chunk; the answer layer reads the whole retrieved page
     # so a fact in a neighbouring chunk is not lost. Order and citations are unchanged.
     expand_pages = getattr(retrieval_backend, "expand_pages", None)
@@ -587,22 +576,15 @@ def chat(
     memory_text = render_memory_state(_answer_memory(memory_state, route))
     if route["intent"] == RouteIntent.FOLLOW_UP:
         memory_text = f"Resolved reference (not factual evidence): {search_query}\n\n{memory_text}"
-    with chat_tracing.span(
-        "generate-grounded-answer",
-        input={"question": message, "evidence": chat_tracing.brief(top_results), "reference": memory_text},
-        metadata={"query_class": query_class, "temporal_unverified": temporal_unverified},
-    ) as s:
-        generated = generate_grounded_answer(
-            llm,
-            message,
-            top_results,
-            memory_text,
-            temporal_unverified=temporal_unverified,
-            query_class=query_class,
-            search_queries=other_queries,
-        )
-        s.update(output={"status": generated.get("status"), "diagnostics": generated.get("diagnostics"),
-                         "answer": generated.get("answer")})
+    generated = generate_grounded_answer(
+        llm,
+        message,
+        top_results,
+        memory_text,
+        temporal_unverified=temporal_unverified,
+        query_class=query_class,
+        search_queries=other_queries,
+    )
     diagnostics = list(generated.get("diagnostics") or [])
     status = generated.get("status", "answered")
     refusal_reason = None

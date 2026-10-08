@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from langchain_core.documents import Document
-from langfuse import get_client
 
 from runtime_retrieval import _read_chunks
 
@@ -274,13 +273,8 @@ def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str
             result = source.get(limit=limit, offset=offset, include=["documents", "metadatas", "embeddings"])
             embeddings = result.get("embeddings")
         except Exception as error:
-            logger.warning("Chroma embeddings unreadable at offset %s of %s; re-embedding.", offset, source.name)
-            get_client().create_event(
-                name="reembed-unreadable-rows",
-                level="WARNING",
-                status_message=f"{type(error).__name__}: {error}",
-                metadata={"collection": source.name, "offset": offset, "limit": limit},
-            )
+            logger.warning("Chroma embeddings unreadable at offset %s of %s; re-embedding (%s: %s).",
+                           offset, source.name, type(error).__name__, error)
             result = source.get(limit=limit, offset=offset, include=["documents", "metadatas"])
             embeddings = None
         ids = result.get("ids") or []
@@ -303,14 +297,7 @@ def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str
 def _embed_local(texts: list[str]) -> list:
     from embedding import create_embedding_model
 
-    model = create_embedding_model()
-    with get_client().start_as_current_observation(
-        name="embed-chunks",
-        as_type="embedding",
-        model=getattr(model, "model_name", None),
-        input={"chunks": len(texts), "chars": sum(map(len, texts))},
-    ):
-        return model.embed_documents(texts)
+    return create_embedding_model().embed_documents(texts)
 
 
 def _add_rows(target, rows: list[tuple], *, batch_size: int = 500) -> None:
@@ -351,31 +338,22 @@ def stage_local_collections(
     # ponytail: ceiling=full local re-embed via ingest CLI when seeding Chroma from a legacy
     # cloud-only corpus (no existing collection). Admin PDF upload should not block on that.
     if not has_old_primary and len(all_primary) > len(new_primary):
-        get_client().create_event(
-            name="skip-local-index",
-            level="WARNING",
-            status_message=f"No prior Chroma collection {old_primary_name!r}; new chunks are not searchable locally",
-            metadata={"chroma_db": str(db_path), "all_primary": len(all_primary), "new_primary": len(new_primary)},
-        )
+        logger.warning("No prior Chroma collection %r in %s; new chunks are not searchable locally.",
+                       old_primary_name, db_path)
         return {}
 
     # Read old rows before any write: with the serving retriever holding these collections
     # open, Chroma 1.5 fails reads ("Error finding id") once the same process starts writing.
-    with get_client().start_as_current_observation(
-        name="copy-prior-collections",
-        input={"chroma_db": str(db_path), "primary": old_primary_name, "visual": old_visual_name},
-    ) as copy_span:
-        old_primary_rows = (
-            _read_collection(client.get_collection(old_primary_name), exclude_sources=source_filenames)
-            if has_old_primary
-            else []
-        )
-        old_visual_rows = (
-            _read_collection(client.get_collection(old_visual_name), exclude_sources=source_filenames)
-            if has_old_visual
-            else []
-        )
-        copy_span.update(output={"primary_rows": len(old_primary_rows), "visual_rows": len(old_visual_rows)})
+    old_primary_rows = (
+        _read_collection(client.get_collection(old_primary_name), exclude_sources=source_filenames)
+        if has_old_primary
+        else []
+    )
+    old_visual_rows = (
+        _read_collection(client.get_collection(old_visual_name), exclude_sources=source_filenames)
+        if has_old_visual
+        else []
+    )
     primary_target = client.create_collection(primary_name)
     visual_target = client.create_collection(visual_name)
     try:

@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from langfuse import get_client
 from pydantic import BaseModel
 
 from answer_evidence import IMAGE_READING, evidence_warning
@@ -342,28 +341,17 @@ class PdfExtractor:
                         visual = known
                         visual_count += 1
                 elif should_visualize:
-                    with get_client().start_as_current_observation(
-                        name="read-page-visual",
-                        as_type="chain",
-                        input={"page": page_number, "language": page_language, "native_chars": len(native_text),
-                               "native_flags": list(quality.flags), "digits_unreliable": digits_unreliable,
-                               "image_regions": len(regions) if read_regions else 0},
-                    ) as page_trace:
-                        if self.visual_transcriber is None:
-                            visual_error = "visual_not_configured"
-                        else:
-                            try:
-                                visual = read_page_visual(
-                                    self.visual_transcriber, page, content_hash=content_hash, page_number=page_number,
-                                    language=page_language, regions=regions if read_regions else [],
-                                )
-                                visual_count += 1
-                            except Exception as error:  # provider/runtime failure is recorded per page
-                                visual_error = f"{type(error).__name__}: {error}"
-                        page_trace.update(
-                            output={"visual_error": visual_error, "visual_complete": bool(visual and visual.complete)},
-                            **({"level": "WARNING", "status_message": visual_error} if visual_error else {}),
-                        )
+                    if self.visual_transcriber is None:
+                        visual_error = "visual_not_configured"
+                    else:
+                        try:
+                            visual = read_page_visual(
+                                self.visual_transcriber, page, content_hash=content_hash, page_number=page_number,
+                                language=page_language, regions=regions if read_regions else [],
+                            )
+                            visual_count += 1
+                        except Exception as error:  # provider/runtime failure is recorded per page
+                            visual_error = f"{type(error).__name__}: {error}"
 
                 whole_visual = visual if isinstance(visual, VisualPage) else None
                 region_visual = visual if isinstance(visual, ImageRegions) else None

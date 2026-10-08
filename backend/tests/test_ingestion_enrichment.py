@@ -122,34 +122,6 @@ def test_quick_pass_is_searchable_then_enrichment_completes(config, tmp_path, mo
     assert texts.count(NATIVE[:40]) == 1  # re-activation replaced, not duplicated, the document
 
 
-def test_quick_pass_and_enrichment_share_one_langfuse_session(config, tmp_path, monkeypatch):
-    from langfuse import Langfuse
-    from langfuse._client.resource_manager import LangfuseResourceManager
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
-    exporter = InMemorySpanExporter()
-    LangfuseResourceManager._instances.clear()
-    client = Langfuse(public_key="pk-lf-test", secret_key="sk-lf-test", base_url="http://127.0.0.1:9",
-                      span_exporter=exporter, tracer_provider=TracerProvider())
-    try:
-        report = _quick_ingest(config, tmp_path)
-        monkeypatch.setattr(enrichment_module, "build_visual_transcriber", lambda *_a, **_k: FakeTranscriber())
-        EnrichmentWorker(config).run_until_idle()
-        client.flush()
-        spans = exporter.get_finished_spans()
-    finally:
-        client.shutdown()
-        LangfuseResourceManager._instances.clear()
-
-    session = f"ingest-{report['content_sha256']}"
-    roots = {span.name: span for span in spans if span.parent is None}
-    assert {"ingest-document", "enrich-page", "activate-enrichment"} <= set(roots)
-    for name in ("ingest-document", "enrich-page", "activate-enrichment"):
-        assert roots[name].attributes.get("session.id") == session, name
-    assert roots["enrich-page"].attributes["langfuse.observation.metadata.waited_for_chat_s"] is not None
-
-
 def test_failing_backend_degrades_honestly_and_retry_requeues(config, tmp_path, monkeypatch):
     monkeypatch.setenv("BCT_ENRICH_BREAKER_FAILURES", "1")
     report = _quick_ingest(config, tmp_path)
