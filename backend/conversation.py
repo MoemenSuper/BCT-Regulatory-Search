@@ -15,6 +15,7 @@ from retrieval_selection import (
     is_historical_cutoff_query,
     explicit_instrument_identity,
     prefer_named_instrument_hits,
+    prefer_named_section_hits,
     _instrument_year,
 )
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -456,7 +457,8 @@ def _answer_results(
     identity = explicit_instrument_identity(query) if query and not is_historical_cutoff_query(query) else None
     if identity:
         ordinary = prefer_named_instrument_hits(ordinary, identity)
-    return ordinary
+    # "Dans le tableau IV-2", "l'article 3": that section's passages first (within the instrument).
+    return prefer_named_section_hits(ordinary, query) if query else ordinary
 
 
 def general_chat_reply(llm, message: str, memory_state: MemoryState) -> dict:

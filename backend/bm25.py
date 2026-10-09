@@ -34,6 +34,14 @@ def tokenize(text: str) -> list[str]:
     return [_stem(word) for word in _TOKEN.findall(text)]
 
 
+def searchable_text(text: str, metadata: dict | None) -> str:
+    """What every search reads (keyword search, embeddings, reranker): the chunk's context header
+    (document, title, section, element, page: ingestion/chunk.py), then its text. Answers quote the
+    text only, so the header is never evidence."""
+    context = str((metadata or {}).get("context") or "").strip()
+    return f"{context}\n{text}" if context else text
+
+
 def load_documents_from_chroma(vector_store):
     results = vector_store.get(include=["documents", "metadatas"])
     return [
@@ -46,7 +54,7 @@ def create_bm25(documents):
     # BM25Okapi divides by corpus size; an empty collection (e.g. no Arabic OCR chunks yet) has no index.
     if not documents:
         return None
-    return BM25Okapi([tokenize(document.page_content) for document in documents])
+    return BM25Okapi([tokenize(searchable_text(document.page_content, document.metadata)) for document in documents])
 
 
 def retrieve_bm25(query, bm25, documents, k=15):

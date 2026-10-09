@@ -12,6 +12,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
+from bm25 import searchable_text
 from runtime_retrieval import _read_chunks
 
 logger = logging.getLogger(__name__)
@@ -286,7 +287,7 @@ def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str
             if Path(str((metadata or {}).get("source", ""))).name.casefold() not in excluded
         ]
         if embeddings is None and kept:
-            embeddings = dict(zip(kept, _embed_local([documents[i] for i in kept])))
+            embeddings = dict(zip(kept, _embed_local([searchable_text(documents[i], metadatas[i]) for i in kept])))
         rows.extend((ids[i], documents[i], metadatas[i], embeddings[i]) for i in kept)
         offset += len(ids)
         if not ids:
@@ -366,7 +367,7 @@ def stage_local_collections(
             if not documents:
                 return
             texts = [doc.page_content for doc in documents]
-            vectors = _embed_local(texts)
+            vectors = _embed_local([searchable_text(doc.page_content, doc.metadata) for doc in documents])
             collection.upsert(
                 ids=[_document_chunk_id(doc) for doc in documents],
                 documents=texts,

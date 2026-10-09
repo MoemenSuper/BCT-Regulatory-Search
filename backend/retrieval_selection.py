@@ -258,6 +258,40 @@ def source_matches_identity(source: str, identity: dict[str, Any]) -> bool:
     )
 
 
+# Section labels a question can name: a table or chapter code ("IV-2", "II-1-B"), or an article,
+# chapter, section, annex or table with its number ("Article 3", "annexe 2", "tableau 5").
+_SECTION_LABEL = re.compile(
+    r"(?<![\w-])([IVXLC]{1,6}-\d{1,3}(?:-[A-Z])?)(?![\w-])"
+    r"|\b((?:article|chapitre|section|annexe|tableau)\s+(?:n\s*°\s*)?(?:\d+|premier|1er))\b",
+    re.IGNORECASE,
+)
+
+
+def named_section_labels(query: str) -> list[str]:
+    """Section labels the question names, as written ("IV-2", "article 3")."""
+    return [code or " ".join(phrase.split()) for code, phrase in _SECTION_LABEL.findall(query or "")]
+
+
+def prefer_named_section_hits(ranked: list[tuple[Document, float]], query: str) -> list[tuple[Document, float]]:
+    """A question naming a section ("tableau IV-2", "article 3") reads the passages of that section
+    first: look-alike tables (the same rows for banks and for leasing companies) or articles are
+    told apart by the label in each chunk's context header (ingestion/chunk.py)."""
+    labels = named_section_labels(query)
+    if not ranked or not labels:
+        return ranked
+    patterns = [re.compile(r"(?<![\w-])" + re.escape(label).replace(r"\ ", r"\s+") + r"(?![\w-])", re.IGNORECASE)
+                for label in labels]
+
+    def names_it(document: Document) -> bool:
+        context = str(document.metadata.get("context") or "")
+        return any(pattern.search(context) for pattern in patterns)
+
+    matched = [item for item in ranked if names_it(item[0])]
+    if not matched:
+        return ranked
+    return matched + [item for item in ranked if not names_it(item[0])]
+
+
 def prefer_named_instrument_hits(
     ranked: list[tuple[Document, float]],
     query_identity: dict[str, Any] | list[dict[str, Any]] | None,
@@ -525,6 +559,7 @@ def _page_document_from_index(
         text = _join(text, piece.page_content)
     meta = {**(template.metadata if template is not None else chunks[0].metadata)}
     meta.update({
+        "context": chunks[0].metadata.get("context"),  # this page's own header, not the template's
         "source": Path(str(meta.get("source") or source)).name,
         "page": page_number,
         "pages": [page_number],

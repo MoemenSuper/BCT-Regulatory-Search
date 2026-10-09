@@ -23,14 +23,14 @@ def test_local_backend_uses_dense_and_bm25_candidates_before_reranking(monkeypat
     monkeypatch.setattr(
         runtime_retrieval,
         "retrieve_relevant_chunks",
-        lambda query, store: (
+        lambda query, store, k=20: (
             calls.update(dense=(query, store)) or [dense]
         ),
     )
     monkeypatch.setattr(
         runtime_retrieval,
         "retrieve_bm25",
-        lambda query, bm25, documents: (
+        lambda query, bm25, documents, k=15: (
             calls.update(sparse=(query, bm25, documents)) or [sparse]
         ),
     )
@@ -143,8 +143,8 @@ def test_local_backend_adds_bounded_ocr_candidates_only_for_arabic(monkeypatch):
 
     assert [item[0] for item in arabic] == [native, ocr]
     assert [item[0] for item in french] == [native]
-    assert ("ocr-store", 5) in dense_calls
-    assert ("ocr-bm25", 5) in sparse_calls
+    assert ("ocr-store", 10) in dense_calls  # 10 asked, 5 kept after the per-page cap
+    assert ("ocr-bm25", 10) in sparse_calls  # 10 asked, 5 kept after the per-page cap
 
 
 def test_voyage_backend_fuses_arabic_ocr_and_returns_one_chunk_per_page():

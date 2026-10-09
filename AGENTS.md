@@ -23,6 +23,7 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Profiles `cloud` / `local_hybrid` / `local` | `backend/runtime_profiles.py` |
 | Answer model provider (OpenAI / Claude / Gemini / Groq / Ollama; one key is enough) | `backend/llm.py` (`answer_provider`, `create_llm`) |
 | Nginx in front of the container | the server's own Nginx: `deploy/nginx/bct-regulatory-search.conf`; bundled Nginx (`docker compose --profile nginx`): `deploy/nginx/docker/` (same settings: change both) |
+| Chunks cut along the page structure, each with a context header (document, title, section, element, page) that every search reads; answers quote the chunk text only | `backend/ingestion/chunk.py` (`build_runtime_chunks`), `backend/bm25.py` (`searchable_text`), Docling labels in `backend/ingestion/docling_layout.py` |
 | Retrieval + evidence selection | `backend/runtime_retrieval.py` (local backend + `create_local_backend`), `backend/retrieval_selection.py` |
 | Search speed on CPU (one reranker wording per script, `BCT_SPEED_MODE` 8-bit reranker) | `backend/runtime_retrieval.py` (`script_scores`), `backend/reranker.py` |
 | PDF resolve, physical page, quote locate | `backend/source_documents.py` |

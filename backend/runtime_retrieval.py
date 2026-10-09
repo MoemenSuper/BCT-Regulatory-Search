@@ -10,7 +10,7 @@ import json
 import os
 from pathlib import Path
 
-from bm25 import retrieve_bm25
+from bm25 import retrieve_bm25, searchable_text
 from retrieval_selection import (
     diversify_ranked_pages,
     build_identity_reranker_documents,
@@ -48,6 +48,24 @@ def dedupe(*groups):
                 seen.add(key)
                 combined.append(document)
     return combined
+
+
+_PAGE_CAP = 2
+
+
+def _page_capped(documents, k):
+    """A search's first k chunks, at most _PAGE_CAP per page (the caller asks for 2k).
+
+    Chunks carry their document's context header, so one page's chunks look alike; without a
+    cap they filled the shortlist the reranker sees and pushed other pages out. Benchmark of 779
+    questions with the context index: answer page first 572 -> 588, in the top 5 716 -> 729."""
+    kept, per_page = [], {}
+    for document in documents:
+        key = (document.metadata.get("source"), document.metadata.get("page"))
+        if per_page.get(key, 0) < _PAGE_CAP:
+            per_page[key] = per_page.get(key, 0) + 1
+            kept.append(document)
+    return kept[:k]
 
 
 def _is_arabic_text(text):
@@ -151,22 +169,22 @@ class LocalRetrievalBackend:
         "avant la circulaire X", the texts X replaced).
         """
         groups = [
-            retrieve_relevant_chunks(query, self.vector_store),
-            retrieve_bm25(query, self.bm25, self.bm25_documents),
+            _page_capped(retrieve_relevant_chunks(query, self.vector_store, k=40), 20),
+            _page_capped(retrieve_bm25(query, self.bm25, self.bm25_documents, k=30), 15),
         ]
         agreed = []  # chunks both searches rank in their first three for one wording (see promote_agreed_hit)
         if is_arabic_query(query) and self.ocr_vector_store is not None:
-            groups.append(retrieve_relevant_chunks(query, self.ocr_vector_store, k=5))
-            groups.append(retrieve_bm25(query, self.ocr_bm25, self.ocr_documents, k=5))
+            groups.append(_page_capped(retrieve_relevant_chunks(query, self.ocr_vector_store, k=10), 5))
+            groups.append(_page_capped(retrieve_bm25(query, self.ocr_bm25, self.ocr_documents, k=10), 5))
         # The other wordings bring fewer candidates each: they add what the main query misses.
         for version in other_queries:
-            groups.append(retrieve_relevant_chunks(version, self.vector_store, k=10))
-            groups.append(retrieve_bm25(version, self.bm25, self.bm25_documents, k=8))
+            groups.append(_page_capped(retrieve_relevant_chunks(version, self.vector_store, k=20), 10))
+            groups.append(_page_capped(retrieve_bm25(version, self.bm25, self.bm25_documents, k=16), 8))
             dense_top = {_doc_key(document) for document in groups[-2][:3]}
             agreed += [document for document in groups[-1][:3] if _doc_key(document) in dense_top]
             if is_arabic_query(version) and self.ocr_vector_store is not None:
-                groups.append(retrieve_relevant_chunks(version, self.ocr_vector_store, k=5))
-                groups.append(retrieve_bm25(version, self.ocr_bm25, self.ocr_documents, k=5))
+                groups.append(_page_capped(retrieve_relevant_chunks(version, self.ocr_vector_store, k=10), 5))
+                groups.append(_page_capped(retrieve_bm25(version, self.ocr_bm25, self.ocr_documents, k=10), 5))
         identity_refs = query_instrument_refs(query) + list(instruments)
         for identity in identity_refs:
             # ponytail: first 40 chunks of each named instrument; the reranker picks among them
@@ -180,8 +198,10 @@ class LocalRetrievalBackend:
         return promote_agreed_hit(self.rank(query, dedupe(*groups), other_queries), agreed)
 
     def rank(self, query, documents, other_queries=()):
+        # The reranker reads each chunk with its context header, like the other two searches.
         reranker_documents = build_identity_reranker_documents(
-            documents,
+            [Document(page_content=searchable_text(d.page_content, d.metadata), metadata=d.metadata)
+             if d.metadata.get("context") else d for d in documents],
             parse_query_identity(query),
         )
         # An Arabic question and a French page are compared through the French wording.

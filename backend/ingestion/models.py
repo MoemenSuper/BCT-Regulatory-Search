@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-BlockType = Literal["heading", "article", "paragraph", "list_item"]
+BlockType = Literal["heading", "article", "paragraph", "list_item", "table", "caption"]
 ExtractionMethod = Literal["native", "vlm"]
 
 

@@ -21,6 +21,7 @@ from langchain_core.documents import Document
 from cloud.voyage_client import VOYAGE_SPEC, create_cloud_runtime_client
 from cloud.voyage_retrieval import _load_bound_index
 from ingestion.index import _keep_indices
+from bm25 import searchable_text
 from runtime_retrieval import _read_chunks, document_binding
 
 
@@ -97,7 +98,8 @@ def _embed_new(client, documents: list[Document]) -> np.ndarray:
     dimension = int(getattr(client, "dimension", VOYAGE_SPEC.dimension))
     if not documents:
         return np.empty((0, dimension), dtype=np.float32)
-    return client.embed_document_chunks([document.page_content for document in documents])
+    return client.embed_document_chunks([searchable_text(document.page_content, document.metadata)
+                                         for document in documents])
 
 
 def stage_voyage_indexes(

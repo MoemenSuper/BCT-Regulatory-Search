@@ -56,31 +56,50 @@ _HEADING_FR = re.compile(r"^\s*((?:TITRE|CHAPITRE|SECTION|SOUS[-\s]?SECTION|ANNE
 _ARTICLE_AR = re.compile(r"^\s*((?:الفصل|فصل|المادة|مادة)\s+(?:[\d٠-٩]+|الأول(?:ى)?|الثاني(?:ة)?|الثالث(?:ة)?))\s*[:\-–—]?\s*(.*)$", re.I)
 _HEADING_AR = re.compile(r"^\s*((?:العنوان|الباب|القسم|الجزء|الفرع|الملحق|ملحق)\b.*)$", re.I)
 _LIST = re.compile(r"^\s*(?:[-•▪◦]|\d+[.)]|[أ-ي][.)])\s+")
+# A table's own title: "III -2-A. LES RESSOURCES ...", "IV-2. SITUATION ...", "Tableau 4-2 : ...".
+_TABLE_TITLE = re.compile(r"^\s*(?:[IVXLC]{1,6}\s?-\s?\d{1,3}(?:\s?-\s?[A-Z])?|tableau\s+(?:n\s*°\s*)?[\w.-]+)\s*[.:)\-–]", re.I)
+# Formula lines Docling may take for section headers: never a section of their own.
+_FORMULA = re.compile(r"^\s*(?:d[ée]cide\b|le gouverneur de la banque centrale|vu\b|قرر|إن محافظ البنك المركزي)", re.I)
 
 
 @dataclass
 class Hierarchy:
     headings: list[str]
+    since: int = 0  # page where the current section started
 
-    def update(self, text: str, language: str) -> tuple[str, str]:
+    def update(self, text: str, language: str, kind: str | None = None) -> str:
+        """The block's type; a heading or an article also becomes the current section.
+        kind: Docling's label for the block ("heading", "table", "list_item", "caption"), if any."""
         normalized = " ".join(text.split())
+        first_line = " ".join(text.strip().split("\n", 1)[0].split())
+        # A table carrying its own title names its section, so it never inherits the title of the
+        # table before it ("III -2-A" pieces were labelled "III-1" when Docling missed the heading).
+        if kind == "table" or (_TABLE_TITLE.match(first_line) and len(first_line) <= 250):
+            if _TABLE_TITLE.match(first_line):
+                self.headings = [first_line.split(" Colonnes:")[0][:200]]
+            return "table" if kind == "table" else "heading"
         article = (_ARTICLE_AR if language == "ar" else _ARTICLE_FR).match(normalized)
         if article:
             heading = article.group(1).strip()
-            body = article.group(2).strip()
             self.headings = [value for value in self.headings if not _is_article(value, language)]
             self.headings.append(heading)
-            return "article", body or heading
+            return "article"
         heading = (_HEADING_AR if language == "ar" else _HEADING_FR).match(normalized)
         if heading:
             value = heading.group(1).strip()
             # Keep the hierarchy intentionally shallow. Retrieval experiments did not
             # justify a large legal-structure parser.
             self.headings = [value]
-            return "heading", value
-        if _LIST.match(normalized):
-            return "list_item", normalized
-        return "paragraph", text.strip()
+            return "heading"
+        if kind == "heading" and not _FORMULA.match(normalized):  # a report chapter, "Objet : ..."
+            self.headings = [normalized[:200]]
+            return "heading"
+        if kind == "caption":  # a table or figure's caption names what follows
+            self.headings = [normalized[:200]]
+            return "caption"
+        if kind == "list_item" or _LIST.match(normalized):
+            return "list_item"
+        return "paragraph"
 
 
 def _is_article(text: str, language: str) -> bool:
@@ -92,13 +111,16 @@ def classify_blocks(
     language: str,
     hierarchy: Hierarchy | None = None,
 ) -> Hierarchy:
-    """Classify one ordered block sequence while optionally carrying state across pages."""
+    """Classify one ordered block sequence while optionally carrying state across pages.
+    Block texts stay verbatim: the chunker cuts the page text along them."""
     hierarchy = hierarchy or Hierarchy([])
     for block in blocks:
-        block_type, normalized = hierarchy.update(block.text, language)
-        block.type = block_type  # type: ignore[assignment]
-        block.text = normalized
+        before = list(hierarchy.headings)
+        block.type = hierarchy.update(block.text, language, block.metadata.get("layout_kind"))  # type: ignore[assignment]
+        if hierarchy.headings != before:
+            hierarchy.since = block.page_number
         block.heading_path = list(hierarchy.headings)
+        block.metadata["section_page"] = hierarchy.since
     return hierarchy
 
 
@@ -224,7 +246,20 @@ def read_page_visual(transcriber, page, *, content_hash: str, page_number: int, 
     return ImageRegions(texts=texts, complete=complete)
 
 
-_LAYOUT_VERSION = "docling-hybrid-v6"
+_LAYOUT_VERSION = "docling-hybrid-v7"  # v7: Docling labels kept (headings, tables, lists)
+
+
+def _text_item(item) -> tuple[str, str] | None:
+    """(text, Docling label) of a layout text item; None for an image region."""
+    if isinstance(item, str):
+        return item, "paragraph"
+    if isinstance(item, dict) and "text" in item:
+        return item["text"], item.get("kind") or "paragraph"
+    return None
+
+
+def _is_region(item) -> bool:
+    return isinstance(item, dict) and "image" in item
 
 
 def load_layout(path: Path, cache: Path | None) -> dict[int, list]:
@@ -244,7 +279,7 @@ def load_layout(path: Path, cache: Path | None) -> dict[int, list]:
 
 
 def page_regions(layout: dict[int, list], page_number: int) -> list:
-    return [item["image"] for item in layout.get(page_number, []) if isinstance(item, dict)]
+    return [item["image"] for item in layout.get(page_number, []) if _is_region(item)]
 
 
 class PdfExtractor:
@@ -292,19 +327,19 @@ class PdfExtractor:
             for index in range(pdf.page_count):
                 page = pdf.load_page(index)
                 items = layout.get(index + 1, [])
-                texts = [item for item in items if isinstance(item, str)]
+                texts = [text_item for text_item in map(_text_item, items) if text_item]
                 # Pages where Docling finds no text (scans, covers) keep the PDF text layer, which
                 # the quality check then sends to visual reading like any other empty page.
                 blocks = [Block(type="paragraph", text=text, page_number=index + 1,
-                                metadata={"extraction_method": "native", "layout": "docling"})
-                          for text in texts] or _native_blocks(page, index + 1)
+                                metadata={"extraction_method": "native", "layout": "docling", "layout_kind": kind})
+                          for text, kind in texts] or _native_blocks(page, index + 1)
                 text = "\n".join(block.text for block in blocks).strip()
                 if not text:
                     text = page.get_text("text", sort=True).strip()
                     if text:
                         blocks = _text_blocks(text, index + 1, extraction_method="native")
                 # Reading order with image regions in place (after the text when Docling had none).
-                ordered = items if texts else [block.text for block in blocks] + [i for i in items if isinstance(i, dict)]
+                ordered = items if texts else [block.text for block in blocks] + [i for i in items if _is_region(i)]
                 native_by_page.append((blocks, text, ordered))
 
             language = detect_document_language(path.name, [text for _blocks, text, _ordered in native_by_page])
@@ -314,7 +349,7 @@ class PdfExtractor:
             for index, (native_blocks, native_text, ordered) in enumerate(native_by_page):
                 page_number = index + 1
                 page = pdf.load_page(index)
-                regions = [item["image"] for item in ordered if isinstance(item, dict)]
+                regions = [item["image"] for item in ordered if _is_region(item)]
                 quality = assess_page_quality(native_text, len(native_blocks))
                 page_language = "ar" if arabic_character_ratio(native_text) >= 0.20 else language
                 # Native text can look healthy while its digits are garbled by a broken
@@ -384,9 +419,9 @@ class PdfExtractor:
                     region_texts = list(region_visual.texts) if region_visual is not None else []
                     chosen_blocks, position = [], 0
                     for item in ordered:
-                        if isinstance(item, str):
-                            chosen_blocks.append(Block(type="paragraph", text=item, page_number=page_number,
-                                                       metadata={"extraction_method": "native"}))
+                        if text_item := _text_item(item):
+                            chosen_blocks.append(Block(type="paragraph", text=text_item[0], page_number=page_number,
+                                                       metadata={"extraction_method": "native", "layout_kind": text_item[1]}))
                             continue
                         seen = region_texts[position].strip() if position < len(region_texts) else ""
                         position += 1

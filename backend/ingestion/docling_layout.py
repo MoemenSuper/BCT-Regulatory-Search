@@ -10,7 +10,10 @@ come from the PDF text layer, because Docling reorders Arabic words within a lin
     image region the visual reader fills in place;
   - pictures: always an image region; their PDF words (drawing order) go on one IMAGE_WORDS line,
     searchable but never citable;
-  - formulas and empty text items: PDF words inside the box.
+  - formulas and empty text items: PDF words inside the box;
+  - titles, section headers, list items, captions and tables keep Docling's label:
+    {"text": ..., "kind": "heading" | "list_item" | "caption" | "table"} (plain paragraphs stay
+    strings). The chunker uses it to cut along the structure and to name each piece's section.
 Benchmark (2026-09-28): same retrieval as PyMuPDF, 41 vs 33 of 60 targeted answers, mostly tables.
 
 Docling's native code occasionally crashes its process, so it runs in a worker process; a crash
@@ -32,6 +35,11 @@ _LONE_DIACRITIC = re.compile(r"(?<!\S)[ً-ٰٟ]+(?!\S)")  # PDF glyph artefacts
 _ATTEMPTS = 3
 _MIN_REGION_PT = 24  # ~8 mm: smaller boxes are bullets and icons
 _PAGE_NUMBER = re.compile(r"(?i)(?:page\s*)?\d{1,4}(?:\s*/\s*\d{1,4})?")
+
+
+def _labelled(text: str, kind: str | None):
+    """A text item with Docling's label kept; a plain paragraph stays a string."""
+    return {"text": text, "kind": kind} if kind else text
 
 
 def _clean(text: str) -> str:
@@ -170,6 +178,9 @@ def _convert(pdf_path: str, raw_cache: str | None = None) -> dict[int, list]:
     import pymupdf
     from docling_core.types.doc import DocItemLabel, DoclingDocument, PictureItem, TableItem, TextItem
 
+    kinds = {DocItemLabel.TITLE: "heading", DocItemLabel.SECTION_HEADER: "heading",
+             DocItemLabel.LIST_ITEM: "list_item", DocItemLabel.CAPTION: "caption"}
+
     raw = Path(raw_cache) if raw_cache else None
     if raw is not None and raw.is_file():
         doc = DoclingDocument.model_validate_json(raw.read_text(encoding="utf-8"))
@@ -215,7 +226,7 @@ def _convert(pdf_path: str, raw_cache: str | None = None) -> dict[int, list]:
                 add(page_no, f"{IMAGE_WORDS} {text}" if text else "")
                 add(page_no, _region(box))
             elif isinstance(item, TableItem):
-                add(page_no, _table_text(item, doc, _visual_rows(lines)) if text else _region(box))
+                add(page_no, _labelled(_table_text(item, doc, _visual_rows(lines)), "table") if text else _region(box))
             elif item.label == DocItemLabel.FORMULA or (isinstance(item, TextItem) and not item.text.strip()):
                 add(page_no, text or _region(box))
             elif isinstance(item, TextItem):
@@ -224,7 +235,8 @@ def _convert(pdf_path: str, raw_cache: str | None = None) -> dict[int, list]:
                 for prov in item.prov:
                     per_page.setdefault(prov.page_no, []).extend(line for _r, line in lines_in(prov.page_no, prov.bbox))
                 for number, parts in per_page.items():
-                    add(number, _clean(" ".join(parts)) or _clean(item.text) or _region(box))
+                    words = _clean(" ".join(parts)) or _clean(item.text)
+                    add(number, _labelled(words, kinds.get(item.label)) if words else _region(box))
         # Lines no body box claims: running headers/footers (Docling's furniture: an edition
         # "Bulletin N°17", a period, a glossary of abbreviations) and lines the layout model missed.
         # Kept at the end of their page, as the plain PDF text always had them; bare page numbers dropped.
