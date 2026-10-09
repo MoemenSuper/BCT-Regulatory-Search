@@ -55,7 +55,20 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
-  const [docKind, setDocKind] = useState<DocKind>('regulatory');
+  // The last kind chosen survives a reload: going back to "regulatory" once filed a statistics PDF
+  // under the wrong kind.
+  const [docKind, setDocKind] = useState<DocKind>(() => {
+    try {
+      const saved = window.localStorage.getItem('bct-doc-kind');
+      return saved === 'statistical' || saved === 'internal' ? saved : 'regulatory';
+    } catch {
+      return 'regulatory';
+    }
+  });
+  function chooseDocKind(kind: DocKind) {
+    setDocKind(kind);
+    try { window.localStorage.setItem('bct-doc-kind', kind); } catch { /* private window: kept until reload */ }
+  }
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [theme, setTheme] = useState<AdminTheme>(readAdminTheme);
   const navigation = [
@@ -436,7 +449,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             files={files}
             fileKey={fileKey}
             docKind={docKind}
-            onDocKindChange={setDocKind}
+            onDocKindChange={chooseDocKind}
             uploadProgress={uploadProgress}
             onUpload={(event) => void handleUpload(event)}
             onFilesChange={(next) => {

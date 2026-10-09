@@ -137,6 +137,32 @@ def test_a_queued_or_failed_upload_can_be_deleted_without_a_new_version(config, 
     assert _versions(config) == before
 
 
+def test_a_pdf_deleted_while_its_batch_reads_it_is_not_indexed(config, tmp_path, monkeypatch):
+    """The "Indexation" badge: deleting works at once, and the batch reading it drops it."""
+    pipeline = _queue(config, tmp_path, ["Cir_2024_01_fr.pdf", "Cir_2024_02_fr.pdf"])
+    real_prepare = IngestionPipeline._prepare
+    removed = {}
+
+    def prepare(self, content_hash, filename, immutable_pdf, metadata):
+        prepared = real_prepare(self, content_hash, filename, immutable_pdf, metadata)
+        if filename == "Cir_2024_01_fr.pdf":  # the admin deletes it while it is being read
+            removed["report"] = IngestionPipeline(config).remove(content_hash)
+        return prepared
+
+    monkeypatch.setattr(IngestionPipeline, "_prepare", prepare)
+    try:
+        reports = pipeline.ingest_queued(10)
+        listed = {row["filename"] for row in pipeline.registry.list_ready(include_pending=True)}
+    finally:
+        pipeline.close()
+
+    assert removed["report"]["status"] == "removed"
+    assert [report["filename"] for report in reports.values()] == ["Cir_2024_02_fr.pdf"]
+    assert listed == {"Cir_2024_02_fr.pdf"}
+    sources = {chunk.metadata["source"] for chunk in _read_chunks(resolve_active_assets(config.asset_root) / "native.jsonl")}
+    assert sources == {"Cir_2024_02_fr.pdf"}
+
+
 def test_uploads_are_queued_again_when_their_index_was_replaced(config, tmp_path):
     pipeline = _queue(config, tmp_path, ["Cir_2024_01_fr.pdf"])
     try:

@@ -159,8 +159,10 @@ class PaddleVlVisual:
             if free_gb is not None and free_gb < needed_gb:
                 # Loading the 0.9B model on CPU on a small machine (an 8 GB Docker Desktop) runs it
                 # out of memory. The page stays readable from its PDF text and is marked unread.
-                raise RuntimeError(
-                    f"PaddleOCR-VL on CPU needs about {needed_gb:g} GB of free memory; {free_gb:.1f} GB free"
+                from .docling_layout import NotEnoughMemory
+
+                raise NotEnoughMemory(
+                    f"PaddleOCR-VL on CPU needs about {needed_gb:g} GB of free memory; {int(free_gb * 10) / 10:.1f} GB free"
                 )
         self.killed = False
         env = os.environ.copy()

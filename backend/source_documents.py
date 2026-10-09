@@ -12,6 +12,10 @@ import unicodedata
 
 
 from ingestion.registry import _SEARCHABLE_SQL
+
+# Uploads an admin can open: indexed ones, and ones still queued, being read or failed (their
+# kept copy exists; the admin page links every upload). Removed and superseded ones cannot.
+_OPENABLE_SQL = _SEARCHABLE_SQL[:-1] + ", 'queued', 'processing', 'failed')"
 from retrieval_selection import _ARABIC_RANGE
 from retrieval_selection import is_arabic_query
 from source_metadata import safe_pdf_filename
@@ -94,7 +98,7 @@ class SourceDocumentResolver:
                     """
                     SELECT stored_path
                     FROM ingestion_documents
-                    WHERE status IN """ + _SEARCHABLE_SQL + """ AND lower(original_filename)=lower(?)
+                    WHERE status IN """ + _OPENABLE_SQL + """ AND lower(original_filename)=lower(?)
                     ORDER BY activated_at DESC, created_at DESC
                     LIMIT 1
                     """,

@@ -62,7 +62,7 @@ def check_memory() -> None:
     memory, needed = _memory()
     if memory is not None and memory[1] < needed:
         raise NotEnoughMemory(
-            f"reading PDF layouts needs about {needed:g} GB of free memory; {memory[1]:.1f} GB free "
+            f"reading PDF layouts needs about {needed:g} GB of free memory; {int(memory[1] * 10) / 10:.1f} GB free "
             f"of {memory[0]:.1f} GB. Close other programs, or give Docker more memory (Docker Desktop: "
             "Settings > Resources)."
         )

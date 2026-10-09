@@ -317,7 +317,7 @@ function DocumentsList({
       </div>
       {rows.some((doc) => ['queued', 'processing', 'enriching'].includes(doc.status)) ? (
         <p className="admin-enrich-notice" role="status">
-          <Loader2 aria-hidden="true" size={14} className={enrichment?.state === 'reading' ? 'admin-spin' : undefined} />
+          <Loader2 aria-hidden="true" size={14} className={['indexing', 'reading', 'activating'].includes(enrichment?.state ?? '') ? 'admin-spin' : undefined} />
           <span>{t(locale, 'admin.enrichNotice')}{enrichmentNotice(enrichment, locale) ? ` ${enrichmentNotice(enrichment, locale)}` : ''}</span>
         </p>
       ) : null}

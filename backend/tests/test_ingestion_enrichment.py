@@ -333,3 +333,45 @@ def test_foreground_gate_waits_for_chat():
     thread.join()
     assert waited >= 0.45 and time.monotonic() - started >= 0.45
     assert gate.wait_idle(stop, grace=0.0) < 0.1
+
+
+def test_the_memory_wait_shows_live_numbers_and_ends_when_memory_is_freed(config, monkeypatch):
+    """Closing programs must show on the admin page at once, not after the next retry."""
+    from ingestion import docling_layout
+
+    free = {"gb": 1.4}
+
+    def check_memory():
+        if free["gb"] < 4:
+            raise docling_layout.NotEnoughMemory(f"{free['gb']:.1f} GB free")
+
+    monkeypatch.setattr(docling_layout, "check_memory", check_memory)
+    worker = EnrichmentWorker(config)
+    worker._state = {"state": "waiting_for_memory", "queued": 1, "detail": "1.4 GB free"}
+    free["gb"] = 2.5
+    assert worker.snapshot()["detail"] == "2.5 GB free"
+    free["gb"] = 6.0
+    assert worker.snapshot() == {"state": "indexing", "queued": 1}
+
+
+def test_too_little_memory_marks_pages_unread_at_once_without_a_pause(config, tmp_path, monkeypatch):
+    """Not enough memory to read pictures is not a page error: no 3 attempts, no 10-minute pause."""
+    from ingestion.docling_layout import NotEnoughMemory
+
+    report = _quick_ingest(config, tmp_path)
+    fake = FakeTranscriber()
+
+    def no_memory(**_):
+        fake.calls.append(1)
+        raise NotEnoughMemory("PaddleOCR-VL on CPU needs about 8 GB of free memory; 2.3 GB free")
+
+    fake.transcribe = no_memory
+    monkeypatch.setattr(enrichment_module, "build_visual_transcriber", lambda *_a, **_k: fake)
+    worker = EnrichmentWorker(config)
+    worker.run_until_idle()
+
+    row = _registry_row(config, report["content_sha256"])
+    assert len(fake.calls) == 1  # one try, not one per attempt
+    assert row["status"] == "ready_degraded" and row["progress"]["failed"] == 1
+    assert worker.snapshot()["state"] != "cooldown"
+    assert NATIVE[:40] in _active_texts(config)  # still searchable from its text

@@ -51,6 +51,34 @@ def test_source_resolver_opens_ledger_pdfs_that_are_live_but_still_being_read(tm
     assert SourceDocumentResolver().resolve("dette2024.pdf").path == stored.resolve()
 
 
+def test_an_upload_still_in_the_queue_opens_but_a_citation_opens_the_indexed_version(tmp_path: Path, monkeypatch):
+    """The admin page links every upload; a newer upload of the same name waiting in the queue
+    must not replace the indexed version a citation points to."""
+    from ingestion.registry import IngestionRegistry
+
+    pymupdf = pytest.importorskip("pymupdf")
+    paths = {}
+    for name in ("indexed", "queued"):
+        paths[name] = tmp_path / name / "bsf223_fr.pdf"
+        paths[name].parent.mkdir()
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 100), name)
+        document.save(paths[name])
+        document.close()
+    database = tmp_path / "ingestion.sqlite3"
+    monkeypatch.setenv("BCT_INGESTION_DB", str(database))
+    monkeypatch.setenv("BCT_SOURCE_DOCUMENT_ROOTS", str(tmp_path / "empty"))
+    monkeypatch.delenv("BCT_DOCUMENTS_DIR", raising=False)
+    registry = IngestionRegistry(database)
+    registry.queue("q" * 64, "bsf223_fr.pdf", str(paths["queued"]), {})
+    assert SourceDocumentResolver().resolve("bsf223_fr.pdf").path == paths["queued"].resolve()
+
+    registry.start("i" * 64, "bsf223_fr.pdf", str(paths["indexed"]))
+    registry.ready("i" * 64, stored_path=str(paths["indexed"]), asset_version="v1", report={})
+    registry.close()
+    assert SourceDocumentResolver().resolve("bsf223_fr.pdf").path == paths["indexed"].resolve()
+
+
 def test_rendered_source_page_contains_real_highlight(source_root: Path):
     resolver = SourceDocumentResolver()
     resolved = resolver.resolve(source_root.name)

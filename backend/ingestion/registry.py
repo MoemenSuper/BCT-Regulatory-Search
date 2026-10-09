@@ -123,6 +123,7 @@ class IngestionRegistry:
                 original_filename=excluded.original_filename,
                 stored_path=coalesce(excluded.stored_path, ingestion_documents.stored_path),
                 status='processing', error=NULL
+            WHERE ingestion_documents.status <> 'removed'
             """,
             (content_sha256, filename, stored_path, now),
         )
@@ -177,15 +178,17 @@ class IngestionRegistry:
 
     def fail(self, content_sha256: str, error: str) -> None:
         self.connection.execute(
-            "UPDATE ingestion_documents SET status='failed', error=? WHERE content_sha256=?",
+            "UPDATE ingestion_documents SET status='failed', error=? WHERE content_sha256=? AND status <> 'removed'",
             (error[:4000], content_sha256),
         )
         self.connection.commit()
 
     def drop_unindexed(self, content_sha256: str) -> bool:
-        """Forget a queued or failed upload (it never reached the index)."""
+        """Forget an upload that never reached the index: queued, failed, or being read right now (the
+        batch reading it sees the 'removed' status and drops it)."""
         cursor = self.connection.execute(
-            "UPDATE ingestion_documents SET status='removed', error=NULL WHERE content_sha256=? AND status IN ('queued', 'failed')",
+            "UPDATE ingestion_documents SET status='removed', error=NULL WHERE content_sha256=? "
+            "AND status IN ('queued', 'failed', 'processing')",
             (content_sha256,),
         )
         self.connection.commit()

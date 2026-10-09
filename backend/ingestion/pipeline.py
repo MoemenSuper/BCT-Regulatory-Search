@@ -333,12 +333,17 @@ class IngestionPipeline:
                     if before_each is not None:
                         before_each(job)
                     self.registry.start(content_hash, filename, str(stored))
+                    if self._deleted(content_hash):
+                        continue
                     prepared.append(self._prepare(content_hash, filename, stored, metadata))
                 except NotEnoughMemory as error:
-                    self.registry.queue(content_hash, filename, str(stored), metadata)
+                    if not self._deleted(content_hash):
+                        self.registry.queue(content_hash, filename, str(stored), metadata)
                     logger.warning("Not enough memory to read %s; it stays queued: %s", filename, error)
                     break
                 except Exception as error:
+                    if self._deleted(content_hash):
+                        continue  # deleted while being read (its file may already be gone)
                     errors[content_hash] = error
                     message = f"{type(error).__name__}: {error}"
                     self.registry.fail(content_hash, message)
@@ -348,6 +353,11 @@ class IngestionPipeline:
                     continue
                 names.add(filename.casefold())
                 logger.info("Read %s in %.1fs", filename, time.monotonic() - started)
+            # A PDF deleted while the batch read it is not indexed.
+            for item in [item for item in prepared if self._deleted(item.content_hash)]:
+                prepared.remove(item)
+                shutil.rmtree(item.immutable_pdf.parent, ignore_errors=True)
+                logger.info("%s was deleted while being read; not indexed.", item.filename)
             if prepared:
                 from . import docling_layout
 
@@ -605,11 +615,16 @@ class IngestionPipeline:
     def remove(self, content_sha256: str) -> dict:
         return _logged("remove-document", lambda: self._remove(content_sha256), subject=content_sha256)
 
-    def _drop_unindexed(self, content_hash: str, known: dict) -> dict:
-        """A queued or failed upload never reached the index: forget it, no new asset version."""
-        with FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30):
-            if not self.registry.drop_unindexed(content_hash):
-                raise ValueError("This PDF is being indexed right now; delete it once it is done.")
+    def _deleted(self, content_hash: str) -> bool:
+        """Deleted by an admin while a batch was reading it (drop_unindexed)."""
+        return (self.registry.get(content_hash) or {}).get("status") == "removed"
+
+    def _drop_unindexed(self, content_hash: str, known: dict) -> dict | None:
+        """An upload not in the index yet (queued, failed, or being read): forget it, no new asset
+        version and no lock (a batch reading it holds the lock for minutes). None when it reached the
+        index in the meantime."""
+        if not self.registry.drop_unindexed(content_hash):
+            return None
         stored = Path(str(known.get("stored_path") or ""))
         if stored.parent.is_dir() and stored.parent.parent == self.config.documents_dir:
             shutil.rmtree(stored.parent, ignore_errors=True)
@@ -621,8 +636,11 @@ class IngestionPipeline:
         if not content_hash or len(content_hash) < 16:
             raise ValueError("Invalid document id")
         known = self.registry.get(content_hash)
-        if known is not None and known.get("status") in ("queued", "failed"):
-            return self._drop_unindexed(content_hash, known)
+        if known is not None and known.get("status") in ("queued", "failed", "processing"):
+            dropped = self._drop_unindexed(content_hash, known)
+            if dropped is not None:
+                return dropped
+            known = self.registry.get(content_hash)
         if known is None or known.get("status") not in SEARCHABLE:
             raise KeyError(f"Ready document not found: {content_hash}")
         filename = _safe_filename(str(known.get("original_filename") or "document.pdf"))

@@ -26,6 +26,15 @@ from .registry import SEARCHABLE, IngestionRegistry
 logger = logging.getLogger(__name__)
 
 
+def _memory_shortage() -> str | None:
+    """Why the layout reader cannot start now (free memory, needed memory), or None when it can."""
+    try:
+        docling_layout.check_memory()
+    except NotEnoughMemory as error:
+        return str(error)
+    return None
+
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.environ.get(name, default))
@@ -123,7 +132,13 @@ class EnrichmentWorker:
 
     def snapshot(self) -> dict:
         state = dict(self._state)
-        if self._cooldown_until > time.monotonic() and state.get("state") != "waiting_for_memory":
+        if state.get("state") == "waiting_for_memory":
+            # Live numbers: the admin page shows the memory freed by closing programs at once.
+            detail = _memory_shortage()
+            if detail is None:
+                return {"state": "indexing", "queued": state.get("queued", 0)}  # starts within seconds
+            return {**state, "detail": detail}
+        if self._cooldown_until > time.monotonic():
             state["state"] = "cooldown"
             state["cooldown_seconds"] = int(self._cooldown_until - time.monotonic())
         return state
@@ -132,6 +147,13 @@ class EnrichmentWorker:
         registry = IngestionRegistry(self.config.registry_path)
         try:
             while not self._stop.is_set():
+                if self._state.get("state") == "waiting_for_memory" and self._cooldown_until > time.monotonic():
+                    # Free memory is checked every few seconds: indexing starts as soon as there is enough.
+                    if self._wake.wait(5):
+                        self._wake.clear()
+                    if _memory_shortage() is None:
+                        self._cooldown_until = 0.0
+                    continue
                 if self._cooldown_until > time.monotonic():
                     self._release_models()
                     self._wake.wait(self._cooldown_until - time.monotonic())
@@ -144,8 +166,13 @@ class EnrichmentWorker:
                     self._release_models()
                     self._wake.wait(30)
                     self._wake.clear()
-        except Exception:
-            logger.exception("Enrichment worker crashed.")
+        except BaseException:
+            # Ctrl+C or a server stop interrupts the layout reader mid-PDF: not a crash, the PDF is
+            # queued again at the next start (requeue_interrupted).
+            if not self._stop.is_set():
+                logger.exception("Enrichment worker crashed.")
+            else:
+                logger.info("Server stopping: indexing interrupted, resumed at the next start.")
         finally:
             self._release_models()
             registry.close()
@@ -196,13 +223,8 @@ class EnrichmentWorker:
             except Exception:
                 logger.exception("Runtime refresh after indexing failed.")
         if not reports:
-            # Nothing could start (not enough memory): try again later, never crash the server.
-            try:
-                docling_layout.check_memory()
-                detail = ""
-            except NotEnoughMemory as error:
-                detail = str(error)
-            self._state = {"state": "waiting_for_memory", "queued": waiting, "detail": detail}
+            # Nothing could start (not enough memory): wait for free memory, never crash the server.
+            self._state = {"state": "waiting_for_memory", "queued": waiting, "detail": _memory_shortage() or ""}
             self._cooldown_until = time.monotonic() + self.memory_wait_seconds
         return True
 
@@ -264,7 +286,19 @@ class EnrichmentWorker:
                     break
                 self._preempted = False
                 self._state = {"state": "reading", "document": filename, "page": page_number}
-                outcome = self._read_page(registry, pdf, content_hash, plan, layout)
+                try:
+                    outcome = self._read_page(registry, pdf, content_hash, plan, layout)
+                except NotEnoughMemory as error:
+                    # Not a page error: this machine lacks the memory to read pictures now. The waiting
+                    # pages are marked unread at once (the PDF stays searchable from its text), instead
+                    # of failing 3 times into a pause; "Relire" on the admin page tries again.
+                    rest = pages[pages.index(plan):]
+                    for page in rest:
+                        registry.page_failed(content_hash, int(page["page_number"]),
+                                             error=f"not enough memory: {error}", max_attempts=1)
+                    failed += len(rest)
+                    logger.warning("Pictures and scans of %s not read (%d page(s)): %s", filename, len(rest), error)
+                    break
                 if outcome is None:
                     continue  # interrupted by chat: stays pending, not an attempt
                 if outcome:
@@ -303,6 +337,8 @@ class EnrichmentWorker:
                 language=plan["language"],
                 regions=page_regions(layout, page_number) if plan["image_regions"] else [],
             )
+        except NotEnoughMemory:
+            raise
         except Exception as error:
             if self._preempted:
                 return None  # a chat question stopped the reader; the page is read again later
