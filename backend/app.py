@@ -39,7 +39,7 @@ from extras.identity import (
 from langchain_core.callbacks import get_usage_metadata_callback
 
 from rag.hardware import memory_gb
-from rag.llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm
+from rag.llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm, local_llm_status
 from extras.runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile
 from rag.runtime_retrieval import create_local_backend
 # Optional cloud profile: only called when the cloud profile is selected.
@@ -755,9 +755,15 @@ def _build_cloud_index(profile_manager) -> None:
         _cloud_build_lock.release()
 
 
+def _admin_config(request: Request) -> dict:
+    """What the Configuration page shows; every config endpoint answers with this same shape."""
+    return {**request.app.state.settings_store.public_configuration(), "cloud_index": _cloud_index_status(),
+            "local_llm": local_llm_status()}
+
+
 @app.get("/admin/config")
 def admin_get_config(request: Request, _admin=Depends(require_admin)):
-    return {**request.app.state.settings_store.public_configuration(), "cloud_index": _cloud_index_status()}
+    return _admin_config(request)
 
 
 @app.post("/admin/config/cloud-index", status_code=202)
@@ -776,6 +782,8 @@ def admin_build_cloud_index(request: Request, admin=Depends(require_admin)):
 def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Depends(require_admin)):
     if parse_profile(payload.profile) == RuntimeProfile.CLOUD and not _cloud_index_status()["ready"]:
         raise HTTPException(status_code=409, detail="Build the cloud index before choosing the cloud profile.")
+    if parse_profile(payload.profile) == RuntimeProfile.LOCAL and not local_llm_status()["ready"]:
+        raise HTTPException(status_code=409, detail="The local model is not ready (see Configuration).")
     profile = request.app.state.settings_store.set_active_profile(payload.profile)
     request.app.state.profile_manager.reset()
     _audit(request, admin, "config.profile", profile.value)
@@ -784,10 +792,17 @@ def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Dep
 
 @app.put("/admin/config/secrets")
 def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Depends(require_admin)):
+    store = request.app.state.settings_store
+    local_keys = {"BCT_LOCAL_LLM_URL", "BCT_LOCAL_LLM_MODEL"} & set(payload.secrets)
+    previous = {key: store.get(key) for key in local_keys}
     try:
-        config = request.app.state.settings_store.update_secrets(payload.secrets)
+        store.update_secrets(payload.secrets)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    # While "All local" answers every question, a model that is not there would break every answer.
+    if local_keys and store.active_profile() == RuntimeProfile.LOCAL and not local_llm_status()["ready"]:
+        store.update_secrets(previous)
+        raise HTTPException(status_code=409, detail="The local model is not ready; the previous one is kept.")
     if "BCT_SPEED_MODE" in payload.secrets:
         from rag.reranker import create_reranker
 
@@ -799,7 +814,7 @@ def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Dep
     for key, value in payload.secrets.items():
         cleared = value is None or not value.strip()
         _audit(request, admin, "config.secret_clear" if cleared else "config.secret_set", key)
-    return config
+    return _admin_config(request)
 
 
 _QUESTION_SPLIT = re.compile(r"(?<=[?؟])\s+(?=\S)")

@@ -32,6 +32,14 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
   const cloud = config.cloud_index;
   // The cloud profile can only be chosen once its index exists (the server refuses it otherwise).
   const cloudLocked = !cloud.ready && config.active_profile !== 'cloud';
+  const local = config.local_llm;
+  const localProblem: Record<string, string> = {
+    unreachable: 'admin.localLlmUnreachable', missing: 'admin.localLlmMissing',
+    remote_not_allowed: 'admin.localLlmRemote', cloud_model: 'admin.localLlmCloud',
+  };
+  const localMessage = t(locale, local.ready ? 'admin.localLlmReady' : localProblem[local.problem || 'unreachable'], {
+    model: local.model, installed: local.installed.join(', ') || t(locale, 'admin.localLlmNone'),
+  });
   return (
     <section className="admin-configuration">
       <form className="admin-panel" onSubmit={(event) => void onProfile(event)}>
@@ -44,7 +52,8 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
             {config.profiles.map((profile) => (
               <label className="admin-choice" key={profile.value}>
                 <input type="radio" name="profile" value={profile.value} defaultChecked={profile.value === config.active_profile}
-                  disabled={profile.value === 'cloud' && cloudLocked} />
+                  disabled={(profile.value === 'cloud' && cloudLocked)
+                    || (profile.value === 'local' && !local.ready && config.active_profile !== 'local')} />
                 <strong>{profileGuides[profile.value]?.title || profile.label}</strong>
                 <span>{profileGuides[profile.value]?.body || profile.description}</span>
                 {profile.value === 'cloud' ? (
@@ -60,6 +69,7 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
                     ) : null}
                   </span>
                 ) : null}
+                {profile.value === 'local' ? <span className="admin-help">{localMessage}</span> : null}
               </label>
             ))}
           </div>

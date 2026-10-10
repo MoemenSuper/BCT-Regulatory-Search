@@ -338,13 +338,28 @@ pending pages, unreadable first → EasyOCR (Arabic) / PaddleOCR-VL (charts·tab
 
 ## 🧩 Runtime profiles
 
-Set `BCT_DEFAULT_PROFILE` before startup:
+Choose the profile in **Admin → Configuration** (or set `BCT_DEFAULT_PROFILE` before startup):
 
-| Profile | Retrieval | Answer |
-| --- | --- | --- |
-| `cloud` | `BCT_CLOUD_RETRIEVAL_PROVIDER=voyage` (Context-4 + Voyage rerank) or `google` (Gemini embed + Vertex Ranking); indexes are separate | the chosen answer model (OpenAI, Claude, Gemini or Groq) |
-| `local_hybrid` | Local E5/BGE | the chosen answer model (OpenAI, Claude, Gemini or Groq) |
-| `local` | Local E5/BGE | Ollama (experimental) |
+| Profile | Retrieval | Answer | Before you can choose it |
+| --- | --- | --- | --- |
+| `local_hybrid` (default) | Local E5/BGE | the chosen answer model (OpenAI, Claude, Gemini or Groq) | nothing |
+| `cloud` | Voyage Context-4 + Voyage rerank | the chosen answer model | click **Build the cloud index** (needs `VOYAGE_API_KEY`) |
+| `local` | Local E5/BGE | a model on your own server, through Ollama (experimental) | Ollama running with the model installed (below) |
+
+### Setting up the `local` profile (Ollama)
+
+Every question stays on your server. About 15 minutes plus the model download.
+
+1. Install Ollama on the server (Linux: `curl -fsSL https://ollama.com/install.sh | sh`).
+2. Download a model, for example `ollama pull gemma4:12b-it-qat` (7.2 GB). Any model from the
+   Ollama library works; small models fail the answer checks more often, so the app says
+   "not confirmed" more often (it never invents). `:cloud` models are refused: they run outside.
+3. If the app runs in Docker, 127.0.0.1 is the container, not the server:
+   - start Ollama with `OLLAMA_HOST=0.0.0.0` so the container can reach it;
+   - in `.env`, set `BCT_ALLOW_REMOTE_LOCAL_LLM=1`.
+4. In **Admin → Configuration**, enter the address (`http://<server-ip>:11434`) and the model
+   name, then save. The page says what is missing (no server, model not installed, address not
+   allowed) or that the model is ready; only then can **All local** be chosen.
 
 ---
 

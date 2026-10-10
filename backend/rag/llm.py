@@ -42,7 +42,8 @@ def _chat_messages(value):
     ]
 
 
-def _create_ollama_llm():
+def _local_llm_target() -> tuple[str, str]:
+    """The Ollama address and model, refusing anything that would run outside the server."""
     base_url = os.environ.get("BCT_LOCAL_LLM_URL", "http://127.0.0.1:11434").rstrip("/")
     host = urlparse(base_url).hostname
     allow_remote = os.environ.get("BCT_ALLOW_REMOTE_LOCAL_LLM") == "1"
@@ -54,6 +55,38 @@ def _create_ollama_llm():
     model = os.environ.get("BCT_LOCAL_LLM_MODEL", "qwen3.5:9b-q4_K_M")
     if model.casefold().endswith(":cloud"):
         raise ValueError("The local profile cannot use an Ollama cloud model")
+    return base_url, model
+
+
+def local_llm_status() -> dict:
+    """Can the "All local" profile answer? Asks Ollama which models it has (2 s at most).
+
+    problem is None when ready, else "remote_not_allowed", "cloud_model", "unreachable" or
+    "missing" (the model is not installed; installed lists what is).
+    """
+    status = {"ready": False, "problem": None, "model": os.environ.get("BCT_LOCAL_LLM_MODEL", "qwen3.5:9b-q4_K_M"),
+              "installed": []}
+    try:
+        base_url, model = _local_llm_target()
+    except ValueError:
+        status["problem"] = "cloud_model" if status["model"].casefold().endswith(":cloud") else "remote_not_allowed"
+        return status
+    try:
+        response = requests.get(f"{base_url}/api/tags", timeout=2)
+        response.raise_for_status()
+        status["installed"] = sorted(item.get("name", "") for item in response.json().get("models") or [])
+    except (requests.RequestException, ValueError):
+        status["problem"] = "unreachable"
+        return status
+    if model not in status["installed"] and f"{model}:latest" not in status["installed"]:
+        status["problem"] = "missing"
+        return status
+    status["ready"] = True
+    return status
+
+
+def _create_ollama_llm():
+    base_url, model = _local_llm_target()
 
     def invoke(value):
         # Qwen3.5 and similar Ollama thinking models leave message.content empty

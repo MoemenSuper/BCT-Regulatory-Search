@@ -149,3 +149,39 @@ def test_groq_provider_rotates_across_keys_on_rate_limit(monkeypatch):
 
     assert result == "from-key-b"
     assert calls == ["key-a", "key-b"]
+
+
+class _Tags:
+    def __init__(self, names):
+        self.names = names
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"models": [{"name": name} for name in self.names]}
+
+
+def test_local_model_status_says_what_is_wrong(monkeypatch):
+    import requests
+
+    from rag import llm
+
+    monkeypatch.setenv("BCT_LOCAL_LLM_URL", "http://127.0.0.1:11434")
+    monkeypatch.setenv("BCT_LOCAL_LLM_MODEL", "gemma4:12b-it-qat")
+
+    def refused(*_a, **_k):
+        raise requests.ConnectionError("no server")
+
+    monkeypatch.setattr(llm.requests, "get", refused)
+    assert llm.local_llm_status()["problem"] == "unreachable"
+
+    monkeypatch.setattr(llm.requests, "get", lambda *_a, **_k: _Tags(["mistral:7b"]))
+    status = llm.local_llm_status()
+    assert status["problem"] == "missing" and status["installed"] == ["mistral:7b"]
+
+    monkeypatch.setattr(llm.requests, "get", lambda *_a, **_k: _Tags(["gemma4:12b-it-qat"]))
+    assert llm.local_llm_status()["ready"] is True
+
+    monkeypatch.setenv("BCT_LOCAL_LLM_URL", "http://10.0.0.5:11434")  # not this server
+    assert llm.local_llm_status()["problem"] == "remote_not_allowed"

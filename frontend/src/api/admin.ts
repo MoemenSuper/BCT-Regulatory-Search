@@ -99,6 +99,8 @@ export interface AdminConfig {
   answer_provider: string;
   // The cloud profile needs its own index, built on demand from this screen.
   cloud_index: { ready: boolean; building: boolean; error: string | null };
+  // The "All local" profile needs Ollama running with the chosen model installed.
+  local_llm: { ready: boolean; problem: 'unreachable' | 'missing' | 'remote_not_allowed' | 'cloud_model' | null; model: string; installed: string[] };
 }
 
 export function getOverview(): Promise<AdminOverview> {

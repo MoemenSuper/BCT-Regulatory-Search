@@ -177,6 +177,21 @@ def test_admin_can_switch_runtime_profile(auth_client):
     assert config["active_profile"] == "local_hybrid"
 
 
+def test_the_local_profile_cannot_be_chosen_without_its_model(auth_client, monkeypatch):
+    import requests
+
+    from rag import llm
+
+    def refused(*_a, **_k):
+        raise requests.ConnectionError("no server")
+
+    monkeypatch.setattr(llm.requests, "get", refused)
+    auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+
+    assert auth_client.get("/admin/config").json()["local_llm"]["problem"] == "unreachable"
+    assert auth_client.put("/admin/config/profile", json={"profile": "local"}).status_code == 409
+
+
 def test_the_cloud_profile_cannot_be_chosen_without_its_index(auth_client):
     auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
 
@@ -197,6 +212,7 @@ def test_admin_secrets_are_masked(auth_client):
         json={"secrets": {"GROQ_API_KEY": "super-secret-key-value"}},
     )
     assert updated.status_code == 200
+    assert {"cloud_index", "local_llm"} <= set(updated.json())  # same shape as GET /admin/config
     secret = next(item for item in updated.json()["secrets"] if item["key"] == "GROQ_API_KEY")
     assert secret["configured"] is True
     assert "super-secret" not in (secret["masked"] or "")
