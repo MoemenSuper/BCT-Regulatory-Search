@@ -101,3 +101,15 @@ def test_no_piece_is_a_scrap():
     chunks, _ = build_runtime_chunks(_document([page], "RA_2025_fr.pdf"))
     assert all(len(c.page_content) >= 150 for c in chunks)
     assert chunks[0].page_content.startswith("Chapitre 2 Inflation\nLe taux")  # the heading stays with its text
+
+
+def test_the_answer_model_sees_each_passage_context():
+    """Look-alike tables differ only by their section: without the context the model answered
+    a "tableau IV-2" question from the banks table on another page (2026-10-10)."""
+    from langchain_core.documents import Document
+    from rag.answer_draft import evidence_records
+
+    leasing = Document(page_content="DEPOTS MONETAIRES — AVR. 2023: 48730", metadata={
+        "source": "bsf223_fr.pdf", "page": 42,
+        "context": "bsf223_fr.pdf\nIV-2. SITUATION DES ETABLISSEMENTS DE LEASING · tableau · page 42"})
+    assert "IV-2" in evidence_records([(leasing, 0.9)])[0]["context"]

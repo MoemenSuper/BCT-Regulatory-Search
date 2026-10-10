@@ -208,9 +208,11 @@ def evidence_records(scored_documents):
             continue
         record = {"evidence_id": f"E{index}", "source": source,
                   "page": page, "text": document.page_content, "score": float(score)}
+        # "context" (file · title / section · element · page) is what tells look-alike pages apart:
+        # without it the model answered "tableau IV-2" from the banks table on another page.
         record.update({key: value for key, value in document.metadata.items()
                        if key.startswith("temporal_")
-                       or key in {"representation", "doc_kind", "authority", "related_to", "language"}})
+                       or key in {"representation", "doc_kind", "authority", "related_to", "language", "context"}})
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
@@ -284,10 +286,6 @@ def _annotate_supersession(evidence):
 
     Covers relationship_note and JSONL-pinned temporal_relation metadata
     (REPLACES / ABROGATES / AMENDS).
-
-    The keys graph_role / graph_guidance keep their historical names (from a removed graph
-    database): the answer prompts name graph_guidance, so renaming the keys would change
-    what the model reads.
     """
     records = [dict(record) for record in (evidence or [])]
     # Only a pair whose older text is in the evidence changes roles and order: "successor of
@@ -313,32 +311,32 @@ def _annotate_supersession(evidence):
             continue
         if key in older_to_edge:
             newer, relation = older_to_edge[key]
-            record["graph_role"] = "superseded"
+            record["relation_role"] = "superseded"
             if relation == "AMENDS":
-                record["graph_guidance"] = (
+                record["relation_guidance"] = (
                     f"SUPERSEDED (amended): {_label(newer)} AMENDS {_label(key)}. "
                     "For facts the amendment changes, do not treat this page as the "
                     "governing rule. State that it was amended, then give the "
                     "successor's rule from the amending circular."
                 )
             else:
-                record["graph_guidance"] = (
+                record["relation_guidance"] = (
                     f"SUPERSEDED: {_label(newer)} {relation} {_label(key)}. "
                     "Do not treat this page as the governing rule for conflicting facts. "
                     "You may cite it only to say it was replaced/abrogated, then give the "
                     "successor's rule."
                 )
         elif key in newer_keys:
-            record["graph_role"] = "successor"
-            if not record.get("graph_guidance"):
-                record["graph_guidance"] = (
+            record["relation_role"] = "successor"
+            if not record.get("relation_guidance"):
+                record["relation_guidance"] = (
                     "SUCCESSOR instrument for a REPLACES/ABROGATES/AMENDS edge: "
                     "state who replaces/amends whom, then prefer this instrument's "
                     "values as the rule to follow for the asked fact."
                 )
 
     def _rank(record):
-        role = record.get("graph_role")
+        role = record.get("relation_role")
         if role == "successor":
             return 0
         if record.get("relationship_note") or record.get("temporal_relation"):
@@ -397,12 +395,11 @@ follow-up refers to.
   several pages, several entities or years). When answer_intent is summary (a broad topic
   briefing), select up to four complementary passages that each state a concrete fact.
 - Instruments that differ on the same fact: prefer the one the question names or dates. If
-  relationship_note, graph_guidance or temporal_relation says one REPLACES / ABROGATES / AMENDS
+  relationship_note, relation_guidance or temporal_relation says one REPLACES / ABROGATES / AMENDS
   another, select both and treat the successor as governing. For "before circular X" or a past
   date, select the instrument that applied then. Otherwise select the highest-ranked candidate
   (E1 before E2) and mention the others in reason.
-- unusable_reason: never select. evidence_warning (unreliable digits): select only for
-  non-numeric facts.
+- evidence_warning (unreliable digits): select only for non-numeric facts.
 - decision: answer = every requested part is supported; partial = at least one part is;
   clarification_needed = the question is ambiguous between different operations or regimes and
   the evidence cannot settle it; insufficient_evidence = no passage states any requested part.
@@ -562,7 +559,7 @@ Claims
   hors champ, ne s'appliquent pas, sauf, sous réserve / تستثنى، لا تنطبق، خارج نطاق، باستثناء،
   شريطة) must not become "applies/required", and must not be dropped from the conclusion.
 - Do not merge values from different instruments. When instruments differ, name the instrument
-  in the claim ("Selon la circulaire 2024-01, ..."). When relationship_note, graph_guidance or
+  in the claim ("Selon la circulaire 2024-01, ..."). When relationship_note, relation_guidance or
   temporal_relation says REPLACES / ABROGATES / AMENDS, state that relationship and give the
   successor's rule as the one that applies; the replaced text may only describe what changed.
 - Time: for a past date, or "before circular X", answer for that period from the earlier
@@ -574,7 +571,6 @@ Claims
   actuellement, en vigueur, current, currently, in force, الحالي or ساري are refused: give the date
   or period the cited text states instead ("au terme de l'année 2025, le gouverneur est ...").
 - Evidence marked evidence_warning has unreliable digits: state no numbers or dates from it.
-  Evidence marked unusable_reason cannot support a claim.
 - answer_intent opinion (in selection limits): state what the cited texts provide (object, rules,
   figures), as for a summary; do not abstain because no text gives a judgement. Never judge,
   praise, criticise or recommend; the application says that no opinion is given.

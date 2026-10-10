@@ -120,9 +120,9 @@ def test_graph_supersession_keeps_both_sides_and_marks_roles():
     ]
     records = _annotate_supersession(evidence_records(docs))
     by_source = {r["source"]: r for r in records}
-    assert by_source["Cir_2021_03_fr.pdf"]["graph_role"] == "successor"
-    assert by_source["Cir_2016_01_fr.pdf"]["graph_role"] == "superseded"
-    assert "SUPERSEDED" in by_source["Cir_2016_01_fr.pdf"]["graph_guidance"]
+    assert by_source["Cir_2021_03_fr.pdf"]["relation_role"] == "successor"
+    assert by_source["Cir_2016_01_fr.pdf"]["relation_role"] == "superseded"
+    assert "SUPERSEDED" in by_source["Cir_2016_01_fr.pdf"]["relation_guidance"]
     assert records[0]["source"] == "Cir_2021_03_fr.pdf"
 
 
@@ -154,10 +154,10 @@ def test_jsonl_amends_edge_marks_successor_for_topical_drafting():
     ]
     records = _annotate_supersession(evidence_records(docs))
     by_source = {r["source"]: r for r in records}
-    assert by_source["Cir_2020_03_fr.pdf"]["graph_role"] == "successor"
-    assert by_source["Cir_2016_08_fr.pdf"]["graph_role"] == "superseded"
-    assert "AMENDS" in by_source["Cir_2016_08_fr.pdf"]["graph_guidance"]
-    assert "successor" in by_source["Cir_2020_03_fr.pdf"]["graph_guidance"].casefold()
+    assert by_source["Cir_2020_03_fr.pdf"]["relation_role"] == "successor"
+    assert by_source["Cir_2016_08_fr.pdf"]["relation_role"] == "superseded"
+    assert "AMENDS" in by_source["Cir_2016_08_fr.pdf"]["relation_guidance"]
+    assert "successor" in by_source["Cir_2020_03_fr.pdf"]["relation_guidance"].casefold()
 
 
 def test_unverified_temporal_scope_cannot_be_presented_as_a_complete_answer():
@@ -318,5 +318,5 @@ def test_successor_order_only_when_the_replaced_text_is_in_the_evidence():
     assert [r["evidence_id"] for r in _annotate_supersession([newest, successor])] == ["E1", "E2"]
     replaced = {"evidence_id": "E3", "source": "Cir_2017_09_fr.pdf", "page": 2, "text": "règle 2017", "score": 0.95}
     annotated = _annotate_supersession([replaced, newest, successor])
-    assert annotated[0]["evidence_id"] == "E2" and annotated[0]["graph_role"] == "successor"
-    assert annotated[-1]["graph_role"] == "superseded"
+    assert annotated[0]["evidence_id"] == "E2" and annotated[0]["relation_role"] == "successor"
+    assert annotated[-1]["relation_role"] == "superseded"
