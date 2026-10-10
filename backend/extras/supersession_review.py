@@ -15,8 +15,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlite_local import thread_connection
-from supersession_edges import INSTR, SupersessionEdge, edge_key, instruments_from_text
+from extras.sqlite_local import thread_connection
+from extras.supersession_edges import INSTR, SupersessionEdge, edge_key, instruments_from_text
 
 STATUSES = ("approved", "rejected", "added")
 _locals: dict[str, threading.local] = {}  # one per database path (tests use several)

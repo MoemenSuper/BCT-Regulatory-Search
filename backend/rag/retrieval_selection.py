@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from langchain_core.documents import Document
 
-from source_metadata import normalize_page
+from rag.source_metadata import normalize_page
 
 _ARABIC_RANGE = r"\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff"
 ARABIC = re.compile(f"[{_ARABIC_RANGE}]")

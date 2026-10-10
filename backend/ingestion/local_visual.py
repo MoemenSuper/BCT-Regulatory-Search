@@ -8,7 +8,7 @@ import logging
 import os
 from pathlib import Path
 
-from hardware import memory_gb, torch_device
+from rag.hardware import memory_gb, torch_device
 
 from .models import VisualPage
 
@@ -61,7 +61,7 @@ class EasyOcrVisual:
         if self._reader is None:
             import easyocr
 
-            from hardware import torch_device
+            from rag.hardware import torch_device
 
             # GPU when the machine has one (EasyOCR runs on CUDA or Apple MPS); BCT_EASYOCR_GPU=0 forces CPU.
             gpu = torch_device() in {"cuda", "mps"} and os.environ.get("BCT_EASYOCR_GPU", "1") == "1"

@@ -23,10 +23,10 @@ import csv
 import io
 from datetime import datetime, timezone
 
-from app_settings import open_app_settings
-from conversation import chat
-from conversation_memory import open_conversation_store, summarize_conversation_title
-from identity import (
+from extras.app_settings import open_app_settings
+from rag.conversation import chat
+from extras.conversation_memory import open_conversation_store, summarize_conversation_title
+from extras.identity import (
     SESSION_COOKIE,
     AttemptLimiter,
     clear_session_cookie,
@@ -38,14 +38,14 @@ from identity import (
 )
 from langchain_core.callbacks import get_usage_metadata_callback
 
-from hardware import memory_gb
-from llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm
-from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile
-from runtime_retrieval import create_local_backend
+from rag.hardware import memory_gb
+from rag.llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm
+from extras.runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile
+from rag.runtime_retrieval import create_local_backend
 # Optional cloud profile: only called when the cloud profile is selected.
 from cloud.voyage_client import track_cloud_retrieval_usage
 from cloud.voyage_retrieval import create_voyage_backend_from_environment
-from source_documents import SourceDocumentResolver, render_page_png, source_info
+from extras.source_documents import SourceDocumentResolver, render_page_png, source_info
 
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ def create_runtime_profile_manager(local_backend=None):
 def supersession_status() -> dict[str, object]:
     """JSONL SUPERSEDES index readiness for health / admin overview."""
     try:
-        from jsonl_supersession import load_edges, resolve_edges_path
+        from extras.jsonl_supersession import load_edges, resolve_edges_path
         from ingestion.index import resolve_active_assets
 
         root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
@@ -550,7 +550,7 @@ class RelationAddRequest(BaseModel):
 
 def _found_edges():
     """Edges the PDFs of the live index give (supersession_edges.jsonl of the active version)."""
-    from jsonl_supersession import load_edges, resolve_edges_path
+    from extras.jsonl_supersession import load_edges, resolve_edges_path
 
     native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
     path = resolve_edges_path(Path(native).parent) if native else None
@@ -558,7 +558,7 @@ def _found_edges():
 
 
 def _relation_row(edge_id: str) -> dict:
-    from supersession_review import listing
+    from extras.supersession_review import listing
 
     row = next((row for row in listing(_found_edges()) if row["id"] == edge_id), None)
     if row is None:
@@ -568,8 +568,8 @@ def _relation_row(edge_id: str) -> dict:
 
 @app.get("/admin/relations")
 def admin_relations(_admin=Depends(require_admin)):
-    from supersession_edges import instrument_from_filename
-    from supersession_review import listing
+    from extras.supersession_edges import instrument_from_filename
+    from extras.supersession_review import listing
 
     # The old text's PDF when the index has it, so the admin can open both sides.
     by_instrument = {instrument_from_filename(name): name for name in sorted(indexed_sources())}
@@ -583,8 +583,8 @@ def admin_relations(_admin=Depends(require_admin)):
 @app.post("/admin/relations/{edge_id}/decision")
 def admin_relation_decision(edge_id: str, payload: RelationDecisionRequest, request: Request,
                             admin=Depends(require_admin)):
-    from supersession_edges import SupersessionEdge
-    from supersession_review import decide
+    from extras.supersession_edges import SupersessionEdge
+    from extras.supersession_review import decide
 
     row = _relation_row(edge_id)
     edge = SupersessionEdge(**{key: row[key] for key in SupersessionEdge.__dataclass_fields__})
@@ -597,8 +597,8 @@ def admin_relation_decision(edge_id: str, payload: RelationDecisionRequest, requ
 @app.post("/admin/relations")
 def admin_relation_add(payload: RelationAddRequest, request: Request, admin=Depends(require_admin)):
     """A relation the PDFs did not give. The page must name the old text: its sentence is the proof."""
-    from supersession_edges import SupersessionEdge, instrument_from_filename, instruments_from_text
-    from supersession_review import decide, declaring_sentence, edge_id, page_text
+    from extras.supersession_edges import SupersessionEdge, instrument_from_filename, instruments_from_text
+    from extras.supersession_review import decide, declaring_sentence, edge_id, page_text
 
     source_file = Path(payload.source_file).name
     if source_file not in indexed_sources():
@@ -789,7 +789,7 @@ def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Dep
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     if "BCT_SPEED_MODE" in payload.secrets:
-        from reranker import create_reranker
+        from rag.reranker import create_reranker
 
         create_reranker.cache_clear()  # the search below is rebuilt with the new reranker
     request.app.state.profile_manager.reset()
@@ -1137,7 +1137,7 @@ def get_source_pdf(filename: str, request: Request, _user=Depends(require_approv
 
 def _refresh_runtime_asset_environment() -> None:
     from ingestion.index import configure_runtime_assets
-    from jsonl_supersession import clear_supersession_cache
+    from extras.jsonl_supersession import clear_supersession_cache
 
     clear_supersession_cache()
     root_value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
@@ -1173,7 +1173,7 @@ async def ingest_document(
     content_type = (file.content_type or "").lower()
     if content_type and content_type not in {"application/pdf", "application/x-pdf", "binary/octet-stream"}:
         raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
-    from document_authority import normalize_doc_kind
+    from rag.document_authority import normalize_doc_kind
 
     metadata = {
         "title": Path(filename).stem or filename or "document",

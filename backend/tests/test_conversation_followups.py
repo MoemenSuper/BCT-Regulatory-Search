@@ -3,7 +3,7 @@ import json
 from langchain_core.documents import Document
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-import conversation
+from rag import conversation
 
 
 def _document(filename="Cir_2019_07_fr.pdf", page=2):
@@ -191,7 +191,7 @@ def test_follow_up_prefers_prior_turn_source_over_distractor(monkeypatch):
         },
     )
 
-    import query_authority
+    from rag import query_authority
 
     monkeypatch.setattr(
         query_authority,
@@ -528,7 +528,7 @@ def test_selon_circulaire_2025_13_beats_prefer_later_instruments():
 
 
 def test_follow_up_authority_is_classified_on_the_resolved_query(monkeypatch):
-    import query_authority
+    from rag import query_authority
 
     seen = {}
     rewritten = "taux d'inflation Tunisie juin 2025 selon la note de conjoncture"

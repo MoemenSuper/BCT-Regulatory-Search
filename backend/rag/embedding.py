@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from hardware import batch_size, torch_device
+from rag.hardware import batch_size, torch_device
 
 
 @lru_cache(maxsize=1)

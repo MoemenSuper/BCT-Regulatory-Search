@@ -1,7 +1,7 @@
 
 import os
 
-import llm
+from rag import llm
 from langchain_core.messages import HumanMessage
 import pytest
 

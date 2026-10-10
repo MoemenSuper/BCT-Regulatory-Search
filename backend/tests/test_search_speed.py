@@ -2,8 +2,8 @@
 from langchain_core.documents import Document
 import pytest
 
-import reranker
-from runtime_retrieval import script_scores
+from rag import reranker
+from rag.runtime_retrieval import script_scores
 
 
 def test_each_passage_is_scored_once_against_a_wording_in_its_own_script():
@@ -40,7 +40,7 @@ def test_fast_mode_quantizes_the_reranker_on_cpu_only(monkeypatch, mode, device,
 
 
 def test_the_speed_mode_only_takes_known_values(tmp_path):
-    from app_settings import AppSettingsStore
+    from extras.app_settings import AppSettingsStore
 
     store = AppSettingsStore(tmp_path / "settings.sqlite3")
     try:

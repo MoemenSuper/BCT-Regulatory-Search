@@ -7,11 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
-import supersession_review as review
+from extras import supersession_review as review
 from app import app
-from conversation_memory import ConversationStore
-from identity import require_admin, require_approved_user, require_user
-from supersession_edges import SupersessionEdge
+from extras.conversation_memory import ConversationStore
+from extras.identity import require_admin, require_approved_user, require_user
+from extras.supersession_edges import SupersessionEdge
 
 FOUND = SupersessionEdge("cir:2018:13", "Cir_2018_13_fr.pdf", 2, "ABROGATE", "cir:2017:9", None,
                          "Est abrogée la circulaire n° 2017-09 du 27 octobre 2017.")

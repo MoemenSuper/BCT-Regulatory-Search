@@ -3,8 +3,8 @@ import pytest
 
 import app as app_module
 from app import app
-from conversation_memory import ConversationStore
-from identity import require_admin, require_approved_user, require_user
+from extras.conversation_memory import ConversationStore
+from extras.identity import require_admin, require_approved_user, require_user
 from cloud.voyage_client import track_cloud_retrieval_usage, _record_voyage_usage
 
 

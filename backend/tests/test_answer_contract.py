@@ -1,6 +1,6 @@
 import json
 import pytest
-from answer_contract import parse_answer
+from rag.answer_contract import parse_answer
 
 
 EVIDENCE = [{"evidence_id": "E1", "source": "Cir_2020_03_fr.pdf", "page": 1,
@@ -33,7 +33,7 @@ def test_invalid_or_unsupported_output_has_no_answer_sources(value):
 
 def test_conflicting_native_header_is_a_warning_not_a_discarded_page():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records
+    from rag.answer_contract import evidence_records
     text = "CIRCULAIRE AUX INTERMEDIAIRES AGREES n° 2002-03 du 04 février 2020\n" + EVIDENCE[0]["text"]
     records = evidence_records([(Document(page_content=text, metadata={"source": "Cir_2020_03_fr.pdf", "page": 1}), 0.8)])
     assert records[0]["evidence_warning"] == "source_header_conflict"
@@ -75,7 +75,7 @@ def test_partial_answer_does_not_bypass_evidence_requirements(change):
 
 def test_graph_relationship_note_is_surfaced_for_drafting():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records
+    from rag.answer_contract import evidence_records
 
     records = evidence_records([(Document(
         page_content="abroge la circulaire n° 2001-11",
@@ -94,7 +94,7 @@ def test_graph_relationship_note_is_surfaced_for_drafting():
 
 def test_graph_supersession_keeps_both_sides_and_marks_roles():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records, _annotate_supersession
+    from rag.answer_contract import evidence_records, _annotate_supersession
 
     docs = [
         (
@@ -128,7 +128,7 @@ def test_graph_supersession_keeps_both_sides_and_marks_roles():
 
 def test_jsonl_amends_edge_marks_successor_for_topical_drafting():
     from langchain_core.documents import Document
-    from answer_contract import evidence_records, _annotate_supersession
+    from rag.answer_contract import evidence_records, _annotate_supersession
 
     docs = [
         (
@@ -174,7 +174,7 @@ def test_generation_binds_partial_answer_scope_and_literal_reference_context():
     from langchain_core.documents import Document
     from langchain_core.messages import AIMessage
     from langchain_core.runnables import RunnableLambda
-    from answer_contract import generate_grounded_answer
+    from rag.answer_contract import generate_grounded_answer
 
     def respond(prompt):
         messages = prompt.to_messages()
@@ -232,7 +232,7 @@ def test_english_answer_reads_numbers_the_english_way_over_a_french_page():
 
 
 def test_picture_reading_number_needs_the_pictures_own_words():
-    from answer_evidence import confirmed_numbers
+    from rag.answer_evidence import confirmed_numbers
 
     page = ("REPARTITION DES REQUETES (en %)\n"
             "[Mots de l'image] 32,3 39,1 9,7 Tunis Nabeul Autres\n"
@@ -254,7 +254,7 @@ def test_table_or_page_reference_is_not_an_unsupported_number():
 
 
 def test_arabic_no_longer_valid_is_not_a_claim_that_nothing_amended_the_text():
-    from answer_evidence import claim_asserts_unsupported_negative_amendment
+    from rag.answer_evidence import claim_asserts_unsupported_negative_amendment
 
     assert not claim_asserts_unsupported_negative_amendment("لم تعد صالحة للصرف بعد 19 فيفري 2018")
     assert claim_asserts_unsupported_negative_amendment("لم يعدل أي نص لاحق هذا المنشور")
@@ -279,20 +279,20 @@ def test_a_broad_answer_may_have_more_than_eight_claims():
     ("ما هو المبلغ الأقصى لمنحة الإقامة؟", "ar"),
 ])
 def test_answer_language_is_read_from_the_whole_question(question, language):
-    from answer_contract import language_of
+    from rag.answer_contract import language_of
 
     assert language_of(question) == language
 
 
 def test_before_circular_x_does_not_require_evidence_from_x():
-    from answer_evidence import direct_identity
+    from rag.answer_evidence import direct_identity
 
     assert direct_identity("Avant la circulaire 2020-03, quel était le plafond ?") is None
     assert direct_identity("Selon la circulaire 2020-03, quel est le plafond ?")["number"] == 3
 
 
 def test_selector_is_shown_the_line_that_answers_even_on_a_long_page():
-    from answer_draft import _relevant_units
+    from rag.answer_draft import _relevant_units
 
     page = "\n".join([
         "L'intermédiaire agréé qui procède à l'annulation du règlement ainsi que le titulaire de l'allocation sont tenus d'en informer l'intermédiaire agréé domiciliataire de l'allocation dans les meilleurs délais.",
@@ -309,7 +309,7 @@ def test_selector_is_shown_the_line_that_answers_even_on_a_long_page():
 
 
 def test_successor_order_only_when_the_replaced_text_is_in_the_evidence():
-    from answer_draft import _annotate_supersession
+    from rag.answer_draft import _annotate_supersession
 
     newest = {"evidence_id": "E1", "source": "Cir_2026_04_fr.pdf", "page": 2, "text": "règle 2026", "score": 0.9}
     successor = {"evidence_id": "E2", "source": "Cir_2018_13_fr.pdf", "page": 2, "text": "règle 2018", "score": 0.8,

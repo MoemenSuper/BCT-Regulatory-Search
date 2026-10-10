@@ -12,8 +12,8 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
-from bm25 import searchable_text
-from runtime_retrieval import _read_chunks
+from rag.bm25 import searchable_text
+from rag.runtime_retrieval import _read_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +296,7 @@ def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str
 
 
 def _embed_local(texts: list[str]) -> list:
-    from embedding import create_embedding_model
+    from rag.embedding import create_embedding_model
 
     return create_embedding_model().embed_documents(texts)
 

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.prompts import ChatPromptTemplate
 
-import llm
+from rag import llm
 
 PROMPT = ChatPromptTemplate.from_messages([("system", "Answer from the evidence only."), ("human", "{q}")])
 
@@ -106,7 +106,7 @@ def test_a_missing_key_says_which_one(monkeypatch):
 
 
 def test_the_admin_can_only_pick_a_known_provider(tmp_path):
-    from app_settings import AppSettingsStore
+    from extras.app_settings import AppSettingsStore
 
     store = AppSettingsStore(tmp_path / "settings.sqlite3")
     try:

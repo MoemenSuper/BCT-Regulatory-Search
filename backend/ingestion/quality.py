@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from retrieval_selection import ARABIC, _ARABIC_RANGE
+from rag.retrieval_selection import ARABIC, _ARABIC_RANGE
 
 _WORD = re.compile(rf"[A-Za-zÀ-ÖØ-öø-ÿ{_ARABIC_RANGE}0-9٠-٩]")
 _TOKEN = re.compile(r"\w+", re.UNICODE)

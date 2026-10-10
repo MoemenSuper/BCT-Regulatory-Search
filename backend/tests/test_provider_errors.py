@@ -6,10 +6,10 @@ from groq import APIError
 from langchain_core.runnables import RunnableLambda
 
 import app as app_module
-import conversation
+from rag import conversation
 from app import app
-from conversation_memory import ConversationStore, new_memory_state
-from identity import require_admin, require_approved_user, require_user
+from extras.conversation_memory import ConversationStore, new_memory_state
+from extras.identity import require_admin, require_approved_user, require_user
 
 
 def _outage(*_args, **_kwargs):

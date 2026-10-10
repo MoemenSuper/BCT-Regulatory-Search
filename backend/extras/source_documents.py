@@ -16,9 +16,9 @@ from ingestion.registry import _SEARCHABLE_SQL
 # Uploads an admin can open: indexed ones, and ones still queued, being read or failed (their
 # kept copy exists; the admin page links every upload). Removed and superseded ones cannot.
 _OPENABLE_SQL = _SEARCHABLE_SQL[:-1] + ", 'queued', 'processing', 'failed')"
-from retrieval_selection import _ARABIC_RANGE
-from retrieval_selection import is_arabic_query
-from source_metadata import safe_pdf_filename
+from rag.retrieval_selection import _ARABIC_RANGE
+from rag.retrieval_selection import is_arabic_query
+from rag.source_metadata import safe_pdf_filename
 
 
 _ARABIC_DIACRITICS = re.compile(r"[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]")
@@ -55,8 +55,8 @@ def _candidate_roots() -> list[Path]:
         value = os.environ.get(name)
         if value:
             raw.append(value)
-    here = Path(__file__).resolve().parent
-    raw.extend([str(here / "documents"), str(here.parent / "documents")])
+    backend = Path(__file__).resolve().parent.parent  # this file lives in backend/extras/
+    raw.extend([str(backend / "documents"), str(backend.parent / "documents")])
 
     roots: list[Path] = []
     seen: set[Path] = set()

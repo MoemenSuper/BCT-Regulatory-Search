@@ -2,8 +2,8 @@
 import re
 import unicodedata
 
-from query_currentness import is_relationship_query, is_temporal_rule_query
-from retrieval_selection import (
+from rag.query_currentness import is_relationship_query, is_temporal_rule_query
+from rag.retrieval_selection import (
     _ARABIC_RANGE as _AR, is_historical_cutoff_query, parse_query_identity, parse_source_identity,
 )
 

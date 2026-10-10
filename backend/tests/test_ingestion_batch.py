@@ -10,7 +10,7 @@ from ingestion import pipeline as pipeline_module
 from ingestion.index import resolve_active_assets
 from ingestion.pipeline import IngestionConfig, IngestionPipeline
 from ingestion.registry import IngestionRegistry
-from runtime_retrieval import _read_chunks
+from rag.runtime_retrieval import _read_chunks
 
 
 def _pdf(path: Path, text: str) -> Path:

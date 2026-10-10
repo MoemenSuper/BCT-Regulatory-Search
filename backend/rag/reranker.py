@@ -1,7 +1,7 @@
 from functools import lru_cache
 import os
 
-from hardware import batch_size, torch_device
+from rag.hardware import batch_size, torch_device
 
 
 def speed_mode() -> str:

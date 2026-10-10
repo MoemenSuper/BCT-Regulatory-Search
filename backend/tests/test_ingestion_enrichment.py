@@ -12,7 +12,7 @@ from ingestion import enrichment as enrichment_module
 from ingestion.enrichment import EnrichmentWorker, Foreground
 from ingestion.models import VisualPage
 from ingestion.pipeline import IngestionConfig, IngestionPipeline
-from runtime_retrieval import _read_chunks
+from rag.runtime_retrieval import _read_chunks
 
 NATIVE = "Circulaire aux banques relative au taux directeur et aux conditions de refinancement."
 VISUAL = "Tableau statistique des encours de credit 2024 transcrit depuis l'image."
@@ -267,7 +267,7 @@ def test_admin_api_lists_progress_and_retries_degraded_pages(config, tmp_path, m
     from fastapi.testclient import TestClient
 
     import app as app_module
-    from identity import require_admin
+    from extras.identity import require_admin
     from ingestion.registry import IngestionRegistry
 
     report = _quick_ingest(config, tmp_path)

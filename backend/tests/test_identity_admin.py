@@ -5,9 +5,9 @@ import pytest
 
 import app as app_module
 from app import app
-from app_settings import AppSettingsStore
-from conversation_memory import ConversationStore
-from identity import AuthStore, require_admin, require_approved_user, require_user
+from extras.app_settings import AppSettingsStore
+from extras.conversation_memory import ConversationStore
+from extras.identity import AuthStore, require_admin, require_approved_user, require_user
 
 
 @pytest.fixture()
@@ -474,7 +474,7 @@ def test_login_is_throttled_per_email_and_ip_after_repeated_failures(auth_client
 
 
 def test_attempt_limiter_counts_before_the_check_and_uncounts_successes():
-    from identity import AttemptLimiter
+    from extras.identity import AttemptLimiter
 
     limiter = AttemptLimiter(limit=2, window_seconds=60)
     assert limiter.hit("admin|1.2.3.4") and limiter.hit("admin|1.2.3.4")
@@ -488,7 +488,7 @@ def test_old_scrypt_hashes_still_verify_and_are_upgraded_at_login(tmp_path):
     import hashlib
     import secrets as _secrets
 
-    from identity import SCRYPT_N
+    from extras.identity import SCRYPT_N
 
     store = AuthStore(tmp_path / "auth.sqlite3")
     user = store.create_user(email="old@bct.tn", password="Password123")

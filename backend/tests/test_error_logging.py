@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 
 import app as app_module
 from app import app
-from conversation_memory import ConversationStore
-from identity import require_admin, require_approved_user, require_user
-from llm import ANSWER_PROVIDERS
+from extras.conversation_memory import ConversationStore
+from extras.identity import require_admin, require_approved_user, require_user
+from rag.llm import ANSWER_PROVIDERS
 
 
 def _client(tmp_path, monkeypatch):

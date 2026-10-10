@@ -3,7 +3,7 @@ the page's structure, while its text stays the page text verbatim (answers quote
 from ingestion.chunk import build_runtime_chunks
 from ingestion.extract import classify_blocks
 from ingestion.models import Block, Page, StructuredDocument
-from retrieval_selection import _join
+from rag.retrieval_selection import _join
 
 
 def _page(number: int, items: list[tuple[str, str]]) -> Page:
@@ -67,7 +67,7 @@ def test_the_pieces_rebuild_the_page_text_exactly():
 
 
 def test_keyword_search_finds_a_piece_by_its_context():
-    from bm25 import create_bm25, retrieve_bm25
+    from rag.bm25 import create_bm25, retrieve_bm25
 
     page = _page(42, [("IV-2. SITUATION DES ETABLISSEMENTS DE LEASING", "heading"), ("x " * 600 + "\n" + ROW, "table")])
     chunks, _ = build_runtime_chunks(_document([page], "bsf223_fr.pdf"))
@@ -80,7 +80,7 @@ def test_keyword_search_finds_a_piece_by_its_context():
 
 def test_a_question_naming_a_section_reads_that_section_first():
     from langchain_core.documents import Document
-    from retrieval_selection import named_section_labels, prefer_named_section_hits
+    from rag.retrieval_selection import named_section_labels, prefer_named_section_hits
 
     banks = (Document(page_content="DEPOTS MONETAIRES — AVR. 2023: 27137218",
                       metadata={"context": "bsf223_fr.pdf\nII-1-B. SITUATION DES BANQUES · tableau · page 30"}), 0.9)

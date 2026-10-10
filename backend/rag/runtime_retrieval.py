@@ -10,8 +10,8 @@ import json
 import os
 from pathlib import Path
 
-from bm25 import retrieve_bm25, searchable_text
-from retrieval_selection import (
+from rag.bm25 import retrieve_bm25, searchable_text
+from rag.retrieval_selection import (
     diversify_ranked_pages,
     build_identity_reranker_documents,
     expand_answer_pages,
@@ -24,8 +24,8 @@ from retrieval_selection import (
     is_arabic_query,
 )
 from ingestion.quality import arabic_character_ratio
-from reranker import score_documents
-from vector_store import retrieve_relevant_chunks
+from rag.reranker import score_documents
+from rag.vector_store import retrieve_relevant_chunks
 from langchain_core.documents import Document
 
 
@@ -241,10 +241,10 @@ def document_binding(documents: list[Document]) -> str:
 
 
 def create_local_backend():
-    from embedding import create_embedding_model
-    from vector_store import load_vector_store
-    from reranker import create_reranker
-    from bm25 import load_documents_from_chroma, create_bm25
+    from rag.embedding import create_embedding_model
+    from rag.vector_store import load_vector_store
+    from rag.reranker import create_reranker
+    from rag.bm25 import load_documents_from_chroma, create_bm25
 
     embedding_model = create_embedding_model()
     vector_store = load_vector_store(embedding_model)
@@ -279,7 +279,7 @@ def create_local_backend():
         ocr_bm25=ocr_bm25,
         ocr_documents=ocr_documents,
     )
-    from jsonl_supersession import maybe_wrap_backend
+    from extras.jsonl_supersession import maybe_wrap_backend
 
     native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
     return maybe_wrap_backend(backend, Path(native).resolve().parent if native else None)

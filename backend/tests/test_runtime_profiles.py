@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from runtime_profiles import (
+from extras.runtime_profiles import (
     RuntimeProfile,
     RuntimeProfileManager,
     profile_options,

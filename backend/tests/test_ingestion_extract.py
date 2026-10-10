@@ -173,7 +173,7 @@ def test_native_blocks_fix_lam_alef_on_real_corpus_note():
 
 def test_docling_layout_blocks_become_the_page_text_and_are_cached(tmp_path: Path, monkeypatch):
     import ingestion.docling_layout as layout
-    from answer_evidence import IMAGE_WORDS
+    from rag.answer_evidence import IMAGE_WORDS
 
     path = tmp_path / "Rapport_2025_fr.pdf"
     _make_pdf(path, "texte natif")
@@ -200,7 +200,7 @@ def test_docling_table_is_kept_only_when_its_rows_match_the_pdf_lines():
 
 
 def test_chunk_starting_inside_chart_words_keeps_the_mark():
-    from answer_evidence import IMAGE_WORDS
+    from rag.answer_evidence import IMAGE_WORDS
     from ingestion.chunk import _split
 
     text = "Titre\n" + IMAGE_WORDS + " " + " ".join(f"{i} de {i} ans" for i in range(200))

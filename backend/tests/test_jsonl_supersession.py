@@ -5,7 +5,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
-from jsonl_supersession import (
+from extras.jsonl_supersession import (
     SupersessionEdge,
     extract_edges_from_page_text,
     instruments_from_text,
@@ -93,7 +93,7 @@ def test_topic_question_labels_the_newer_text_when_both_are_retrieved():
 
 
 def test_edges_are_read_with_the_current_rules(tmp_path: Path):
-    from jsonl_supersession import load_edges
+    from extras.jsonl_supersession import load_edges
 
     write_edges(tmp_path / "edges.jsonl", [
         # An annex replacement leaves the rest of the circular in force.
@@ -515,7 +515,7 @@ def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
     )
     assert report["from_pdf"] >= 1
     assert (staged / "supersession_edges.jsonl").is_file()
-    from jsonl_supersession import load_edges
+    from extras.jsonl_supersession import load_edges
 
     merged = load_edges(staged / "supersession_edges.jsonl")
     sources = {Path(e.source_file).name for e in merged}
@@ -529,11 +529,11 @@ def test_ingest_merge_replaces_edges_for_same_pdf(tmp_path: Path):
 
 def test_local_backend_is_wrapped_with_supersession_pin(tmp_path, monkeypatch):
     import app as app_module
-    import bm25
-    import embedding
-    import reranker
-    import vector_store
-    from jsonl_supersession import SupersessionPinBackend
+    from rag import bm25
+    from rag import embedding
+    from rag import reranker
+    from rag import vector_store
+    from extras.jsonl_supersession import SupersessionPinBackend
 
     write_edges(tmp_path / "supersession_edges.jsonl", [_edge()])
     (tmp_path / "native.jsonl").write_text("", encoding="utf-8")
@@ -552,10 +552,10 @@ def test_local_backend_is_wrapped_with_supersession_pin(tmp_path, monkeypatch):
 
 def test_empty_local_corpus_warns_at_startup(tmp_path, monkeypatch, capsys):
     import app as app_module
-    import bm25
-    import embedding
-    import reranker
-    import vector_store
+    from rag import bm25
+    from rag import embedding
+    from rag import reranker
+    from rag import vector_store
 
     monkeypatch.setenv("BCT_NATIVE_CHUNKS_PATH", str(tmp_path / "native.jsonl"))
     monkeypatch.delenv("BCT_OCR_CHROMA_DB", raising=False)
@@ -570,7 +570,7 @@ def test_empty_local_corpus_warns_at_startup(tmp_path, monkeypatch, capsys):
 
 
 def test_before_circular_x_searches_inside_the_texts_it_replaced():
-    from jsonl_supersession import SupersessionPinBackend
+    from extras.jsonl_supersession import SupersessionPinBackend
 
     edges = [_edge(source_instrument="cir:2020:3", source_file="Cir_2020_03_fr.pdf", action="ABROGATE",
                    target_instrument="cir:2016:8", target_article=None,
@@ -592,7 +592,7 @@ def test_before_circular_x_searches_inside_the_texts_it_replaced():
 
 
 def test_a_replaced_circular_that_answers_brings_its_successors_and_their_declaring_pages():
-    from jsonl_supersession import SupersessionPinBackend
+    from extras.jsonl_supersession import SupersessionPinBackend
 
     edges = [
         _edge(source_instrument="cir:2021:3", source_file="Cir_2021_03_fr.pdf", source_page=14, action="ABROGATE",

@@ -22,8 +22,8 @@ from .index import (
 )
 from .docling_layout import NotEnoughMemory
 from .registry import SEARCHABLE, IngestionRegistry
-from runtime_retrieval import _read_chunks
-from source_metadata import safe_pdf_filename
+from rag.runtime_retrieval import _read_chunks
+from rag.source_metadata import safe_pdf_filename
 
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def _clean_metadata(metadata: dict | None) -> dict[str, str]:
             raise ValueError(f"Invalid administrator metadata field: {key}")
         cleaned[key] = value
     if "doc_kind" in cleaned:
-        from document_authority import normalize_doc_kind
+        from rag.document_authority import normalize_doc_kind
 
         cleaned["doc_kind"] = normalize_doc_kind(cleaned["doc_kind"])
     return cleaned
@@ -224,7 +224,7 @@ def _stage_supersession_edges(active_before: Path, staged_version: Path, filenam
     """Write the staged version's SUPERSEDES edges: the old edges minus this PDF's, plus the
     edges found in pages (none for a removal). Written before activation, so a failed
     activation also rolls the edges back."""
-    from jsonl_supersession import load_prior_edges, merge_supersession_edges_for_ingest, write_edges
+    from extras.jsonl_supersession import load_prior_edges, merge_supersession_edges_for_ingest, write_edges
 
     report: dict[str, object] = {"enabled": True}
     try:
@@ -386,7 +386,7 @@ class IngestionPipeline:
         if summary["degraded_count"]:
             logger.warning("%s: %d page(s) could not be read well: %s", filename, summary["degraded_count"],
                            summary["degraded_pages"][:5])
-        from document_authority import authority_for_kind, resolve_doc_kind
+        from rag.document_authority import authority_for_kind, resolve_doc_kind
 
         doc_kind = resolve_doc_kind(
             explicit=metadata.get("doc_kind") or metadata.get("type"),

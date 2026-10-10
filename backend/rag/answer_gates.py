@@ -9,9 +9,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from retrieval_selection import ARABIC, _ascii_fold
-from query_currentness import is_temporal_rule_query
-from answer_evidence import (
+from rag.retrieval_selection import ARABIC, _ascii_fold
+from rag.query_currentness import is_temporal_rule_query
+from rag.answer_evidence import (
     plain as _plain, unit_spans, numeric_literals, supported_numbers, direct_identity,
     identity_matches, evidence_warning, trusted_years, strip_instrument_references,
     claim_asserts_unverified_applicability, claim_asserts_unsupported_negative_amendment,
@@ -186,7 +186,7 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
         raise ValueError("unverified_applicability_claim_use_document_scoped_wording")
     excerpts = _cited_excerpts(claim.cites, by_id)
     if query_class is not None:
-        from query_authority import evidence_kind_allowed
+        from rag.query_authority import evidence_kind_allowed
 
         for record, _excerpt in excerpts:
             # A statistical bulletin or internal memo is not the legal authority for a rule,

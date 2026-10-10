@@ -1,6 +1,6 @@
 """Removal staging survives Chroma pages whose embeddings cannot be read."""
 
-import embedding as embedding_module
+from rag import embedding as embedding_module
 from ingestion.index import _read_collection
 
 

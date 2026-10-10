@@ -1,4 +1,4 @@
-from conversation_memory import ConversationStore, new_memory_state
+from extras.conversation_memory import ConversationStore, new_memory_state
 
 OWNER = "user-a"
 

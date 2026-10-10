@@ -2,7 +2,7 @@
 
 Implementation: supersession_edges (IO/extract/merge) and supersession_pin (pin backend).
 """
-from supersession_edges import (  # noqa: F401
+from extras.supersession_edges import (  # noqa: F401
     SupersessionEdge,
     edge_key,
     edge_quote_is_operative,
@@ -17,7 +17,7 @@ from supersession_edges import (  # noqa: F401
     resolve_edges_path,
     write_edges,
 )
-from supersession_pin import (  # noqa: F401
+from extras.supersession_pin import (  # noqa: F401
     SupersessionPinBackend,
     build_page_lookup_from_native,
     clear_supersession_cache,

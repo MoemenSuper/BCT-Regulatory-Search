@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 
 from cloud import voyage_index
 from ingestion import index as index_module
-from runtime_retrieval import _read_chunks, document_binding
+from rag.runtime_retrieval import _read_chunks, document_binding
 
 
 def test_read_chunks_allows_empty_bootstrap_file(tmp_path: Path):

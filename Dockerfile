@@ -91,8 +91,8 @@ ENV BCT_STATIC_DIR=/app/static \
 
 # Pre-download embed / rerank / EasyOCR / Docling weights so the first query or upload is not a
 # cold start. Docling is warmed by converting a one-line PDF: the exact models ingestion loads.
-RUN python -c "from embedding import create_embedding_model; create_embedding_model(); \
-from reranker import create_reranker; create_reranker(); \
+RUN python -c "from rag.embedding import create_embedding_model; create_embedding_model(); \
+from rag.reranker import create_reranker; create_reranker(); \
 import easyocr; easyocr.Reader(['ar'], gpu=False, verbose=False); \
 import pymupdf; d = pymupdf.open(); d.new_page().insert_text((72, 72), 'warm'); d.save('/tmp/warm.pdf'); \
 from ingestion.docling_layout import _convert; _convert('/tmp/warm.pdf'); \

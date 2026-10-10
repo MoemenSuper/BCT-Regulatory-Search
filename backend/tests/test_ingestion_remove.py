@@ -10,7 +10,7 @@ from langchain_core.documents import Document
 from cloud import voyage_index
 from ingestion.pipeline import IngestionConfig, IngestionPipeline
 from ingestion.registry import IngestionRegistry
-from runtime_retrieval import _read_chunks
+from rag.runtime_retrieval import _read_chunks
 
 
 def test_registry_mark_removed(tmp_path: Path):

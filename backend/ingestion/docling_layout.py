@@ -28,7 +28,7 @@ from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 
-from answer_evidence import IMAGE_WORDS
+from rag.answer_evidence import IMAGE_WORDS
 
 _NUM = re.compile(r"\d[\d.,]*\d|\d")
 _LONE_DIACRITIC = re.compile(r"(?<!\S)[ً-ٰٟ]+(?!\S)")  # PDF glyph artefacts
@@ -59,7 +59,7 @@ class NotEnoughMemory(RuntimeError):
 
 
 def _memory():
-    from hardware import memory_gb
+    from rag.hardware import memory_gb
 
     return memory_gb(), float(os.environ.get("BCT_DOCLING_MIN_FREE_GB", "4"))
 
@@ -162,7 +162,7 @@ def _pipeline_options():
     opts = PdfPipelineOptions()
     opts.do_ocr = False  # scanned pages go to the visual backend
     opts.table_structure_options.mode = TableFormerMode.ACCURATE
-    from hardware import batch_size, gpu_memory_gb
+    from rag.hardware import batch_size, gpu_memory_gb
 
     # AUTO picks the same device order as hardware.torch_device (CUDA > MPS > XPU > CPU), but a GPU
     # under 12 GB is left to the search models: Docling beside them on an 8 GB laptop GPU reset the

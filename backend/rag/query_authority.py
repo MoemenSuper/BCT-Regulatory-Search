@@ -11,9 +11,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
-from llm import PROVIDER_ERRORS
+from rag.llm import PROVIDER_ERRORS
 
-from document_authority import DocKind
+from rag.document_authority import DocKind
 
 QueryClass = Literal[
     "regulatory_rule",
@@ -131,7 +131,7 @@ def allowed_doc_kinds(query_class: object | None) -> frozenset[DocKind]:
 
 
 def evidence_kind_allowed(query_class: object | None, *, doc_kind: object | None) -> bool:
-    from document_authority import normalize_doc_kind
+    from rag.document_authority import normalize_doc_kind
 
     return normalize_doc_kind(doc_kind) in allowed_doc_kinds(query_class)
 

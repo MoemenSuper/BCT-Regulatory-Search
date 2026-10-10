@@ -11,15 +11,15 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
-from query_currentness import is_temporal_rule_query
-from retrieval_selection import (
+from rag.query_currentness import is_temporal_rule_query
+from rag.retrieval_selection import (
     is_historical_cutoff_query,
     prefer_historical_hits,
     prefer_named_instrument_hits,
     query_instrument_refs,
 )
-from source_metadata import normalize_page
-from supersession_edges import (
+from rag.source_metadata import normalize_page
+from extras.supersession_edges import (
     ARTICLE,
     FORCEISH,
     SupersessionEdge,
@@ -338,7 +338,7 @@ class SupersessionPinBackend:
     @property
     def edges(self) -> list[SupersessionEdge]:
         """The edges found in the PDFs, with the administrator's decisions applied (read per question)."""
-        from supersession_review import effective_edges
+        from extras.supersession_review import effective_edges
 
         return effective_edges(self.found_edges)
 

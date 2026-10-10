@@ -6,7 +6,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlite_local import thread_connection
+from extras.sqlite_local import thread_connection
 
 
 # Statuses whose chunks are live in the active asset version.
@@ -374,7 +374,7 @@ class IngestionRegistry:
                     title = str(admin_meta.get("title") or "")
                 if not title:
                     title = str(report.get("title") or "")
-            from document_authority import resolve_doc_kind
+            from rag.document_authority import resolve_doc_kind
 
             explicit_kind = admin_meta.get("doc_kind")
             if not explicit_kind and isinstance(report, dict):

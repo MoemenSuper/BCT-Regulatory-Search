@@ -15,7 +15,7 @@ from typing import Literal
 
 from fastapi import Cookie, HTTPException, Request, Response
 
-from sqlite_local import thread_connection
+from extras.sqlite_local import thread_connection
 
 Role = Literal["user", "admin"]
 Status = Literal["pending", "approved", "rejected"]

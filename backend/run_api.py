@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import uvicorn
 
 from ingestion.index import configure_runtime_assets
-from server_logging import configure_logging
+from extras.server_logging import configure_logging
 
 
 def main() -> None:

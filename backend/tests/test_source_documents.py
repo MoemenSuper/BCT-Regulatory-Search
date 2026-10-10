@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from source_documents import SourceDocumentResolver, _word_highlight_rects, locate_quote, render_page_png
+from extras.source_documents import SourceDocumentResolver, _word_highlight_rects, locate_quote, render_page_png
 
 
 @pytest.fixture

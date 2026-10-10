@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from answer_contract import generate_grounded_answer, parse_answer
+from rag.answer_contract import generate_grounded_answer, parse_answer
 
 
 def record(source="Cir_2022_41_fr.pdf", text="Le plafond est de 320 dinars.", eid="E1"):
@@ -75,7 +75,7 @@ def test_cited_document_name_is_metadata_not_an_unsupported_rule_number():
 
 
 def test_arabic_corrupt_header_warns_words_may_support_claims_digits_may_not():
-    from answer_contract import evidence_records
+    from rag.answer_contract import evidence_records
     text = "مذكرة إلى البنوك عدد 41 لسنة 2202\nلون الورقة أخضر. الرمز هو 709. المدة ثلاث سنوات."
     records = evidence_records([(Document(page_content=text, metadata={"source": "Note_2022_41_ar.pdf", "page": 2}), 0.9)])
     assert records[0]["evidence_warning"] == "source_header_conflict"
@@ -104,7 +104,7 @@ def test_claim_may_name_the_cited_instrument_year_without_quoting_it():
 
 
 def test_evidence_warning_targets_garbled_digits_not_body_cross_references():
-    from answer_evidence import evidence_warning
+    from rag.answer_evidence import evidence_warning
     # A body reference to another instrument is not this page's header.
     body = "الفصل 23 : يجب ألا يكون المستفيد مخلّ بتعهدات على معنى المنشور عدد 6 لسنة 2008 المؤرخ في 10 مارس 2008."
     assert evidence_warning({"source": "Cir_2016_04_ar.pdf", "text": body}) is None
@@ -144,8 +144,8 @@ def test_question_numbers_present_on_the_cited_page_may_be_restated():
 
 
 def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
-    import conversation
-    from retrieval_selection import expand_ranked_pages, page_chunks
+    from rag import conversation
+    from rag.retrieval_selection import expand_ranked_pages, page_chunks
     chunks = [Document(page_content=text, metadata={"source": "Cir_2016_02_fr.pdf", "page": 2, "pages": [2], "chunk_index": i})
               for i, text in enumerate(["Article 1. Objet du crédit auto et conditions générales applicables aux emprunteurs.",
                                         "conditions générales applicables aux emprunteurs. Article 2. La durée est de 7 ans.",
@@ -174,7 +174,7 @@ def test_answer_layer_reads_the_whole_retrieved_page(monkeypatch):
 
 
 def test_fallback_carries_rejection_diagnostics_for_offline_evaluation_only(monkeypatch):
-    import conversation
+    from rag import conversation
     def respond(prompt):
         system = prompt.to_messages()[0].content
         if "Select evidence for" in system:
@@ -284,7 +284,7 @@ def test_empty_draft_gets_a_retry_not_a_fake_abstention():
 
 def test_truncated_answer_json_salvages_complete_claims():
     """Broad drafts often hit the token wall mid-claim; keep finished claims without another LLM call."""
-    from answer_contract import _load_answer_payload
+    from rag.answer_contract import _load_answer_payload
 
     truncated = (
         '{"status":"partial_answer","message":"","claims":['
@@ -317,7 +317,7 @@ def test_selection_keeps_valid_ids_when_model_adds_junk():
 
 
 def test_question_anchors_keep_arabic_content_tokens():
-    from answer_contract import _question_anchors
+    from rag.answer_contract import _question_anchors
 
     anchors = _question_anchors("هل تذكر المنشورات سعر الذهب؟")
     assert "سعر" in anchors
@@ -437,7 +437,7 @@ def test_question_verb_matches_accented_participle_on_page():
 
 
 def test_evidence_view_keeps_units_with_most_question_words():
-    from answer_draft import _evidence_view
+    from rag.answer_draft import _evidence_view
 
     page = (
         "Les prix des produits de base ont progressé en juin.\n" + "Texte neutre sans rapport.\n" * 80
@@ -460,8 +460,8 @@ def test_citations_resolve_to_exact_page_units_and_unknown_ids_fail():
 
 
 def test_chart_words_are_never_citable():
-    from answer_draft import _evidence_view
-    from answer_evidence import IMAGE_WORDS
+    from rag.answer_draft import _evidence_view
+    from rag.answer_evidence import IMAGE_WORDS
 
     # Words inside a chart box come in drawing order: 67 sits next to the wrong age label.
     page = f"Répartition du personnel par âge\n{IMAGE_WORDS} Hommes Femmes de 30 à 34 ans 67 de 25 à 29 ans 100\nTotal: 834 agents."
@@ -592,7 +592,7 @@ def test_named_document_is_the_only_candidate_for_direct_contents_question():
     "Quel est le dernier plafond applicable ?", "ما أحدث سقف؟", "What is the latest ceiling?",
 ])
 def test_currentness_detection_in_both_answer_entrypoints(question):
-    from query_currentness import is_temporal_rule_query
+    from rag.query_currentness import is_temporal_rule_query
     assert is_temporal_rule_query(question)
     assert parse(draft(), [record()], question)["status"] == "partial_answer"
 
@@ -667,7 +667,7 @@ def test_unsupported_no_later_text_claim_is_rejected():
 
 
 def test_draft_evidence_cap_prefers_distinct_pages():
-    from answer_draft import _cap_draft_evidence
+    from rag.answer_draft import _cap_draft_evidence
 
     records = [
         {"evidence_id": "E1", "source": "Cir_2025_13_fr.pdf", "page": 2, "text": "a"},
@@ -685,7 +685,7 @@ def test_draft_evidence_cap_prefers_distinct_pages():
 
 
 def test_temporal_counterpart_ids_are_trusted_like_cited_filenames():
-    from answer_evidence import strip_instrument_references, trusted_years
+    from rag.answer_evidence import strip_instrument_references, trusted_years
 
     records = [{
         "source": "Cir_2019_07_fr.pdf",
@@ -702,7 +702,7 @@ def test_temporal_counterpart_ids_are_trusted_like_cited_filenames():
 
 
 def test_supersession_partial_from_pinned_evidence_without_llm():
-    from answer_contract import try_supersession_partial_answer
+    from rag.answer_contract import try_supersession_partial_answer
 
     evidence = [{
         "evidence_id": "E1",
@@ -728,7 +728,7 @@ def test_supersession_partial_from_pinned_evidence_without_llm():
 
 
 def test_supersession_partial_states_the_edge_without_filler_claims():
-    from answer_contract import try_supersession_partial_answer
+    from rag.answer_contract import try_supersession_partial_answer
 
     evidence = [
         {
@@ -766,7 +766,7 @@ def test_supersession_partial_states_the_edge_without_filler_claims():
 
 
 def test_search_fallback_preserves_original_top5_not_currentness_answer_order(monkeypatch):
-    import conversation
+    from rag import conversation
     docs = [(Document(page_content=f"Passage original {n}", metadata={
         "source": f"Cir_{2020+n}_41_fr.pdf", "page": 2, "pages": [2]}), 1 - n / 10)
         for n in range(6)]
@@ -798,8 +798,8 @@ def test_no_retrieval_does_not_invent_search_results():
 def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
     import app as app_module
-    from conversation_memory import ConversationStore
-    from answer_contract import search_response
+    from extras.conversation_memory import ConversationStore
+    from rag.answer_contract import search_response
     monkeypatch.setenv("BCT_AUTH_DB", str(tmp_path / "auth.sqlite3"))
     monkeypatch.setenv("BCT_SETTINGS_DB", str(tmp_path / "settings.sqlite3"))
     monkeypatch.setattr(app_module, "create_local_backend", lambda: object())
@@ -819,7 +819,7 @@ def test_search_results_survive_api_serialization_and_history(monkeypatch, tmp_p
 
 
 def test_supersession_partial_needs_the_relationship_verb_in_the_quote():
-    from answer_contract import try_supersession_partial_answer
+    from rag.answer_contract import try_supersession_partial_answer
 
     evidence = [{
         "evidence_id": "E1",

@@ -1,4 +1,4 @@
-from conversation_memory import summarize_conversation_title
+from extras.conversation_memory import summarize_conversation_title
 
 
 def test_summarize_strips_french_question_framing():

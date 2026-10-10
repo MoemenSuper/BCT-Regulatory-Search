@@ -119,7 +119,7 @@ class RuntimeProfileManager:
             retrieval_backend = self._cloud_backend()
         else:
             retrieval_backend = self._local_backend()
-        from llm import answer_provider
+        from rag.llm import answer_provider
 
         return ProfileRuntime(
             spec=spec,

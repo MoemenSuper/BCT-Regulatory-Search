@@ -1,17 +1,17 @@
 import json
 from enum import Enum
-from llm import PROVIDER_ERRORS, answer_provider, create_llm
-from answer_contract import (
+from rag.llm import PROVIDER_ERRORS, answer_provider, create_llm
+from rag.answer_contract import (
     format_refusal_reason,
     generate_grounded_answer,
     safe_response,
     search_response,
     evidence_records,
 )
-from answer_evidence import numeric_literals
-from conversation_memory import MemoryState
+from rag.answer_evidence import numeric_literals
+from extras.conversation_memory import MemoryState
 from langchain_core.prompts import ChatPromptTemplate
-from retrieval_selection import (
+from rag.retrieval_selection import (
     is_historical_cutoff_query,
     explicit_instrument_identity,
     prefer_named_instrument_hits,
@@ -19,7 +19,7 @@ from retrieval_selection import (
     _instrument_year,
 )
 from pydantic import BaseModel, ConfigDict, model_validator
-from query_currentness import (
+from rag.query_currentness import (
     is_temporal_rule_query,
 )
 
@@ -549,7 +549,7 @@ def chat(
         search_query
     )
 
-    from query_authority import classify_query_authority
+    from rag.query_authority import classify_query_authority
 
     # Classify the resolved query: a fragment like "Et en 2024 ?" carries no authority cue.
     query_authority = classify_query_authority(llm, search_query)

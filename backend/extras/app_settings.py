@@ -8,8 +8,8 @@ import threading
 import time
 from pathlib import Path
 
-from sqlite_local import thread_connection
-from runtime_profiles import RuntimeProfile, parse_profile, profile_options
+from extras.sqlite_local import thread_connection
+from extras.runtime_profiles import RuntimeProfile, parse_profile, profile_options
 
 # Keys administrators may set, in the order the Configuration page shows them. Values are
 # applied into os.environ for the process. The answer model: BCT_ANSWER_PROVIDER picks one
@@ -144,7 +144,7 @@ class AppSettingsStore:
                     "choices": list(CHOICES.get(key, ())) or None,
                 }
             )
-        from llm import answer_provider
+        from rag.llm import answer_provider
 
         return {
             "active_profile": self.active_profile().value,

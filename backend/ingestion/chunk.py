@@ -5,7 +5,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
-from answer_evidence import IMAGE_READING, IMAGE_WORDS
+from rag.answer_evidence import IMAGE_READING, IMAGE_WORDS
 
 from .models import Block, Page, StructuredDocument
 

@@ -7,8 +7,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from answer_contract import generate_grounded_answer, parse_answer
-from retrieval_selection import (
+from rag.answer_contract import generate_grounded_answer, parse_answer
+from rag.retrieval_selection import (
     expand_adjacent_instrument_pages,
     expand_answer_pages,
     page_chunks,
@@ -172,7 +172,7 @@ def test_inclusion_obligation_cannot_be_paraphrased_as_exempted():
 
 def test_arabic_scenario_date_may_be_restated_without_page_literal():
     """Arabic question dates are scenario facts, like French '26 mars 2026'."""
-    from answer_evidence import question_scenario_numbers
+    from rag.answer_evidence import question_scenario_numbers
 
     assert question_scenario_numbers("قبل 26 مارس 2026") == {"26", "2026"}
     assert question_scenario_numbers("avant le 26 mars 2026") == {"26", "2026"}

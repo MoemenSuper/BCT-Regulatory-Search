@@ -456,7 +456,7 @@ def merge_supersession_edges_for_ingest(
     extracted = extract_edges_from_pages(filename, pages)
     merged = merge_edge_lists(kept, extracted)
     write_edges(Path(staged_version) / "supersession_edges.jsonl", merged)
-    from supersession_pin import clear_supersession_cache
+    from extras.supersession_pin import clear_supersession_cache
 
     clear_supersession_cache()
     return {

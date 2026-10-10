@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from document_authority import authority_for_kind, normalize_doc_kind, resolve_doc_kind
-from query_authority import (
+from rag.document_authority import authority_for_kind, normalize_doc_kind, resolve_doc_kind
+from rag.query_authority import (
     allowed_doc_kinds,
     classify_query_authority,
     evidence_kind_allowed,
     select_demonstrations,
 )
-from answer_gates import parse_answer
+from rag.answer_gates import parse_answer
 
 
 def test_doc_kind_maps_to_authority():
@@ -39,7 +39,7 @@ def test_dynamic_demos_cover_hard_negative_taux():
 
 
 def test_classify_query_authority_fails_closed():
-    from query_authority import classify_query_authority
+    from rag.query_authority import classify_query_authority
 
     class Boom:
         def invoke(self, _prompt):

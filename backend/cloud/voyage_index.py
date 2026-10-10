@@ -23,8 +23,8 @@ from langchain_core.documents import Document
 from cloud.voyage_client import VOYAGE_SPEC, create_cloud_runtime_client
 from cloud.voyage_retrieval import _load_bound_index
 from ingestion.index import _keep_indices
-from bm25 import searchable_text
-from runtime_retrieval import _read_chunks, document_binding
+from rag.bm25 import searchable_text
+from rag.runtime_retrieval import _read_chunks, document_binding
 
 logger = logging.getLogger(__name__)
 _INDEXES = (("native", "native.jsonl"), ("arabic_ocr_secondary", "arabic_ocr_secondary.jsonl"))

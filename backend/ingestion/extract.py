@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from answer_evidence import IMAGE_READING, evidence_warning
+from rag.answer_evidence import IMAGE_READING, evidence_warning
 
 from .models import VisualPage
 from .models import Block, Page, StructuredDocument

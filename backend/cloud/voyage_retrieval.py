@@ -11,9 +11,9 @@ from pathlib import Path
 import numpy as np
 from langchain_core.documents import Document
 
-from bm25 import create_bm25, retrieve_bm25
+from rag.bm25 import create_bm25, retrieve_bm25
 from cloud.voyage_client import VOYAGE_SPEC, CloudEmbedSpec, create_cloud_runtime_client
-from retrieval_selection import (
+from rag.retrieval_selection import (
     build_identity_reranker_documents,
     expand_answer_pages,
     is_arabic_query,
@@ -22,7 +22,7 @@ from retrieval_selection import (
     query_instrument_refs,
     source_matches_identity,
 )
-from runtime_retrieval import _identity_diversified_rank, _read_chunks, dedupe, document_binding, script_scores
+from rag.runtime_retrieval import _identity_diversified_rank, _read_chunks, dedupe, document_binding, script_scores
 
 
 def _provider_candidates(
@@ -237,7 +237,7 @@ def create_voyage_backend_from_environment():
         spec=spec,
     )
     # Optional JSONL SUPERSEDES pin (force/imperfect instrument questions).
-    from jsonl_supersession import maybe_wrap_backend
+    from extras.jsonl_supersession import maybe_wrap_backend
 
     assets_root = Path(names["BCT_NATIVE_CHUNKS_PATH"]).resolve().parent
     return maybe_wrap_backend(backend, assets_root)

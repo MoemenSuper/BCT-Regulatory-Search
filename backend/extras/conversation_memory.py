@@ -6,7 +6,7 @@ import threading
 from typing import TypedDict
 from uuid import uuid4
 
-from sqlite_local import thread_connection
+from extras.sqlite_local import thread_connection
 
 
 class Turn(TypedDict):
@@ -300,7 +300,7 @@ class ConversationStore:
             )
 
     def list_answer_refusals(self, *, limit=100, reasons=None, buckets=None):
-        from answer_contract import refusal_reason_bucket, refusal_reason_title
+        from rag.answer_contract import refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 100_000))
         selected_reasons = [str(item) for item in (reasons or []) if str(item)]
@@ -362,7 +362,7 @@ class ConversationStore:
         return len(self.list_answer_refusals(limit=100_000, reasons=selected_reasons, buckets=selected_buckets))
 
     def distinct_answer_refusal_reasons(self, *, limit=200):
-        from answer_contract import REFUSAL_BUCKETS, refusal_reason_bucket, refusal_reason_title
+        from rag.answer_contract import REFUSAL_BUCKETS, refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 500))
         with self._connect() as connection:

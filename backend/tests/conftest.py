@@ -1,7 +1,7 @@
 import pytest
 
 from app import app
-from identity import AuthStore, UserRecord, require_admin, require_approved_user, require_user
+from extras.identity import AuthStore, UserRecord, require_admin, require_approved_user, require_user
 
 _TEST_USER = UserRecord(
     id="test-user",

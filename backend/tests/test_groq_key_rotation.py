@@ -2,7 +2,7 @@
 
 import pytest
 
-import llm
+from rag import llm
 
 
 class _Client:

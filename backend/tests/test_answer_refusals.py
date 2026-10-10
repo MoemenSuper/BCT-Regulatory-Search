@@ -1,6 +1,6 @@
-import conversation
-from answer_contract import format_refusal_reason, generate_grounded_answer
-from conversation_memory import ConversationStore
+from rag import conversation
+from rag.answer_contract import format_refusal_reason, generate_grounded_answer
+from extras.conversation_memory import ConversationStore
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
@@ -90,14 +90,14 @@ def test_answer_refusals_persist_in_conversation_store(tmp_path):
 
 
 def test_user_thumbs_down_maps_to_admin_bucket():
-    from answer_contract import refusal_reason_bucket, refusal_reason_title
+    from rag.answer_contract import refusal_reason_bucket, refusal_reason_title
 
     assert refusal_reason_bucket("user_thumbs_down:turn:abc") == "user_thumbs_down"
     assert refusal_reason_title(bucket="user_thumbs_down") == "User thumbs down"
 
 
 def test_vague_question_refusal_is_a_clarification():
-    from answer_contract import refusal_reason_bucket
+    from rag.answer_contract import refusal_reason_bucket
 
     assert refusal_reason_bucket("route:AMBIGUOUS:question_scope_unclear") == "clarification_needed"
 

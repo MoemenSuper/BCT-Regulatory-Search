@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from ingestion.index import configure_runtime_assets, resolve_active_assets
-from server_logging import configure_logging
+from extras.server_logging import configure_logging
 
 
 logger = logging.getLogger(__name__)

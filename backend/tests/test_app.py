@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 import app as app_module
 from app import app
-from conversation_memory import ConversationStore
+from extras.conversation_memory import ConversationStore
 
 
 client = TestClient(app)
@@ -351,7 +351,7 @@ def test_chat_runs_two_questions_as_two_turns_sharing_memory(monkeypatch, tmp_pa
 
 
 def test_conversation_rename_and_delete_endpoints(monkeypatch, tmp_path):
-    from conversation_memory import new_memory_state
+    from extras.conversation_memory import new_memory_state
 
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)
@@ -382,7 +382,7 @@ def test_conversation_rename_and_delete_endpoints(monkeypatch, tmp_path):
 
 
 def _title_setup(monkeypatch, tmp_path):
-    from conversation_memory import new_memory_state
+    from extras.conversation_memory import new_memory_state
 
     store = ConversationStore(tmp_path / "conversations.sqlite3")
     monkeypatch.setattr(app_module, "open_conversation_store", lambda: store)

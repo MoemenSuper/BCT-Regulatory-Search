@@ -4,11 +4,11 @@ import json
 import numpy as np
 import pytest
 
-import runtime_retrieval
+from rag import runtime_retrieval
 from cloud import voyage_retrieval
 from cloud.voyage_client import VoyageRuntimeClient
 from cloud.voyage_retrieval import VoyageRetrievalBackend, load_voyage_backend
-from runtime_retrieval import LocalRetrievalBackend
+from rag.runtime_retrieval import LocalRetrievalBackend
 
 
 def _doc(text, source, page):
@@ -458,11 +458,11 @@ def test_selon_circulaire_2025_13_named_instrument_outranks_newer_mention():
     """Explicit instrument names are hard retrieval anchors before semantic/latest preference."""
     from pathlib import Path
 
-    from retrieval_selection import (
+    from rag.retrieval_selection import (
         explicit_instrument_identity,
         prefer_named_instrument_hits,
     )
-    from runtime_retrieval import _identity_diversified_rank
+    from rag.runtime_retrieval import _identity_diversified_rank
 
     query = (
         "Selon la circulaire 2025-13, quelles sont les règles d'exportation ?"
@@ -496,7 +496,7 @@ def test_avant_named_instrument_demotes_cutoff_after_named_promotion():
     """'Avant 2025-13' must not keep the named later circular on top."""
     from pathlib import Path
 
-    from runtime_retrieval import _identity_diversified_rank
+    from rag.runtime_retrieval import _identity_diversified_rank
 
     query = (
         "Avant 2025-13, a partir de combien de jours fallait-il des conditions "
@@ -523,8 +523,8 @@ def test_grandfathering_avant_keeps_named_circular():
     """Commitments before 2026-04 ask for that circular — do not demote it."""
     from pathlib import Path
 
-    from retrieval_selection import is_historical_cutoff_query
-    from runtime_retrieval import _identity_diversified_rank
+    from rag.retrieval_selection import is_historical_cutoff_query
+    from rag.runtime_retrieval import _identity_diversified_rank
 
     query = (
         "Pour un engagement de financement existant avant la circulaire 2026-04, "
@@ -547,7 +547,7 @@ def test_grandfathering_avant_keeps_named_circular():
 
 
 def test_selon_bare_year_number_is_explicit_instrument_identity():
-    from retrieval_selection import explicit_instrument_identity
+    from rag.retrieval_selection import explicit_instrument_identity
 
     identity = explicit_instrument_identity(
         "Selon 2025-13, une vente a 150 jours avec police d'assurance-credit "
@@ -570,7 +570,7 @@ def test_selon_bare_year_number_is_explicit_instrument_identity():
 
 def test_arabic_instrument_identity_forms_are_generic():
     """Arabic cite forms must parse any instrument — not a single circular's answer key."""
-    from retrieval_selection import explicit_instrument_identity
+    from rag.retrieval_selection import explicit_instrument_identity
 
     classic = explicit_instrument_identity("ما هو موضوع المنشور عدد 6 لسنة 2026؟")
     assert classic is not None
@@ -595,14 +595,14 @@ def test_arabic_instrument_identity_forms_are_generic():
 
 def test_empty_collection_has_no_bm25_index_and_retrieves_nothing():
     """A French-only corpus has an empty Arabic OCR collection; chat must not crash on it."""
-    from bm25 import create_bm25, retrieve_bm25
+    from rag.bm25 import create_bm25, retrieve_bm25
 
     assert create_bm25([]) is None
     assert retrieve_bm25("taux directeur", None, []) == []
 
 
 def test_keyword_search_matches_the_way_people_type():
-    from bm25 import create_bm25, retrieve_bm25, tokenize
+    from rag.bm25 import create_bm25, retrieve_bm25, tokenize
 
     # accents, plural, elision, digits glued to letters; Arabic harakat, hamza and taa marbuta
     assert tokenize("Délais de l'agrément (Cir2024-03)") == tokenize("delai de agrements cir 2024 03")
@@ -613,7 +613,7 @@ def test_keyword_search_matches_the_way_people_type():
 
 
 def test_historical_cutoff_needs_avant_before_an_instrument_reference():
-    from retrieval_selection import is_historical_cutoff_query
+    from rag.retrieval_selection import is_historical_cutoff_query
 
     assert is_historical_cutoff_query("Avant la circulaire 2025-13, quel était le délai ?")
     assert not is_historical_cutoff_query("Faut-il un accord avant de payer le fournisseur selon 2025-13 ?")
@@ -621,7 +621,7 @@ def test_historical_cutoff_needs_avant_before_an_instrument_reference():
 
 
 def test_batch_sizes_shrink_with_weaker_hardware(monkeypatch):
-    import hardware
+    from rag import hardware
 
     monkeypatch.setattr(hardware, "torch_device", lambda: "cuda")
     monkeypatch.setattr(hardware, "gpu_memory_gb", lambda: 6.0)
@@ -652,7 +652,7 @@ def test_other_wordings_add_candidates_and_each_chunk_keeps_its_best_score(monke
 
 
 def test_a_chunk_both_searches_agree_on_keeps_a_top_five_place():
-    from runtime_retrieval import promote_agreed_hit
+    from rag.runtime_retrieval import promote_agreed_hit
 
     ranked = [(_doc(f"page {n}", f"Cir_{n}_fr.pdf", 1), 1.0 - n / 10) for n in range(8)]
     rule = ranked[7][0]  # the reranker put it last

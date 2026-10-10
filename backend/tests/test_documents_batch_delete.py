@@ -6,7 +6,7 @@ import app as app_module
 import ingestion.pipeline as pipeline_module
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from identity import require_admin
+from extras.identity import require_admin
 
 
 class _FakePipeline:
