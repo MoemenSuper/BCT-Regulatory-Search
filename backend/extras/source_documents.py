@@ -51,10 +51,8 @@ def _candidate_roots() -> list[Path]:
     multi = os.environ.get("BCT_SOURCE_DOCUMENT_ROOTS")
     if multi:
         raw.extend(part for part in multi.split(os.pathsep) if part.strip())
-    for name in ("BCT_DOCUMENTS_DIR", "BCT_LEGACY_DOCUMENTS_DIR"):
-        value = os.environ.get(name)
-        if value:
-            raw.append(value)
+    if os.environ.get("BCT_DOCUMENTS_DIR"):
+        raw.append(os.environ["BCT_DOCUMENTS_DIR"])
     backend = Path(__file__).resolve().parent.parent  # this file lives in backend/extras/
     raw.extend([str(backend / "documents"), str(backend.parent / "documents")])
 

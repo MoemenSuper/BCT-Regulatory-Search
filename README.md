@@ -363,6 +363,105 @@ Every question stays on your server. About 15 minutes plus the model download.
 
 ---
 
+## ⚙️ All settings (`.env`)
+
+Every setting has a working default; a normal install sets only the first table. Settings marked
+**admin screen** can also be changed in **Admin → Configuration** (the screen wins over `.env`).
+
+**Start here**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `GROQ_API_KEY` | — | Answer model key; one is enough (admin screen) |
+| `BCT_BOOTSTRAP_ADMIN_EMAIL` / `BCT_BOOTSTRAP_ADMIN_PASSWORD` | — | Creates the first administrator at startup |
+| `BCT_PUBLISH_ADDRESS` / `BCT_PUBLISH_PORT` | `127.0.0.1` / `8080` | Where Docker publishes the app (`0.0.0.0` opens it to the network) |
+| `BCT_HTTP_PORT` / `BCT_HTTPS_PORT` | `80` / `443` | Ports of the bundled Nginx (`--profile nginx`) |
+| `BCT_COOKIE_SECURE` | `0` | `1` when the site is served over HTTPS (login cookie sent only over HTTPS) |
+
+**Answer model**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `BCT_ANSWER_PROVIDER` | first provider with a key | `openai`, `anthropic`, `gemini` or `groq` (admin screen) |
+| `BCT_OPENAI_MODEL` / `BCT_ANTHROPIC_MODEL` / `BCT_GEMINI_ANSWER_MODEL` / `BCT_GROQ_MODEL` | `gpt-6.1-sol` / `claude-sonnet-5-5` / `gemini-3.8-flash` / `openai/gpt-oss-120b` | Model per provider (admin screen) |
+| `BCT_OPENAI_REASONING_EFFORT` / `BCT_ANTHROPIC_EFFORT` / `BCT_GROQ_REASONING_EFFORT` / `BCT_GEMINI_THINKING_LEVEL` | `low` | How long the model thinks before answering |
+| `BCT_GROQ_MAX_TOKENS` | `8192` | Longest Groq reply |
+| `BCT_LLM_TIMEOUT_SECONDS` | `180` | Wait for one cloud model call |
+| `BCT_DEFAULT_PROFILE` | `local_hybrid` | Profile at first start; then chosen on the admin screen |
+
+**Local model (`local` profile, Ollama)** — see the setup above
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `BCT_LOCAL_LLM_URL` | `http://127.0.0.1:11434` | Ollama address (admin screen) |
+| `BCT_LOCAL_LLM_MODEL` | `qwen3.5:9b-q4_K_M` | Installed Ollama model to use (admin screen) |
+| `BCT_ALLOW_REMOTE_LOCAL_LLM` | `0` | `1` allows an Ollama address that is not this machine (needed from Docker) |
+| `BCT_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | Wait for one local model call; raise it on slow hardware |
+| `BCT_LOCAL_LLM_NUM_CTX` / `BCT_LOCAL_LLM_MAX_TOKENS` / `BCT_LOCAL_LLM_THINK` | `16384` / `2048` / `0` | Context window, longest reply, thinking on/off |
+
+**Search speed**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `BCT_SPEED_MODE` | `auto` | `fast` = 8-bit reranker on CPU: faster, slightly less precise (admin screen) |
+
+**Uploads and page reading**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `BCT_MAX_PDF_BYTES` / `BCT_MAX_PDF_PAGES` | 50 MB / `1000` | Largest PDF accepted |
+| `BCT_INGEST_BATCH` | `25` | PDFs indexed together (one new index version per batch) |
+| `BCT_VISUAL_BACKEND` | by profile | Page reading for scans and charts: `local` (EasyOCR + PaddleOCR-VL), `gemini`, or `off` |
+| `BCT_ENRICHMENT` | `1` | `0` turns off background page reading after upload |
+| `BCT_ENRICH_BATCH_PAGES` / `BCT_ENRICH_BATCH_SECONDS` | `20` / `600` | Pages read before the index is refreshed, or seconds, whichever first |
+| `BCT_ENRICH_MAX_ATTEMPTS` | `3` | Tries per page before it is marked unread |
+| `BCT_ENRICH_BREAKER_FAILURES` / `BCT_ENRICH_COOLDOWN_SECONDS` | `3` / `600` | After this many failures in a row, pause page reading this long |
+| `BCT_ENRICH_IDLE_SECONDS` | `3` | Quiet time after a chat before page reading resumes |
+| `BCT_INGEST_MEMORY_WAIT_SECONDS` | `120` | Pause before trying again when memory is too low to read a page |
+| `BCT_DOCLING_MIN_FREE_GB` / `BCT_PADDLE_MIN_FREE_GB` | `4` / `8` | Free memory needed to start layout analysis / PaddleOCR-VL |
+| `BCT_EASYOCR_GPU` / `BCT_PADDLE_DEVICE` / `BCT_PADDLE_GPU_MEMORY_MB` | `1` / auto / auto | GPU use for page reading (`0`, `cpu` or a memory cap to limit it) |
+| `BCT_PAGE_RENDER_MAX_EDGE` / `BCT_PAGE_RENDER_MAX_PIXELS` | `1600` / `3500000` | Size of page images sent to page reading |
+| `BCT_PADDLE_PYTHON` | the image's own | Python that runs PaddleOCR-VL (developers without Docker) |
+
+**Cloud profile and Gemini page reading**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `VOYAGE_API_KEY` | — | Voyage search; needed to build the cloud index (admin screen) |
+| `BCT_INGEST_CLOUD_INDEX` | automatic | `1` / `0` forces Voyage vectors on / off at upload (by default: once the cloud index exists) |
+| `BCT_VOYAGE_RETRY_SWEEPS` / `BCT_VOYAGE_RETRY_SLEEP_SECONDS` | `4` / `20` | Retries when Voyage is busy |
+| `BCT_GEMINI_MODEL` / `BCT_GEMINI_MODEL_CHAIN` / `BCT_GEMINI_FALLBACK_MODEL` | built-in | Gemini models for page reading, tried in order |
+| `BCT_GEMINI_TIMEOUT_SECONDS` / `BCT_GEMINI_RETRY_SLEEP_SECONDS` | `120` / `8` | Gemini page reading wait and retry pause |
+
+**Users and costs**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `BCT_DEFAULT_TOKEN_LIMIT` | `500000` | Token quota of a new user (`0` = unlimited); changeable per user |
+| `BCT_TOKEN_USD_PER_MILLION` | `0.5` | Price used to show costs in the admin screen; set it to your provider's price |
+
+**Files and folders** (Docker sets these; change them only to move data)
+
+| Setting | Default in Docker | What it does |
+| --- | --- | --- |
+| `BCT_ASSETS_DIR` | `/data/assets` | Live index (a Docker volume) |
+| `BCT_BAKED_ASSETS_DIR` | `/opt/bct/baked-assets` | Index shipped in the image, copied to the volume on first start |
+| `BCT_DATA_DIR` | `/data/state` | Accounts, settings, conversations, uploads, logs |
+| `BCT_DOCUMENTS_DIR` | `/data/documents` | Shipped PDFs |
+| `BCT_SOURCE_DOCUMENT_ROOTS` | — | Extra trusted PDF folders, separated by `:` (Linux) or `;` (Windows) |
+| `BCT_SUPERSESSION_EDGES` | the index's own file | Another relations file (`supersession_edges.jsonl`) |
+| `BCT_STATIC_DIR` / `BCT_BIND_HOST` / `BCT_BIND_PORT` | `/app/static` / `0.0.0.0` / `8000` | Built UI and the port inside the container |
+
+**Set by the app itself (do not set them):** the start points fill these in so the parts of the
+app find each other — `BCT_RUNTIME_ASSET_ROOT`, `BCT_NATIVE_CHUNKS_PATH`, `BCT_OCR_CHUNKS_PATH`,
+`BCT_CHROMA_DB`, `BCT_CHROMA_COLLECTION`, `BCT_OCR_CHROMA_DB`, `BCT_OCR_CHROMA_COLLECTION`,
+`BCT_VOYAGE_PROVIDER_ROOT`, `BCT_VOYAGE_RUNTIME_CACHE`, `BCT_AUTH_DB`, `BCT_SETTINGS_DB`,
+`BCT_CONVERSATION_DB`, `BCT_INGESTION_DB`, `BCT_INGESTION_DATA_DIR`, `BCT_INGESTED_DOCUMENTS_DIR`,
+`BCT_GEMINI_CACHE`, `BCT_VISUAL_CACHE`, `BCT_ENABLE_INGESTION`, `BCT_INGEST_LOCAL_INDEX`,
+`BCT_WARM_START`, `BCT_PARENT_PID`.
+
+---
+
 ## 📎 More
 
 - Frontend details: [`frontend/README.md`](frontend/README.md)
