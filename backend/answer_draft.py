@@ -210,7 +210,7 @@ def evidence_records(scored_documents):
                   "page": page, "text": document.page_content, "score": float(score)}
         record.update({key: value for key, value in document.metadata.items()
                        if key.startswith("temporal_") or key.startswith("valid_")
-                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to", "language", "context"}})
+                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to", "language"}})
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
