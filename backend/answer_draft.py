@@ -19,7 +19,7 @@ from retrieval_selection import parse_source_identity
 from source_metadata import normalize_page
 from query_currentness import is_relationship_query, is_temporal_rule_query
 from answer_evidence import (
-    unit_spans, direct_identity, identity_matches, evidence_problem, evidence_warning,
+    unit_spans, direct_identity, identity_matches, evidence_warning,
 )
 from answer_gates import (
     ANSWER_SCHEMA_FOR_PROMPT,
@@ -209,8 +209,8 @@ def evidence_records(scored_documents):
         record = {"evidence_id": f"E{index}", "source": source,
                   "page": page, "text": document.page_content, "score": float(score)}
         record.update({key: value for key, value in document.metadata.items()
-                       if key.startswith("temporal_") or key.startswith("valid_")
-                       or key in {"representation", "representations", "numeric_conflict", "extraction_conflict", "doc_kind", "authority", "has_chart", "related_to", "language"}})
+                       if key.startswith("temporal_")
+                       or key in {"representation", "doc_kind", "authority", "related_to", "language"}})
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
@@ -221,9 +221,6 @@ def evidence_records(scored_documents):
                 f"{newer} {relation} {older}; verified relationship only — "
                 "not proof the rule is currently in force"
             )
-        problem = evidence_problem(record)
-        if problem:
-            record["unusable_reason"] = problem
         warning = evidence_warning(record)
         if warning:
             record["evidence_warning"] = warning
@@ -444,7 +441,7 @@ def select_evidence(llm, question, evidence, reference_context):
         raise ValueError("invalid_selection_decision")
     selected = [by_id[eid] for eid in selection.evidence_ids]
     target = direct_identity(question)
-    if any(r.get("unusable_reason") or (target and not identity_matches(r["source"], target)) for r in selected):
+    if any(target and not identity_matches(r["source"], target) for r in selected):
         raise ValueError("unusable_selection")
     return selection, selected
 
@@ -479,7 +476,7 @@ def try_supersession_partial_answer(question, evidence, *, diagnostics=None):
     )
     for record in evidence:
         relation = str(record.get("temporal_relation") or "")
-        if relation not in action_words or record.get("unusable_reason"):
+        if relation not in action_words:
             continue
         text = str(record.get("text") or "")
         # The cited unit itself must carry the abrogation/replacement verb; edge metadata
@@ -615,7 +612,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     # The question plus its other wordings: a French page's lines are found by French words.
     focus = " ".join([question, *search_queries])
     target = direct_identity(question)
-    if target and not any(identity_matches(r["source"], target) and not r.get("unusable_reason") for r in evidence):
+    if target and not any(identity_matches(r["source"], target) for r in evidence):
         label = f"{target['kind']}:{target['year']}-{target['number']}"
         return {**fallback, "diagnostics": [f"named_instrument_absent:{label}"]}
     if target:
@@ -637,7 +634,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     except (ValueError, TypeError, KeyError) as error:
         detail = str(error).strip() or type(error).__name__
         logger.info("answer_selection_rejected reason=%s", detail)
-        evidence = [record for record in candidate_evidence if not record.get("unusable_reason")]
+        evidence = list(candidate_evidence)
         if not evidence:
             return {**fallback, "diagnostics": [f"selection_error:{detail}"]}
         selection = EvidenceSelection(
@@ -647,7 +644,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         )
         selection_diagnostics.append(f"selection_error:{detail}")
     selector_doubt = None
-    usable = [record for record in candidate_evidence if not record.get("unusable_reason")]
+    usable = list(candidate_evidence)
     if selection.answer_intent == "opinion" and selection.decision not in {"answer", "partial"} and usable:
         # No text judges itself, so a selector looking for an opinion finds none: answer an opinion
         # question with what the texts provide, like a summary (the reply says no opinion is given).

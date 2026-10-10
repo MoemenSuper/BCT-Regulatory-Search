@@ -197,7 +197,6 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
     meta = {
         "source": document.filename,
         "page": page.page_number,
-        "page_end": page.page_number,
         "pages": [page.page_number],
         "language": document.language,
         "representation": representation,
@@ -215,7 +214,6 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
             ordinal=ordinal,
             text=text,
         ),
-        "quality_score": page.quality_score,
         "quality_flags": ",".join(page.quality_flags),
         "doc_kind": doc_kind,
         "authority": authority,

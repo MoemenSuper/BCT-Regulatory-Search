@@ -79,7 +79,6 @@ def test_arabic_corrupt_header_warns_words_may_support_claims_digits_may_not():
     text = "مذكرة إلى البنوك عدد 41 لسنة 2202\nلون الورقة أخضر. الرمز هو 709. المدة ثلاث سنوات."
     records = evidence_records([(Document(page_content=text, metadata={"source": "Note_2022_41_ar.pdf", "page": 2}), 0.9)])
     assert records[0]["evidence_warning"] == "source_header_conflict"
-    assert "unusable_reason" not in records[0]
     # Non-numeric fact from the body: supported.
     assert parse(draft("لون الورقة أخضر.", unit=2), records, "ما اللون؟")["status"] == "answered"
     # Digits on a page with reversed/garbled header digits are not reliable, even verbatim.

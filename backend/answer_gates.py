@@ -13,7 +13,7 @@ from retrieval_selection import ARABIC, _ascii_fold
 from query_currentness import is_temporal_rule_query
 from answer_evidence import (
     plain as _plain, unit_spans, numeric_literals, supported_numbers, direct_identity,
-    identity_matches, evidence_problem, evidence_warning, trusted_years, strip_instrument_references,
+    identity_matches, evidence_warning, trusted_years, strip_instrument_references,
     claim_asserts_unverified_applicability, claim_asserts_unsupported_negative_amendment,
     question_scenario_numbers, confirmed_numbers, strip_structure_references,
 )
@@ -200,9 +200,6 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     for record, excerpt in excerpts:
         if target and not identity_matches(record["source"], target):
             raise ValueError("requested_document_mismatch")
-        problem = record.get("unusable_reason") or evidence_problem(record)
-        if problem:
-            raise ValueError(problem)
         supporting_text.append(excerpt)
         # A literal name of the cited document is trusted metadata, not
         # a numeric rule that must also occur in the extracted excerpt.

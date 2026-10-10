@@ -24,7 +24,6 @@ def test_chunks_never_cross_physical_pages():
     primary, visual = build_runtime_chunks(document)
     assert visual == []
     assert {chunk.metadata["page"] for chunk in primary} == {1, 2}
-    assert all(chunk.metadata["page"] == chunk.metadata["page_end"] for chunk in primary)
     assert all(not ("A" in chunk.page_content and "B" in chunk.page_content) for chunk in primary)
 
 

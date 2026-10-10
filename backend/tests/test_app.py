@@ -142,17 +142,6 @@ def test_health_reports_supersession_ready_when_edges_exist(monkeypatch, tmp_pat
     assert "ready: True" in announced
 
 
-def test_profiles_exposes_the_three_runtime_choices():
-    response = client.get("/profiles")
-
-    assert response.status_code == 200
-    assert {item["value"] for item in response.json()} == {
-        "local",
-        "local_hybrid",
-        "cloud",
-    }
-
-
 def test_chat_rejects_empty_question():
     response = client.post("/chat", json={"question": ""})
 

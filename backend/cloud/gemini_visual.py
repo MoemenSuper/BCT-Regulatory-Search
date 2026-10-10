@@ -278,19 +278,6 @@ class GeminiVisualTranscriber:
         self._injected_client = client is not None
         self._client = client
 
-    def _get_client(self):
-        if self._client is not None:
-            return self._client
-        try:
-            from google import genai
-        except ImportError as error:
-            raise RuntimeError("Gemini visual ingestion requires google-genai>=2.20.0") from error
-        keys = _gemini_keys()
-        if not keys:
-            raise RuntimeError("GEMINI_API_KEY is required when a page needs Gemini visual extraction")
-        self._client = genai.Client(api_key=keys[0])
-        return self._client
-
     def transcribe(
         self,
         *,

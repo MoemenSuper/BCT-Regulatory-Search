@@ -37,16 +37,10 @@ def test_conflicting_native_header_is_a_warning_not_a_discarded_page():
     text = "CIRCULAIRE AUX INTERMEDIAIRES AGREES n° 2002-03 du 04 février 2020\n" + EVIDENCE[0]["text"]
     records = evidence_records([(Document(page_content=text, metadata={"source": "Cir_2020_03_fr.pdf", "page": 1}), 0.8)])
     assert records[0]["evidence_warning"] == "source_header_conflict"
-    assert "unusable_reason" not in records[0]
     # Identity is the trusted filename; the body still supports a verbatim claim.
     result = parse_answer(json.dumps(draft()), "Quel est l'objet ?", records)
     assert result["status"] == "answered"
     assert result["sources"][0]["file"] == "Cir_2020_03_fr.pdf"
-    # Ingestion-detected extraction conflicts remain unusable.
-    conflicted = evidence_records([(Document(page_content=text, metadata={
-        "source": "Cir_2020_03_fr.pdf", "page": 1, "extraction_conflict": True}), 0.8)])
-    assert conflicted[0]["unusable_reason"] == "extraction_conflict"
-    assert parse_answer(json.dumps(draft()), "Quel est l'objet ?", conflicted)["status"] == "insufficient_evidence"
 
 
 def test_invalid_model_response_keeps_the_arabic_question_language():

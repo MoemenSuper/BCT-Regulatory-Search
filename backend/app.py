@@ -39,7 +39,7 @@ from langchain_core.callbacks import get_usage_metadata_callback
 
 from hardware import memory_gb
 from llm import ANSWER_PROVIDERS, PROVIDER_ERRORS, answer_provider, create_llm
-from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile, profile_options
+from runtime_profiles import RuntimeProfile, RuntimeProfileManager, parse_profile
 from runtime_retrieval import create_local_backend
 # Optional cloud profile: only called when the cloud profile is selected.
 from cloud.voyage_client import track_cloud_retrieval_usage
@@ -388,11 +388,6 @@ def change_password(payload: PasswordChangeRequest, request: Request, user=Depen
     except KeyError as error:
         raise HTTPException(status_code=404, detail="User not found.") from error
     return {"ok": True}
-
-@app.get("/profiles")
-def profiles(_user=Depends(require_approved_user)):
-    return profile_options()
-
 
 @lru_cache(maxsize=1)
 def _indexed_sources(native_chunks: str, _mtime: float) -> frozenset[str]:

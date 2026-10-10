@@ -188,13 +188,6 @@ def identity_matches(source, target):
                 and aliases.get(identity["kind"], identity["kind"]) == aliases.get(target["kind"], target["kind"]))
 
 
-def evidence_problem(record):
-    """Ingestion-detected extraction conflicts make a passage unusable."""
-    if record.get("numeric_conflict") or record.get("extraction_conflict"):
-        return "extraction_conflict"
-    return None
-
-
 def evidence_warning(record):
     """Observable OCR noise in the page header. Identity still comes from the trusted
     filename and quotes stay digit-exact, so the body may support claims; the model
