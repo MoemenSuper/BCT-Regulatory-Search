@@ -32,7 +32,7 @@ Preserve grounded-answer behavior. Prefer delete/reuse over new layers (ponytail
 | Docker volume seeding from the baked index (`SEEDED_FROM.txt`) | `backend/docker_serve.py` |
 | Server log file | `backend/server_logging.py` |
 | Visual ingest (EasyOCR / PaddleOCR-VL; `VisualPage` in `models.py`) | `backend/ingestion/local_visual.py`, `extract.py` |
-| Optional cloud profile (Voyage search + index staging, Gemini page reading) | `backend/cloud/` — only called when the cloud profile, `BCT_INGEST_CLOUD_INDEX=1`, or `BCT_VISUAL_BACKEND=gemini` is on |
+| Optional cloud profile (Voyage search + index staging, Gemini page reading) | `backend/cloud/` — only called when the cloud profile, `BCT_INGEST_CLOUD_INDEX=1`, or `BCT_VISUAL_BACKEND=gemini` is on. The shipped index has no Voyage vectors: an admin builds them from the configuration screen (`POST /admin/config/cloud-index`, `cloud/voyage_index.py` `build_cloud_index`); the cloud profile cannot be chosen before, and every later upload keeps them current |
 | HTTP surface | `backend/app.py`, `backend/run_api.py` |
 | Auth / sessions / roles / admin audit log | `backend/identity.py` (audit rows written by `_audit` in `app.py`) |
 | App profile + provider secrets | `backend/app_settings.py` |

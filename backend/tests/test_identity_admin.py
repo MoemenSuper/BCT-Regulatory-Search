@@ -177,6 +177,16 @@ def test_admin_can_switch_runtime_profile(auth_client):
     assert config["active_profile"] == "local_hybrid"
 
 
+def test_the_cloud_profile_cannot_be_chosen_without_its_index(auth_client):
+    auth_client.post("/auth/login", json={"email": "admin@bct.tn", "password": "AdminPass123"})
+
+    assert auth_client.get("/admin/config").json()["cloud_index"]["ready"] is False
+    response = auth_client.put("/admin/config/profile", json={"profile": "cloud"})
+
+    assert response.status_code == 409
+    assert auth_client.get("/admin/config").json()["active_profile"] != "cloud"
+
+
 def test_admin_secrets_are_masked(auth_client):
     auth_client.post(
         "/auth/login",

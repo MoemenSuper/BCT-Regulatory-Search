@@ -10,8 +10,10 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import os
 import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +25,9 @@ from cloud.voyage_retrieval import _load_bound_index
 from ingestion.index import _keep_indices
 from bm25 import searchable_text
 from runtime_retrieval import _read_chunks, document_binding
+
+logger = logging.getLogger(__name__)
+_INDEXES = (("native", "native.jsonl"), ("arabic_ocr_secondary", "arabic_ocr_secondary.jsonl"))
 
 
 def ingest_cloud_embed_enabled() -> bool:
@@ -77,6 +82,52 @@ def _write_bound_index(root: Path, representation: str, documents: list[Document
     json_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def has_cloud_index(active: Path) -> bool:
+    """A Voyage index was built for this version at some point (it may be stale)."""
+    for manifest_path in (active / "indexes").glob("*.json"):
+        try:
+            if json.loads(manifest_path.read_text(encoding="utf-8")).get("provider") == VOYAGE_SPEC.provider:
+                return True
+        except (OSError, json.JSONDecodeError):
+            continue
+    return False
+
+
+def cloud_index_ready(active: Path) -> bool:
+    """The cloud profile can search this version: every chunk has its Voyage vector."""
+    for representation, filename in _INDEXES:
+        documents = _read_chunks(active / filename) if (active / filename).exists() else []
+        try:
+            _load_bound_index(active, representation, documents, VOYAGE_SPEC)
+        except ValueError:
+            return False
+    return True
+
+
+def build_cloud_index(root: Path, active: Path) -> None:
+    """Embed every chunk of the live version with Voyage, next to its other files.
+
+    The vectors go to a temporary folder first and move in only once both indexes are
+    complete, so a failure leaves the live version untouched. The local profiles never
+    read these files, so adding them does not change the corpus they search.
+    Call it under the ingestion lock so an upload cannot replace the version meanwhile.
+    """
+    client = create_cloud_runtime_client(root)
+    temporary = Path(tempfile.mkdtemp(prefix=".cloud-index-", dir=active))
+    try:
+        for representation, filename in _INDEXES:
+            documents = _read_chunks(active / filename) if (active / filename).exists() else []
+            if documents:
+                _write_bound_index(temporary, representation, documents, _embed_new(client, documents))
+        (active / "indexes").mkdir(exist_ok=True)
+        # Vectors first, then their manifests: a reader never finds a manifest without its vectors.
+        built = sorted((temporary / "indexes").glob("*"), key=lambda path: path.suffix != ".npy")
+        for path in built:
+            os.replace(path, active / "indexes" / path.name)
+    finally:
+        shutil.rmtree(temporary, ignore_errors=True)
+
+
 def _load_old(active: Path, representation: str, filename: str, *, spec=None):
     """Load chunks + matching provider vectors. Missing provider index ⇒ vectors None (re-embed)."""
     spec = spec or VOYAGE_SPEC
@@ -120,8 +171,14 @@ def stage_voyage_indexes(
     kept as they were (stale against the JSONL) so the cloud profile still has them.
     """
     spec = VOYAGE_SPEC
+    best_effort = False
     if embed is None:
         embed = ingest_cloud_embed_enabled()
+        # Once an admin built the cloud index, every upload keeps it current. If Voyage fails
+        # then (no key, outage), the upload still goes live for the local profiles and the
+        # cloud index waits for a rebuild from the admin screen.
+        best_effort = not embed and has_cloud_index(active)
+        embed = embed or best_effort
     client = None
     primary_vectors = None
     for representation, filename, new_docs in (
@@ -135,14 +192,21 @@ def stage_voyage_indexes(
             if old_vectors is not None:
                 old_vectors = old_vectors[keep] if keep else np.empty((0, spec.dimension), dtype=np.float32)
         documents = old_docs + list(new_docs)
+        vectors = None
         if embed:
-            client = client or create_cloud_runtime_client(root)
-            if old_vectors is None:
-                vectors = _embed_new(client, documents)
-            else:
-                new_vectors = _embed_new(client, new_docs)
-                vectors = np.vstack([old_vectors, new_vectors]) if len(old_vectors) else new_vectors
-        else:
+            try:
+                client = client or create_cloud_runtime_client(root)
+                if old_vectors is None:
+                    vectors = _embed_new(client, documents)
+                else:
+                    new_vectors = _embed_new(client, new_docs)
+                    vectors = np.vstack([old_vectors, new_vectors]) if len(old_vectors) else new_vectors
+            except Exception:
+                if not best_effort:
+                    raise
+                logger.warning("Cloud index not updated (Voyage failed); rebuild it from the admin screen", exc_info=True)
+                embed = False
+        if not embed:
             vectors = old_vectors if not new_docs else None
         if vectors is not None:
             _write_bound_index(staging, representation, documents, vectors, spec=spec)

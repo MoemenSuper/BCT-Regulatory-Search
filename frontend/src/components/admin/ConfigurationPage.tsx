@@ -5,12 +5,13 @@ import { type AdminConfig } from '../../api/admin';
 import { t, type UiLocale } from '../../uiLocale';
 import { BlockSkeleton } from './Skeletons';
 
-export function ConfigurationPage({ config, loading, busy, locale, onProfile, onSecrets, onClearSecret }: {
+export function ConfigurationPage({ config, loading, busy, locale, onProfile, onBuildCloudIndex, onSecrets, onClearSecret }: {
   config: AdminConfig | null;
   loading: boolean;
   busy: boolean;
   locale: UiLocale;
   onProfile: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onBuildCloudIndex: () => Promise<void>;
   onSecrets: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onClearSecret: (key: string) => Promise<void>;
 }) {
@@ -28,6 +29,9 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
     local_hybrid: { title: t(locale, 'admin.profileHybridTitle'), body: t(locale, 'admin.profileHybridBody') },
     local: { title: t(locale, 'admin.profileLocalTitle'), body: t(locale, 'admin.profileLocalBody') },
   };
+  const cloud = config.cloud_index;
+  // The cloud profile can only be chosen once its index exists (the server refuses it otherwise).
+  const cloudLocked = !cloud.ready && config.active_profile !== 'cloud';
   return (
     <section className="admin-configuration">
       <form className="admin-panel" onSubmit={(event) => void onProfile(event)}>
@@ -39,9 +43,23 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
           <div className="admin-choices" role="radiogroup" aria-label={t(locale, 'admin.activeProfile')} key={config.active_profile}>
             {config.profiles.map((profile) => (
               <label className="admin-choice" key={profile.value}>
-                <input type="radio" name="profile" value={profile.value} defaultChecked={profile.value === config.active_profile} />
+                <input type="radio" name="profile" value={profile.value} defaultChecked={profile.value === config.active_profile}
+                  disabled={profile.value === 'cloud' && cloudLocked} />
                 <strong>{profileGuides[profile.value]?.title || profile.label}</strong>
                 <span>{profileGuides[profile.value]?.body || profile.description}</span>
+                {profile.value === 'cloud' ? (
+                  <span className="admin-help">
+                    {cloud.building ? t(locale, 'admin.cloudIndexBuilding')
+                      : cloud.ready ? t(locale, 'admin.cloudIndexReady')
+                      : t(locale, 'admin.cloudIndexMissing')}
+                    {cloud.error ? <> {t(locale, 'admin.cloudIndexFailed', { error: cloud.error })}</> : null}
+                    {!cloud.ready && !cloud.building ? (
+                      <button type="button" className="admin-btn" disabled={busy} onClick={() => void onBuildCloudIndex()}>
+                        {t(locale, 'admin.cloudIndexBuild')}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
               </label>
             ))}
           </div>

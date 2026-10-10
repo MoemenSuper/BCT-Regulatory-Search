@@ -97,6 +97,8 @@ export interface AdminConfig {
   }>;
   secrets: SecretInfo[];
   answer_provider: string;
+  // The cloud profile needs its own index, built on demand from this screen.
+  cloud_index: { ready: boolean; building: boolean; error: string | null };
 }
 
 export function getOverview(): Promise<AdminOverview> {
@@ -232,6 +234,10 @@ export function setProfile(profile: string): Promise<{ active_profile: string }>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile }),
   });
+}
+
+export function buildCloudIndex(): Promise<AdminConfig['cloud_index']> {
+  return request('/api/admin/config/cloud-index', { method: 'POST' });
 }
 
 export function setSecrets(secrets: Record<string, string | null>): Promise<AdminConfig> {

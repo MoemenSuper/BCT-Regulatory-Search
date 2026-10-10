@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -713,13 +714,68 @@ def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admi
     _audit(request, admin, "user.delete", target.email if target else user_id)
 
 
+# The cloud profile searches with Voyage vectors, which the shipped index does not have.
+# An admin builds them from the configuration screen; the build runs in the background
+# while chat keeps answering with the current profile. One build at a time per process.
+_cloud_build_lock = threading.Lock()
+_cloud_build = {"error": None}
+
+
+def _cloud_index_status() -> dict:
+    ready = False
+    root = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
+    building = _cloud_build_lock.locked()
+    if root and not building:
+        from cloud.voyage_index import cloud_index_ready
+        from ingestion.index import resolve_active_assets
+
+        try:
+            ready = cloud_index_ready(resolve_active_assets(root))
+        except (OSError, ValueError):
+            ready = False
+    return {"ready": ready, "building": building, "error": _cloud_build["error"]}
+
+
+def _build_cloud_index(profile_manager) -> None:
+    from filelock import FileLock
+
+    from cloud.voyage_index import build_cloud_index
+    from ingestion.index import resolve_active_assets
+
+    root = Path(os.environ["BCT_RUNTIME_ASSET_ROOT"])
+    try:
+        with FileLock(str(root / ".ingestion.lock"), timeout=60 * 30):  # never during an upload
+            build_cloud_index(root, resolve_active_assets(root))
+        profile_manager.reset()
+        logger.info("Cloud index built.")
+    except Exception as error:
+        logger.exception("Cloud index build failed")
+        _cloud_build["error"] = str(error)[:300] or type(error).__name__
+    finally:
+        _cloud_build_lock.release()
+
+
 @app.get("/admin/config")
 def admin_get_config(request: Request, _admin=Depends(require_admin)):
-    return request.app.state.settings_store.public_configuration()
+    return {**request.app.state.settings_store.public_configuration(), "cloud_index": _cloud_index_status()}
+
+
+@app.post("/admin/config/cloud-index", status_code=202)
+def admin_build_cloud_index(request: Request, admin=Depends(require_admin)):
+    if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
+        raise HTTPException(status_code=503, detail="No runtime index is configured.")
+    if not _cloud_build_lock.acquire(blocking=False):  # released when the build thread ends
+        raise HTTPException(status_code=409, detail="The cloud index is already being built.")
+    _cloud_build["error"] = None
+    threading.Thread(target=_build_cloud_index, args=(request.app.state.profile_manager,), daemon=True).start()
+    _audit(request, admin, "config.cloud_index_build", "")
+    return _cloud_index_status()
 
 
 @app.put("/admin/config/profile")
 def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Depends(require_admin)):
+    if parse_profile(payload.profile) == RuntimeProfile.CLOUD and not _cloud_index_status()["ready"]:
+        raise HTTPException(status_code=409, detail="Build the cloud index before choosing the cloud profile.")
     profile = request.app.state.settings_store.set_active_profile(payload.profile)
     request.app.state.profile_manager.reset()
     _audit(request, admin, "config.profile", profile.value)

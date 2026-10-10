@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { CheckCircle2, CircleAlert, FileText, Gauge, GitCompareArrows, Moon, ScrollText, Settings2, Sun, UsersRound, XCircle } from 'lucide-react';
-import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listAudit, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AuditEntry, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
+import { approveUser, deleteDocuments, deleteUser, downloadAnswerRefusalsExport, buildCloudIndex, getConfig, getEnrichmentState, getOverview, listAnswerRefusals, listAudit, listDocuments, listUsers, promoteUser, rejectUser, resetUserTokens, retryEnrichment, setProfile, setSecrets, setUserTokenLimit, uploadDocument, type AdminConfig, type AdminOverview, type AnswerRefusal, type AuditEntry, type AnswerRefusalsPage, type EnrichmentWorkerState, type IndexedDocument } from '../api/admin';
 import { logout, type AuthUser } from '../api/auth';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProfileMenu } from './ProfileMenu';
@@ -137,6 +137,14 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     } finally { setBusy(false); }
   }
 
+  // While the cloud index builds in the background, re-read its status every 5 seconds.
+  const cloudBuilding = Boolean(config?.cloud_index?.building);
+  useEffect(() => {
+    if (!cloudBuilding || tab !== 'configuration') return undefined;
+    const timer = window.setInterval(() => { void getConfig().then(setConfig).catch(() => undefined); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [cloudBuilding, tab]);
+
   useEffect(() => {
     try {
       localStorage.setItem(ADMIN_THEME_KEY, theme);
@@ -240,6 +248,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
     }
   }
 
+  async function handleBuildCloudIndex() { setBusy(true); setError(null); setMessage(null); try { await buildCloudIndex(); setMessage(t(locale, 'admin.cloudIndexStarted')); setConfig(await getConfig()); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
   async function handleProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const profile = String(new FormData(event.currentTarget).get('profile') || ''); setBusy(true); setError(null); setMessage(null); try { await setProfile(profile); setMessage(t(locale, 'admin.profileSaved', { profile })); await refresh(); } catch { setError(t(locale, 'admin.configFailed')); } finally { setBusy(false); } }
   async function handleClearSecret(key: string) {
     if (!window.confirm(t(locale, 'admin.clearSecretConfirm', { key }))) return;
@@ -472,7 +481,7 @@ export function AdminDashboard({ user, onUserChange, onLogout, locale, onLocaleC
             onExport={() => void handleExportRefusals()}
           />
         ) : null}
-        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onSecrets={handleSecrets} onClearSecret={handleClearSecret} /> : null}
+        {tab === 'configuration' ? <ConfigurationPage config={config} loading={loading} busy={busy} locale={locale} onProfile={handleProfile} onBuildCloudIndex={handleBuildCloudIndex} onSecrets={handleSecrets} onClearSecret={handleClearSecret} /> : null}
         {tab === 'relations' ? <RelationsPage locale={locale} /> : null}
         {tab === 'audit' ? <AuditPage entries={audit} loading={loading} locale={locale} /> : null}
       </main>
