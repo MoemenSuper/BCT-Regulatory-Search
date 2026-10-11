@@ -1,3 +1,11 @@
+"""The upload ledger: a small SQLite database that remembers every uploaded PDF and its state.
+
+Two tables:
+- ingestion_documents: one row per PDF (by content hash) and its status:
+    queued -> processing -> ready / ready_degraded / enriching (searchable), or failed; removed.
+- ingestion_pages: the pages of a PDF that wait for visual reading, and their results. This lets
+  background reading stop at any time (a restart, a chat question) and resume where it was.
+"""
 from __future__ import annotations
 
 import json
@@ -15,10 +23,13 @@ _SEARCHABLE_SQL = "('enriching', 'ready', 'ready_degraded')"
 
 
 class IngestionRegistry:
+    """The ledger database, one connection per thread."""
+
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
+        # WAL mode: readers (the admin screen) are not blocked while the worker writes.
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute(
             """
@@ -61,12 +72,15 @@ class IngestionRegistry:
 
     @property
     def connection(self) -> sqlite3.Connection:
+        """This thread's connection (SQLite connections must not be shared between threads)."""
         return thread_connection(self._local, self.path)
 
     def close(self) -> None:
+        """Close this thread's connection."""
         self.connection.close()
 
     def get(self, content_sha256: str) -> dict | None:
+        """One PDF's row (with its report decoded), or None."""
         row = self.connection.execute(
             "SELECT * FROM ingestion_documents WHERE content_sha256 = ?",
             (content_sha256,),
@@ -106,6 +120,7 @@ class IngestionRegistry:
         return cursor.rowcount
 
     def next_queued(self, limit: int) -> list[dict]:
+        """The oldest queued PDFs, up to limit (the next batch)."""
         rows = self.connection.execute(
             "SELECT content_sha256 FROM ingestion_documents WHERE status='queued' ORDER BY created_at LIMIT ?",
             (limit,),
@@ -113,6 +128,7 @@ class IngestionRegistry:
         return [self.get(row[0]) for row in rows]
 
     def start(self, content_sha256: str, filename: str, stored_path: str | None = None) -> None:
+        """Mark a PDF as being read (processing)."""
         now = datetime.now(timezone.utc).isoformat()
         self.connection.execute(
             """
@@ -163,9 +179,8 @@ class IngestionRegistry:
                 content_sha256,
             ),
         )
-        # Only the newest byte-version of one logical source basename is active in
-        # the retrieval assets. Keep the older ledger rows for audit, but do not
-        # present them as simultaneously ready/searchable.
+        # A new upload with the same filename replaces the old one in the index. The old row is kept
+        # (for the history) but no longer shown as searchable.
         self.connection.execute(
             """
             UPDATE ingestion_documents
@@ -177,6 +192,7 @@ class IngestionRegistry:
         self.connection.commit()
 
     def fail(self, content_sha256: str, error: str) -> None:
+        """Mark a PDF as failed, with the reason (unless it was removed meanwhile)."""
         self.connection.execute(
             "UPDATE ingestion_documents SET status='failed', error=? WHERE content_sha256=? AND status <> 'removed'",
             (error[:4000], content_sha256),
@@ -195,6 +211,7 @@ class IngestionRegistry:
         return cursor.rowcount == 1
 
     def mark_removed(self, content_sha256: str, *, asset_version: str) -> None:
+        """Mark a PDF as removed from the index (in which version)."""
         now = datetime.now(timezone.utc).isoformat()
         cursor = self.connection.execute(
             """
@@ -227,6 +244,7 @@ class IngestionRegistry:
         self.connection.commit()
 
     def pending_pages(self, content_sha256: str) -> list[dict]:
+        """A PDF's pages still waiting for visual reading, most urgent first."""
         rows = self.connection.execute(
             """
             SELECT page_number, priority, language, image_regions, attempts FROM ingestion_pages
@@ -253,6 +271,7 @@ class IngestionRegistry:
         }
 
     def page_done(self, content_sha256: str, page: int, *, result_json: str, model: str | None, seconds: float) -> None:
+        """Save a page's visual reading."""
         self.connection.execute(
             """
             UPDATE ingestion_pages SET state='done', result_json=?, model=?, error=NULL, seconds=?,
@@ -264,6 +283,7 @@ class IngestionRegistry:
         self.connection.commit()
 
     def page_failed(self, content_sha256: str, page: int, *, error: str, max_attempts: int) -> None:
+        """Count a failed reading; after max_attempts the page is marked failed for good."""
         self.connection.execute(
             """
             UPDATE ingestion_pages SET attempts=attempts+1, error=?, updated_at=?,
@@ -275,6 +295,7 @@ class IngestionRegistry:
         self.connection.commit()
 
     def retry_failed_pages(self, content_sha256: str) -> int:
+        """Put a PDF's failed pages back in line (the admin's "retry" button). Returns how many."""
         cursor = self.connection.execute(
             "UPDATE ingestion_pages SET state='pending', attempts=0, error=NULL "
             "WHERE content_sha256=? AND state='failed'",
@@ -289,6 +310,7 @@ class IngestionRegistry:
         return cursor.rowcount
 
     def progress(self, content_sha256: str) -> dict:
+        """How many of a PDF's pages are done, pending or failed (shown on the admin screen)."""
         row = self.connection.execute(
             """
             SELECT count(*) AS total,
@@ -312,6 +334,7 @@ class IngestionRegistry:
         }
 
     def next_enriching(self, *, exclude: set[str] = frozenset()) -> dict | None:
+        """The oldest PDF that still has pages to read visually, or None."""
         rows = self.connection.execute(
             "SELECT content_sha256 FROM ingestion_documents WHERE status='enriching' ORDER BY created_at"
         ).fetchall()

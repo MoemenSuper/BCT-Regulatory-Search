@@ -1,3 +1,14 @@
+"""Opening a cited PDF page in the evidence panel, safely, with the quote highlighted.
+
+The browser only ever sends a filename ("Cir_2018_10_fr.pdf") and a page number, never a path.
+SourceDocumentResolver finds that file only in trusted places: the uploads ledger, or the
+configured document folders. A name like "../../secret.pdf" is refused, so the page viewer cannot
+be used to read other files on the server.
+
+render_page_png() draws the page as an image and highlights the cited quote on it: an exact
+search first, then a word-by-word fuzzy match when the PDF's text differs slightly (spacing,
+Arabic letter forms).
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,22 +32,27 @@ from rag.retrieval_selection import is_arabic_query
 from rag.source_metadata import safe_pdf_filename
 
 
+# Arabic vowel marks and Quranic signs: ignored when matching a quote to the page.
 _ARABIC_DIACRITICS = re.compile(r"[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]")
 _TOKEN_RE = re.compile(rf"[\w{_ARABIC_RANGE}]+", re.UNICODE)
 
 
 @dataclass(frozen=True)
 class SourceDocument:
+    """A cited PDF, found on disk: its name and its real path."""
+
     filename: str
     path: Path
     metadata: dict
 
 
 def _safe_basename(filename: str) -> str:
+    """The filename, refused if it holds a folder part, control characters, or is not a .pdf."""
     return safe_pdf_filename(filename, require_exact_basename=True, max_length=240)
 
 
 def _default_ingestion_db() -> Path | None:
+    """The uploads ledger's path (to find uploaded PDFs), or None if there is none."""
     configured = os.environ.get("BCT_INGESTION_DB")
     if configured:
         return Path(configured).expanduser().resolve()
@@ -47,6 +63,7 @@ def _default_ingestion_db() -> Path | None:
 
 
 def _candidate_roots() -> list[Path]:
+    """The trusted folders that may hold PDFs, in order, keeping only those that exist."""
     raw: list[str] = []
     multi = os.environ.get("BCT_SOURCE_DOCUMENT_ROOTS")
     if multi:
@@ -68,13 +85,9 @@ def _candidate_roots() -> list[Path]:
 
 
 class SourceDocumentResolver:
-    """Resolve chat source basenames to trusted local PDFs.
-
-    Resolution order is intentionally conservative:
-    1. the ingestion ledger's latest ready immutable copy;
-    2. a unique basename match under configured document roots.
-
-    The API never accepts arbitrary paths from the browser.
+    """Find the PDF behind a cited filename, only in trusted places:
+    1. the uploads ledger: the latest kept copy of an upload with that name;
+    2. otherwise, a file with that exact name inside the trusted document folders.
     """
 
     def __init__(self) -> None:
@@ -83,10 +96,12 @@ class SourceDocumentResolver:
         self._scan_index: dict[str, list[Path]] | None = None
 
     def refresh(self) -> None:
+        """Look at the folders again (after an upload added a file)."""
         self.roots = _candidate_roots()
         self._scan_index = None
 
     def _resolve_from_ingestion(self, filename: str) -> Path | None:
+        """The kept copy of an upload with this name, or None."""
         database = self.ingestion_db
         if database is None or not database.exists():
             return None
@@ -110,6 +125,8 @@ class SourceDocumentResolver:
         return path if path.is_file() else None
 
     def _build_scan_index(self) -> dict[str, list[Path]]:
+        """Every PDF under the trusted folders, by lower-case name. A path that leads outside its
+        folder (a symbolic link) is skipped."""
         index: dict[str, list[Path]] = {}
         for root in self.roots:
             try:
@@ -128,6 +145,7 @@ class SourceDocumentResolver:
         return index
 
     def resolve(self, filename: str) -> SourceDocument:
+        """The PDF for this filename, or FileNotFoundError."""
         safe_name = _safe_basename(filename)
         metadata: dict = {}
 
@@ -139,8 +157,7 @@ class SourceDocumentResolver:
             if len(matches) == 1:
                 path = matches[0]
             elif len(matches) > 1:
-                # Prefer the newest immutable ingestion copy when multiple versions
-                # of the same basename exist and no registry was available.
+                # Several files with that name: take the newest.
                 path = max(matches, key=lambda item: item.stat().st_mtime_ns)
 
         if path is None or not path.is_file():
@@ -149,6 +166,7 @@ class SourceDocumentResolver:
 
 
 def source_info(document: SourceDocument) -> dict:
+    """The PDF's name, page count and title, for the viewer's header."""
     try:
         import pymupdf
     except ImportError as error:
@@ -164,6 +182,7 @@ def source_info(document: SourceDocument) -> dict:
 
 
 def _normalize_text(value: str) -> str:
+    """Text in one comparable form: no Arabic marks or tatweel, lower case, uniform dashes and spaces."""
     value = unicodedata.normalize("NFKC", value)
     value = value.replace("ـ", "")
     value = _ARABIC_DIACRITICS.sub("", value)
@@ -295,10 +314,8 @@ def _match_span(quote_tokens, page_tokens, deadline):
 
 
 def _quote_segments(quote: str) -> list[str]:
-    # answer_contract joins multiple exact quotes from the same physical page with
-    # an ellipsis separator. Locate each original quote independently so the PDF
-    # viewer highlights every supported passage instead of trying to search for a
-    # synthetic combined string that never existed in the source PDF.
+    """Split a combined excerpt back into its quotes. Several quotes from one page are joined with
+    "…"; each is looked for on its own, since the joined text does not exist in the PDF."""
     raw = (quote or "").strip()
     if not raw:
         return []
@@ -307,11 +324,11 @@ def _quote_segments(quote: str) -> list[str]:
 
 
 def locate_quote(page, quote: str):
+    """Where each quote sits on the page, as highlight shapes: exact search, else fuzzy words."""
     rects = []
     deadline = time.monotonic() + _FUZZY_BUDGET_SECONDS
     for cleaned in _quote_segments(quote):
-        # PyMuPDF recommends quads=True for text-marker annotations because it
-        # preserves orientation information for rotated / non-horizontal text.
+        # quads=True gives four-corner shapes, which also fit rotated or slanted text.
         try:
             direct = list(page.search_for(cleaned, quads=True))
         except Exception:
@@ -330,6 +347,8 @@ def render_page_png(
     quote: str = "",
     scale: float = 1.8,
 ) -> tuple[bytes, dict[str, str]]:
+    """The page as a PNG image with the quote highlighted in yellow, and headers telling the
+    viewer the page count and whether the quote was found."""
     try:
         import pymupdf
     except ImportError as error:

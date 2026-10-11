@@ -1,18 +1,17 @@
-"""JSONL SUPERSEDES edges: extract, load, merge for ingest.
+"""Relations between circulars ("edges"): finding them in the PDFs, and reading and writing them.
 
-Pins successor declaring pages when:
-  1. the query names an edged instrument (force / “still in force?” path), or
-  2. classic top hits include an instrument that is itself a SUPERSEDES target
-     (topical currentness — e.g. work hours lands on an old circular).
+An edge says that one circular REPLACES, ABROGATES or AMENDS another, and keeps the exact
+sentence that says so and its page ("La présente circulaire abroge et remplace la circulaire
+n°2013-15", in 2017-08 page 28). Only operative sentences count: a "Vu la circulaire ..." line or
+"telle que modifiée par ..." mentions a text without changing it.
 
-On PDF ingest, operative amendment language is extracted from the new pages and
-merged into supersession_edges.jsonl inside the staged asset version (before
-activate). Vu / "telle que modifiée par" citations are not SUPERSEDES edges.
+At upload, the new pages are scanned and their edges are merged into supersession_edges.jsonl,
+inside the new index version before it goes live. supersession_pin.py uses them at search time.
 
-Edges path (first hit wins):
+Where the edges file is (the first one found wins):
   1. BCT_SUPERSESSION_EDGES
-  2. <active-version>/supersession_edges.jsonl
-  3. <asset-root>/supersession_edges.jsonl (legacy seed)
+  2. <live version>/supersession_edges.jsonl
+  3. <index folder>/supersession_edges.jsonl (an older layout)
 """
 from __future__ import annotations
 
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import Iterable
 
 
+# A circular named in a text: "circulaire n°2018-10", "note 2017/08", "منشور عدد 2016-01".
 INSTR = re.compile(
     r"(?P<kind>circulaire|note|cir|منشور)\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})",
     re.I,
@@ -33,17 +33,21 @@ MESSY_INSTR = re.compile(
     r"(?P<kind>circulaire|note|circ|cir|منشور)\s*(?:n[°o.]?\s*|عدد\s*)?(?P<y>\d{2,4})\s+(?P<n>\d{1,3})\b",
     re.I,
 )
+# "2018-10" alone, without a kind word.
 BARE = re.compile(r"\b(?P<y>\d{2,4})\s*[-–/]\s*(?P<n>\d{1,3})\b")
 # User-like bare: "2018 07" only when force-ish context is nearby (handled in instruments_from_text)
 BARE_SPACE = re.compile(r"\b(?P<y>\d{2,4})\s+(?P<n>\d{1,3})\b")
 ARTICLE = re.compile(r"\b(?:articles?|art\.?)\s*(?P<a>\d+)\b", re.I)
+# A circular's identity in a BCT filename: "Cir_2017_08_fr.pdf".
 SRC_FROM_FILE = re.compile(r"(?P<kind>Cir|Note|CB)_(?P<y>\d{4})_(?P<n>\d+)", re.I)
+# Words asking whether a text still applies, or saying it was changed.
 FORCEISH = re.compile(
     r"\b(?:valable|vigueur|applicable|abroge|remplac|modifi|encore|toujours|tjrs|"
     r"substit|annul|remplacé|qui\s+a|toujours|en\s+force)\b|"
     r"(?:تلغي|تعوض|يلغى|يعوض|ساري|نافذ)",
     re.I,
 )
+# The verbs of an edge: abroge, remplace, modifie (and their Arabic equivalents).
 ACTION_RE = re.compile(
     r"(abroge\s+et\s+remplace|annule\s+et\s+remplace|annule\s+et\s+substitue|"
     r"abroge|abrogées?|abrogés?|remplace|remplacent|remplacée?s?|"
@@ -51,6 +55,7 @@ ACTION_RE = re.compile(
     r"تلغي|تعوض|يلغى|يعوض|تلغى|تستبدل)",
     re.I,
 )
+# The circular the verb acts on, a few words after it.
 TARGET_CIR = re.compile(
     r"(?:circulaire|note|منشور)"
     r"(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’-]{1,30}){0,8}"
@@ -86,6 +91,9 @@ PRESENT_CIRCULAR_ACTOR = re.compile(
 
 @dataclass(frozen=True)
 class SupersessionEdge:
+    """One relation: source (the newer text) -action-> target, with the quote that proves it.
+    Instruments are written "cir:2017:8" (kind:year:number)."""
+
     source_instrument: str
     source_file: str
     source_page: int
@@ -96,6 +104,7 @@ class SupersessionEdge:
 
 
 def _norm_year(raw: int | str) -> int:
+    """A two-digit year becomes four digits ("91" -> 1991, "18" -> 2018)."""
     year = int(raw)
     if year < 100:
         return 1900 + year if year >= 50 else 2000 + year
@@ -103,6 +112,7 @@ def _norm_year(raw: int | str) -> int:
 
 
 def _instrument(kind: str, year: int, number: int) -> str:
+    """"cir:2018:10" or "note:2018:10" from any way of writing the kind."""
     k = kind.casefold()
     if k in {"cir", "cb", "circulaire", "circular", "circ", "منشور"}:
         k = "cir"
@@ -114,6 +124,7 @@ def _instrument(kind: str, year: int, number: int) -> str:
 
 
 def instrument_from_filename(name: str) -> str | None:
+    """"Cir_2017_08_fr.pdf" -> "cir:2017:8", or None for another kind of file."""
     match = SRC_FROM_FILE.search(Path(name).name)
     if not match:
         return None
@@ -143,6 +154,7 @@ def instruments_from_text(text: str) -> set[str]:
 
 
 def resolve_edges_path(runtime_assets: Path | None = None) -> Path | None:
+    """The edges file to use (see the order at the top of this file), or None."""
     env = (os.environ.get("BCT_SUPERSESSION_EDGES") or "").strip()
     if env:
         path = Path(env)
@@ -161,6 +173,7 @@ def resolve_edges_path(runtime_assets: Path | None = None) -> Path | None:
 
 
 def edge_key(edge: SupersessionEdge) -> tuple:
+    """What makes two edges the same relation (to drop duplicates)."""
     return (
         edge.source_instrument,
         edge.target_instrument,
@@ -189,6 +202,7 @@ def edge_quote_is_operative(edge: SupersessionEdge) -> bool:
 
 
 def load_edges(path: Path) -> list[SupersessionEdge]:
+    """Read an edges file (one JSON object per line); malformed lines are skipped."""
     edges: list[SupersessionEdge] = []
     if not path.is_file():
         return edges
@@ -238,6 +252,7 @@ def _with_part_from_quote(edge: SupersessionEdge) -> SupersessionEdge:
 
 
 def write_edges(path: Path, edges: Iterable[SupersessionEdge]) -> None:
+    """Write edges to a file, one JSON object per line."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         json.dumps(asdict(edge), ensure_ascii=False, sort_keys=True)
@@ -247,6 +262,7 @@ def write_edges(path: Path, edges: Iterable[SupersessionEdge]) -> None:
 
 
 def merge_edge_lists(*groups: Iterable[SupersessionEdge]) -> list[SupersessionEdge]:
+    """All edges of the groups, each relation once (the later group wins)."""
     by_key: dict[tuple, SupersessionEdge] = {}
     for group in groups:
         for edge in group:
@@ -255,6 +271,7 @@ def merge_edge_lists(*groups: Iterable[SupersessionEdge]) -> list[SupersessionEd
 
 
 def _classify_action(snippet: str) -> str:
+    """REPLACE, ABROGATE or AMEND, from the verb in the sentence."""
     if re.search(r"remplac|substit|تعوض|يعوض|تستبدل", snippet, re.I):
         return "REPLACE"
     if re.search(r"abroge|abrog|تلغي|يلغى|تلغى|إلغاء|الغاء", snippet, re.I):
@@ -322,6 +339,7 @@ def _targets_acted_upon(snippet: str, source: str, *, action_verb: str) -> list[
 
 
 def _target_article(snippet: str, source: str) -> str | None:
+    """The article (or annex, list) of the target the sentence changes, when it names one."""
     for tgt in TARGET_CIR.finditer(snippet):
         kind = "note" if "note" in tgt.group(0).casefold() else "cir"
         instrument = _instrument(kind, int(tgt.group("y")), int(tgt.group("n")))
@@ -422,7 +440,7 @@ def extract_edges_from_pages(filename: str, pages: Iterable) -> list[Supersessio
 
 
 def load_prior_edges(active_before: Path, asset_root: Path | None = None) -> list[SupersessionEdge]:
-    """Prior edges from previous active version, else legacy asset-root seed."""
+    """The edges of the live version, else those of the older layout's file."""
     version_path = Path(active_before) / "supersession_edges.jsonl"
     if version_path.is_file():
         return load_edges(version_path)

@@ -1,6 +1,12 @@
-"""Local retrieval (default for local_hybrid and local): e5 + Chroma, BM25, BGE reranker.
+"""Search: from a question to a ranked list of chunks (step 3 of a question). Used by the
+local_hybrid and local profiles; the cloud profile has its own version in cloud/voyage_retrieval.py.
 
-The cloud profile's Voyage backend lives in cloud/voyage_retrieval.py.
+retrieve() works in four moves:
+1. Gather candidates with two searches, meaning search (e5 + Chroma) and keyword search (BM25),
+   for the question and for its other wordings (French, Arabic, the user's own words).
+2. Add the chunks of any circular the question names ("la circulaire 2018-10").
+3. Remove duplicates, then let the reranker (cross-encoder) score every candidate.
+4. Adjust the order with a few rules (one page per slot, named circulars first, ...).
 """
 
 from __future__ import annotations
@@ -30,6 +36,7 @@ from langchain_core.documents import Document
 
 
 def _doc_key(document):
+    """What makes two chunks "the same": same text, same PDF, same page."""
     return (
         document.page_content,
         document.metadata.get("source"),
@@ -56,9 +63,9 @@ _PAGE_CAP = 2
 def _page_capped(documents, k):
     """A search's first k chunks, at most _PAGE_CAP per page (the caller asks for 2k).
 
-    Chunks carry their document's context header, so one page's chunks look alike; without a
-    cap they filled the shortlist the reranker sees and pushed other pages out. Benchmark of 779
-    questions with the context index: answer page first 572 -> 588, in the top 5 716 -> 729."""
+    Chunks of one page share the same context header, so they look alike to both searches;
+    without a cap a single page could fill the shortlist the reranker sees and push other pages
+    out. Measured: with the cap, the right page comes first more often."""
     kept, per_page = [], {}
     for document in documents:
         key = (document.metadata.get("source"), document.metadata.get("page"))
@@ -69,7 +76,7 @@ def _page_capped(documents, k):
 
 
 def _is_arabic_text(text):
-    # Same threshold extraction uses to call a page Arabic.
+    # At least 20 % Arabic letters: the same threshold ingestion uses to call a page Arabic.
     return arabic_character_ratio(text) >= 0.20
 
 
@@ -78,10 +85,8 @@ def script_scores(score, query, other_queries, documents):
 
     score(wording, documents) returns one score per document. A French chunk is compared with the
     first Latin-script wording (the question, or its French version), an Arabic chunk with the
-    first Arabic one. The other wordings still find candidates (each search lane), but scoring
-    every chunk against every same-script wording too cost 2.3x the reranker work for the same
-    result (retrieval benchmark: 82 % top-5 both ways; 7.7k instead of 18k pairs). The reranker
-    is 97 % of an answer's time on a CPU server.
+    first Arabic one. Comparing every chunk with every wording gave the same ranking for more
+    than twice the work, and the reranker is most of an answer's time on a CPU server.
     """
     wordings = [query, *other_queries]
     scores = [None] * len(documents)
@@ -119,22 +124,31 @@ def promote_agreed_hit(ranked, agreed, slots=5):
 
 
 def _page(document):
+    """(PDF, page): the unit a citation points to."""
     return document.metadata.get("source"), document.metadata.get("page")
 
 
 def _identity_diversified_rank(query, documents, scores):
+    """Sort by reranker score, then apply the ordering rules (step 4 in the header)."""
     scores = [float(score) for score in scores]
     if len(scores) != len(documents):
         raise ValueError("Reranker returned an invalid score count")
     ranked = diversify_ranked_pages(
         sorted(zip(documents, scores), key=lambda item: item[1], reverse=True)
     )
-    # Named before historical: "Avant 2025-13" must demote the named cutoff last.
+    # Order matters: for "avant la circulaire 2025-13", the named circular is first promoted,
+    # then pushed back by prefer_historical_hits, because the question asks what came before it.
     ranked = prefer_named_instrument_hits(ranked, query_instrument_refs(query))
     return prefer_historical_hits(ranked, query)
 
 
 class LocalRetrievalBackend:
+    """The search engine, loaded once at startup with every index it needs.
+
+    The main corpus is the PDF text. The "ocr" stores hold the Arabic text read from scanned
+    pages, searched only for Arabic wordings.
+    """
+
     def __init__(
         self,
         vector_store,
@@ -153,10 +167,12 @@ class LocalRetrievalBackend:
         self.ocr_vector_store = ocr_vector_store
         self.ocr_bm25 = ocr_bm25
         self.ocr_documents = list(ocr_documents or [])
+        # Every chunk grouped by (PDF, page), to rebuild whole pages for the answer step.
         self._pages = page_chunks([*bm25_documents, *self.ocr_documents])
 
     def expand_pages(self, ranked):
-        """Full retrieved page text, plus bounded same-PDF neighbour pages."""
+        """The answer model reads whole pages, not chunks: each ranked chunk becomes its full page,
+        plus a few neighbour pages of the same PDF when a passage continues there."""
         return expand_answer_pages(ranked, self._pages)
 
     def retrieve(self, query, other_queries=(), instruments=()):
@@ -168,6 +184,8 @@ class LocalRetrievalBackend:
         instruments: extra instruments to search inside, like the ones the question names (for
         "avant la circulaire X", the texts X replaced).
         """
+        # Move 1: each search gives one "group" of candidates. Each asks for twice what it keeps,
+        # because _page_capped drops extra chunks of the same page.
         groups = [
             _page_capped(retrieve_relevant_chunks(query, self.vector_store, k=40), 20),
             _page_capped(retrieve_bm25(query, self.bm25, self.bm25_documents, k=30), 15),
@@ -185,6 +203,7 @@ class LocalRetrievalBackend:
             if is_arabic_query(version) and self.ocr_vector_store is not None:
                 groups.append(_page_capped(retrieve_relevant_chunks(version, self.ocr_vector_store, k=10), 5))
                 groups.append(_page_capped(retrieve_bm25(version, self.ocr_bm25, self.ocr_documents, k=10), 5))
+        # Move 2: the circulars the question names (and the extra ones asked for) join the shortlist.
         identity_refs = query_instrument_refs(query) + list(instruments)
         for identity in identity_refs:
             # ponytail: first 40 chunks of each named instrument; the reranker picks among them
@@ -195,9 +214,11 @@ class LocalRetrievalBackend:
             ]
             if matched_docs:
                 groups.append(matched_docs[:40])
+        # Moves 3 and 4.
         return promote_agreed_hit(self.rank(query, dedupe(*groups), other_queries), agreed)
 
     def rank(self, query, documents, other_queries=()):
+        """Score candidates with the reranker and order them; returns [(chunk, score), ...]."""
         # The reranker reads each chunk with its context header, like the other two searches.
         reranker_documents = build_identity_reranker_documents(
             [Document(page_content=searchable_text(d.page_content, d.metadata), metadata=d.metadata)
@@ -213,7 +234,8 @@ class LocalRetrievalBackend:
 
 
 def _read_chunks(path: Path) -> list[Document]:
-    """Load JSONL chunks. An empty file is a valid empty corpus (bootstrap / FR-only OCR)."""
+    """Read a chunk file: one JSON object per line ({"page_content": ..., "metadata": ...}).
+    An empty file is a valid empty corpus (a new install, or no Arabic scanned pages yet)."""
     documents = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -230,7 +252,8 @@ def _read_chunks(path: Path) -> list[Document]:
 
 
 def document_binding(documents: list[Document]) -> str:
-    """Bind ordered text and citation metadata, not just embedding inputs."""
+    """A fingerprint (SHA-256) of these chunks, text and metadata, in order. Stored next to
+    vectors computed for them, it proves later that the vectors still match the same chunks."""
     digest = hashlib.sha256()
     for document in documents:
         record = {"page_content": document.page_content, "metadata": document.metadata}
@@ -241,6 +264,7 @@ def document_binding(documents: list[Document]) -> str:
 
 
 def create_local_backend():
+    """Load every model and index of the live corpus and build the search engine (at startup)."""
     from rag.embedding import create_embedding_model
     from rag.vector_store import load_vector_store
     from rag.reranker import create_reranker
@@ -250,7 +274,7 @@ def create_local_backend():
     vector_store = load_vector_store(embedding_model)
     reranker = create_reranker()
     documents = load_documents_from_chroma(vector_store)
-    bm25 = create_bm25(documents)
+    bm25 = create_bm25(documents)  # the keyword index is rebuilt in memory from Chroma's chunks
 
     ocr_vector_store = None
     ocr_documents = []
@@ -279,6 +303,8 @@ def create_local_backend():
         ocr_bm25=ocr_bm25,
         ocr_documents=ocr_documents,
     )
+    # If the index has a relations file (which circular replaced which), wrap the engine so it can
+    # bring the replacing circular's page into the results (extras/supersession_pin.py).
     from extras.jsonl_supersession import maybe_wrap_backend
 
     native = os.environ.get("BCT_NATIVE_CHUNKS_PATH")

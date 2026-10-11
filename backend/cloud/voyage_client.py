@@ -1,4 +1,10 @@
-"""Cloud embedding and rerank HTTP client (Voyage)."""
+"""The Voyage API client: vectors for chunks and questions (Voyage's contextual embedding model),
+and a reranker score for each (question, chunk) pair. Used by the cloud profile only.
+
+Every response is saved on disk, keyed by the exact request, so the same request is never paid
+for twice. Several keys can be set; a key that is busy (429) or failing passes the request to
+the next one, and the whole round is retried a few times with a growing pause.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -18,8 +24,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Named slots first (production). Numbered VOYAGE_API_KEY_<n> are temporary
-# overflow for eval quota — drop those env vars when daily limits are fine.
+# The key variables tried, in this order; VOYAGE_API_KEY_2, _3 ... are also read (see below).
 VOYAGE_KEY_NAMES = (
     "VOYAGE_API_KEY_TERTIARY",
     "VOYAGE_API_KEY_QUATERNARY",
@@ -78,6 +83,7 @@ _cloud_retrieval_usage: ContextVar[CloudRetrievalUsage | None] = ContextVar(
 
 @contextmanager
 def track_cloud_retrieval_usage():
+    """Count the Voyage tokens used inside a with-block (one chat turn), for the user's quota."""
     bucket = CloudRetrievalUsage()
     token = _cloud_retrieval_usage.set(bucket)
     try:
@@ -87,6 +93,7 @@ def track_cloud_retrieval_usage():
 
 
 def _record_voyage_usage(endpoint: str, body: dict) -> None:
+    """Add a response's token count to the current turn's counter, if one is open."""
     bucket = _cloud_retrieval_usage.get()
     if bucket is None or not isinstance(body, dict):
         return
@@ -160,6 +167,7 @@ class VoyageRuntimeClient:
         return credentials
 
     def _post(self, endpoint, payload, parse):
+        """Send one request (from the cache when the same one was sent before), trying every key."""
         encoded = json.dumps(
             {"endpoint": endpoint, "payload": payload},
             ensure_ascii=False,
@@ -236,6 +244,7 @@ class VoyageRuntimeClient:
         )
 
     def embed_query(self, query):
+        """The vector of a question."""
         return self._post(
             "contextualizedembeddings",
             {
@@ -294,6 +303,7 @@ class VoyageRuntimeClient:
         ]
 
     def _unit(self, vector, *, label="embedding"):
+        """The vector scaled to length 1 (so a dot product is a cosine); refuses broken vectors."""
         vector = np.asarray(vector, dtype=np.float32)
         norm = float(np.linalg.norm(vector))
         if (
@@ -318,6 +328,7 @@ class VoyageRuntimeClient:
         return self._unit(vectors[0], label="query embedding")
 
     def rerank(self, query, texts):
+        """One relevance score per text, in the same order."""
         if not texts:
             return []
         batches = _batches(

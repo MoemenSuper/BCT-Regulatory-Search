@@ -1,4 +1,10 @@
-"""Central application settings: active runtime profile and provider secrets."""
+"""The settings an administrator changes from the Configuration screen: the active profile, the
+answer model and its keys, the speed mode, the local model.
+
+They are saved in a small SQLite database and copied into the process environment
+(os.environ), where the rest of the app reads them, so a saved value wins over .env. Removing a
+saved value falls back to what the server started with.
+"""
 
 from __future__ import annotations
 
@@ -45,12 +51,14 @@ ACTIVE_PROFILE_KEY = "active_profile"
 
 
 def default_settings_database_path() -> Path:
+    """Where the settings database goes without BCT_SETTINGS_DB: the user's app-data folder."""
     local_data = os.environ.get("LOCALAPPDATA")
     root = Path(local_data) if local_data else Path.home() / ".local" / "share"
     return root / "BCT-Regulatory-Search" / "app_settings.sqlite3"
 
 
 def mask_secret(value: str | None) -> str | None:
+    """A key shown safely: "sk-…9f" (first 3 and last 2 characters), or stars when short."""
     if not value:
         return None
     if len(value) <= 8:
@@ -59,6 +67,8 @@ def mask_secret(value: str | None) -> str | None:
 
 
 class AppSettingsStore:
+    """The settings database: a key -> value table."""
+
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +116,7 @@ class AppSettingsStore:
         self._conn.commit()
 
     def active_profile(self) -> RuntimeProfile:
+        """The saved profile, else BCT_DEFAULT_PROFILE, else local_hybrid."""
         stored = self.get(ACTIVE_PROFILE_KEY)
         if stored:
             return parse_profile(stored)
@@ -118,6 +129,7 @@ class AppSettingsStore:
         return resolved
 
     def apply_to_environment(self) -> None:
+        """Copy every saved setting into os.environ (at startup and after each change)."""
         profile = self.get(ACTIVE_PROFILE_KEY)
         if profile:
             os.environ["BCT_DEFAULT_PROFILE"] = profile
@@ -127,6 +139,7 @@ class AppSettingsStore:
                 os.environ[key] = value
 
     def public_configuration(self) -> dict:
+        """What the Configuration screen shows: the profiles, and each setting with keys masked."""
         secrets = []
         for key in MANAGED_SECRET_KEYS:
             stored = self.get(key)
@@ -155,6 +168,8 @@ class AppSettingsStore:
         }
 
     def update_secrets(self, updates: dict[str, str | None]) -> dict:
+        """Save settings from the screen; an empty value removes the saved one. Only the known keys
+        are accepted, and a setting with fixed choices must be one of them."""
         for key, value in updates.items():
             if key not in MANAGED_SECRET_KEYS:
                 raise ValueError(f"Unsupported configuration key: {key}")
@@ -179,5 +194,6 @@ class AppSettingsStore:
 
 
 def open_app_settings() -> AppSettingsStore:
+    """The settings store at BCT_SETTINGS_DB (or the default place)."""
     configured = os.environ.get("BCT_SETTINGS_DB")
     return AppSettingsStore(configured or default_settings_database_path())

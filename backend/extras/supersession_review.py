@@ -29,6 +29,7 @@ def edge_id(edge: SupersessionEdge) -> str:
 
 
 def _connection():
+    """The decisions table in the uploads ledger (created if needed), or None without a ledger."""
     path = os.environ.get("BCT_INGESTION_DB")
     if not path:
         return None

@@ -1,3 +1,20 @@
+"""Shared setup for every test, and how the tests are written.
+
+Run them from backend/ with:  python -m pytest -q          (one file: pytest tests/test_llm.py)
+
+pytest in five ideas:
+- A test is a function named test_...; it passes when every `assert` in it is true.
+- A fixture is a function marked @pytest.fixture that prepares something a test needs; a test
+  asks for one by naming it as a parameter. pytest gives some for free:
+    tmp_path     a new empty folder, deleted afterwards (for databases and files);
+    monkeypatch  replaces a function or a setting during one test, then puts it back.
+- autouse=True runs a fixture for every test without being asked for (like the two below).
+- @pytest.mark.parametrize runs the same test once per value in its list.
+- `with pytest.raises(ValueError):` passes only if the code inside raises that error.
+
+The tests never call a real model or a paid API: they use fakes (small classes that return a
+fixed answer), so they are fast, free, and give the same result every time.
+"""
 import pytest
 
 from app import app
@@ -23,7 +40,8 @@ def _no_docling_worker(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _default_approved_user(monkeypatch):
-    """Most API tests exercise chat/history without standing up real sessions."""
+    """Most API tests exercise chat/history without standing up real sessions: the login guards
+    are replaced (app.dependency_overrides) by a function returning a fixed test user."""
     app.dependency_overrides[require_user] = lambda: _TEST_USER
     app.dependency_overrides[require_approved_user] = lambda: _TEST_USER
 

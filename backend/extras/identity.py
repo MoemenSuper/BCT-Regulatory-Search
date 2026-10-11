@@ -1,4 +1,16 @@
-"""User accounts, password hashing, and server-side sessions."""
+"""Accounts and login: users, password hashing, sessions, roles, token quotas.
+
+How it protects the accounts (each against a precise attack):
+- Passwords are never stored, only a scrypt hash with a random salt: a stolen database does not
+  reveal them, and the salt makes precomputed tables useless. scrypt is slow on purpose, which
+  makes guessing billions of passwords impractical.
+- Hashes are compared in constant time (hmac.compare_digest), and an unknown email still costs
+  one hash: response times reveal neither the password nor which emails have an account.
+- A session is a random 32-byte token in an httponly cookie: page scripts cannot read it, and
+  it cannot be guessed. It expires after 7 days and lives in the database (logout deletes it).
+- AttemptLimiter counts login attempts, so a password cannot be guessed by trying many.
+- Roles: user or admin; require_admin guards every admin route. New accounts wait for approval.
+"""
 
 from __future__ import annotations
 
@@ -21,7 +33,7 @@ Role = Literal["user", "admin"]
 Status = Literal["pending", "approved", "rejected"]
 
 SESSION_COOKIE = "bct_session"
-SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
+SESSION_TTL_SECONDS = 60 * 60 * 24 * 7  # 7 days
 _HASH_PREFIX = "scrypt"
 # Avatar: empty = letter mark; otherwise a JPEG/PNG data URL.
 MAX_AVATAR_DATA_URL_CHARS = 180_000
@@ -61,6 +73,7 @@ def normalize_avatar(value: str | None) -> str:
 
 
 def default_auth_database_path() -> Path:
+    """Where the accounts database goes without BCT_AUTH_DB: the user's app-data folder."""
     local_data = os.environ.get("LOCALAPPDATA")
     root = Path(local_data) if local_data else Path.home() / ".local" / "share"
     return root / "BCT-Regulatory-Search" / "auth.sqlite3"
@@ -71,6 +84,7 @@ SCRYPT_N = 2**14
 
 
 def hash_password(password: str) -> str:
+    """"scrypt$<n>$<salt>$<hash>": everything needed to check a password later, but not the password."""
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=SCRYPT_N, r=8, p=1, dklen=32)
     return f"{_HASH_PREFIX}${SCRYPT_N}${salt.hex()}${digest.hex()}"
@@ -118,11 +132,13 @@ class AttemptLimiter:
                 self._hits.pop(key, None)
 
     def reset(self, key: str) -> None:
+        """Forget every attempt of this key."""
         with self._lock:
             self._hits.pop(key, None)
 
 
 def verify_password(password: str, encoded: str) -> bool:
+    """Hash the given password with the stored salt and settings, and compare in constant time."""
     try:
         parts = encoded.split("$")
         if len(parts) == 3:
@@ -145,6 +161,8 @@ def verify_password(password: str, encoded: str) -> bool:
 
 @dataclass(frozen=True)
 class UserRecord:
+    """One account as the app sees it (never with its password hash)."""
+
     id: str
     email: str
     role: Role
@@ -160,6 +178,7 @@ class UserRecord:
     tokens_rerank: int = 0
 
     def public_dict(self) -> dict:
+        """The account as sent to the browser: identity, role, status, token use and its cost."""
         limit = max(0, int(self.token_limit))
         llm = max(0, int(self.tokens_llm))
         embed = max(0, int(self.tokens_embed))
@@ -191,6 +210,8 @@ class UserRecord:
 
 
 class AuthStore:
+    """The accounts database: users, sessions and the admin audit log."""
+
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -282,6 +303,7 @@ class AuthStore:
         self._conn.commit()
 
     def bootstrap_admin(self) -> UserRecord | None:
+        """Create (or promote) the first administrator from BCT_BOOTSTRAP_ADMIN_EMAIL / _PASSWORD."""
         email = (os.environ.get("BCT_BOOTSTRAP_ADMIN_EMAIL") or "").strip().casefold()
         password = (os.environ.get("BCT_BOOTSTRAP_ADMIN_PASSWORD") or "").strip()
         if not email or not password:
@@ -336,12 +358,14 @@ class AuthStore:
         return user
 
     def authenticate(self, email: str, password: str) -> UserRecord | None:
+        """The user when email and password match, else None. A hash made with older, weaker
+        settings is replaced by a new one at the first successful login."""
         row = self._conn.execute(
             "SELECT * FROM users WHERE email = ?",
             (email.strip().casefold(),),
         ).fetchone()
         if row is None:
-            verify_password(password, _DUMMY_HASH)
+            verify_password(password, _DUMMY_HASH)  # same work as a real check: see _DUMMY_HASH
             return None
         if not verify_password(password, row["password_hash"]):
             return None
@@ -371,6 +395,7 @@ class AuthStore:
         return [self._row_to_user(row) for row in rows]
 
     def set_status(self, user_id: str, status: Status) -> UserRecord:
+        """Approve or reject an account."""
         now = time.time()
         cur = self._conn.execute(
             "UPDATE users SET status = ?, updated_at = ? WHERE id = ?",
@@ -479,6 +504,7 @@ class AuthStore:
         return user
 
     def tokens_remaining(self, user: UserRecord) -> int | None:
+        """Tokens left in the user's quota, or None when the quota is unlimited (limit 0)."""
         if user.token_limit <= 0:
             return None
         return max(0, user.token_limit - user.tokens_used)
@@ -569,6 +595,7 @@ class AuthStore:
         self._conn.commit()
 
     def create_session(self, user_id: str) -> str:
+        """Log a user in: a new random session token, valid for SESSION_TTL_SECONDS."""
         token = secrets.token_urlsafe(32)
         now = time.time()
         self._conn.execute(
@@ -579,6 +606,7 @@ class AuthStore:
         return token
 
     def user_for_session(self, token: str | None) -> UserRecord | None:
+        """The user behind a session cookie, or None (an expired session is deleted)."""
         if not token:
             return None
         now = time.time()
@@ -628,11 +656,14 @@ class AuthStore:
 
 
 def open_auth_store() -> AuthStore:
+    """The accounts store at BCT_AUTH_DB (or the default place)."""
     configured = os.environ.get("BCT_AUTH_DB")
     return AuthStore(configured or default_auth_database_path())
 
 
 def set_session_cookie(response: Response, token: str) -> None:
+    """Send the session cookie: httponly (scripts cannot read it), samesite=lax (other sites cannot
+    send it with their forms), secure when BCT_COOKIE_SECURE=1 (HTTPS only)."""
     response.set_cookie(
         key=SESSION_COOKIE,
         value=token,
@@ -649,16 +680,23 @@ def clear_session_cookie(response: Response) -> None:
 
 
 def auth_store_from_request(request: Request) -> AuthStore:
+    """The accounts store the app opened at startup."""
     store = getattr(request.app.state, "auth_store", None)
     if store is None:
         raise HTTPException(status_code=503, detail="Authentication is unavailable.")
     return store
 
 
+# The guards below are FastAPI "dependencies": a route that declares
+# `user=Depends(require_admin)` only runs when the guard returns a user; otherwise FastAPI answers
+# with the guard's error (401 not logged in, 403 not allowed). Cookie(...) reads the session
+# cookie from the request.
+
 def current_user(
     request: Request,
     bct_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ) -> UserRecord | None:
+    """The logged-in user, or None."""
     return auth_store_from_request(request).user_for_session(bct_session)
 
 
@@ -666,6 +704,7 @@ def require_user(
     request: Request,
     bct_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ) -> UserRecord:
+    """Any logged-in user (401 otherwise)."""
     user = current_user(request, bct_session)
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required.")
@@ -676,6 +715,7 @@ def require_approved_user(
     request: Request,
     bct_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ) -> UserRecord:
+    """A logged-in user whose account an administrator approved (403 otherwise)."""
     user = require_user(request, bct_session)
     if user.status != "approved":
         raise HTTPException(status_code=403, detail="Account is not approved.")
@@ -686,6 +726,7 @@ def require_admin(
     request: Request,
     bct_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ) -> UserRecord:
+    """An approved administrator (403 otherwise)."""
     user = require_approved_user(request, bct_session)
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Administrator access required.")

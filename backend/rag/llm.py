@@ -1,3 +1,10 @@
+"""The answer model: one function, create_llm(provider), gives a chat model with the same simple
+interface (.invoke(prompt) -> message) whichever company runs it: OpenAI, Anthropic (Claude),
+Google (Gemini), Groq, or Ollama on your own server ("All local" profile).
+
+Every model call of a question goes through it: routing the question, choosing evidence, writing
+the answer, naming the conversation. The administrator picks the provider; one key is enough.
+"""
 import anthropic
 from google.genai import errors as gemini_errors
 import groq
@@ -15,7 +22,7 @@ from urllib.parse import urlparse
 from typing import Any, Optional
 
 
-load_dotenv()
+load_dotenv()  # read backend/.env into the environment (keys, models), if the file exists
 logger = logging.getLogger(__name__)
 
 # Answer-model transport failures (any provider's API errors, Ollama HTTP errors). Callers must
@@ -23,8 +30,8 @@ logger = logging.getLogger(__name__)
 PROVIDER_ERRORS = (
     groq.APIError, openai.APIError, anthropic.APIError, gemini_errors.APIError, requests.RequestException,
 )
-_TIMEOUT = float(os.environ.get("BCT_LLM_TIMEOUT_SECONDS", "180"))
-_MAX_TOKENS = 8192
+_TIMEOUT = float(os.environ.get("BCT_LLM_TIMEOUT_SECONDS", "180"))  # seconds per cloud call
+_MAX_TOKENS = 8192  # longest reply allowed (thinking models spend part of it on hidden reasoning)
 
 
 def _chat_messages(value):
@@ -45,6 +52,7 @@ def _chat_messages(value):
 def _local_llm_target() -> tuple[str, str]:
     """The Ollama address and model, refusing anything that would run outside the server."""
     base_url = os.environ.get("BCT_LOCAL_LLM_URL", "http://127.0.0.1:11434").rstrip("/")
+    # "All local" promises that no question leaves the server: another machine needs an explicit OK.
     host = urlparse(base_url).hostname
     allow_remote = os.environ.get("BCT_ALLOW_REMOTE_LOCAL_LLM") == "1"
     if host not in {"127.0.0.1", "::1", "localhost"} and not allow_remote:
@@ -72,6 +80,7 @@ def local_llm_status() -> dict:
         status["problem"] = "cloud_model" if status["model"].casefold().endswith(":cloud") else "remote_not_allowed"
         return status
     try:
+        # Ollama's /api/tags lists the models installed on that server.
         response = requests.get(f"{base_url}/api/tags", timeout=2)
         response.raise_for_status()
         status["installed"] = sorted(item.get("name", "") for item in response.json().get("models") or [])
@@ -86,6 +95,7 @@ def local_llm_status() -> dict:
 
 
 def _create_ollama_llm():
+    """A chat model served by Ollama on this server (plain HTTP, no client library)."""
     base_url, model = _local_llm_target()
 
     def invoke(value):
@@ -97,7 +107,7 @@ def _create_ollama_llm():
             "stream": False,
             "think": os.environ.get("BCT_LOCAL_LLM_THINK", "0") == "1",
             "options": {
-                "temperature": 0,
+                "temperature": 0,  # always the most likely words: same question, same answer
                 "num_predict": int(
                     os.environ.get("BCT_LOCAL_LLM_MAX_TOKENS", "2048")
                 ),
@@ -144,11 +154,13 @@ def answer_provider() -> str:
 
 
 def _model(provider: str) -> str:
+    """The model name chosen for this provider, or its default."""
     _key, variable, default = ANSWER_PROVIDERS[provider]
     return (os.environ.get(variable) or "").strip() or default
 
 
 def _api_key(provider: str) -> str:
+    """This provider's key, or a clear error naming the missing variable."""
     key = (os.environ.get(ANSWER_PROVIDERS[provider][0]) or "").strip()
     if not key:
         raise RuntimeError(f"{ANSWER_PROVIDERS[provider][0]} is required for the {provider} answer model")
@@ -163,6 +175,7 @@ def _split_system(value) -> tuple[str, list[dict]]:
 
 
 def _create_openai_llm():
+    """OpenAI through its Responses API."""
     from openai import OpenAI
 
     client = OpenAI(api_key=_api_key("openai"), timeout=_TIMEOUT)
@@ -184,6 +197,7 @@ def _create_openai_llm():
 
 
 def _create_anthropic_llm():
+    """Claude through Anthropic's Messages API."""
     import anthropic
 
     client = anthropic.Anthropic(api_key=_api_key("anthropic"), timeout=_TIMEOUT)
@@ -212,6 +226,7 @@ def _create_anthropic_llm():
 
 
 def _create_gemini_llm():
+    """Gemini through Google's genai client."""
     from google import genai
     from google.genai import types
 
@@ -266,6 +281,7 @@ def _groq_api_keys():
 
 
 def _groq_rate_limited(error: BaseException) -> bool:
+    """Is this Groq error a "too much, too fast" refusal (worth trying another key)?"""
     text = str(error).casefold()
     return any(
         token in text
@@ -284,6 +300,7 @@ def _groq_rate_limited(error: BaseException) -> bool:
 
 
 def _chat_groq(api_key: str) -> ChatGroq:
+    """Groq through LangChain's ChatGroq, for one key."""
     return ChatGroq(
         model=_model("groq"),
         groq_api_key=api_key,
@@ -297,7 +314,9 @@ def _chat_groq(api_key: str) -> ChatGroq:
 
 
 class _RotatingGroqLLM(Runnable):
-    """ChatGroq wrapper that advances through GROQ_API_KEY[_N] on rate limits."""
+    """Groq with several keys (GROQ_API_KEY, GROQ_API_KEY_2, ...): when one key hits its per-minute
+    limit, the same request goes to the next key. Each question starts with the next key in turn,
+    so the load is spread over all of them."""
 
     def __init__(self):
         keys = _groq_api_keys()
@@ -332,6 +351,7 @@ class _RotatingGroqLLM(Runnable):
         raise RuntimeError(f"Groq unavailable after trying configured keys: {last_error}")
 
 
+# provider name -> function that builds its chat model
 _FACTORIES = {
     "ollama": _create_ollama_llm,
     "openai": _create_openai_llm,

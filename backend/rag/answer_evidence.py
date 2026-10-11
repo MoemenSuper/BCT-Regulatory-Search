@@ -1,4 +1,16 @@
-"""Answer-only identity and literal gates. Never use benchmark labels or reorder retrieval."""
+"""Text tools the answer checkers (answer_gates.py) are built from. They compare what a claim
+says with what the cited page says, so they need to read both the same way:
+
+- plain(), unit_spans(): normalise text, and cut a page into citable units (lines, sentences).
+- numeric_literals(), confirmed_numbers(): the numbers a text really states ("50.000 D" and
+  "50 000 D" are the same amount).
+- explicit_identity(), identity_matches(): which circular a question names, and whether a
+  cited PDF is that circular.
+- the claim_asserts_...() checks: claims that are never allowed without an exact quote, like
+  "this rule is in force today" or "no later text changed it".
+
+Only the answer step uses this file; it never changes the search order.
+"""
 import re
 import unicodedata
 
@@ -15,6 +27,7 @@ _ARABIC_MARKS = re.compile(r"[ـً-ٰٟ]")
 
 
 def plain(text):
+    """The text with typography made uniform (dashes, quotes, Arabic-Indic digits, spaces)."""
     # Formatting equivalence only: never reverse digits, remove punctuation or skip words.
     return " ".join(unicodedata.normalize("NFC", text).translate(_TYPOGRAPHY).split())
 
@@ -100,6 +113,7 @@ def numeric_literals(text, language="fr"):
 
 
 def supported_numbers(text, language="fr"):
+    """numeric_literals(), plus small numbers written as words ("trois", "ثلاثة" -> "3")."""
     numbers = numeric_literals(text, language)
     # Common standalone word/digit equivalences, not arithmetic or unit conversion.
     words = (
@@ -154,6 +168,7 @@ def strip_structure_references(text, records):
 
 
 def explicit_identity(question):
+    """The circular the question names with its number ({"kind", "year", "number"}), or None."""
     identity = parse_query_identity(question)
     if identity and identity["number"] is not None:
         return identity
@@ -165,9 +180,12 @@ def explicit_identity(question):
 
 
 def direct_identity(question):
-    # A question about amendments, history or comparisons needs the related
-    # documents too. A direct contents question must stay on its named instrument.
-    # "Avant la circulaire X" asks for the texts X replaced, so X is not the one to answer from.
+    """The one circular the answer must come from, or None when other texts may answer too.
+
+    "Que prévoit la circulaire 2018-10 ?" must be answered from 2018-10 itself. Questions about
+    amendments, history or comparisons need the related texts as well, and "avant la circulaire X"
+    asks for the texts X replaced, so X is not the one to answer from.
+    """
     if is_historical_cutoff_query(question):
         return None
     if is_temporal_rule_query(question) or is_relationship_query(question) or re.search(
@@ -182,6 +200,7 @@ def direct_identity(question):
 
 
 def identity_matches(source, target):
+    """Is this PDF the target circular? cb/ci count as cir and nb as note (older filename codes)."""
     identity = parse_source_identity(source)
     aliases = {"cb": "cir", "ci": "cir", "nb": "note"}
     return bool(identity and identity["year"] == target["year"] and identity["number"] == target["number"]
@@ -189,9 +208,10 @@ def identity_matches(source, target):
 
 
 def evidence_warning(record):
-    """Observable OCR noise in the page header. Identity still comes from the trusted
-    filename and quotes stay digit-exact, so the body may support claims; the model
-    is told never to repair the header. This is not a complete OCR detector."""
+    """A warning when the page's own header contradicts its filename (a misread number), or an
+    Arabic date is impossible (a broken font turns 2016 into 6112). The page may still support
+    claims: its identity comes from the filename, and quotes must stay digit-exact. The model is
+    told to state no number or date from such a page. This does not catch every reading error."""
     identity = parse_source_identity(record["source"])
     if not identity:
         return None
@@ -216,13 +236,13 @@ def evidence_warning(record):
 
 
 def strip_instrument_references(text, records):
-    """Remove 'YEAR-NUMBER' / 'عدد N لسنة YEAR' references to the cited instruments.
+    """Remove references to the cited circulars ("2018-10", "عدد 10 لسنة 2018") from a claim
+    before its numbers are checked.
 
-    The identity is trusted filename metadata, so naming it in a claim is not a rule
-    number that must be quoted. Only the cited instruments' own identifiers are removed.
-    Counterpart ids from pinned/graph temporal_* metadata are trusted the same way.
-    Bare sequence numbers alone (e.g. '41 dinars') are NOT trusted — only YEAR-NUMBER
-    reference forms are stripped.
+    A circular's number comes from its trusted filename, so "selon la circulaire 2018-10" is not
+    a figure the quote must contain. The same goes for the circulars a relation names (the one a
+    text replaced). Only these year-number forms are removed: a bare "41 dinars" still has to be
+    in the quote.
     """
     for year, number in _cited_instrument_year_numbers(records):
         text = re.sub(rf"(?<!\d){year}\s*[-/]\s*0*{number}(?!\d)", " ", text)
@@ -232,8 +252,8 @@ def strip_instrument_references(text, records):
 
 
 def trusted_years(question, records):
-    """Years the claim may name without quoting: the question's own and the cited
-    instruments' filename years (plus temporal counterpart years). Trusted metadata."""
+    """Years a claim may name without quoting them: the years in the question, and the years of
+    the cited circulars (and of the circulars their relations name)."""
     years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", plain(question)))
     for year, _number in _cited_instrument_year_numbers(records):
         years.add(str(year))
@@ -260,11 +280,10 @@ _SCENARIO_DATE = re.compile(
 
 
 def question_scenario_numbers(question: str) -> set[str]:
-    """Calendar/scenario numbers from the user question (French or Arabic).
+    """The day and year of dates the user wrote ("avant le 26 mars 2026", "قبل 26 مارس 2026").
 
-    These frame the hypothetical (e.g. 'avant le 26 mars 2026' / 'قبل 26 مارس 2026')
-    and may be restated in a claim without appearing in the supporting quotation.
-    Regulatory quanta that are not in the question still require quote support.
+    They describe the user's situation, so a claim may repeat them without quoting them. Amounts,
+    rates and limits that are not in the question still need the quote.
     """
     found: set[str] = set()
     for match in _SCENARIO_DATE.finditer(plain(question or "")):
@@ -278,7 +297,8 @@ def question_scenario_numbers(question: str) -> set[str]:
 
 
 def _cited_instrument_year_numbers(records):
-    """(year, number) pairs trusted from cited filenames and temporal_* ids."""
+    """(year, number) of every cited circular (from its filename) and of the circulars its
+    relation fields name (temporal_source_id / temporal_target_id, like "cir:2017:8")."""
     pairs: list[tuple[int, int]] = []
     seen: set[tuple[int, int]] = set()
 
@@ -305,10 +325,11 @@ def _cited_instrument_year_numbers(records):
 
 
 def claim_asserts_unverified_applicability(text: str) -> bool:
-    """True when the claim asserts present force/currentness under unverified scope.
+    """Does the claim say a rule applies now ("en vigueur", "actuellement", "الساري")?
 
-    Negative / document-scoped wording ("n'est plus en vigueur", "abrogée") is allowed
-    when backed by a locating quote; affirmative "est en vigueur" / "currently" is not.
+    Nothing in the documents can prove that no later text changed a rule, so such a claim is
+    refused when the question asks about now. Saying a text is no longer in force, or was
+    replaced, is allowed: the quote can show that.
     """
     cleaned = re.sub(
         r"\b(?:n['’]est\s+plus|n['’]est\s+pas|plus|no\s+longer|not)\s+"
@@ -351,10 +372,10 @@ _NEGATIVE_AMENDMENT_CLAIM = re.compile(
 
 
 def claim_asserts_unsupported_negative_amendment(text: str) -> bool:
-    """True when the claim asserts that no later text modifies/abrogates an instrument.
+    """Does the claim say that no later text changed or repealed a circular?
 
-    Absence from retrieval is not proof; only a literal quote of that assertion may
-    support it.
+    Not finding such a text proves nothing (search may have missed it), so only a quote that
+    says exactly this may support the claim.
     """
     return bool(_NEGATIVE_AMENDMENT_CLAIM.search(text or ""))
 

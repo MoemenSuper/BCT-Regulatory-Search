@@ -1,4 +1,5 @@
-"""Run the BCT API on loopback for the React frontend's /api proxy."""
+"""Run the BCT API on this machine (127.0.0.1) for development; the React dev server forwards /api
+calls to it. Docker uses docker_serve.py instead."""
 
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from extras.server_logging import configure_logging
 
 
 def main() -> None:
+    """Read the options, point the app at the index, set up the log, then start the server."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))

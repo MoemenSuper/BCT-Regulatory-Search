@@ -1,4 +1,5 @@
-"""Ingest one BCT PDF into the active cloud/local runtime assets."""
+"""Add one BCT PDF to the index from the command line (the admin screen does the same through
+the upload queue). The PDF is read, chunked and indexed, then a new index version goes live."""
 
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from ingestion.pipeline import IngestionConfig, IngestionPipeline
 
 
 def main() -> int:
+    """Read the options, index the PDF, print its report as JSON."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--assets", type=Path, required=True, help="Runtime asset root (legacy root or root containing ACTIVE.json)")

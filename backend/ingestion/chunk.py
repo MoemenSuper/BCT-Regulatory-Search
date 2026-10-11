@@ -1,3 +1,16 @@
+"""Chunking: cut each page into pieces small enough to search well, and give every piece a
+context header that says where it comes from.
+
+A piece ("chunk") is a stretch of the page text, copied exactly: answers quote it, so it must be
+the page's own words. Pieces follow the page's structure (they never cross into a new heading or
+article, and a table is cut only between rows), and none is shorter than _MIN_PIECE.
+
+The context header (in metadata["context"]) has two lines, for example:
+    Cir_2018_10_fr.pdf · CIRCULAIRE AUX BANQUES N°2018-10 · Objet : Ratio « Crédits/Dépôts »
+    Article 3 · article · page 2
+Every search reads it with the piece (rag/bm25.py searchable_text), so a table row is found
+through its table's name; answers never quote it.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -10,10 +23,10 @@ from rag.answer_evidence import IMAGE_READING, IMAGE_WORDS
 from .models import Block, Page, StructuredDocument
 
 
-CHUNKER_VERSION = "bct-structure-context-v3"
-_MAX_CHARS = 1000
+CHUNKER_VERSION = "bct-structure-context-v3"  # changes when the cutting rules change
+_MAX_CHARS = 1000  # longest piece, in characters
 # No piece shorter than this: a lone heading, title or page number embeds as little more than its
-# context header, and such scraps took 7-14% of the meaning search's top 10 for unrelated questions.
+# context header, and such scraps kept showing up in meaning search for unrelated questions.
 _MIN_PIECE = 150
 
 # How a piece is described in its context header (French: the corpus language).
@@ -176,6 +189,7 @@ def _context(document: StructuredDocument, title: str, page: Page, blocks: list[
 
 
 def _chunk_id(document: StructuredDocument, *, representation: str, page: int, ordinal: int, text: str) -> str:
+    """A stable ID for a chunk: the same PDF cut the same way always gives the same IDs."""
     value = "\0".join(
         [
             document.content_sha256 or "",
@@ -191,6 +205,8 @@ def _chunk_id(document: StructuredDocument, *, representation: str, page: int, o
 
 def _metadata(document: StructuredDocument, page, *, representation: str, ordinal: int, text: str,
               context: str, section: str) -> dict:
+    """Everything stored with a chunk: where it comes from (PDF, page), how it was read, its
+    context header, and the document kind chosen at upload."""
     admin = document.metadata.get("administrator_metadata") or {}
     doc_kind = str(document.metadata.get("doc_kind") or admin.get("doc_kind") or "regulatory")
     authority = str(document.metadata.get("authority") or admin.get("authority") or "primary")
@@ -225,17 +241,18 @@ def _metadata(document: StructuredDocument, page, *, representation: str, ordina
 
 
 def build_runtime_chunks(document: StructuredDocument) -> tuple[list[Document], list[Document]]:
-    """Return canonical page chunks and additive Gemini Arabic visual chunks.
+    """Cut a read PDF into chunks: (main chunks, extra Arabic chunks).
 
-    Every chunk keeps its page text verbatim and carries a context header in its metadata (document,
-    title, section, element, page) that search reads with it: a piece of a table or of an article
-    is found through the name of the table or article it belongs to.
+    The main chunks come from each page's text. For Arabic PDFs, the text a visual reader read off
+    the page image is cut too, into separate "arabic_ocr_secondary" chunks: it often reads a
+    broken Arabic text layer better, so search can find the page through it.
     """
     title = _document_title(document)
     primary: list[Document] = []
     visual: list[Document] = []
     for page in document.pages:
         structured = _structured_pieces(page)
+        # Pages without usable blocks (read visually) are cut by length instead.
         pieces = structured if structured is not None else [(piece, None) for piece in _split(page.raw_text)]
         for ordinal, (piece, blocks) in enumerate(pieces):
             context, section = _context(document, title, page, blocks)

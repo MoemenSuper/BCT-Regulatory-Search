@@ -1,3 +1,16 @@
+"""The upload path: what happens to a PDF from upload to searchable, and how one is removed.
+
+1. queue(): check the file (a real PDF, not too big), keep a copy named by its content hash, and
+   add it to the queue (registry.py). Returns at once.
+2. ingest_queued() (run by the background worker, enrichment.py): read each queued PDF
+   (extract.py), cut it into chunks (chunk.py), then build ONE new index version for the whole
+   batch and make it live (index.py, "staged activation").
+3. Pages that need visual reading are read later, in the background; enrich_activate() then
+   rebuilds that PDF's chunks with the readings and makes a new version live.
+4. remove(): build a version without that PDF and make it live.
+
+Only one of these runs at a time: a file lock (.ingestion.lock) is held while the index changes.
+"""
 from __future__ import annotations
 
 import json
@@ -33,6 +46,9 @@ _MAX_BATCH = 25
 
 @dataclass(frozen=True)
 class IngestionConfig:
+    """Where ingestion reads and writes: the index, the kept PDFs, the queue database, the
+    visual-reading cache, and the upload size limit."""
+
     asset_root: Path
     documents_dir: Path
     registry_path: Path
@@ -42,6 +58,7 @@ class IngestionConfig:
 
     @classmethod
     def from_environment(cls, *, asset_root: str | Path | None = None) -> "IngestionConfig":
+        """The configuration from the BCT_* settings, with defaults next to the index folder."""
         if asset_root is None:
             value = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
             if not value:
@@ -60,10 +77,13 @@ class IngestionConfig:
 
 
 def _safe_filename(name: str) -> str:
+    """The upload's name made safe to store (see safe_pdf_filename)."""
     return safe_pdf_filename(name, ensure_pdf_suffix=True, max_length=200)
 
 
 def _clean_metadata(metadata: dict | None) -> dict[str, str]:
+    """Keep only the known upload fields (title, kind...), each within its length limit, and
+    refuse values with control characters."""
     limits = {
         "title": 300,
         "publication_date": 64,
@@ -92,12 +112,13 @@ def _clean_metadata(metadata: dict | None) -> dict[str, str]:
 
 
 def validate_pdf_file(path: str | Path, *, max_bytes: int) -> None:
+    """Refuse a file that is not a real, readable PDF of an allowed size (raises ValueError)."""
     path = Path(path)
     size = path.stat().st_size
     if size < 5 or size > max_bytes:
         raise ValueError(f"PDF size must be between 5 bytes and {max_bytes} bytes")
     with path.open("rb") as handle:
-        if handle.read(5) != b"%PDF-":
+        if handle.read(5) != b"%PDF-":  # every PDF starts with these 5 bytes
             raise ValueError("Uploaded file does not have a PDF signature")
     try:
         import pymupdf
@@ -114,16 +135,17 @@ def validate_pdf_file(path: str | Path, *, max_bytes: int) -> None:
 
 
 def _read_snapshot(active: Path) -> dict:
+    """A version's snapshot.json ({} when missing)."""
     path = active / "snapshot.json"
     if not path.exists():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
-    # Legacy Codex/provider snapshots are a list of representation bindings;
-    # versioned ingestion snapshots are dicts with local_collection keys.
+    # Very old snapshots were a list; today's are a dict.
     return payload if isinstance(payload, dict) else {}
 
 
 def _memory_mb() -> dict[str, float]:
+    """This process's memory use in MB (for the log when an ingest fails)."""
     try:
         import psutil
     except ImportError:
@@ -134,6 +156,7 @@ def _memory_mb() -> dict[str, float]:
 
 
 def _extract_summary(structured) -> dict:
+    """The upload report shown to the admin: page counts, language, and pages that could not be read."""
     degraded = [
         {"page": page.page_number, "visual_error": page.metadata.get("visual_error"), "flags": page.quality_flags}
         for page in structured.pages
@@ -249,6 +272,8 @@ def _stage_supersession_edges(active_before: Path, staged_version: Path, filenam
 
 
 class IngestionPipeline:
+    """Uploads, batches, background readings and removals, around one queue database."""
+
     def __init__(self, config: IngestionConfig) -> None:
         self.config = config
         self.config.asset_root.mkdir(parents=True, exist_ok=True)
@@ -256,9 +281,11 @@ class IngestionPipeline:
         self.registry = IngestionRegistry(self.config.registry_path)
 
     def close(self) -> None:
+        """Close the queue database."""
         self.registry.close()
 
     def ingest(self, pdf_path: str | Path, *, original_filename: str | None = None, metadata: dict | None = None) -> dict:
+        """Index one PDF right away (command line and tests), with a log line."""
         return _logged(
             "ingest-document",
             lambda: self._ingest(pdf_path, original_filename=original_filename, metadata=metadata),
@@ -291,6 +318,7 @@ class IngestionPipeline:
             return {**known["report"], "duplicate": True}
         if known and known.get("status") in ("queued", "processing"):
             return {"status": known["status"], "duplicate": False, "filename": filename, "content_sha256": content_hash}
+        # Kept as documents/<content hash>/<name>.pdf: the same bytes always land in the same place.
         immutable_dir = self.config.documents_dir / content_hash
         immutable_dir.mkdir(parents=True, exist_ok=True)
         immutable_pdf = immutable_dir / filename
@@ -314,6 +342,8 @@ class IngestionPipeline:
         return reports
 
     def _ingest_batch(self, jobs: list[dict], *, before_each=None) -> tuple[dict[str, dict], dict[str, Exception]]:
+        """Read every PDF of the batch, then make one new version live. Returns
+        (reports by content hash, errors by content hash)."""
         lock = FileLock(str(self.config.asset_root / ".ingestion.lock"), timeout=60 * 30)
         lock.acquire()
         reports: dict[str, dict] = {}
@@ -558,6 +588,8 @@ class IngestionPipeline:
         return result
 
     def _visual_results(self, content_hash: str) -> tuple[dict, str | None]:
+        """The visual readings saved so far for a PDF: {page: reading or error text}, plus the
+        names of the models that made them."""
         from .models import VisualPage
 
         results: dict = {}
@@ -573,6 +605,7 @@ class IngestionPipeline:
         return results, ", ".join(sorted(models)) or None
 
     def _commit_unindexed(self, content_hash, filename, immutable_pdf, metadata, structured, progress) -> dict:
+        """Record a PDF whose pages all wait for visual reading: not searchable yet, "enriching"."""
         report = {
             "status": "enriching",
             "searchable": False,
@@ -613,6 +646,7 @@ class IngestionPipeline:
             lock.release()
 
     def remove(self, content_sha256: str) -> dict:
+        """Remove a PDF (see _remove), with a log line."""
         return _logged("remove-document", lambda: self._remove(content_sha256), subject=content_sha256)
 
     def _deleted(self, content_hash: str) -> bool:
@@ -654,6 +688,7 @@ class IngestionPipeline:
             filename = _safe_filename(str(known.get("original_filename") or filename))
 
             def record(activated: ActivatedVersion) -> dict:
+                """Once the version without the PDF is live: note it in the queue database."""
                 self.registry.mark_removed(content_hash, asset_version=activated.version)
                 return {
                     "status": "removed",
@@ -671,7 +706,7 @@ class IngestionPipeline:
 
             stored = str(known.get("stored_path") or "").strip()
             if stored:
-                # Immutable dir is documents_dir / sha256 / file.pdf
+                # The kept copy lives in documents_dir/<hash>/<name>.pdf: delete that folder only.
                 immutable_dir = Path(stored).parent
                 if immutable_dir.is_dir() and immutable_dir.parent == self.config.documents_dir:
                     shutil.rmtree(immutable_dir, ignore_errors=True)

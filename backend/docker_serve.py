@@ -1,4 +1,5 @@
-"""Serve the API and built React UI (Docker / one-port pilot)."""
+"""Start the app inside Docker: the API under /api and the built web pages at /, on one port.
+On first start (or after a new image) it fills the index volume from the index baked into the image."""
 
 from __future__ import annotations
 
@@ -47,6 +48,7 @@ SEEDED_FROM = "SEEDED_FROM.txt"
 
 
 def _baked_version(baked: Path) -> str | None:
+    """The version the image's baked index points to, or None."""
     try:
         return json.loads((baked / "ACTIVE.json").read_text(encoding="utf-8"))["active_version"]
     except (OSError, ValueError, KeyError):
@@ -110,12 +112,14 @@ def _requeue_uploads() -> None:
 
 
 def build_gateway(static_dir: Path) -> FastAPI:
+    """One app serving both: the API mounted at /api, and the web pages' files at /."""
     from app import app as api_app
 
     # Mounted sub-apps do not run their own lifespan unless the parent wires it.
     # Without this, bootstrap_admin never runs and login always fails.
     @asynccontextmanager
     async def lifespan(_gateway: FastAPI):
+        """Run the API's own startup and shutdown inside the gateway's."""
         async with api_app.router.lifespan_context(api_app):
             yield
 
@@ -126,6 +130,7 @@ def build_gateway(static_dir: Path) -> FastAPI:
 
 
 def main() -> None:
+    """Fill or refresh the index volume, set the data paths, set up the log, start the server."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     args = parser.parse_args()

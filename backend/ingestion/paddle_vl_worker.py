@@ -1,4 +1,10 @@
-"""PaddleOCR-VL worker process (GPU). Kept separate from Torch/EasyOCR to avoid Windows cuDNN clashes."""
+"""The PaddleOCR-VL worker: a separate program that local_visual.py starts and talks to.
+
+It loads the model once, prints {"ok": true} when ready, then reads one JSON request per line on
+stdin ({"cmd": "predict", "png": ...} or {"cmd": "quit"}) and writes one JSON answer per line on
+stdout. It lives in its own process because Paddle and Torch (used by EasyOCR and the search
+models) clash over their GPU libraries on Windows, and because killing it frees the GPU at once.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +16,7 @@ from pathlib import Path
 
 
 def _ensure_nvidia_path() -> None:
+    """Put the NVIDIA libraries installed with Paddle (nvidia/*/bin) on the PATH so they load."""
     try:
         import site
 
@@ -54,6 +61,7 @@ def _exit_with_parent() -> None:
     import time
 
     def watch() -> None:
+        """Wait until the API process is gone, then exit."""
         if os.name == "nt":
             import ctypes
 
@@ -70,6 +78,7 @@ def _exit_with_parent() -> None:
 
 
 def main() -> int:
+    """Set up, load the model, then answer requests until "quit" or end of input."""
     _first_to_go_when_memory_runs_out()
     _exit_with_parent()
     _ensure_nvidia_path()

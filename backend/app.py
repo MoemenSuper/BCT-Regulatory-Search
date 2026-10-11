@@ -1,3 +1,17 @@
+"""The HTTP API: every URL the web pages call, grouped by area. FastAPI turns each decorated
+function (@app.get, @app.post...) into a route; Depends(require_admin) and similar guards check
+the session cookie first (extras/identity.py).
+
+- /auth/...           accounts: register, login, logout, own profile and password
+- /chat               one chat message: routing, search, grounded answer (rag/conversation.py)
+- /conversations/...  saved conversations, renaming, feedback on answers
+- /sources/...        the cited PDFs and their pages, for the evidence panel
+- /admin/...          administrators: users, settings, relations, refusal log, audit log
+- /documents...       administrators: PDF uploads, their progress, removal
+- /health             is the server up
+
+lifespan() opens the databases and loads the models at startup.
+"""
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -52,6 +66,8 @@ logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
+    """What the chat screen sends: the question, its conversation (none for a new one), the profile."""
+
     question: str = Field(min_length=1, max_length=2000)
     conversation_id: str | None = Field(default=None, min_length=1, max_length=128)
     profile: str = Field(default_factory=lambda: os.environ.get("BCT_DEFAULT_PROFILE", RuntimeProfile.LOCAL_HYBRID.value))
@@ -59,6 +75,7 @@ class ChatRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def validate_question(cls, value: str) -> str:
+        """Refuse a question that is only spaces."""
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("Question must not be blank.")
@@ -71,6 +88,8 @@ class ChatRequest(BaseModel):
 
 
 class Source(BaseModel):
+    """One citation in a reply: the PDF, the page, the score and the quoted excerpt."""
+
     file: str
     page: int | str | None
     score: float
@@ -78,6 +97,8 @@ class Source(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    """The reply to a chat message."""
+
     conversation_id: str
     profile: str
     status: str
@@ -87,6 +108,7 @@ class ChatResponse(BaseModel):
 
 
 def create_runtime_profile_manager(local_backend=None):
+    """The profiles' search engines: local (built on first use) and cloud (built only if chosen)."""
     return RuntimeProfileManager(
         local_backend,
         create_voyage_backend_from_environment,
@@ -190,6 +212,9 @@ def _foreground():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Startup, then shutdown (FastAPI runs the code before `yield` at start, the rest at stop):
+    open the databases, create the first administrator, set the login limits, load the
+    search models, start the background worker; close everything at the end."""
     auth_store = open_auth_store()
     settings_store = open_app_settings()
     auth_store.bootstrap_admin()
@@ -224,7 +249,7 @@ async def lifespan(app: FastAPI):
         auth_store.close()
 
 
-app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)
+app = FastAPI(title="BCT Regulatory Search API", lifespan=lifespan)  # the application itself
 
 
 @app.middleware("http")
@@ -237,6 +262,7 @@ async def log_unexpected_errors(request: Request, call_next):
         logger.exception("Unexpected error %s on %s %s", reference, request.method, request.url.path)
         return JSONResponse(status_code=500, content={"detail": f"Unexpected server error (reference {reference})."})
 
+# The UI dev server (Vite, port 5173) may call the API from the browser; other sites may not.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -248,30 +274,41 @@ app.add_middleware(
 
 @app.get("/health")
 def health(request: Request):
+    """Is the server up (Docker's health check), and is the relations file loaded."""
     return {"status": "ok", "supersession": supersession_status()}
 
 
 class RegisterRequest(BaseModel):
+    """The registration form."""
+
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=128)
 
 
 class LoginRequest(BaseModel):
+    """The login form."""
+
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
 
 
 class ProfileSelfUpdateRequest(BaseModel):
+    """A user's own display name and picture."""
+
     display_name: str | None = Field(default=None, max_length=80)
     avatar_icon: str | None = Field(default=None, max_length=200_000)
 
 
 class PasswordChangeRequest(BaseModel):
+    """The password change form (the current password is required)."""
+
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
 
 class ProfileUpdateRequest(BaseModel):
+    """The profile an administrator picks."""
+
     profile: str
 
     @field_validator("profile")
@@ -281,18 +318,25 @@ class ProfileUpdateRequest(BaseModel):
 
 
 class SecretsUpdateRequest(BaseModel):
+    """Settings and keys from the Configuration screen (an empty value removes one)."""
+
     secrets: dict[str, str | None]
 
 
 class TokenLimitRequest(BaseModel):
+    """A user's new token quota."""
+
     token_limit: int = Field(ge=0, le=100_000_000)
 
 
 class DocumentsDeleteRequest(BaseModel):
+    """The documents to delete at once (at most 500)."""
+
     document_ids: list[str] = Field(min_length=1, max_length=500)
 
 
 def _too_many_attempts() -> HTTPException:
+    """The 429 reply when login or registration attempts are over the limit."""
     return HTTPException(status_code=429, detail="Too many attempts. Try again later.")
 
 
@@ -300,11 +344,13 @@ def _client_ip(request: Request) -> str:
     # Uvicorn rewrites the peer from X-Forwarded-For when the proxy is trusted
     # (FORWARDED_ALLOW_IPS, default 127.0.0.1 — the Vite dev proxy). A proxy it does not
     # trust, or Docker Desktop's port NAT, makes every client share one key.
+    """The client's address, used to count login attempts per address."""
     return request.client.host if request.client else "unknown"
 
 
 @app.post("/auth/register")
 def register(payload: RegisterRequest, request: Request):
+    """Create an account. It waits for an administrator's approval; limited per address."""
     store = request.app.state.auth_store
     if not request.app.state.register_limiter.hit(_client_ip(request)):
         raise _too_many_attempts()
@@ -320,6 +366,7 @@ def register(payload: RegisterRequest, request: Request):
 
 @app.post("/auth/login")
 def login(payload: LoginRequest, request: Request, response: Response):
+    """Check email and password and set the session cookie. Limited per email+address and per address."""
     store = request.app.state.auth_store
     # Attempts are counted before the password check so parallel requests cannot all slip
     # under the limit; a success uncounts itself. Keyed per email+IP so a stranger's
@@ -345,6 +392,7 @@ def login(payload: LoginRequest, request: Request, response: Response):
 
 @app.post("/auth/logout")
 def logout(request: Request, response: Response):
+    """Delete the session and its cookie."""
     token = request.cookies.get(SESSION_COOKIE)
     request.app.state.auth_store.delete_session(token)
     clear_session_cookie(response)
@@ -353,12 +401,14 @@ def logout(request: Request, response: Response):
 
 @app.get("/auth/me")
 def me(user=Depends(require_user)):
+    """The logged-in user's account."""
     return {"user": user.public_dict()}
 
 
 @app.post("/auth/profile")
 @app.patch("/auth/me")
 def update_me(payload: ProfileSelfUpdateRequest, request: Request, user=Depends(require_user)):
+    """Change one's own display name or picture."""
     if payload.display_name is None and payload.avatar_icon is None:
         raise HTTPException(status_code=400, detail="No profile fields to update.")
     try:
@@ -376,6 +426,7 @@ def update_me(payload: ProfileSelfUpdateRequest, request: Request, user=Depends(
 
 @app.post("/auth/password")
 def change_password(payload: PasswordChangeRequest, request: Request, user=Depends(require_user)):
+    """Change one's own password."""
     try:
         request.app.state.auth_store.change_password(
             user.id,
@@ -402,6 +453,7 @@ def _indexed_sources(native_chunks: str, _mtime: float) -> frozenset[str]:
 
 
 def indexed_sources() -> frozenset[str]:
+    """The PDF names in the live index."""
     path = os.environ.get("BCT_NATIVE_CHUNKS_PATH")
     if not path or not os.path.isfile(path):
         return frozenset()
@@ -409,11 +461,13 @@ def indexed_sources() -> frozenset[str]:
 
 
 def indexed_pdf_count() -> int:
+    """How many PDFs the live index holds."""
     return len(indexed_sources())
 
 
 @app.get("/admin/overview")
 def admin_overview(request: Request, _admin=Depends(require_admin)):
+    """The dashboard: users, documents, index, relations and settings at a glance."""
     users = request.app.state.auth_store.list_users()
     settings = request.app.state.settings_store.public_configuration()
     docs = []
@@ -455,6 +509,7 @@ def admin_answer_refusals(
     reason: list[str] | None = Query(default=None),
     _admin=Depends(require_admin),
 ):
+    """The questions that got no confirmed answer, filtered by reason."""
     store = request.app.state.conversation_store
     buckets = [item for item in (bucket or []) if str(item).strip()]
     reasons = [item for item in (reason or []) if str(item).strip()]
@@ -537,10 +592,14 @@ def _audit(request: Request, admin, action: str, target: str = "", detail: str =
 
 class RelationDecisionRequest(BaseModel):
     # "review" takes a decision back (an added relation is then removed).
+    """An administrator's decision on a found relation."""
+
     status: str = Field(pattern="^(approved|rejected|review)$")
 
 
 class RelationAddRequest(BaseModel):
+    """A relation an administrator adds by hand, with the sentence and page that prove it."""
+
     source_file: str = Field(min_length=5, max_length=300)
     source_page: int = Field(ge=1, le=5000)
     action: str = Field(pattern="^(REPLACE|ABROGATE|MODIFY)$")
@@ -558,6 +617,7 @@ def _found_edges():
 
 
 def _relation_row(edge_id: str) -> dict:
+    """One relation as listed on the Relations page (404 if unknown)."""
     from extras.supersession_review import listing
 
     row = next((row for row in listing(_found_edges()) if row["id"] == edge_id), None)
@@ -568,6 +628,7 @@ def _relation_row(edge_id: str) -> dict:
 
 @app.get("/admin/relations")
 def admin_relations(_admin=Depends(require_admin)):
+    """Every relation found in the PDFs or added by hand, with its review status."""
     from extras.supersession_edges import instrument_from_filename
     from extras.supersession_review import listing
 
@@ -583,6 +644,7 @@ def admin_relations(_admin=Depends(require_admin)):
 @app.post("/admin/relations/{edge_id}/decision")
 def admin_relation_decision(edge_id: str, payload: RelationDecisionRequest, request: Request,
                             admin=Depends(require_admin)):
+    """Approve or reject a found relation (or put it back to review)."""
     from extras.supersession_edges import SupersessionEdge
     from extras.supersession_review import decide
 
@@ -625,16 +687,19 @@ def admin_relation_add(payload: RelationAddRequest, request: Request, admin=Depe
 
 @app.get("/admin/audit")
 def admin_audit_log(request: Request, limit: int = Query(default=500, ge=1, le=5000), _admin=Depends(require_admin)):
+    """The log of administrator actions."""
     return {"items": request.app.state.auth_store.list_audit(limit=limit)}
 
 
 @app.get("/admin/users")
 def admin_list_users(request: Request, _admin=Depends(require_admin)):
+    """Every account."""
     return [user.public_dict() for user in request.app.state.auth_store.list_users()]
 
 
 @app.post("/admin/users/{user_id}/approve")
 def admin_approve_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    """Approve an account."""
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot change your own account status.")
     try:
@@ -647,6 +712,7 @@ def admin_approve_user(user_id: str, request: Request, admin=Depends(require_adm
 
 @app.post("/admin/users/{user_id}/reject")
 def admin_reject_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    """Reject an account."""
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot change your own account status.")
     try:
@@ -679,6 +745,7 @@ def admin_set_token_limit(
     request: Request,
     admin=Depends(require_admin),
 ):
+    """Set a user's token quota (0 = unlimited)."""
     try:
         user = request.app.state.auth_store.set_token_limit(user_id, payload.token_limit)
     except KeyError as error:
@@ -691,6 +758,7 @@ def admin_set_token_limit(
 
 @app.post("/admin/users/{user_id}/reset-tokens")
 def admin_reset_token_usage(user_id: str, request: Request, admin=Depends(require_admin)):
+    """Reset a user's token count to zero."""
     try:
         user = request.app.state.auth_store.reset_token_usage(user_id)
     except KeyError as error:
@@ -701,6 +769,7 @@ def admin_reset_token_usage(user_id: str, request: Request, admin=Depends(requir
 
 @app.delete("/admin/users/{user_id}", status_code=204, response_class=Response)
 def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admin)):
+    """Delete an account (administrators cannot be deleted here)."""
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account.")
     # Read the email first: the account is gone afterwards.
@@ -722,6 +791,7 @@ _cloud_build = {"error": None, "problem": None}
 
 
 def _cloud_index_status() -> dict:
+    """Is the cloud index ready for the live version, is a build running, did the last fail."""
     ready = False
     root = os.environ.get("BCT_RUNTIME_ASSET_ROOT")
     building = _cloud_build_lock.locked()
@@ -737,6 +807,7 @@ def _cloud_index_status() -> dict:
 
 
 def _build_cloud_index(profile_manager) -> None:
+    """The background build (a thread): embed every chunk with Voyage, then reload the profiles."""
     from filelock import FileLock
 
     from cloud.voyage_client import VoyageKeyMissing, VoyageKeyRejected, VoyageRateLimited
@@ -767,11 +838,13 @@ def _admin_config(request: Request) -> dict:
 
 @app.get("/admin/config")
 def admin_get_config(request: Request, _admin=Depends(require_admin)):
+    """The Configuration screen's data."""
     return _admin_config(request)
 
 
 @app.post("/admin/config/cloud-index", status_code=202)
 def admin_build_cloud_index(request: Request, admin=Depends(require_admin)):
+    """Start building the cloud index in the background (409 if one is running)."""
     if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):
         raise HTTPException(status_code=503, detail="No runtime index is configured.")
     if not _cloud_build_lock.acquire(blocking=False):  # released when the build thread ends
@@ -784,6 +857,7 @@ def admin_build_cloud_index(request: Request, admin=Depends(require_admin)):
 
 @app.put("/admin/config/profile")
 def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Depends(require_admin)):
+    """Choose the active profile; cloud and local are refused until they are ready."""
     if parse_profile(payload.profile) == RuntimeProfile.CLOUD and not _cloud_index_status()["ready"]:
         raise HTTPException(status_code=409, detail="Build the cloud index before choosing the cloud profile.")
     if parse_profile(payload.profile) == RuntimeProfile.LOCAL and not local_llm_status()["ready"]:
@@ -796,6 +870,7 @@ def admin_set_profile(payload: ProfileUpdateRequest, request: Request, admin=Dep
 
 @app.put("/admin/config/secrets")
 def admin_set_secrets(payload: SecretsUpdateRequest, request: Request, admin=Depends(require_admin)):
+    """Save settings and keys from the Configuration screen."""
     store = request.app.state.settings_store
     local_keys = {"BCT_LOCAL_LLM_URL", "BCT_LOCAL_LLM_MODEL"} & set(payload.secrets)
     previous = {key: store.get(key) for key in local_keys}
@@ -855,6 +930,7 @@ def _conversation_title(question: str, provider: str) -> str:
 
 def _estimate_tokens(*parts: str) -> int:
     # ponytail: Groq-only fallback when usage_metadata is missing
+    """About 4 characters per token, when the provider reports no usage."""
     total_chars = sum(len(part or "") for part in parts)
     return max(1, (total_chars + 3) // 4)
 
@@ -889,6 +965,8 @@ def post_chat(
     user=Depends(require_approved_user),
     _busy=Depends(_foreground),
 ):
+    """The chat route: answer one message (or each question of it, up to 3) as turns of the
+    conversation, count the tokens, save the turns, and log refusals for administrators."""
     auth_store = request.app.state.auth_store
     try:
         auth_store.ensure_token_budget(user)
@@ -1010,6 +1088,7 @@ def list_conversations(
     limit: int = Query(default=100, ge=1, le=500),
     user=Depends(require_approved_user),
 ):
+    """The user's conversations (the sidebar)."""
     return request.app.state.conversation_store.list_conversations(user_id=user.id, limit=limit)
 
 
@@ -1019,6 +1098,7 @@ def get_conversation(
     request: Request,
     user=Depends(require_approved_user),
 ):
+    """One conversation with every turn, to show it again."""
     if not conversation_id or len(conversation_id) > 128:
         raise HTTPException(status_code=400, detail="Invalid conversation identifier.")
     transcript = request.app.state.conversation_store.transcript(
@@ -1030,6 +1110,8 @@ def get_conversation(
 
 
 class RenameRequest(BaseModel):
+    """A conversation's new title."""
+
     title: str = Field(min_length=1, max_length=120)
 
 
@@ -1040,6 +1122,7 @@ def rename_conversation(
     request: Request,
     user=Depends(require_approved_user),
 ):
+    """Rename a conversation."""
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Title must not be blank.")
@@ -1058,6 +1141,7 @@ def delete_conversation(
     request: Request,
     user=Depends(require_approved_user),
 ):
+    """Delete a conversation."""
     try:
         request.app.state.conversation_store.delete(conversation_id, user_id=user.id)
     except KeyError:
@@ -1066,6 +1150,8 @@ def delete_conversation(
 
 class TurnFeedbackRequest(BaseModel):
     # "none" takes a rating back; a user can change their mind as often as they like.
+    """A thumbs up or down on an answer, with an optional comment."""
+
     rating: str = Field(pattern="^(up|down|none)$")
 
 
@@ -1077,6 +1163,7 @@ def post_turn_feedback(
     request: Request,
     user=Depends(require_approved_user),
 ):
+    """Record a thumbs up or down; a thumbs down goes to the administrators' refusal log."""
     store = request.app.state.conversation_store
     turn = store.get_turn(conversation_id, turn_id, user_id=user.id)
     if turn is None:
@@ -1100,6 +1187,7 @@ def post_turn_feedback(
 
 
 def _resolve_source(filename: str, request: Request):
+    """The PDF behind a cited filename, or a 400 (unsafe name) / 404 (not on this server)."""
     try:
         return request.app.state.source_resolver.resolve(filename)
     except ValueError:
@@ -1110,6 +1198,7 @@ def _resolve_source(filename: str, request: Request):
 
 @app.get("/sources/{filename}/info")
 def get_source_info(filename: str, request: Request, _user=Depends(require_approved_user)):
+    """A cited PDF's name, title and page count."""
     try:
         return source_info(_resolve_source(filename, request))
     except RuntimeError:
@@ -1126,6 +1215,7 @@ def get_source_page(
     scale: float = Query(default=1.8, ge=0.75, le=3.0),
     _user=Depends(require_approved_user),
 ):
+    """One page of a cited PDF as an image, with the quote highlighted."""
     try:
         payload, headers = render_page_png(
             _resolve_source(filename, request),
@@ -1145,6 +1235,7 @@ def get_source_page(
 
 @app.get("/sources/{filename}")
 def get_source_pdf(filename: str, request: Request, _user=Depends(require_approved_user)):
+    """The whole cited PDF file."""
     document = _resolve_source(filename, request)
     return FileResponse(
         document.path,
@@ -1155,6 +1246,7 @@ def get_source_pdf(filename: str, request: Request, _user=Depends(require_approv
     )
 
 def _refresh_runtime_asset_environment() -> None:
+    """Point the app at the live index again (after a new version went live)."""
     from ingestion.index import configure_runtime_assets
     from extras.jsonl_supersession import clear_supersession_cache
 
@@ -1186,6 +1278,7 @@ async def ingest_document(
     admin=Depends(require_admin),
 ):
     # Filename is the listing title; doc_kind chooses primary vs secondary grounding.
+    """Upload one or more PDFs: each is checked, kept and queued; the worker indexes them."""
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
@@ -1267,6 +1360,7 @@ def list_documents(
     limit: int = 100,
     _admin=Depends(require_admin),
 ):
+    """Every upload and its state (queued, indexing, reading pages, ready, failed)."""
     from ingestion.pipeline import IngestionConfig
     from ingestion.registry import IngestionRegistry
 
@@ -1279,11 +1373,13 @@ def list_documents(
 
 @documents_router.get("/documents/enrichment")
 def enrichment_status(request: Request, _admin=Depends(require_admin)):
+    """What the background worker is doing."""
     worker = getattr(request.app.state, "enrichment", None)
     return worker.snapshot() if worker is not None else {"state": "disabled"}
 
 @documents_router.post("/documents/{document_id}/retry-enrichment")
 def retry_enrichment(document_id: str, request: Request, admin=Depends(require_admin)):
+    """Read again the pages of a document whose visual reading failed."""
     from ingestion.pipeline import IngestionConfig
     from ingestion.registry import IngestionRegistry
 
@@ -1308,6 +1404,7 @@ async def delete_document(
     request: Request,
     admin=Depends(require_admin),
 ):
+    """Remove one document from the index."""
     from ingestion.pipeline import IngestionConfig, IngestionPipeline
 
     if not os.environ.get("BCT_RUNTIME_ASSET_ROOT"):

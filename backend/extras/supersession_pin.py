@@ -1,5 +1,12 @@
-"""JSONL SUPERSEDES pin: declaring pages for named instruments, relationship labels for topic hits,
-and the replaced texts for "avant la circulaire X" questions."""
+"""Using the relations at search time: SupersessionPinBackend wraps the search engine.
+
+After a normal search it may:
+- add ("pin") the page that declares a replacement, when the question names a circular that was
+  replaced or asks whether it still applies ("la circulaire 2013-15 est-elle applicable ?");
+- label results that are replaced or replacing texts, so the answer can say so;
+- for "avant la circulaire X", bring in the texts X replaced.
+The pinned page is the real page with the "abroge et remplace" sentence, so the answer can quote it.
+"""
 from __future__ import annotations
 
 import json
@@ -32,6 +39,7 @@ from extras.supersession_edges import (
 logger = logging.getLogger(__name__)
 
 def select_edges(edges: list[SupersessionEdge], query: str, *, limit: int = 2) -> list[SupersessionEdge]:
+    """The edges about the circulars the question names (and its articles), at most limit."""
     named = instruments_from_text(query)
     if not named:
         return []
@@ -73,10 +81,12 @@ def select_edges(edges: list[SupersessionEdge], query: str, *, limit: int = 2) -
 
 
 def _source_name(document: Document) -> str:
+    """The chunk's PDF filename."""
     return Path(str(document.metadata.get("source") or "")).name
 
 
 def _page_label(document: Document) -> int | None:
+    """The chunk's page number, or None."""
     meta = document.metadata or {}
     raw = meta.get("page_label", meta.get("page"))
     try:
@@ -168,6 +178,7 @@ def replacement_chain(
 
 
 def _instrument_ref(instrument: str, reason: str) -> dict:
+    """"cir:2017:8" as the identity dict the ordering rules use."""
     kind, year, number = instrument.split(":")
     return {"kind": kind, "year": int(year), "number": int(number), "route_reason": reason}
 
@@ -184,6 +195,7 @@ def predecessor_refs(edges: list[SupersessionEdge], query: str) -> list[dict]:
 
 
 def _edge_document(edge: SupersessionEdge, page_lookup) -> Document | None:
+    """The page that declares this edge, as a search result marked with the relation."""
     chosen, page_label, text = page_lookup(edge)
     if not chosen or page_label is None:
         return None
@@ -343,6 +355,7 @@ class SupersessionPinBackend:
         return effective_edges(self.found_edges)
 
     def retrieve(self, query: str, other_queries=()):
+        """The wrapped engine's results, plus the relation pages and labels (see the top of the file)."""
         edges = self.edges
         historical = is_historical_cutoff_query(query)
         # "Avant la circulaire X": search inside the texts X replaced and put them first.
@@ -417,6 +430,7 @@ def build_page_lookup_from_native(native_path: Path):
 
 @lru_cache(maxsize=4)
 def _cached_bundle(edges_path: str, native_path: str, edges_mtime: float, native_mtime: float):
+    """The edges and a page lookup, cached until either file changes (their mtimes are in the key)."""
     edges = load_edges(Path(edges_path))
     lookup = build_page_lookup_from_native(Path(native_path)) if native_path else (
         lambda edge: (edge.source_file, edge.source_page, edge.quote)
@@ -425,6 +439,7 @@ def _cached_bundle(edges_path: str, native_path: str, edges_mtime: float, native
 
 
 def clear_supersession_cache() -> None:
+    """Forget the cached edges (after an admin decision or a new index version)."""
     _cached_bundle.cache_clear()
 
 

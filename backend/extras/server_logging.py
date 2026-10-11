@@ -18,10 +18,13 @@ _QUIET = ("httpx", "httpcore", "urllib3", "chromadb", "sentence_transformers", "
 
 
 def log_file(data_dir: Path) -> Path:
+    """Where the log file is: <data dir>/logs/bct.log."""
     return data_dir / "logs" / "bct.log"
 
 
 def configure_logging(data_dir: Path) -> Path:
+    """Send every log line to the file and the console, quiet the chatty libraries, and catch
+    crashes outside requests. Returns the log file's path."""
     path = log_file(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -44,6 +47,7 @@ def _log_uncaught_errors() -> None:
     crash = logging.getLogger("crash")
 
     def in_thread(args: threading.ExceptHookArgs) -> None:
+        """Log a crash in any thread (a normal exit is not a crash)."""
         if args.exc_type is not SystemExit:
             crash.error("Uncaught error in thread %s", getattr(args.thread, "name", "?"),
                         exc_info=(args.exc_type, args.exc_value, args.exc_traceback))

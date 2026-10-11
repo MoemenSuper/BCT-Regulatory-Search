@@ -1,7 +1,9 @@
-"""Docling page layout with the PDF's own words (the "Docling hybrid").
+"""Page layout: which blocks a page has, in which order, using Docling with the PDF's own words
+(the "Docling hybrid").
 
-Docling (OCR off, TableFormer accurate) finds reading order, tables and figure boxes. The words
-come from the PDF text layer, because Docling reorders Arabic words within a line:
+Docling is a layout model: it looks at each page and finds the reading order, the headings, the
+tables (with TableFormer, its table model) and the pictures. OCR is off: the words themselves
+come from the PDF text layer, because Docling reorders Arabic words within a line. In detail:
   - every box takes the whole PDF lines lying mostly inside it (lam-alef repaired), never
     clipped characters; a text item with none falls back to Docling's text;
   - tables: "row — column: value; ..." when every numeric row matches the PDF lines inside the
@@ -14,10 +16,11 @@ come from the PDF text layer, because Docling reorders Arabic words within a lin
   - titles, section headers, list items, captions and tables keep Docling's label:
     {"text": ..., "kind": "heading" | "list_item" | "caption" | "table"} (plain paragraphs stay
     strings). The chunker uses it to cut along the structure and to name each piece's section.
-Benchmark (2026-09-28): same retrieval as PyMuPDF, 41 vs 33 of 60 targeted answers, mostly tables.
+Measured against the plain PDF text (PyMuPDF): the same search results, and more questions
+answered, mostly about tables.
 
-Docling's native code occasionally crashes its process, so it runs in a worker process; a crash
-replaces the worker and retries. Models load once per worker.
+Docling's native code occasionally crashes its process, so it runs in a separate worker process;
+a crash replaces the worker and retries. Its models load once per worker.
 """
 from __future__ import annotations
 
@@ -30,9 +33,9 @@ from pathlib import Path
 
 from rag.answer_evidence import IMAGE_WORDS
 
-_NUM = re.compile(r"\d[\d.,]*\d|\d")
+_NUM = re.compile(r"\d[\d.,]*\d|\d")  # a number as written: "1.234,5", "12", "7"
 _LONE_DIACRITIC = re.compile(r"(?<!\S)[ً-ٰٟ]+(?!\S)")  # PDF glyph artefacts
-_ATTEMPTS = 3
+_ATTEMPTS = 3  # tries per PDF when the worker crashes
 _MIN_REGION_PT = 24  # ~8 mm: smaller boxes are bullets and icons
 _PAGE_NUMBER = re.compile(r"(?i)(?:page\s*)?\d{1,4}(?:\s*/\s*\d{1,4})?")
 
@@ -43,10 +46,11 @@ def _labelled(text: str, kind: str | None):
 
 
 def _clean(text: str) -> str:
+    """Drop stray Arabic vowel marks left alone between spaces, and squeeze repeated spaces."""
     return re.sub(r"[ \t]{2,}", " ", _LONE_DIACRITIC.sub("", text)).strip()
 
 
-# --- parent side ---------------------------------------------------------------------------
+# --- parent side: runs in the API process and manages the worker ---------------------------
 
 _IDLE_SECONDS = 120  # the worker holds ~4 GB RAM with its models; free it between uploads
 _pool: ProcessPoolExecutor | None = None
@@ -59,6 +63,7 @@ class NotEnoughMemory(RuntimeError):
 
 
 def _memory():
+    """((total, free) GB or None, GB of free memory the worker needs)."""
     from rag.hardware import memory_gb
 
     return memory_gb(), float(os.environ.get("BCT_DOCLING_MIN_FREE_GB", "4"))
@@ -96,6 +101,7 @@ def release() -> None:
 
 
 def _shutdown_if_idle(pool) -> None:
+    """Stop the worker after _IDLE_SECONDS without a PDF (called by a timer)."""
     global _pool
     with _pool_lock:
         if _pool is pool:
@@ -174,6 +180,8 @@ def _pipeline_options():
 
 
 def _convert(pdf_path: str, raw_cache: str | None = None) -> dict[int, list]:
+    """In the worker: run Docling on one PDF (or read its saved result), then rebuild each block's
+    text from the PDF's own lines. Returns {page number: [items in reading order]}."""
     global _converter
     import pymupdf
     from docling_core.types.doc import DocItemLabel, DoclingDocument, PictureItem, TableItem, TextItem
@@ -198,6 +206,7 @@ def _convert(pdf_path: str, raw_cache: str | None = None) -> dict[int, list]:
     pages: dict[int, list] = {}
 
     def add(page_no: int, value) -> None:
+        """Append an item to its page, skipping empty ones."""
         if value:
             pages.setdefault(page_no, []).append(value)
 
@@ -328,6 +337,9 @@ def column_headers(header_rows: list[list[str]]) -> list[str]:
 
 
 def _table_text(item, doc, pdf_lines: list[str]) -> str:
+    """A table as text: its caption, its column names, then one line per row written
+    "row label — column: value; column: value". When TableFormer's numbers disagree with the PDF's
+    own lines, the PDF lines are used instead, so a misread cell is never stored."""
     grid = [[(cell.text or "").strip() for cell in row] for row in item.data.grid]
     header_count = 0
     for index, row in enumerate(item.data.grid):

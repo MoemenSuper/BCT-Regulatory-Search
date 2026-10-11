@@ -1,11 +1,17 @@
-"""Query classification for currentness.
+"""Two yes/no questions about the user's question, answered with word patterns (no model):
 
-Classifiers (`is_temporal_rule_query`, `is_relationship_query`) drive retrieval
-ordering and answer prompts. Currentness pinning uses JSONL supersession edges.
+- is_relationship_query: does it ask how texts relate? ("quelle circulaire remplace la 2013-15 ?")
+- is_temporal_rule_query: does it ask what applies at some date or now? ("le taux en vigueur")
+
+Search uses them to order results (for example, the text that replaced another first), and the
+answer step uses them to stay careful: a text that replaced another proves the replacement, not
+that the new text is still in force today.
 """
 import re
 
 
+# Building blocks, one pair per language: words naming a text, and verbs relating two texts.
+# "cit(?:e|ent|é...)" covers every ending of the verb in one pattern.
 _FRENCH_DOCUMENT = r"(?:documents?|circulaires?|notes?|textes?|instruments?)"
 _FRENCH_RELATION = (
     r"(?:cit(?:e|ent|é|ée|és|ées)|référenc(?:e|ent|é|ée|és|ées)|"
@@ -26,6 +32,7 @@ _ARABIC_RELATION = (
     r"(?:يشير|تشير|تحيل|يعدل|تعدل|ينقح|تنقح|يعوض|تعوض|يلغي|تلغي|"
     r"يستبدل|تستبدل|يرتبط|ترتبط|مرتبطة)"
 )
+# A relationship question must at least mention a regulatory text.
 _REGULATORY_DOCUMENT_CONTEXT = re.compile(
     r"\b(?:circulaires?|notes?|instruments?|"
     r"documents?\s+réglementaires?|textes?\s+réglementaires?|"
@@ -33,6 +40,7 @@ _REGULATORY_DOCUMENT_CONTEXT = re.compile(
     rf"{_ARABIC_DOCUMENT}",
     re.IGNORECASE,
 )
+# "relation entre", or a text word and a relation verb within 120 characters, in either order.
 _RELATIONSHIP_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -47,6 +55,7 @@ _RELATIONSHIP_PATTERNS = tuple(
         rf"{_ARABIC_RELATION}.{{0,120}}{_ARABIC_DOCUMENT}",
     )
 )
+# Time words that only count when the question is about a rule (see _TEMPORAL_SUBJECT_CONTEXT).
 _TEMPORAL_RULE_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -68,6 +77,7 @@ _TEMPORAL_SUBJECT_CONTEXT = re.compile(
     r"(?:القاعدة|القواعد|الحكم|الأحكام|الفصل|المادة|المنشور|الوثيقة)",
     re.IGNORECASE,
 )
+# Words that always mean "now" or "the latest", whatever the question is about.
 _EXPLICIT_CURRENT_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -84,6 +94,7 @@ _EXPLICIT_CURRENT_PATTERNS = tuple(
 
 
 def is_relationship_query(query: str) -> bool:
+    """Does the question ask how regulatory texts relate (cite, amend, replace, repeal)?"""
     normalized = " ".join(query.casefold().split())
     return bool(_REGULATORY_DOCUMENT_CONTEXT.search(normalized)) and any(
         pattern.search(normalized) for pattern in _RELATIONSHIP_PATTERNS
@@ -91,9 +102,11 @@ def is_relationship_query(query: str) -> bool:
 
 
 def is_temporal_rule_query(query: str) -> bool:
+    """Does the question ask what applies now, at a date, or how a rule changed over time?"""
     normalized = " ".join(query.casefold().split())
     if any(pattern.search(normalized) for pattern in _EXPLICIT_CURRENT_PATTERNS):
         return True
+    # A full date: "au 1er janvier 2024", "as of 5 March 2023".
     if re.search(r"\b(?:au|as\s+of)\s+\d{1,2}(?:er)?\s+\w+\s+\d{4}\b", normalized):
         return True
     return bool(_TEMPORAL_SUBJECT_CONTEXT.search(normalized)) and any(

@@ -1,6 +1,16 @@
-"""Draft grounded answers: select evidence, write claims, recover with partials.
+"""Writing a grounded answer: generate_grounded_answer() takes the pages search found and returns
+the reply (other files import it through answer_contract.py).
 
-Public seam remains answer_contract (re-exports).
+It runs as a ladder; each step only runs when the one before gave nothing usable:
+1. Selection: the answer model reads short views of the pages and picks the evidence that
+   answers (no answer is written yet, so it cannot bend the choice to fit an answer).
+2. Drafting: the model writes claims citing units of that evidence; answer_gates.py checks
+   every claim. A rejected draft gets one retry, with the reasons it was rejected.
+3. A fixed "X replaces Y" answer, when the question is about which text replaced which and a
+   relation is already among the evidence (no model involved).
+4. Otherwise: the list of the best search results, clearly marked as not an answer.
+
+The file also turns the reasons for refusals into the short labels the admin screen filters on.
 """
 from __future__ import annotations
 
@@ -33,10 +43,12 @@ from rag.answer_gates import (
 logger = logging.getLogger(__name__)
 
 def _question_years(question: str) -> set[int]:
+    """The years (1900-2099) the question mentions."""
     return {int(year) for year in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", question)}
 
 
 def _order_evidence_for_question_year(evidence, question):
+    """Evidence from circulars of a year the question names comes first."""
     years = _question_years(question)
     if not years:
         return list(evidence)
@@ -47,7 +59,7 @@ def _order_evidence_for_question_year(evidence, question):
 
 
 def format_refusal_reason(status, diagnostics=None):
-    """One specific line for offline refusal logs (never shown to chat users)."""
+    """One line saying why a question got no answer, for the admin's refusal log (never shown in chat)."""
     parts = [str(item).strip() for item in (diagnostics or []) if str(item).strip()]
     if parts:
         return " | ".join(dict.fromkeys(parts))
@@ -59,7 +71,8 @@ def format_refusal_reason(status, diagnostics=None):
     }.get(status, f"{status}:no_specific_diagnostic")
 
 
-# Admin filter groups raw diagnostic strings into short buckets.
+# The admin screen groups refusal reasons into a few "buckets" to filter on: the titles shown,
+# then the rules (a bucket, and the bits of text that put a reason in it).
 _REFUSAL_BUCKET_TITLES = {
     "rate_limit": "Rate limit",
     "unknown_citation": "Unknown citation",
@@ -101,7 +114,7 @@ REFUSAL_BUCKETS = tuple(bucket for bucket, _ in _REFUSAL_BUCKET_RULES if bucket 
 
 
 def refusal_reason_bucket(reason):
-    """Map a stored refusal reason string to a stable admin filter bucket."""
+    """The bucket of a refusal reason: the first rule that matches, else the reason's first word."""
     text = str(reason or "").strip()
     if not text:
         return "other"
@@ -123,7 +136,7 @@ def refusal_reason_title(reason=None, *, bucket=None):
 
 
 def _inspection_sources(cited, pack, limit=5):
-    """Cited sources first, then remaining top retrieved pages with page excerpts."""
+    """The pages to list: the cited ones first, then the best search results, up to limit."""
     out, seen = [], set()
     for source in cited or []:
         key = source.get("file"), source.get("page")
@@ -148,7 +161,8 @@ def _inspection_sources(cited, pack, limit=5):
 
 
 def search_response(question, evidence):
-    """Retrieved passages for inspection, never citations for a legal answer."""
+    """The fallback reply: the best search results to read, with a message saying plainly that
+    they are not a confirmed answer (status search_results)."""
     sources = _inspection_sources([], evidence)
     if not sources:
         return safe_response(question)
@@ -161,7 +175,7 @@ def search_response(question, evidence):
     return dict(status="search_results", answer=message[language_of(question)], sources=sources)
 
 
-_LANGUAGE_NAMES = {"fr": "French", "en": "English", "ar": "Arabic"}
+_LANGUAGE_NAMES = {"fr": "French", "en": "English", "ar": "Arabic"}  # named in the drafting prompt
 
 _MULTI_PAGE_NOTE = {
     "fr": (
@@ -185,7 +199,7 @@ _NO_OPINION = {
 
 
 def note_multi_page_support(question, accepted):
-    """State when useful cited elements come from more than one retrieved page."""
+    """Add a short note when the answer cites more than one page."""
     out = dict(accepted)
     sources = out.get("sources") or []
     cited_pages = {(s.get("file"), s.get("page")) for s in sources if s.get("file")}
@@ -200,6 +214,9 @@ def note_multi_page_support(question, accepted):
 
 
 def evidence_records(scored_documents):
+    """Search results as the evidence records the models read: an ID (E1, E2...), the PDF, the
+    page, the text, the score, and the few metadata fields the answer needs. Results without a
+    usable PDF name or page are skipped: an answer can only cite real pages."""
     records = []
     for index, (document, score) in enumerate(scored_documents, 1):
         page = normalize_page(document.metadata)
@@ -216,8 +233,8 @@ def evidence_records(scored_documents):
         relation = str(record.get("temporal_relation") or "")
         newer = str(record.get("temporal_source_id") or "").strip()
         older = str(record.get("temporal_target_id") or "").strip()
-        # Surface verified SUPERSEDES metadata so the draft can say "X remplace Y"
-        # without inventing a relationship from rank alone.
+        # A verified relation ("2017-08 REPLACES 2013-15") becomes a plain note the model can repeat,
+        # with the reminder that replacing a text does not prove the new one is still in force.
         if relation in {"REPLACES", "ABROGATES", "AMENDS"} and newer and older:
             record["relationship_note"] = (
                 f"{newer} {relation} {older}; verified relationship only — "
@@ -230,14 +247,16 @@ def evidence_records(scored_documents):
     return records
 
 
+# "cir:2017:8 REPLACES cir:2013:15" inside a relationship note.
 _GRAPH_SUPERSEDE = re.compile(
     r"(cir|note):(\d{4}):(\d+)\s+(REPLACES|ABROGATES|AMENDS)\s+(cir|note):(\d{4}):(\d+)",
     re.I,
 )
-_INSTRUMENT_ID = re.compile(r"^(cir|note):(\d{4}):(\d+)$", re.I)
+_INSTRUMENT_ID = re.compile(r"^(cir|note):(\d{4}):(\d+)$", re.I)  # "cir:2017:8"
 
 
 def _instrument_id_key(instrument_id: str):
+    """"cir:2017:8" -> ("cir", 2017, 8), or None."""
     match = _INSTRUMENT_ID.match((instrument_id or "").strip())
     if not match:
         return None
@@ -245,7 +264,7 @@ def _instrument_id_key(instrument_id: str):
 
 
 def _supersession_pairs(evidence):
-    """List (successor_key, relation, older_key) from relationship_note and temporal_*."""
+    """Every relation stated in the evidence, as (newer circular, relation, older circular)."""
     pairs = []
     seen: set[tuple] = set()
     for record in evidence or []:
@@ -275,6 +294,7 @@ def _supersession_pairs(evidence):
 
 
 def _instrument_key(source):
+    """(kind, year, number) of a PDF filename, or None."""
     identity = parse_source_identity(source or "")
     if not identity:
         return None
@@ -282,11 +302,9 @@ def _instrument_key(source):
 
 
 def _annotate_supersession(evidence):
-    """Keep superseded pages, but mark/reorder so the writer states the edge and prefers the successor.
-
-    Covers relationship_note and JSONL-pinned temporal_relation metadata
-    (REPLACES / ABROGATES / AMENDS).
-    """
+    """When one text in the evidence replaced (or amended) another text also in the evidence, mark
+    each with its role and an instruction for the model, and put the newer one first. The older
+    page is kept: the answer may say "X was replaced by Y" and must give Y's rule."""
     records = [dict(record) for record in (evidence or [])]
     # Only a pair whose older text is in the evidence changes roles and order: "successor of
     # 2017-09" says nothing when 2017-09 is not here, and would put 2018-13 ahead of the newer
@@ -350,6 +368,9 @@ def _annotate_supersession(evidence):
 
 
 class EvidenceSelection(BaseModel):
+    """The selector's verdict: answer / partial / a refusal, the kind of answer the question asks
+    for, a short reason, and the IDs of the evidence to use."""
+
     model_config = ConfigDict(extra="ignore")
     decision: Literal["answer", "partial", "clarification_needed", "insufficient_evidence", "out_of_scope"]
     answer_intent: Literal["value", "duration", "conditions", "document_identity", "summary", "opinion", "date", "other"] = "other"
@@ -358,7 +379,8 @@ class EvidenceSelection(BaseModel):
 
 
 def _normalize_selection_ids(raw_ids, by_id):
-    """Map model ID variants (1, e1, E01) onto supplied evidence IDs; drop unknowns/dupes."""
+    """Read the IDs the model wrote ("1", "e1", "E01") as real evidence IDs ("E1"); drop the ones
+    that do not exist and repeats."""
     out = []
     for raw in raw_ids or []:
         token = str(raw or "").strip()
@@ -415,12 +437,13 @@ follow-up refers to.
 
 
 def select_evidence(llm, question, evidence, reference_context):
-    """Choose support before drafting, without an answer to anchor the choice."""
+    """Step 1: the model picks the evidence that answers, before any answer is written.
+    Returns (selection, chosen evidence records). Raises ValueError on an unusable choice."""
     response = (_SELECT_PROMPT | llm).invoke(dict(schema=json.dumps(EvidenceSelection.model_json_schema()),
         question=question, reference=reference_context, evidence=json.dumps(evidence, ensure_ascii=False)))
     selection = EvidenceSelection.model_validate(_load_answer_payload(response.content))
     by_id = {r["evidence_id"]: r for r in evidence}
-    # Keep valid IDs when the model invents/duplicates a few; only fail if none remain.
+    # Keep the valid IDs when the model invents or repeats a few; fail only if none remain.
     normalized_ids = _normalize_selection_ids(selection.evidence_ids, by_id)
     if normalized_ids != list(selection.evidence_ids):
         if not normalized_ids and selection.decision in {"answer", "partial"}:
@@ -444,6 +467,7 @@ def select_evidence(llm, question, evidence, reference_context):
 
 
 def _pretty_instrument_id(instrument_id: str) -> str:
+    """"cir:2017:8" -> "circulaire 2017-08", for a sentence shown to the user."""
     match = re.match(r"(cir|note):(\d{4}):(\d+)$", (instrument_id or "").strip(), re.I)
     if not match:
         return (instrument_id or "").strip()
@@ -454,10 +478,11 @@ def _pretty_instrument_id(instrument_id: str) -> str:
 
 
 def try_supersession_partial_answer(question, evidence, *, diagnostics=None):
-    """Cited partial from pinned SUPERSEDES evidence — no LLM draft required.
+    """Step 3: the answer "the circular X replaces Y", built without the model.
 
-    Used when the model ladder fails but a declaring page with temporal_relation
-    metadata is already in evidence. Still runs through parse_answer gates.
+    Used when the drafts failed but the evidence holds a page that declares the replacement
+    (it says "abroge et remplace ..."). The sentence still goes through parse_answer, so it is
+    checked like any other claim. Returns None when no such page is there.
     """
     history = diagnostics if diagnostics is not None else []
     action_words = {
@@ -593,8 +618,12 @@ Schema: {schema}"""),
 
 def generate_grounded_answer(llm, question, scored_documents, reference_context="", *, temporal_unverified=None,
                              query_class=None, search_queries=()):
-    """search_queries: other wordings of the question (its French and Arabic versions). They only
-    help choose which lines of a long page the models are shown."""
+    """The whole ladder (see the top of this file). Returns {"status", "answer", "sources",
+    "diagnostics"}; diagnostics say why steps failed, for the refusal log.
+
+    search_queries: other wordings of the question (its French and Arabic versions). They only
+    help choose which lines of a long page the models are shown.
+    """
     evidence = evidence_records(scored_documents)
     fallback = search_response(question, evidence)
     if not evidence:
@@ -613,8 +642,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         return {**fallback, "diagnostics": [f"named_instrument_absent:{label}"]}
     if target:
         evidence = [r for r in evidence if identity_matches(r["source"], target)]
-    # Keep superseded pages but mark/reorder so the writer can say
-    # "X abrogates Y" and still pick the successor as the governing rule.
+    # Mark replaced and replacing texts (see _annotate_supersession).
     evidence = _annotate_supersession(evidence)
     candidate_evidence = evidence
     full_by_id = {record["evidence_id"]: record for record in candidate_evidence}
@@ -651,8 +679,9 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         evidence = usable
         if not evidence:
             return {**fallback, "diagnostics": [f"selection:{selection.decision}:{selection.reason[:800]}"]}
-        # Advisory: the draft may still find cited facts, but it must not come back
-        # "answered" over the selector's objection (e.g. banknote fee vs transfer fee).
+        # The selector found nothing, but a draft may still find cited facts. Its answer can then
+        # only be "partial": it must not overrule the selector's doubt (e.g. banknote fee vs
+        # transfer fee).
         selector_doubt = selection.reason[:600]
         selection_diagnostics.append("selection:insufficient_overridden")
         selection = EvidenceSelection(
@@ -668,8 +697,8 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     evidence = _order_evidence_for_question_year(evidence, question)
     # Sort again: successor instruments go back in front of the year order.
     evidence = _annotate_supersession(evidence)
-    # Broad/summary selections often include many long pages; oversized prompts make the
-    # answer model abstain or return invalid JSON. Cap before drafting (selection order).
+    # At most 3 records go into the drafting prompt: with more long pages, models tend to abstain
+    # or return invalid JSON.
     evidence = _cap_draft_evidence(evidence, limit=3)
     selection = selection.model_copy(update={"evidence_ids": [record["evidence_id"] for record in evidence]})
     payload = {
@@ -693,6 +722,7 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     history = selection_diagnostics
 
     def _accept(parsed):
+        """A checked draft as the final reply (with any notices), or None if it is not an answer."""
         if parsed["status"] not in {"answered", "partial_answer"}:
             return None
         if selector_doubt and parsed["status"] == "answered":
@@ -701,15 +731,14 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
         if selection.answer_intent == "opinion":
             # An opinion question gets the facts, after saying plainly that no opinion is given.
             parsed = {**parsed, "answer": f"{_NO_OPINION[language_of(question)]}\n\n{parsed['answer']}"}
-        # Selection "partial" is advisory. Do not downgrade a fully validated
-        # answered draft or append a stock incompleteness footer.
+        # The selector's "partial" is only advice: a draft whose every claim passed stays "answered".
         return note_multi_page_support(question, parsed)
 
     for attempt in range(2):
         result = (_DRAFT_PROMPT | llm).invoke(payload)
         raw = result.content if hasattr(result, "content") else result
-        # Empty content is a provider/reasoning-budget failure, not malformed JSON worth "repairing".
-        # Repairing "" instructs the model to emit insufficient_evidence (fake abstention).
+        # An empty reply means the model ran out of room (often spent on hidden reasoning), not that
+        # it found nothing: retry with a reminder of the format instead of treating it as a refusal.
         if not str(raw or "").strip():
             logger.info("answer_attempt_rejected attempt=%d reasons=['draft_empty']", attempt + 1)
             history.append("draft_empty")
@@ -741,11 +770,11 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
             + "Return partial_answer with every useful supported part, scoped to its instrument. "
             + "Do not abstain when the passages state conditions, rates, durations, eligibility, or procedures."
         )
-    # 3. No model is pushed to answer after this point: a forced "you must answer" draft used to
-    # follow, and in every recorded run it only produced wrong numbers. What remains is
-    # deterministic: a pinned SUPERSEDES edge answers "X replaces Y", or the Top-5 pages are listed.
-    # "X replaces Y" only answers a question about which text replaces which or whether a text still
-    # applies; asked "quel est le plafond ?", it would answer something else.
+    # 3. No model is pushed to answer after this point: pressing a model to answer anyway only
+    # produced wrong numbers. What remains needs no model: a declared replacement answers
+    # "X replaces Y", or the best pages are listed. "X replaces Y" only fits a question about which
+    # text replaces which, or whether a text still applies; asked "quel est le plafond ?", it would
+    # answer something else.
     if is_relationship_query(question) or is_temporal_rule_query(question):
         for pool in (evidence, candidate_evidence):
             partial = try_supersession_partial_answer(question, pool, diagnostics=history)
@@ -754,10 +783,10 @@ def generate_grounded_answer(llm, question, scored_documents, reference_context=
     return {**fallback, "diagnostics": history}
 
 
-# Prompt budget per evidence record. Each LLM call must stay well under the provider's
-# per-request limit (Groq free tier: 8,000 tokens including instructions). The selector needs
-# room for an article and its lead-in: at 1000 characters it missed "plafond de 50.000 D" one
-# article below the title it was shown. Eight records of 1600 characters stay near 4,500 tokens.
+# How much of each evidence page goes into a prompt (characters). Each model call must stay well
+# under the provider's per-request limit (Groq's free tier: 8,000 tokens, instructions included).
+# The selector still needs room for an article and the sentence that introduces it: with less,
+# it missed a "plafond de 50.000 D" one article below the title it was shown.
 _SELECT_CHARS = 1600
 _DRAFT_CHARS = 2500
 
@@ -827,12 +856,8 @@ def _evidence_view(question, evidence, *, max_chars, labels):
 
 
 def _cap_draft_evidence(evidence, *, limit=3):
-    """Bound prompt size; prefer distinct pages over multiple chunks of the same page.
-
-    Selection order is preserved. When several pages of one instrument are needed
-    (general rule + condition, successive articles), the cap must not collapse to
-    three near-duplicate chunks from a single page.
-    """
+    """The first `limit` records, taking different pages before a second record of the same page
+    (a rule and its condition are often on two pages of one circular)."""
     if not evidence or limit < 1:
         return list(evidence or [])
     limit = max(1, int(limit))
@@ -849,6 +874,7 @@ def _cap_draft_evidence(evidence, *, limit=3):
     return (diversified + duplicates)[:limit]
 
 
+# What to tell the model on its second try, by the reason its first draft was rejected.
 _RETRY_HINTS = {
     "unknown_citation": "Cite only unit IDs shown in the evidence, such as E2.14. "
                         "If no shown unit states a fact, omit that claim and keep the supported ones. ",

@@ -1,4 +1,12 @@
-"""Local visual ingest: EasyOCR for Arabic page text, PaddleOCR-VL for image regions and other pages."""
+"""Reading pages from their image, on this machine (the "local visual" readers).
+
+Two models, each for what it reads best:
+- EasyOCR: plain OCR, good at Arabic text lines.
+- PaddleOCR-VL: a small vision-language model that understands layout: tables, charts, text
+  inside pictures, and French pages. It runs in its own process (paddle_vl_worker.py).
+LocalVisualRouter sends each page or image box to the right one. Every reading is saved on disk
+(keyed by the page image's fingerprint), so the same page is never read twice.
+"""
 
 from __future__ import annotations
 
@@ -14,11 +22,13 @@ from .models import VisualPage
 
 logger = logging.getLogger(__name__)
 
+# Engine names, saved with each reading: change one to make the old readings count as missing.
 ENGINE_EASY = "easyocr-ar-v1"
 ENGINE_PADDLE = "paddleocr-vl-1.6-v1"
 
 
 def _cache_get(cache_dir: Path, binding: dict) -> VisualPage | None:
+    """A saved reading for exactly this engine, PDF, page and image, or None."""
     key = hashlib.sha256(json.dumps(binding, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     path = cache_dir / f"{key}.json"
     if not path.exists():
@@ -30,6 +40,7 @@ def _cache_get(cache_dir: Path, binding: dict) -> VisualPage | None:
 
 
 def _cache_put(cache_dir: Path, binding: dict, page: VisualPage) -> None:
+    """Save a reading. Written to a .tmp file first, then renamed: a crash never leaves half a file."""
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = hashlib.sha256(json.dumps(binding, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     path = cache_dir / f"{key}.json"
@@ -42,6 +53,7 @@ def _cache_put(cache_dir: Path, binding: dict, page: VisualPage) -> None:
 
 
 def _binding(engine: str, image_png: bytes, pdf_sha: str, page_number: int) -> dict:
+    """What identifies a reading: the engine, the PDF, the page, and the exact image."""
     return {
         "engine": engine,
         "pdf": pdf_sha.lower(),
@@ -51,6 +63,8 @@ def _binding(engine: str, image_png: bytes, pdf_sha: str, page_number: int) -> d
 
 
 class EasyOcrVisual:
+    """EasyOCR for Arabic text, loaded on first use."""
+
     model = ENGINE_EASY
 
     def __init__(self, cache_dir: Path) -> None:
@@ -58,6 +72,7 @@ class EasyOcrVisual:
         self._reader = None
 
     def _get_reader(self):
+        """The EasyOCR model, loaded once (it is slow to load)."""
         if self._reader is None:
             import easyocr
 
@@ -69,6 +84,7 @@ class EasyOcrVisual:
         return self._reader
 
     def transcribe(self, *, image_png: bytes, source_pdf_sha256: str, page_number: int, **_) -> VisualPage:
+        """The text of one page image, as paragraphs (from the saved reading when there is one)."""
         binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
         hit = _cache_get(self.cache_dir, binding)
         if hit is not None:
@@ -90,12 +106,11 @@ class EasyOcrVisual:
 
 
 def _paddle_gpu_cap_mb() -> int | None:
-    """Hard Paddle allocator cap so the OCR worker cannot starve the API's search models of VRAM.
+    """The most GPU memory PaddleOCR-VL may take, in MB, so it never starves the search models.
 
-    ``BCT_PADDLE_GPU_MEMORY_MB`` wins (0 = no cap); otherwise total VRAM minus 1 GB, never below
-    2 GB. PaddleOCR-VL 1.6 needs ~7 GB (measured: 6 GB cap fails while loading, 7 GB reads a
-    chart page in ~80 s), so smaller cards fail to start on GPU and fall back to CPU.
-    None when no CUDA device is visible.
+    BCT_PADDLE_GPU_MEMORY_MB wins (0 = no cap); otherwise the card's memory minus 1 GB, at least
+    2 GB. PaddleOCR-VL needs about 7 GB, so on smaller cards it fails to start on the GPU and moves
+    to the CPU. None when there is no NVIDIA card.
     """
     configured = (os.environ.get("BCT_PADDLE_GPU_MEMORY_MB") or "").strip()
     if configured:
@@ -112,7 +127,9 @@ def _paddle_gpu_cap_mb() -> int | None:
 
 
 class PaddleVlVisual:
-    """PaddleOCR-VL via a sibling process so Torch/EasyOCR can share the API process on Windows."""
+    """PaddleOCR-VL, run in a separate process (paddle_vl_worker.py) and talked to through its
+    stdin/stdout, one JSON line per request. On Windows, Paddle and Torch in one process clash over
+    their GPU libraries, and a separate process can be killed to free the GPU at once."""
 
     model = ENGINE_PADDLE
 
@@ -126,6 +143,7 @@ class PaddleVlVisual:
         self.killed = False
 
     def _ensure_lock(self):
+        """A lock so two threads never talk to the worker at the same time."""
         if self._lock is None:
             import threading
 
@@ -150,6 +168,7 @@ class PaddleVlVisual:
         return sys.executable
 
     def _start_worker(self):
+        """Start the worker process and wait for its "ready" line (it loads the model first)."""
         import subprocess
         import sys
 
@@ -205,6 +224,7 @@ class PaddleVlVisual:
         logger.info("PaddleOCR-VL worker started on %s (pid %s)", self._device, self._proc.pid)
 
     def _ask(self, request: dict) -> dict:
+        """Send one request to the worker (starting it if needed) and return its answer."""
         with self._ensure_lock():
             if self._proc is None or self._proc.poll() is not None:
                 try:
@@ -241,6 +261,7 @@ class PaddleVlVisual:
             proc.kill()
 
     def close(self) -> None:
+        """Ask the worker to quit (or kill it), freeing its memory."""
         proc = self._proc
         self._proc = None
         if proc is None:
@@ -257,6 +278,7 @@ class PaddleVlVisual:
                 pass
 
     def transcribe(self, *, image_png: bytes, source_pdf_sha256: str, page_number: int, **_) -> VisualPage:
+        """The reading of one page image (text, and chart notes), from the cache when possible."""
         binding = _binding(self.model, image_png, source_pdf_sha256, page_number)
         hit = _cache_get(self.cache_dir, binding)
         if hit is not None:
@@ -310,6 +332,7 @@ class LocalVisualRouter:
         image_region: bool = False,
         **_,
     ) -> VisualPage:
+        """Read one page image or image box with the right model (see the class docstring)."""
         arabic = (language or "").casefold().startswith("ar")
         if arabic and not image_region:
             self.last_model = self._easy.model
@@ -347,6 +370,7 @@ class LocalVisualRouter:
         )
 
     def kill(self) -> None:
+        """Stop PaddleOCR-VL now (a chat question needs the GPU)."""
         self._paddle.kill()
 
     def close(self) -> None:
@@ -375,7 +399,7 @@ def visual_backend_name(profile: str | None = None) -> str:
 
 
 def build_visual_transcriber(cache_dir: str | Path, *, profile: str | None = None):
-    """Return Gemini or local router, or None when visual ingest is off."""
+    """The visual reader to use: Gemini, the local router, or None when visual reading is off."""
     backend = visual_backend_name(profile)
     if backend == "off":
         return None
@@ -385,6 +409,6 @@ def build_visual_transcriber(cache_dir: str | Path, *, profile: str | None = Non
         return GeminiVisualTranscriber(cache_dir)
     # local (default for local / local_hybrid)
     root = Path(cache_dir)
-    # Prefer dedicated local cache; fall back beside gemini-cache.
+    # Local readings get their own folder ("visual-cache"), next to the Gemini one.
     local_root = Path(os.environ.get("BCT_VISUAL_CACHE", str(root.parent / "visual-cache" if root.name == "gemini-cache" else root)))
     return LocalVisualRouter(local_root)

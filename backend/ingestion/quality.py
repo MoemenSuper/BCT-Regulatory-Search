@@ -1,3 +1,9 @@
+"""Is a page's own text usable, or garbled? A cheap check run on every page.
+
+Some PDFs have no text layer (scans), and some have a broken one: an Arabic font that comes out as
+Latin letters, words split into single letters, "Ã©" instead of "é". Pages that score too low
+are read again from their image (local_visual.py).
+"""
 from __future__ import annotations
 
 import re
@@ -5,10 +11,12 @@ from dataclasses import dataclass
 
 from rag.retrieval_selection import ARABIC, _ARABIC_RANGE
 
+# A letter (Latin or Arabic) or a digit: the "useful" characters of a page.
 _WORD = re.compile(rf"[A-Za-zÀ-ÖØ-öø-ÿ{_ARABIC_RANGE}0-9٠-٩]")
 _TOKEN = re.compile(r"\w+", re.UNICODE)
 _ARABIC_TOKEN = re.compile(rf"^[{_ARABIC_RANGE}]+$")
-_MOJIBAKE = ("�", "Ã", "Ø", "Ù")
+_MOJIBAKE = ("�", "Ã", "Ø", "Ù")  # signs of text decoded with the wrong encoding
+# Numbers, dates, percentages, amounts: where one misread character changes the meaning.
 _SENSITIVE = re.compile(
     r"(?:\d|[٠-٩]|%|٪|\b(?:19|20)\d{2}\b|\b\d{1,2}[./-]\d{1,2}[./-](?:\d{2}|\d{4})\b|"
     r"(?:دينار|دنانير|مليون|ألف|pour\s*cent|percent|taux|montant|date|أجل|نسبة|مبلغ))",
@@ -16,8 +24,10 @@ _SENSITIVE = re.compile(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True)  # frozen: the result cannot be changed after it is made
 class PageQuality:
+    """A score from 0 (unusable) to 1, whether to read the page again from its image, and why."""
+
     score: float
     requires_fallback: bool
     flags: tuple[str, ...]
@@ -26,10 +36,11 @@ class PageQuality:
 
 
 def assess_page_quality(text: str, block_count: int) -> PageQuality:
-    """Cheap corruption screening derived from the experimental branch.
+    """Score a page's own text. Each problem found lowers the score; under 0.55 the page is
+    read again from its image.
 
-    It intentionally catches only obvious native-extraction failures. Silent Arabic
-    numeric/date corruption is handled separately by the visual-routing policy.
+    It only catches obvious failures. Quieter ones (a wrong digit in an Arabic date) are handled
+    by the rules that decide which pages are read visually (extract.py).
     """
     stripped = text.strip()
     if not stripped:
@@ -89,6 +100,7 @@ def contains_sensitive_literals(text: str) -> bool:
 
 
 def arabic_character_ratio(text: str) -> float:
+    """The share of visible characters that are Arabic letters (0.0 to 1.0)."""
     visible = [character for character in text if not character.isspace()]
     if not visible:
         return 0.0

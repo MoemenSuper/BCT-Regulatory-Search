@@ -1,3 +1,12 @@
+"""Saved conversations: each user's chats, the memory the assistant uses for follow-ups, and the
+log of questions it could not answer (shown to administrators).
+
+Three tables in one SQLite database:
+- conversation_sessions: one row per conversation, with its memory (the last few turns) as JSON;
+- conversation_turns: every question and answer, for the history in the sidebar;
+- answer_refusals: questions that got no confirmed answer, and why.
+Every read and write names the user: nobody can open another user's conversation.
+"""
 import json
 import os
 from pathlib import Path
@@ -29,6 +38,7 @@ class MemoryState(TypedDict):
 
 
 def new_memory_state() -> MemoryState:
+    """An empty memory, for a new conversation."""
     return {
         "topics": [],
         "first_topic": None,
@@ -38,6 +48,7 @@ def new_memory_state() -> MemoryState:
 
 
 _WHITESPACE = re.compile(r"\s+")
+# Polite or question openings removed from a title: "Bonjour, pouvez-vous me dire quel est ..."
 _LEADING_FILLERS = (
     r"(?:s'?il vous pla[iî]t|svp|please|bonjour|bonsoir|salut|hello|hi)\b[,:\s]*",
     r"(?:pouvez[- ]vous|pourriez[- ]vous|peux[- ]tu|pourrais[- ]tu|can you|could you|would you)\b[,:\s]*",
@@ -92,21 +103,23 @@ def summarize_conversation_title(question: str, *, max_length: int = 72) -> str:
 
 
 def default_conversation_database_path():
+    """Where the database goes without BCT_CONVERSATION_DB: the user's app-data folder."""
     local_data = os.environ.get("LOCALAPPDATA")
     root = Path(local_data) if local_data else Path.home() / ".local" / "share"
     return root / "BCT-Regulatory-Search" / "conversations.sqlite3"
 
 
 def open_conversation_store():
+    """The conversation store at BCT_CONVERSATION_DB (or the default place)."""
     configured_path = os.environ.get("BCT_CONVERSATION_DB")
     return ConversationStore(configured_path or default_conversation_database_path())
 
 
 class ConversationStore:
-    """Durable routing memory plus a full UI transcript.
+    """The conversation database.
 
-    The LLM routing state intentionally keeps only a bounded number of recent turns,
-    while `conversation_turns` retains the complete transcript for the history UI.
+    The memory the model reads keeps only the last max_turns turns (a short prompt), while
+    conversation_turns keeps every turn for the history shown to the user.
     """
 
     def __init__(self, path, *, max_turns=6):
@@ -169,6 +182,7 @@ class ConversationStore:
             self._ensure_session_columns(connection)
 
     def create(self, user_id: str):
+        """Start a conversation for this user; returns its id."""
         owner = self._require_user_id(user_id)
         conversation_id = str(uuid4())
         state = new_memory_state()
@@ -181,6 +195,7 @@ class ConversationStore:
         return conversation_id
 
     def load(self, conversation_id, *, user_id: str):
+        """The conversation's memory, or None when it does not exist or is someone else's."""
         owner = self._require_user_id(user_id)
         with self._connect() as connection:
             row = connection.execute(
@@ -191,6 +206,7 @@ class ConversationStore:
         return json.loads(row[0]) if row else None
 
     def save(self, conversation_id, state, *, user_id: str):
+        """Replace the conversation's memory (KeyError if it is not this user's)."""
         owner = self._require_user_id(user_id)
         value = self._bounded_state(state)
         with self._connect() as connection:
@@ -300,6 +316,7 @@ class ConversationStore:
             )
 
     def list_answer_refusals(self, *, limit=100, reasons=None, buckets=None):
+        """The latest unanswered questions for the admin screen, optionally filtered by reason."""
         from rag.answer_contract import refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 100_000))
@@ -346,6 +363,7 @@ class ConversationStore:
         return items
 
     def count_answer_refusals(self, *, reasons=None, buckets=None):
+        """How many unanswered questions match the filters."""
         selected_reasons = [str(item) for item in (reasons or []) if str(item)]
         selected_buckets = [str(item) for item in (buckets or []) if str(item)]
         if not selected_buckets:
@@ -362,6 +380,7 @@ class ConversationStore:
         return len(self.list_answer_refusals(limit=100_000, reasons=selected_reasons, buckets=selected_buckets))
 
     def distinct_answer_refusal_reasons(self, *, limit=200):
+        """The reason groups that exist, with counts (the filter list on the admin screen)."""
         from rag.answer_contract import REFUSAL_BUCKETS, refusal_reason_bucket, refusal_reason_title
 
         limit = max(1, min(int(limit), 500))
@@ -423,6 +442,7 @@ class ConversationStore:
             raise KeyError(f"Unknown conversation: {conversation_id}")
 
     def list_conversations(self, *, user_id: str, limit=100):
+        """This user's conversations, newest first (the sidebar)."""
         owner = self._require_user_id(user_id)
         limit = max(1, min(int(limit), 500))
         with self._connect() as connection:
@@ -515,6 +535,7 @@ class ConversationStore:
         }
 
     def transcript(self, conversation_id, *, user_id: str):
+        """Every turn of a conversation, oldest first, to show it again."""
         owner = self._require_user_id(user_id)
         state = self.load(conversation_id, user_id=owner)
         if state is None:
@@ -565,6 +586,7 @@ class ConversationStore:
 
     @staticmethod
     def _require_user_id(user_id: str) -> str:
+        """Refuse an empty user id: every query must be limited to one user."""
         owner = str(user_id or "").strip()
         if not owner:
             raise ValueError("user_id is required")
@@ -587,7 +609,7 @@ class ConversationStore:
                 "ALTER TABLE conversation_sessions ADD COLUMN user_id TEXT"
             )
         turn_columns = {row[1] for row in connection.execute("PRAGMA table_info(conversation_turns)").fetchall()}
-        if "graph_trace_json" in turn_columns:  # Neo4j-era field, never read: dropped from older DBs
+        if "graph_trace_json" in turn_columns:  # a column of an old feature, never read: drop it
             connection.execute("ALTER TABLE conversation_turns DROP COLUMN graph_trace_json")
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_conversation_sessions_user "
@@ -595,6 +617,7 @@ class ConversationStore:
         )
 
     def _bounded_state(self, state):
+        """The memory with only its last max_turns turns."""
         value = dict(state)
         value["turns"] = list(value.get("turns", []))[-self.max_turns :]
         return value

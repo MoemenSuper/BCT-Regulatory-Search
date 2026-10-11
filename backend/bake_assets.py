@@ -19,6 +19,7 @@ from ingestion.index import _add_rows, _read_collection, _resolve_local_chroma_d
 
 
 def bake(source: Path, dest: Path) -> Path:
+    """Copy the live version and its Chroma collections from source into a fresh dest; returns dest."""
     import chromadb
 
     active = resolve_active_assets(source)

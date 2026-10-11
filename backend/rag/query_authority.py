@@ -1,7 +1,12 @@
-"""Query-class → which document kinds may prove claims.
+"""What kind of question is this, and so which kinds of documents may prove its answer?
 
-Classification never rejects the question; it only chooses grounding permission.
-uncertain / classifier failure → regulatory grounding (fail closed on authority).
+The answer model sorts each question into one class: a rule ("quel est le plafond..."), a
+statistic ("le volume des exportations en 2024"), an internal procedure, a mix, or uncertain.
+The class decides which documents can support a claim (see document_authority.py): a rule needs a
+regulatory text; a statistic may also come from a bulletin.
+
+This never refuses a question. When the class is unclear, or the model fails, it falls back to
+the strictest choice: only regulatory texts may prove the answer ("fail closed").
 """
 from __future__ import annotations
 
@@ -33,12 +38,16 @@ QUERY_CLASSES: tuple[str, ...] = (
 
 
 class QueryAuthorityClass(BaseModel):
+    """The model's verdict, validated by pydantic (a wrong field or value raises an error)."""
+
     query_class: QueryClass
     confidence: Literal["high", "low"] = "low"
     rationale: str = Field(default="", max_length=240)
 
 
-# Curated gold bank: hard negatives first. Dynamic demos pick by token overlap.
+# Hand-written examples shown to the model before the question ("few-shot" prompting): each is
+# (question, class, reason). The tricky ones matter most, like "taux" meaning a regulatory rate
+# rather than a statistic. AAAA-NN stands for any circular number.
 _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
     (
         "Quel est le plafond de financement pour les importations non prioritaires selon la circulaire AAAA-NN ?",
@@ -119,6 +128,7 @@ _GOLD: tuple[tuple[str, QueryClass, str], ...] = (
 
 
 def allowed_doc_kinds(query_class: object | None) -> frozenset[DocKind]:
+    """The document kinds that may prove a claim for this class of question."""
     value = str(query_class or "uncertain").strip().casefold()
     if value == "statistical_fact":
         return frozenset({"statistical", "regulatory"})
@@ -131,17 +141,20 @@ def allowed_doc_kinds(query_class: object | None) -> frozenset[DocKind]:
 
 
 def evidence_kind_allowed(query_class: object | None, *, doc_kind: object | None) -> bool:
+    """May a document of this kind support a claim for this question?"""
     from rag.document_authority import normalize_doc_kind
 
     return normalize_doc_kind(doc_kind) in allowed_doc_kinds(query_class)
 
 
 def _tokens(text: str) -> set[str]:
+    """The words of a text (Latin or Arabic letters, longer than 2 letters), lower-cased."""
     return {token for token in re.findall(r"[\w\u0600-\u06FF]+", text.casefold()) if len(token) > 2}
 
 
 def select_demonstrations(question: str, *, k: int = 6) -> list[tuple[str, QueryClass, str]]:
-    """Cheap dynamic few-shot: gold examples with highest token overlap, class-diverse."""
+    """The k examples to show the model for this question: those sharing the most words with it,
+    with at least one example of each class so every boundary is shown."""
     q = _tokens(question)
     scored = []
     for example, label, note in _GOLD:
@@ -169,6 +182,7 @@ def select_demonstrations(question: str, *, k: int = 6) -> list[tuple[str, Query
 
 
 def _prompt(question: str, demos: list[tuple[str, QueryClass, str]]) -> str:
+    """The classification instructions, the chosen examples, then the question."""
     lines = [
         "Classify the user question for claim-grounding authority only.",
         "Never refuse. Never answer the regulatory question. Output JSON only.",
@@ -190,6 +204,7 @@ def _prompt(question: str, demos: list[tuple[str, QueryClass, str]]) -> str:
 
 
 def default_query_authority() -> dict:
+    """The safe fallback verdict: "uncertain", which only lets regulatory texts prove claims."""
     return QueryAuthorityClass(
         query_class="uncertain",
         confidence="low",
@@ -209,9 +224,10 @@ def classify_query_authority(llm, question: str) -> dict:
                 str(part.get("text", part)) if isinstance(part, dict) else str(part) for part in content
             )
         text = str(content or "").strip()
+        # Models sometimes wrap JSON in a ```json ... ``` block: keep only what is inside.
         if text.startswith("```"):
             text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        # Prefer first JSON object.
+        # Keep the outermost {...}, in case the model wrote words around it.
         start = text.find("{")
         end = text.rfind("}")
         if start >= 0 and end > start:

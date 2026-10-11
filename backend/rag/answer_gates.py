@@ -1,6 +1,18 @@
-"""Claim gates: fail-closed validation of grounded answer drafts.
+"""The checkers ("gates"): every claim the answer model writes is tested here before the user
+sees it. parse_answer() is the entry point.
 
-Literal/excerpt checks do not prove semantic entailment or legal correctness.
+The model does not copy quotes; it cites units by ID ("E2.14" = unit 14 of evidence E2). The code
+fetches the exact page text of those units, so a quote can never be misquoted. Then each claim
+must pass every check, for example:
+- every number in the claim appears in the cited text (and was not misread from a chart);
+- the claim keeps the text's meaning: "excluded" is not turned into "required", "may" is not
+  turned into "must", a condition ("sous réserve") is not dropped;
+- the claim comes from the circular the question names, if it names one;
+- it does not say a rule is in force today, or that nothing later changed it.
+
+A claim that fails is dropped; if none passes, the user gets the list of search results instead
+("fail closed": better no answer than an unsupported one). These checks compare words and
+numbers; they do not prove that a claim is legally correct.
 """
 import json
 import re
@@ -21,14 +33,18 @@ from rag.answer_evidence import (
 logger = logging.getLogger(__name__)
 
 class Claim(BaseModel):
-    # Pointer citations: unit IDs such as "E2.14". The gates read the exact page text of the
-    # cited units; the model never retypes evidence. Stray model fields are ignored.
+    """One sentence of the answer, and the units it cites ("E2.14": evidence E2, unit 14)."""
+
+    # The gates read the exact page text of the cited units; the model never retypes evidence.
+    # Stray model fields are ignored.
     model_config = ConfigDict(extra="ignore")
     text: str = Field(min_length=1, max_length=1600)
     cites: list[str] = Field(min_length=1, max_length=12)
 
 
 class AnswerDraft(BaseModel):
+    """The answer model's reply, as JSON: a status, an optional message, and the claims."""
+
     model_config = ConfigDict(extra="ignore")
     status: Literal["answered", "partial_answer", "insufficient_evidence", "clarification_needed", "out_of_scope"]
     message: str = Field(default="", max_length=600)
@@ -38,7 +54,8 @@ class AnswerDraft(BaseModel):
 
 
 def _extract_complete_json_dicts(text, *, require_keys=()):
-    """Pull complete {...} objects from possibly truncated model output."""
+    """Every complete {...} object in a text, even when the text was cut off mid-way. Walks the
+    text character by character, counting braces outside of strings."""
     found = []
     i, n = 0, len(text)
     while i < n:
@@ -78,7 +95,7 @@ def _extract_complete_json_dicts(text, *, require_keys=()):
 
 
 def _salvage_answer_payload(text):
-    """Recover status + complete claims from truncated answer JSON (no LLM)."""
+    """Rescue a reply that was cut off: keep its status and the claims that are complete."""
     status_match = re.search(
         r'"status"\s*:\s*"(answered|partial_answer|insufficient_evidence|clarification_needed|out_of_scope)"',
         text,
@@ -98,7 +115,8 @@ def _salvage_answer_payload(text):
 
 
 def _load_answer_payload(content):
-    """Accept raw JSON or common chat wrappers; never invent claim fields."""
+    """The reply's JSON as a dict, unwrapping ``` blocks and stray words around it. Missing
+    fields are never filled in: a broken reply is rejected, not repaired with guesses."""
     text = str(content or "").strip()
     if not text:
         raise ValueError("schema_invalid")
@@ -121,7 +139,7 @@ def _load_answer_payload(content):
             raise
     if not isinstance(payload, dict):
         raise ValueError("schema_invalid")
-    # Repair sometimes echoes the full JSON Schema beside the answer fields.
+    # A model sometimes repeats the JSON schema it was given next to its answer: keep the answer.
     if "status" not in payload and "claims" not in payload:
         salvaged = _salvage_answer_payload(text)
         if salvaged is not None:
@@ -175,11 +193,19 @@ _MESSAGES = {
 
 
 def safe_response(question, status="insufficient_evidence"):
+    """A fixed reply (no claims, no sources) in the question's language, for a refusal status."""
     return {"status": status, "answer": _MESSAGES[language_of(question)][status], "sources": []}
 
 
 def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sources, source_numbers, source_excerpts, query_class=None, secondary=None):
-    """Validate one claim. Raises ValueError/KeyError on literal or identity failure."""
+    """Check one claim against the units it cites. Returns the claim with its source numbers
+    ("... [1] [2]"), and adds its sources to `sources`. Raises ValueError naming the first check
+    that fails; parse_answer then drops the claim.
+
+    The checks, in order: no "in force today" claim on a date question, document kind allowed,
+    named circular respected, no unsupported "nothing changed it", every number supported, no
+    citation marks inside the claim, then the meaning checks (_reject_...).
+    """
     if not claim.text.strip():
         raise ValueError("Empty claim")
     if temporal_unverified and claim_asserts_unverified_applicability(claim.text):
@@ -201,8 +227,7 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
         if target and not identity_matches(record["source"], target):
             raise ValueError("requested_document_mismatch")
         supporting_text.append(excerpt)
-        # A literal name of the cited document is trusted metadata, not
-        # a numeric rule that must also occur in the extracted excerpt.
+        # The cited PDF's own filename in the claim is not a number that needs quoting.
         stem = re.escape(record["source"].removesuffix(".pdf"))
         claim_literals = re.sub(r"(?<!\w)" + stem + r"(?:\.pdf)?(?!\w)", "", claim_literals, flags=re.I)
         key = record["source"], record["page"]
@@ -225,13 +250,11 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     language = language_of(question)
     supported = set().union(*(confirmed_numbers(text, record["text"])
                               for record, text in zip(cited, supporting_text)))
-    # A number the user asked about ("les billets de 100 et 500 couronnes")
-    # may be restated when the cited page itself mentions it, even if the
-    # supporting excerpt is only the answering sentence. Numbers absent from
-    # the page, or not asked about, must be in the excerpt.
+    # A number the user asked about ("les billets de 100 et 500 couronnes") may be repeated when
+    # the cited page mentions it, even if the quoted sentence does not. Any other number must be
+    # in the quote.
     echoed = numeric_literals(question, language) & set().union(*(numeric_literals(record["text"]) for record in cited))
-    # Scenario framing from the question (e.g. "26 mars 2026") may be restated
-    # without appearing in the excerpt; the legal consequence still needs excerpts.
+    # Dates from the user's own situation ("avant le 26 mars 2026") may be repeated without a quote.
     scenario = question_scenario_numbers(question)
     claim_literals = strip_instrument_references(claim_literals, cited)
     # "Selon le tableau 4-1" or "article 5": a table, article or page the cited page really has
@@ -245,15 +268,15 @@ def _validate_claim(claim, question, by_id, *, temporal_unverified, target, sour
     )
     if claim_numbers - supported:
         raise ValueError("unsupported_claim_number")
-    # A garbled header (reversed or impossible digits) means this page's
-    # digits cannot be trusted even when quoted verbatim. Numbers written
-    # as words ("sept ans", "ثلاث سنوات") may still support a claim.
+    # A page with a misread header (see evidence_warning) cannot prove any digit, even quoted
+    # exactly. Numbers written in words ("sept ans", "ثلاث سنوات") may still support a claim.
     if any(record.get("evidence_warning") for record in cited):
         spelled = set().union(*(supported_numbers(text) - numeric_literals(text) for text in supporting_text))
         # Spelling a garbled digit out in words is still stating it.
         claim_words = supported_numbers(claim_literals, language) - numeric_literals(claim_literals, language) - {"0", "1"}
         if (claim_numbers | claim_words) - spelled:
             raise ValueError("digits_unreliable_on_warned_page")
+    # The code adds the [n] markers itself; a claim with its own markers, a filename or "..." is broken.
     if re.search(r"\[\d+\]|\.pdf\b|…|\.\.\.", claim_literals, re.I):
         raise ValueError("claim_contains_citation_or_truncation")
     _reject_regime_remapped_claim(question, claim_literals, cited, supporting_text)
@@ -269,8 +292,8 @@ _CITE_ID = re.compile(r"^\[?(E\d+)\.(\d+)\]?$")
 
 
 def _cited_excerpts(cites, by_id):
-    """Resolve unit IDs to (record, exact page text). Consecutive units of one record form one
-    excerpt. An ID that does not exist in the supplied evidence fails the claim."""
+    """Turn unit IDs ("E2.14") into (evidence, exact page text). Consecutive units of one evidence
+    are joined into one excerpt. An ID that does not exist fails the claim."""
     wanted = {}
     for cite in cites:
         match = _CITE_ID.match(str(cite).strip())
@@ -295,11 +318,15 @@ def _cited_excerpts(cites, by_id):
 
 
 def _token_script(token: str) -> str:
+    """"ar" for an Arabic word, "lat" for a Latin-script one."""
     return "ar" if ARABIC.search(token) else "lat"
 
 
-# Legal applicability polarity for FR + AR circulars/notes (exclu/تستثنى ↔ concerné/تخضع).
-# Arabic avoids \\b (unreliable on Arabic script). Exclusion is checked before inclusion.
+# "Polarity": does a text include someone in a rule (doivent, sont soumis, تخضع) or exclude them
+# (sont exclus, ne s'applique pas, تستثنى)? The _SUPPORT_ patterns read the cited text, the
+# _CLAIM_ patterns read the claim; the two must agree. Exclusion is checked first, because
+# "ne s'applique pas" also contains "s'applique". The Arabic parts do not use \\b (word
+# boundaries are unreliable on Arabic script).
 _SUPPORT_EXCLUSION = re.compile(
     r"(?:"
     r"\b(?:sont\s+exclu(?:e|es|s)?|est\s+exclue|"
@@ -377,12 +404,14 @@ _CLAIM_INCLUSION = re.compile(
     re.I,
 )
 
+# Claims that say "no exclusion / no other condition": inclusions too, and risky ones.
 _CLAIM_DENIES_EXCLUSION = re.compile(
     r"(?i)\b(?:aucune\s+exclusion|pas\s+d['']exclusion|"
     r"ne\s+sont\s+pas\s+exclues?|n['']est\s+pas\s+exclue|"
     r"sans\s+(?:aucune\s+)?(?:autre\s+)?condition|"
     r"sans\s+autre\s+condition)\b"
 )
+# "all importers", "exclusively": a claim widening a rule that the text limits to a narrow group.
 _CLAIM_UNIVERSAL_SCOPE = re.compile(
     r"(?i)\b(?:tous\s+les\s+importateurs|toutes\s+les\s+importations|"
     r"tout(?:e)?\s+importation|tous\s+les\s+contrats|"
@@ -395,16 +424,19 @@ _SUPPORT_NARROW_POPULATION = re.compile(
     r"n['']importe\s+quel\s+moyen|peuvent\s+[eê]tre\s+r[eé]gl[eé]s|"
     r"jusqu['’]?[àa]\s+\d+\s+jours)\b"
 )
+# "business days" when the text only says "days": a different deadline.
 _INVENTED_DAY_UNIT = re.compile(
     r"(?i)\bjours?\s+ouvrables?\b|\bbusiness\s+days?\b|\bأيام\s*عمل\b"
 )
 _SUPPORT_PLAIN_DAYS = re.compile(
     r"(?i)\b(?:\d+\s*)?jours?\b(?!\s+ouvrables?)|\b(?:\d+\s*)?days?\b(?!\s+business)"
 )
+# "must" in the claim where the text only says "may".
 _CLAIM_MUST = re.compile(r"(?i)\b(?:doivent|doit|obligatoirement|exclusivement)\b")
 _SUPPORT_MAY = re.compile(
     r"(?i)\b(?:peuvent|peut|facultatif(?:ve)?|n['']importe\s+quel)\b"
 )
+# A condition on the page ("sous réserve", "شريطة") that the claim must not drop.
 _PAGE_HAS_RESERVE = re.compile(
     r"(?i)\bsous\s+r[eé]serve\b|شريطة|بشرط|مع\s*مراعاة"
 )
@@ -416,7 +448,8 @@ _CLAIM_DROPS_RESERVE = re.compile(
 
 
 def _excerpt_context_window(page_text: str, excerpt: str, *, before: int = 400, after: int = 120) -> str:
-    """Page text around a excerpt so list-item excerpts keep their exclusion lead-in."""
+    """The page text around an excerpt: a quoted list item often depends on the sentence above
+    the list ("Sont exclus du champ d'application : ...")."""
     page = page_text or ""
     needle = excerpt or ""
     if not page or not needle:
@@ -435,10 +468,10 @@ def _excerpt_context_window(page_text: str, excerpt: str, *, before: int = 400, 
 
 
 def _support_polarity(cited_records, supporting_excerpts) -> str | None:
-    """Return 'exclude', 'include', or None from excerpt + nearby page context.
+    """Does the cited text include or exclude: "include", "exclude", or None if it says neither.
 
-    Excerpt-local language wins over distant Article-premier obligations on the
-    same page (exclusion lists often sit after a general rule).
+    Words in the excerpt itself count first, then the lines just around it, then a wider window:
+    a page often states a general rule first and lists the exclusions after it.
     """
     for record, excerpt in zip(cited_records, supporting_excerpts):
         excerpt_text = excerpt or ""
@@ -469,6 +502,7 @@ def _support_polarity(cited_records, supporting_excerpts) -> str | None:
 
 
 def _claim_polarity(claim_text: str) -> str | None:
+    """Does the claim include or exclude: "include", "exclude", or None."""
     text = claim_text or ""
     # Strip negated applicability first so "ne s'appliquent pas" is not also inclusion.
     if _CLAIM_EXCLUSION.search(text):
@@ -486,7 +520,7 @@ _CLAIM_FIELD_EXCLUSION = re.compile(
 
 
 def _reject_reversed_legal_polarity(claim_literals, cited, supporting_excerpts) -> None:
-    """Fail when the claim flips exclusion/exemption into inclusion/applicability (or vice versa)."""
+    """Reject a claim that turns an exclusion into an obligation, or the reverse."""
     support = _support_polarity(cited, supporting_excerpts)
     claim = _claim_polarity(claim_literals)
     if support and claim and support != claim:
@@ -498,7 +532,7 @@ def _reject_reversed_legal_polarity(claim_literals, cited, supporting_excerpts) 
 
 
 def _reject_invented_unit(claim_literals: str, supporting_excerpts) -> None:
-    """Reject day-unit inventions (jours ouvrables) absent from the excerpts."""
+    """Reject "business days" when the quoted text only says "days"."""
     if not _INVENTED_DAY_UNIT.search(claim_literals):
         return
     blob = " ".join(supporting_excerpts)
@@ -509,7 +543,7 @@ def _reject_invented_unit(claim_literals: str, supporting_excerpts) -> None:
 
 
 def _reject_dropped_condition(claim_literals: str, cited, supporting_excerpts) -> None:
-    """Reject claims that erase a page-level 'sous réserve' / condition."""
+    """Reject a claim that says "without condition" when the page sets one ("sous réserve")."""
     if not _CLAIM_DROPS_RESERVE.search(claim_literals):
         return
     page = " ".join(record.get("text") or "" for record in cited)
@@ -521,7 +555,7 @@ def _reject_dropped_condition(claim_literals: str, cited, supporting_excerpts) -
 
 
 def _reject_scope_or_operator_inflation(claim_literals: str, supporting_excerpts) -> None:
-    """Reject universal/mandatory restatements of narrow/permissive source wording."""
+    """Reject a claim that widens the text: "all" for a narrow group, or "must" for "may"."""
     blob = " ".join(supporting_excerpts)
     if _CLAIM_UNIVERSAL_SCOPE.search(claim_literals) and _SUPPORT_NARROW_POPULATION.search(
         blob
@@ -534,7 +568,7 @@ def _reject_scope_or_operator_inflation(claim_literals: str, supporting_excerpts
 
 
 def _reject_threshold_boundary(claim_literals: str, supporting_excerpts, language="fr") -> None:
-    """Reject off-by-one day thresholds when the excerpt only supports N, not N±1."""
+    """Reject a deadline off by one ("91 jours" when the text says 90): a classic slip."""
     excerpt_nums = set().union(*(supported_numbers(text) for text in supporting_excerpts))
     claim_nums = numeric_literals(claim_literals, language)
     dayish = {
@@ -552,6 +586,7 @@ def _reject_threshold_boundary(claim_literals: str, supporting_excerpts, languag
 
 
 def _anchor_on_page(anchor: str, support_plain: str) -> bool:
+    """Is this question word on the page, allowing small variations ("billet" / "billets")?"""
     # "abroge" must match "abrogée": fold accents before the prefix stem compare.
     anchor, support_plain = _ascii_fold(anchor), _ascii_fold(support_plain)
     if re.search(rf"(?<!\w){re.escape(anchor)}(?!\w)", support_plain):
@@ -571,18 +606,16 @@ def _anchor_on_page(anchor: str, support_plain: str) -> bool:
 
 
 def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_excerpts) -> None:
-    """Fail when the claim restates a question actor absent from the cited page
-    while the supporting excerpts are clearly about a different subject regime.
+    """Reject a claim that pins the question's subject on a text about something else.
 
-    Actor presence is checked on the full page (tables often omit the topic word
-    from the numeric excerpt). Alternate-regime detection uses the excerpts only, so
-    a same-page but wrong excerpt cannot launder a remapped claim.
+    Example: asked about export companies, the model quotes a rule for banks and writes "export
+    companies must ...". The subject words of the claim must appear on the cited page; if they do
+    not, and the quoted excerpt is clearly about another subject, the claim is rejected.
 
-    Restating question-scenario framing words is allowed when the cited page
-    already shares substantive anchors with the question (on-topic evidence).
-
-    Words can only be compared within one language: an English question answered from a
-    French page never shares its words ("growth" vs "croissance"), so such pages are skipped.
+    The subject is looked for on the whole page (a table row often lacks the topic word), while
+    "another subject" is judged on the excerpt only. Words can only be compared within one
+    language: an English question answered from a French page shares no words ("growth" vs
+    "croissance"), so such pages are skipped.
     """
     cited = [record for record in cited if record.get("language", "fr") == language_of(question)]
     if not cited:
@@ -631,7 +664,12 @@ def _reject_regime_remapped_claim(question, claim_literals, cited, supporting_ex
 
 
 def parse_answer(content, question, evidence, *, temporal_unverified=None, diagnostics=None, query_class=None):
-    """Fail closed on malformed output; keep any claims that pass literal gates."""
+    """Turn the answer model's reply into the final answer: {"status", "answer", "sources"}.
+
+    Each claim is checked on its own; failing claims are dropped. If some were dropped, the status
+    becomes partial_answer with a notice. If nothing survives, or the reply is malformed, the
+    result is the fixed insufficient_evidence reply (and the reason goes into diagnostics).
+    """
     try:
         if temporal_unverified is None:
             temporal_unverified = is_temporal_rule_query(question)
@@ -676,8 +714,8 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
             reason = dropped[0] if len(dropped) == 1 else ("no_supported_claims:" + ",".join(dict.fromkeys(dropped)) if dropped else "Answer contains no supported claims")
             raise ValueError(reason)
         status = draft.status
-        # Only claim drops force an incomplete footer. Model-chosen partial_answer
-        # may already be complete; temporal_unverified uses its own disclaimer.
+        # Dropped claims, or evidence that is not a regulatory text, make the answer partial. A date
+        # or "in force" question is always partial, with its own notice at the top.
         if dropped or secondary:
             status = "partial_answer"
         if temporal_unverified:
@@ -686,8 +724,7 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
             limits = _TEMPORAL_LIMITS if is_temporal_rule_query(question) and not _TEMPORAL_SCOPE_HINT.search(question) else _HISTORICAL_LIMITS
             lines.insert(0, limits[language_of(question)])
         if dropped and not temporal_unverified:
-            # The free-form message is not quoted evidence. Never render a second,
-            # unvalidated legal answer through this field.
+            # The model's free "message" field is never shown: it is not checked against any quote.
             lines.append(_PARTIAL_LIMITS[language_of(question)])
         if secondary:
             lines.append(_SECONDARY_SOURCE_NOTICE[language_of(question)])
@@ -700,18 +737,20 @@ def parse_answer(content, question, evidence, *, temporal_unverified=None, diagn
         return safe_response(question)
 
 
-# Full pydantic schema in the system prompt burns tokens and, with reasoning models,
-# correlates with empty drafts. Prompts use this compact shape; validation still uses AnswerDraft.
+# The answer format shown to the model: a short example instead of the full schema (fewer tokens,
+# and reasoning models gave more empty drafts with the full one). Validation still uses AnswerDraft.
 ANSWER_SCHEMA_FOR_PROMPT = (
     '{"status":"answered|partial_answer|insufficient_evidence|clarification_needed|out_of_scope",'
     '"message":"","claims":[{"text":"string","cites":["E1.3","E1.4"]}]}'
 )
 
-# Disclaimer branch in parse_answer: as-of / after / en YYYY (broader than cutoff demotion).
+# A question about a past date or period ("avant", "en 2020"): parse_answer then uses the
+# "applicability at that date" notice instead of the "currently in force" one.
 _TEMPORAL_SCOPE_HINT = re.compile(
     r"\b(?:as\s+of|before|after|au\s+\d{1,2}(?:er)?|avant|après|en\s+\d{4})\b|قبل|بعد",
     re.I,
 )
+# The fixed notices added to answers, in the three languages.
 _HISTORICAL_LIMITS = {
     "fr": "Les passages cités étayent les éléments ci-dessous, mais leur applicabilité à la date demandée n’a pas pu être pleinement confirmée.",
     "ar": "تدعم المقاطع المستشهد بها المعلومات التالية، لكن تعذر تأكيد انطباقها في التاريخ المطلوب بشكل كامل.",
@@ -746,7 +785,8 @@ _TEMPORAL_LIMITS = {
 }
 
 def _question_anchors(question):
-    """Content tokens from the question used to keep formulation snippets on-topic."""
+    """The question's meaningful words (stop words like "le", "what", "في" removed), plus simple
+    variants (without a plural s, without the Arabic article "ال")."""
     stop = {
         "est", "ce", "que", "qui", "quoi", "dont", "les", "des", "une", "un", "le", "la",
         "du", "de", "d", "et", "ou", "au", "aux", "en", "y", "a", "à", "pour", "par", "sur",

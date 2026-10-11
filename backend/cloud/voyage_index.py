@@ -1,8 +1,9 @@
-"""Voyage document indexes staged beside each asset version (cloud profile only).
+"""The cloud index: Voyage vectors for every chunk, stored next to each index version.
 
-Local profiles search Chroma; these indexes exist so the cloud profile can load the
-same asset version. Ingest embeds only when BCT_INGEST_CLOUD_INDEX=1 or the default
-profile is cloud; otherwise the previous indexes are carried forward.
+The local profiles search Chroma; the cloud profile needs these Voyage vectors instead. They are
+built once from the admin screen (build_cloud_index), then every upload adds vectors for its new
+chunks (stage_voyage_indexes). Each file of vectors carries a fingerprint of the chunks it was
+made for, so vectors that no longer match their chunks are never used.
 """
 
 from __future__ import annotations
@@ -44,12 +45,15 @@ def ingest_cloud_embed_enabled() -> bool:
 
 
 def _array_bytes(vectors: np.ndarray) -> bytes:
+    """The vectors as .npy file bytes (numpy's own format)."""
     buffer = io.BytesIO()
     np.save(buffer, np.asarray(vectors, dtype=np.float32), allow_pickle=False)
     return buffer.getvalue()
 
 
 def _write_bound_index(root: Path, representation: str, documents: list[Document], vectors: np.ndarray, *, spec=None) -> None:
+    """Save vectors (.npy) and their manifest (.json): the model, and a fingerprint of each chunk's
+    text, so the vectors can later be checked against the chunks they belong to."""
     spec = spec or VOYAGE_SPEC
     vectors = np.asarray(vectors, dtype=np.float32)
     if vectors.shape != (len(documents), spec.dimension):
@@ -146,6 +150,7 @@ def _load_old(active: Path, representation: str, filename: str, *, spec=None):
 
 
 def _embed_new(client, documents: list[Document]) -> np.ndarray:
+    """Voyage vectors for these chunks, read with their context header like every other search."""
     dimension = int(getattr(client, "dimension", VOYAGE_SPEC.dimension))
     if not documents:
         return np.empty((0, dimension), dtype=np.float32)

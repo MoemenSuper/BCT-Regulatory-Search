@@ -1,13 +1,25 @@
+"""Tests of the answer checkers (rag/answer_gates.py, through answer_contract).
+
+Each test follows the same three steps:
+1. build fake evidence (a page text with an ID, like search would give) and a fake model reply
+   (the JSON draft: a status and claims citing units such as "E1.1");
+2. run parse_answer() on them, as the real answer step does;
+3. assert what the user would get: the status, the answer text, the sources.
+A good test here shows a draft the checkers must refuse (an invented number, a wrong citation)
+or must accept.
+"""
 import json
 import pytest
 from rag.answer_contract import parse_answer
 
 
+# One evidence record, shaped like rag/answer_draft.py evidence_records() makes them.
 EVIDENCE = [{"evidence_id": "E1", "source": "Cir_2020_03_fr.pdf", "page": 1,
              "score": 0.8, "text": "Objet : Les allocations pour voyages d'affaires."}]
 
 
 def draft(evidence_id="E1", unit=1):
+    """A model reply with one claim citing one unit; its "message" must never reach the user."""
     return {"status": "answered", "message": "UNTRUSTED FREE TEXT MUST NOT BE DISPLAYED",
             "claims": [{"text": "Elle concerne les allocations pour voyages d'affaires.",
                         "cites": [f"{evidence_id}.{unit}"]}]}

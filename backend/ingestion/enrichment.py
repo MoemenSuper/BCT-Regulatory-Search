@@ -1,10 +1,14 @@
-"""Background ingestion: index uploaded PDFs in batches, then visually read pending pages.
+"""The background worker: one thread that does all slow upload work while the app keeps answering.
 
-An upload only stores the PDF and queues it. This worker first indexes the queue, up to
-BCT_INGEST_BATCH PDFs per new asset version (one index rebuild per batch, not per PDF), so the
-PDFs become searchable from their text. Then it reads chart / scanned / garbled pages with the
-profile's visual backend (EasyOCR + PaddleOCR-VL locally, Gemini in cloud), one page at a time.
-It always yields to chat, and checkpoints in the ingestion registry, so a restart resumes.
+An upload only stores the PDF and queues it. This worker then:
+1. indexes the queue, up to BCT_INGEST_BATCH PDFs per new index version (one rebuild per batch,
+   not per PDF), so the PDFs become searchable from their text;
+2. reads the chart, scanned and garbled pages from their image (EasyOCR + PaddleOCR-VL locally,
+   Gemini in the cloud profile), one page at a time, and every few pages makes the readings live.
+
+Chat always comes first: while a question is being answered, the worker waits (Foreground), and
+a page being read is interrupted to free the GPU. Each page's result is saved in the ledger
+(registry.py), so a restart resumes where it stopped.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ def _memory_shortage() -> str | None:
 
 
 def _env_float(name: str, default: float) -> float:
+    """A number setting, or its default when unset or not a number."""
     try:
         return float(os.environ.get(name, default))
     except ValueError:
@@ -51,8 +56,9 @@ class Foreground:
         self._condition = threading.Condition()
         self.on_busy = None  # set by the worker: frees the GPU a page read is holding
 
-    @contextmanager
+    @contextmanager  # used as "with FOREGROUND.busy(): ..." around each chat request
     def busy(self):
+        """Mark a chat request as running for the duration of a with-block."""
         with self._condition:
             self._active += 1
         if self.on_busy is not None:
@@ -77,10 +83,12 @@ class Foreground:
         return time.monotonic() - started
 
 
-FOREGROUND = Foreground()
+FOREGROUND = Foreground()  # the one shared by the chat route and the worker
 
 
 class EnrichmentWorker:
+    """The worker thread: indexes the queue, then reads pending pages (see the top of the file)."""
+
     def __init__(self, config: IngestionConfig, *, on_activated=None, foreground: Foreground = FOREGROUND) -> None:
         self.config = config
         self.on_activated = on_activated
@@ -105,6 +113,7 @@ class EnrichmentWorker:
     # ---- lifecycle ----
 
     def start(self) -> None:
+        """Start the thread (once)."""
         if self._thread is not None:
             return
         self.foreground.on_busy = self._preempt
@@ -112,12 +121,14 @@ class EnrichmentWorker:
         self._thread.start()
 
     def stop(self, timeout: float = 30) -> None:
+        """Ask the thread to stop and wait for it (at shutdown)."""
         self._stop.set()
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout)
 
     def wake(self, *, reset_cooldown: bool = False) -> None:
+        """Wake the thread now (a new upload, a retry), optionally ending a pause after failures."""
         if reset_cooldown:
             self._cooldown_until = 0.0
         self._wake.set()
@@ -131,6 +142,7 @@ class EnrichmentWorker:
             kill()
 
     def snapshot(self) -> dict:
+        """What the worker is doing, for the admin screen (indexing, reading, waiting, paused...)."""
         state = dict(self._state)
         if state.get("state") == "waiting_for_memory":
             # Live numbers: the admin page shows the memory freed by closing programs at once.
@@ -144,6 +156,7 @@ class EnrichmentWorker:
         return state
 
     def _run(self) -> None:
+        """The thread's loop: index what is queued, else read pending pages, else sleep until woken."""
         registry = IngestionRegistry(self.config.registry_path)
         try:
             while not self._stop.is_set():
@@ -236,6 +249,7 @@ class EnrichmentWorker:
             raise NotEnoughMemory("server stopping")
 
     def _release_models(self) -> None:
+        """Unload the visual readers when there is nothing left to read (gives memory back)."""
         closer = getattr(self._transcriber, "close", None)
         if callable(closer):
             try:
@@ -247,6 +261,7 @@ class EnrichmentWorker:
     # ---- one document ----
 
     def enrich_document(self, registry: IngestionRegistry, job: dict) -> None:
+        """Read one PDF's pending pages, then make the readings live."""
         self._document = (str(job["content_sha256"]), str(job.get("original_filename") or ""))
         try:
             self._read_pages(registry, *self._document)
@@ -255,6 +270,8 @@ class EnrichmentWorker:
             self._open_breaker(f"{type(error).__name__}: {error}")
 
     def _read_pages(self, registry: IngestionRegistry, content_hash: str, filename: str) -> dict:
+        """Read the pending pages one by one, waiting for chat between pages, and make the readings
+        live every BCT_ENRICH_BATCH_PAGES pages or BCT_ENRICH_BATCH_SECONDS seconds."""
         import pymupdf
 
         known = registry.get(content_hash) or {}
@@ -326,6 +343,8 @@ class EnrichmentWorker:
 
     def _read_page(self, registry: IngestionRegistry, pdf, content_hash: str, plan: dict,
                    layout: dict) -> bool | None:
+        """Read one page and save the result. True when read, False when it failed, None when it
+        was interrupted for chat (it will be read again)."""
         page_number = int(plan["page_number"])
         started = time.monotonic()
         try:
@@ -355,6 +374,7 @@ class EnrichmentWorker:
         return True
 
     def _activate(self, content_hash: str) -> None:
+        """Rebuild this PDF's chunks with the readings so far and make a new version live."""
         self._state = {**self._state, "state": "activating"}
         pipeline = IngestionPipeline(self.config)
         try:

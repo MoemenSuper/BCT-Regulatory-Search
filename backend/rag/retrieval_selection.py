@@ -1,4 +1,12 @@
-"""Document identity and page diversity shared by retrieval backends."""
+"""Helpers both search engines (local and cloud) use around the reranker:
+
+1. Recognise circulars by name: in a filename ("Cir_2018_10_fr.pdf") and in a question
+   ("la circulaire 2018-10", "المنشور عدد 10 لسنة 2018").
+2. Reorder a ranked list: one result per page, named circulars first, "avant la circulaire X"
+   questions, named sections ("tableau IV-2").
+3. Build what the answer model reads: the whole page around each found chunk, plus a
+   neighbour page when a passage continues there.
+"""
 import re
 import unicodedata
 from pathlib import Path
@@ -7,21 +15,27 @@ from langchain_core.documents import Document
 
 from rag.source_metadata import normalize_page
 
+# The three Unicode blocks that hold Arabic letters; ARABIC matches any one of them.
 _ARABIC_RANGE = r"\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff"
 ARABIC = re.compile(f"[{_ARABIC_RANGE}]")
 
+# A BCT filename: kind (cir, note, ...), year, number, then the language. "Cir_2018_10_fr.pdf"
+# gives kind=cir, year=2018, number=10, language=fr. (?P<name>...) names a part of the match.
 _SOURCE_ID = re.compile(
     r"(?i)^(?P<kind>cir|note|cb|nb|ci)[_ -]?(?P<year>\d{4})"
     r"[_ -]?(?P<number>\d+).*?[_ -]?(?P<language>fr|ar)\.pdf$"
 )
 
 
+# The patterns below find a circular named in a question, each in one way of writing it.
+# A filename typed in the question: "Cir_2018_10".
 _FILENAME_QUERY_ID = re.compile(
     r"(?i)\b(?P<kind>cir|note|cb|nb|ci)[_ -](?P<year>\d{4})"
     r"[_ -](?P<number>\d+)(?:[_ -](?:fr|ar))?(?:\.pdf)?\b"
 )
 
 
+# French or English: "circulaire 2018-10", "circulaire n° 10 de 2018", "circular 2018/10".
 _FRENCH_QUERY_ID = re.compile(
     r"(?i)\b(?P<kind>circulaire|circular|note)\s+(?:BCT\s+)?"
     r"(?:(?:n(?:[°ºo])?\.?|numero|number)\s*)?"
@@ -30,7 +44,7 @@ _FRENCH_QUERY_ID = re.compile(
 )
 
 
-# "Selon YEAR-NUMBER" / "According to YEAR-NUMBER" — kind word optional after cite cue.
+# "Selon 2018-10" / "According to 2018-10": after such a word, the kind may be left out.
 _CITED_BARE_ID = re.compile(
     r"(?i)\b(?:selon|d['']apres|dapres|according\s+to)\s+"
     r"(?:(?:la\s+|the\s+)?(?P<kind>circulaire|circular|note)\s+)?"
@@ -40,6 +54,7 @@ _CITED_BARE_ID = re.compile(
 )
 
 
+# Arabic, the official form: "المنشور عدد 10 لسنة 2018" (circular number 10 of year 2018).
 _ARABIC_QUERY_ID = re.compile(
     r"(?P<kind>المنشور|منشور|المذكرة|مذكرة)\s*"
     r"(?:عدد|رقم)\s*(?P<number>\d+)\s*"
@@ -47,7 +62,7 @@ _ARABIC_QUERY_ID = re.compile(
 )
 
 
-# "حسب المنشور 2020-03" / "وفقا للمنشور عدد 2016-01" — year-number form.
+# Arabic with the year-number form: "حسب المنشور 2020-03", "وفقا للمنشور عدد 2016-01".
 _ARABIC_YEAR_NUMBER_ID = re.compile(
     r"(?P<kind>المنشور|منشور|المذكرة|مذكرة)\s*"
     r"(?:عدد|رقم)?\s*"
@@ -55,7 +70,7 @@ _ARABIC_YEAR_NUMBER_ID = re.compile(
 )
 
 
-# "حسب 2020-03" — cite cue without kind word (parallel to Selon YEAR-NUMBER).
+# Arabic "حسب 2020-03" (according to 2020-03), without the kind word, like "Selon 2018-10".
 _ARABIC_CITED_BARE_ID = re.compile(
     r"(?:حسب|وفقاً?|طبقاً?|بموجب)\s+"
     r"(?:(?P<kind>المنشور|منشور|المذكرة|مذكرة)\s+)?"
@@ -64,6 +79,7 @@ _ARABIC_CITED_BARE_ID = re.compile(
 )
 
 
+# A year alone ("publiée en 2019", "لسنة 2019"): a weaker hint, used only when no number is named.
 _FRENCH_YEAR = re.compile(
     r"(?i)\b(?:en|type|publiee?\s+en|emise?\s+en|adoptee?\s+en)"
     r"\s+(?P<year>(?:19|20)\d{2})\b"
@@ -75,6 +91,7 @@ _ARABIC_YEAR = re.compile(
 )
 
 
+# "la prochaine circulaire", "سيصدر": about a text that does not exist yet, so no year hint.
 _FUTURE = re.compile(
     r"(?i)\b(?:futur|future|prochain|prochaine|sera\s+publie)\b|"
     r"سيصدر|ستصدر|القادم|القادمة"
@@ -82,6 +99,7 @@ _FUTURE = re.compile(
 
 
 def _ascii_fold(text: str) -> str:
+    """Remove accents ("numéro" -> "numero") so the patterns need only one spelling."""
     return "".join(
         character
         for character in unicodedata.normalize("NFKD", text)
@@ -90,6 +108,7 @@ def _ascii_fold(text: str) -> str:
 
 
 def parse_source_identity(source: str) -> dict[str, Any] | None:
+    """{"kind", "year", "number", "language"} from a BCT filename, or None if it is not one."""
     filename = str(source).replace("\\", "/").rsplit("/", 1)[-1]
     match = _SOURCE_ID.match(filename)
     if not match:
@@ -103,7 +122,7 @@ def parse_source_identity(source: str) -> dict[str, Any] | None:
     }
 
 
-# Shared instrument-kind aliases for filename parsing.
+# Every way of naming a kind, mapped to the two kinds filenames use: "cir" (circular), "note".
 _KIND_ALIASES = {
     "cir": "cir",
     "ci": "cir",
@@ -122,6 +141,7 @@ _KIND_ALIASES = {
 def _query_identity(
     *, kind: str | None, year: str | int, number: str | int | None, reason: str
 ) -> dict[str, Any]:
+    """One identity dict, the same shape whichever pattern found it."""
     normalized_kind = kind.casefold() if kind is not None else None
     if normalized_kind is not None:
         normalized_kind = _KIND_ALIASES.get(normalized_kind, normalized_kind)
@@ -134,7 +154,9 @@ def _query_identity(
 
 
 def parse_query_identity(query: str) -> dict[str, Any] | None:
-    """Return only identity signals observable in the runtime query text."""
+    """The circular (or year) the question names, or None. The patterns are tried from the most
+    precise to the weakest; the first match wins."""
+    # Every kind of dash ("2018–10", "2018—10") becomes a plain hyphen first.
     query = query.translate(str.maketrans({character: "-" for character in "‐‑‒–—−"}))
     filename_match = _FILENAME_QUERY_ID.search(query)
     if filename_match:
@@ -215,6 +237,7 @@ def parse_query_identity(query: str) -> dict[str, Any] | None:
 
 
 def _identity_prefix(identity: dict[str, Any]) -> str:
+    """A label like "[document kind=cir; year=2018; number=10; language=fr]"."""
     return (
         f"[document kind={identity['kind']}; year={identity['year']}; "
         f"number={identity['number']}; language={identity['language']}]"
@@ -224,6 +247,8 @@ def _identity_prefix(identity: dict[str, Any]) -> str:
 def build_identity_reranker_documents(
     documents: list[Document], query_identity: dict[str, Any] | None
 ) -> list[Document]:
+    """When the question names a circular, put each chunk's own identity label in front of its
+    text, so the reranker can see which chunks come from the named circular."""
     if query_identity is None:
         return list(documents)
     reranker_documents = []
@@ -242,7 +267,8 @@ def build_identity_reranker_documents(
 
 
 def explicit_instrument_identity(query: str) -> dict[str, Any] | None:
-    """Kind+year+number only. Year-only signals are not hard retrieval anchors."""
+    """The named circular only when kind, year and number are all known (a year alone is too
+    vague to pull a document to the top)."""
     identity = parse_query_identity(query)
     if identity and identity.get("kind") and identity.get("number") is not None:
         return identity
@@ -250,6 +276,7 @@ def explicit_instrument_identity(query: str) -> dict[str, Any] | None:
 
 
 def source_matches_identity(source: str, identity: dict[str, Any]) -> bool:
+    """Is this PDF the named circular (same kind, year and number, any language)?"""
     source_identity = parse_source_identity(str(source))
     if not source_identity:
         return False
@@ -296,7 +323,8 @@ def prefer_named_instrument_hits(
     ranked: list[tuple[Document, float]],
     query_identity: dict[str, Any] | list[dict[str, Any]] | None,
 ) -> list[tuple[Document, float]]:
-    """Hard-anchor: explicitly named instrument(s) outrank docs that only mention them."""
+    """Chunks from the circular(s) the question names go first, before texts that only mention
+    them; the order inside each group stays the reranker's."""
     if not ranked or not query_identity:
         return ranked
     identities = (
@@ -323,19 +351,20 @@ def prefer_named_instrument_hits(
 
 
 def _instrument_year(document: Document) -> int:
+    """The year in the chunk's filename (0 if none)."""
     identity = parse_source_identity(str(document.metadata.get("source", "")))
     return int(identity["year"]) if identity else 0
 
 
-# "Avant la circulaire 2025-13" asks for the prior regime; "avant le 26 mars" or
-# "avant l'entrée en vigueur de 2026-04" asks for the named circular's own rules.
+# "Avant la circulaire 2025-13" asks for the rules before that circular (the prior regime);
+# "avant le 26 mars" or "avant l'entrée en vigueur de 2026-04" asks for the named circular's own rules.
 _HISTORICAL_QUERY = re.compile(
     r"(?i)(?:\b(?:avant|before)|قبل)\s+(?:(?:la|le|the)\s+)?"
     r"(?:(?:circulaire|circular|note|منشور)\s+)?(?:(?:n[°o.]?|عدد)\s*)?(?:19|20)\d{2}\s*[-/]\s*\d{1,3}"
     r"|\bancien\s+r[eé]gime\b|\bprevious\s+regime\b|النظام\s*السابق"
 )
-# "Engagement existant avant 2026-04": something done before the circular, i.e. its
-# transitional rule, not the prior regime.
+# "Engagement existant avant 2026-04": something done before the circular, so the question is
+# about that circular's transitional rule, not about the prior regime.
 _DONE_BEFORE = re.compile(
     r"(?i)\b(?:pris|existants?|conclus?|entam[eé]e?s?|ex[eé]cut[eé]e?s?|sign[eé]e?s?|made|signed|concluded)"
     r"\s+(?:\w+\s+){0,3}(?:avant|before)\b"
@@ -343,20 +372,21 @@ _DONE_BEFORE = re.compile(
 
 
 def is_historical_cutoff_query(query: str) -> bool:
-    """True when the query asks for the regime before a named instrument."""
+    """Does the question ask what applied before a named circular?"""
     raw = (query or "").translate(str.maketrans({character: "-" for character in "‐‑‒–—−"}))
     if _DONE_BEFORE.search(raw):
         return False
     return bool(_HISTORICAL_QUERY.search(raw) or _HISTORICAL_QUERY.search(_ascii_fold(raw)))
 
 
+# Any "2018-10" in the question, read as a circular when nothing says otherwise.
 _YEAR_NUMBER_TOKEN = re.compile(
     r"(?i)\b(?P<year>(?:19|20)\d{2})\s*[-/]\s*(?P<number>\d{1,3})\b"
 )
 
 
 def query_instrument_refs(query: str) -> list[dict[str, Any]]:
-    """All year-number instrument refs in the query (cir by default)."""
+    """Every circular the question names (a question can name several), without repeats."""
     query = query.translate(str.maketrans({character: "-" for character in "‐‑‒–—−"}))
     primary = explicit_instrument_identity(query)
     refs: list[dict[str, Any]] = []
@@ -385,13 +415,14 @@ def prefer_historical_hits(
     ranked: list[tuple[Document, float]],
     query: str,
 ) -> list[tuple[Document, float]]:
-    """'Avant 2025-13…' must not keep the named later instrument on top."""
+    """For "avant la circulaire 2025-13", move 2025-13's own pages after the others: the answer
+    must come from the texts that applied before it."""
     if not ranked or not is_historical_cutoff_query(query):
         return ranked
     named = query_instrument_refs(query)
     if not named:
         return ranked
-    # Demote instruments named after 'avant' / as the cutoff.
+    # The circulars named after "avant" are the cutoff: their pages go to the end.
     demote_keys = {(item["kind"], item["year"], item["number"]) for item in named}
     keep: list[tuple[Document, float]] = []
     demoted: list[tuple[Document, float]] = []
@@ -405,6 +436,7 @@ def prefer_historical_hits(
 
 
 def _page_key(document: Document) -> tuple[str, int]:
+    """(lower-case PDF path, page number): identifies a page (-1 when the page is unknown)."""
     metadata = document.metadata
     page = normalize_page(metadata)
     try:
@@ -429,10 +461,12 @@ def diversify_ranked_pages(
     return output
 
 def is_arabic_query(query: str) -> bool:
+    """Does the text contain any Arabic letter?"""
     return bool(ARABIC.search(query))
 
 
 def _chunk_order(document: Document) -> int:
+    """The chunk's position on its page (to put the pieces back in reading order)."""
     try:
         return int(document.metadata.get("chunk_index", document.metadata.get("flat_part", 0)) or 0)
     except (TypeError, ValueError):
@@ -440,6 +474,7 @@ def _chunk_order(document: Document) -> int:
 
 
 def _representation_page_key(document: Document):
+    """A page key that also tells apart the PDF's text ("native") from text read off an image."""
     return _page_key(document), document.metadata.get("representation")
 
 
@@ -466,8 +501,8 @@ def _chunks_for_ranked_hit(document: Document, pages: dict) -> list[Document] | 
     exact = pages.get(_representation_page_key(document))
     if exact:
         return exact
-    # Re-ingest may change representation (structured_baseline → native). Prefer
-    # the active page for the same source/page regardless of representation label.
+    # The ranked chunk may come from an older reading of the page (another "representation"):
+    # take the same page's current chunks, preferring the PDF's own text.
     page = _page_key(document)
     candidates = [chunks for key, chunks in pages.items() if key[0] == page]
     if not candidates:
@@ -484,11 +519,11 @@ def expand_ranked_pages(
     *,
     max_chars: int = 8000,
 ) -> list[tuple[Document, float]]:
-    """Give the answer layer the retrieved page, not only its best-scoring chunk.
+    """Give the answer step the page around each ranked chunk, not only the chunk.
 
-    Retrieval hit the right page; the answer may sit in a neighbouring chunk. The page
-    is rebuilt from the same indexed chunks (same trusted source/page metadata), growing
-    outward from the retrieved chunk until max_chars so long pages stay bounded.
+    Search found the right page, but the answer may sit in the next chunk of that page. The
+    page is rebuilt from its own indexed chunks, growing outward from the found chunk (one
+    chunk left, one right, ...) until max_chars, so very long pages stay bounded.
     """
     expanded = []
     for document, score in ranked:
@@ -508,9 +543,9 @@ def expand_ranked_pages(
         try:
             center = texts.index(document.page_content)
         except ValueError:
-            # Re-ingested page text no longer equals the ranked chunk; still
-            # feed the answer layer the active page (ranking metadata intact).
+            # The page was re-read since this chunk was ranked: grow from the page start instead.
             center = 0
+        # left..right is the window of chunks kept so far; widen it while it fits in max_chars.
         left, right, size = center, center, len(texts[center])
         while True:
             grew = False
@@ -540,7 +575,8 @@ def _page_document_from_index(
     max_chars: int = 8000,
     template: Document | None = None,
 ) -> Document | None:
-    """Rebuild one physical page from the index (same source only)."""
+    """Rebuild one page of a PDF from its indexed chunks (for a neighbour page). template is the
+    ranked chunk it neighbours: the new page copies its metadata, then its own page fields."""
     key = (str(source).casefold(), int(page_number))
     candidates = [chunks for (page_key, _repr), chunks in pages.items() if page_key == key]
     if not candidates:
@@ -577,10 +613,10 @@ def expand_adjacent_instrument_pages(
     max_total_extras: int = 3,
     max_chars: int = 8000,
 ) -> list[tuple[Document, float]]:
-    """Attach same-PDF neighbour pages (±1) when missing from the pack.
+    """Add the next (or previous) page of the same PDF when it is not already there.
 
-    Structural continuation only (same instrument, adjacent physical page). Prefer
-    the forward page (article lists often continue). Does not fetch other PDFs.
+    A rule often continues on the next page (an article's list, its exceptions). Only pages of
+    the same PDF are added, at most one per ranked page and max_total_extras in all.
     """
     if not ranked or not pages:
         return list(ranked or [])
@@ -604,7 +640,7 @@ def expand_adjacent_instrument_pages(
             )
             if neighbor_doc is None:
                 continue
-            extras.append((neighbor_doc, float(score) * 0.99))
+            extras.append((neighbor_doc, float(score) * 0.99))  # just below the page it continues
             present.add((source, neighbor))
             added += 1
     return list(ranked) + extras
@@ -616,6 +652,6 @@ def expand_answer_pages(
     *,
     max_chars: int = 8000,
 ) -> list[tuple[Document, float]]:
-    """Same-page chunk rebuild, then bounded same-instrument adjacent pages."""
+    """What the answer model reads: each ranked chunk grown to its page, then neighbour pages."""
     expanded = expand_ranked_pages(ranked, pages, max_chars=max_chars)
     return expand_adjacent_instrument_pages(expanded, pages, max_chars=max_chars)

@@ -9,6 +9,7 @@ from pathlib import Path
 
 @lru_cache(maxsize=1)
 def torch_device() -> str:
+    """"cuda", "mps", "xpu" or "cpu": the fastest device torch can use here (checked once)."""
     try:
         import torch
     except Exception:
@@ -24,6 +25,7 @@ def torch_device() -> str:
 
 @lru_cache(maxsize=1)
 def gpu_memory_gb() -> float:
+    """Total memory of the NVIDIA card in GB (0 without one)."""
     if torch_device() != "cuda":
         return 0.0
     import torch
@@ -50,6 +52,7 @@ def memory_gb() -> tuple[float, float] | None:
     (cgroup v2). Elsewhere psutil when installed. None when it cannot be read.
     """
     try:
+        # /proc/meminfo lines look like "MemAvailable:  8123456 kB"; 2**20 kB = 1 GB.
         info = {}
         for line in Path("/proc/meminfo").read_text().splitlines():
             name, value = line.split(":", 1)

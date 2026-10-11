@@ -1,3 +1,13 @@
+"""One chat turn, from the user's message to the reply: chat() at the bottom runs it.
+
+1. Route: the answer model reads the message with the conversation memory and decides what it
+   is: small talk, a new question, a follow-up ("Et en 2020 ?"), or too vague to search. For a
+   question it also writes a standalone search query, plus French and Arabic versions.
+2. Small talk is answered without searching; a vague message gets a clarifying reply.
+3. Otherwise: search (runtime_retrieval.py), keep the best pages, and ask answer_contract.py for
+   a grounded answer, which either passes every check or falls back to a list of results.
+4. Remember the turn (memory_state) so the next message can refer to it.
+"""
 import json
 from enum import Enum
 from rag.llm import PROVIDER_ERRORS, answer_provider, create_llm
@@ -25,6 +35,8 @@ from rag.query_currentness import (
 
 
 class RouteIntent(str, Enum):
+    """The four kinds of turn. A str Enum, so RouteIntent.FOLLOW_UP == "FOLLOW_UP" is True."""
+
     GENERAL_CHAT = "GENERAL_CHAT"
     NEW_TOPIC = "NEW_TOPIC"
     FOLLOW_UP = "FOLLOW_UP"
@@ -32,7 +44,9 @@ class RouteIntent(str, Enum):
 
 
 class MessageRoute(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    """The router's decision, validated: a reply missing a required field is rejected."""
+
+    model_config = ConfigDict(extra="forbid")  # an unknown field is an error, not ignored
 
     intent: RouteIntent
     rewrite_query: str | None = None
@@ -47,7 +61,7 @@ class MessageRoute(BaseModel):
     new_topic: str | None = None
     current_topic: str | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # runs after the fields are filled, to check them together
     def validate_retrieval_route(self):
         if self.intent in {RouteIntent.NEW_TOPIC, RouteIntent.FOLLOW_UP}:
             if not self.rewrite_query or not self.rewrite_query.strip():
@@ -60,9 +74,12 @@ class MessageRoute(BaseModel):
 
 
 def _ambiguous_route():
+    """The safe route when the router's reply cannot be used: ask the user to clarify."""
     return MessageRoute(intent=RouteIntent.AMBIGUOUS).model_dump(mode="json")
 
 
+# How a follow-up usually starts or what it contains ("Et en 2020 ?", "celle-ci"): used to catch
+# follow-ups the router misread as new questions.
 _FOLLOWUP_PREFIXES = (
     "et ",
     "and ",
@@ -92,6 +109,7 @@ _FOLLOWUP_MARKERS = (
 
 
 def _is_followup_fragment(message: str) -> bool:
+    """Does the message read like a fragment that continues the previous question?"""
     text = " ".join(str(message or "").casefold().split())
     if len(text) < 4:
         return False
@@ -101,6 +119,7 @@ def _is_followup_fragment(message: str) -> bool:
 
 
 def _prior_source_files(memory_state: MemoryState) -> list[str]:
+    """The PDFs the previous answer cited, without repeats."""
     turns = memory_state.get("turns") or []
     if not turns:
         return []
@@ -113,6 +132,7 @@ def _prior_source_files(memory_state: MemoryState) -> list[str]:
 
 
 def _prior_standalone_query(memory_state: MemoryState) -> str:
+    """The previous turn's search query (or its message when there was none)."""
     turns = memory_state.get("turns") or []
     if not turns:
         return ""
@@ -121,7 +141,7 @@ def _prior_standalone_query(memory_state: MemoryState) -> str:
 
 
 def _prefer_prior_turn_sources(results, memory_state: MemoryState):
-    """For FOLLOW_UP, surface the prior turn's PDF before unrelated corpus hits."""
+    """For a follow-up, results from the PDF the previous answer cited come first."""
     prior = {name.casefold() for name in _prior_source_files(memory_state)}
     if not prior or not results:
         return results
@@ -139,6 +159,7 @@ def _prefer_prior_turn_sources(results, memory_state: MemoryState):
     return preferred + other if preferred else results
 
 
+# Words that point at something ("cette opération", "pour ça") without naming it.
 _DEICTIC_MARKERS = (
     "cette opération",
     "cette operation",
@@ -158,7 +179,7 @@ _DEICTIC_MARKERS = (
 
 
 def _looks_like_unresolved_deictic(message: str) -> bool:
-    """Standalone messages that point at 'this/that' without naming the operation."""
+    """Does the message point at "this/that" without saying what it is?"""
     text = " ".join(str(message or "").casefold().split())
     if not text:
         return False
@@ -166,7 +187,8 @@ def _looks_like_unresolved_deictic(message: str) -> bool:
 
 
 def _normalize_route_payload(payload: dict, message: str) -> dict:
-    """Repair common local-LLM type mistakes before schema validation."""
+    """Fix the router's usual small mistakes before validation (empty strings, true instead of a
+    topic name, a missing topic), so one typo does not throw the whole turn away."""
     data = dict(payload)
     intent = str(data.get("intent") or "").strip().upper()
     data["intent"] = intent
@@ -194,6 +216,7 @@ def _normalize_route_payload(payload: dict, message: str) -> dict:
 
 
 def render_memory_state(memory_state: MemoryState) -> str:
+    """The memory as plain text for a prompt: the topics, then the last 4 turns with their sources."""
     topics = memory_state.get("topics", [])
     first_topic = memory_state.get("first_topic") or "None"
     current_topic = memory_state.get("current_topic") or "None"
@@ -302,6 +325,7 @@ def route_message(llm, message: str, memory_state: MemoryState) -> dict:
     ])
 
 
+    # "prompt | llm" (LangChain) fills the prompt with these values, then sends it to the model.
     chain = prompt | llm
     result = chain.invoke({
         "memory_text": render_memory_state(memory_state),
@@ -310,7 +334,7 @@ def route_message(llm, message: str, memory_state: MemoryState) -> dict:
 
     result = result.strip()
 
-    if result.startswith("```"):
+    if result.startswith("```"):  # the model wrapped its JSON in a ``` block: unwrap it
         result = result.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     try:
@@ -318,17 +342,19 @@ def route_message(llm, message: str, memory_state: MemoryState) -> dict:
         route = MessageRoute.model_validate(payload)
     except (json.JSONDecodeError, ValueError):
         return _ambiguous_route()
+    # A follow-up needs something to follow: no earlier turn means the reference cannot be resolved.
     if route.intent == RouteIntent.FOLLOW_UP and not (
         memory_state.get("turns") or memory_state.get("current_topic")
     ):
         return _ambiguous_route()
+    # Several topics and no current one: "it" could mean any of them.
     if (
         route.intent == RouteIntent.FOLLOW_UP
         and len(memory_state.get("topics", [])) > 1
         and not memory_state.get("current_topic")
     ):
         return _ambiguous_route()
-    # Deictic regulatory asks with no prior turn must clarify, not greet.
+    # "pour cette opération ?" with nothing before it: ask what operation, do not small-talk.
     if (
         route.intent == RouteIntent.GENERAL_CHAT
         and _looks_like_unresolved_deictic(message)
@@ -361,8 +387,8 @@ def route_message(llm, message: str, memory_state: MemoryState) -> dict:
 def search_wordings(route: dict, message: str) -> tuple[str, list[str]]:
     """The query to search with, and the other wordings searched at the same time:
     - the user's own words for a new question, because a rewrite can add a detail the user
-      never said (it once searched for the governor of "la Banque Centrale du Togo");
-      a follow-up ("Et en 2023 ?") only makes sense through its rewrite;
+      never said (a country, an institution); a follow-up ("Et en 2023 ?") only makes sense
+      through its rewrite;
     - the same search in French and Arabic, the languages of the documents, so an English
       question finds a French circular and an Arabic question a French statistics report;
     - the answer sketch, a sentence phrased like the text that would answer.
@@ -386,6 +412,7 @@ def update_memory_state(
     sources=None,
     answer_status=None,
 ) -> MemoryState:
+    """The memory after this turn: the topic list updated, the turn added, the last 6 turns kept."""
     topics = list(memory_state.get("topics", []))
     first_topic = memory_state.get("first_topic")
     current_topic = memory_state.get("current_topic")
@@ -423,6 +450,8 @@ def update_memory_state(
 
 
 def _answer_memory(memory_state: MemoryState, route: dict) -> MemoryState:
+    """The memory the answer step may see. A new question gets none of the earlier turns, so
+    facts from an earlier answer cannot leak into this one."""
     if route.get("intent") != RouteIntent.NEW_TOPIC:
         return memory_state
     topic = route.get("new_topic") or route.get("current_topic")
@@ -435,6 +464,7 @@ def _answer_memory(memory_state: MemoryState, route: dict) -> MemoryState:
 
 
 def _prefer_later_instrument_evidence(results):
+    """Newest circulars first (by the year in their filename), then by score."""
     return sorted(
         results,
         key=lambda item: (_instrument_year(item[0]), float(item[1])),
@@ -448,8 +478,10 @@ def _answer_results(
     prefer_later_instruments=False,
     query=None,
 ):
+    """Order the pages the answer step will read: newest first for "now / in force" questions,
+    then the named circular, then the named section."""
     # No cut here: the caller passes the top 5 pages and their neighbour pages (an article or a
-    # table that continues on the next page); cutting back to 5 used to drop every neighbour.
+    # table that continues on the next page); cutting back to 5 would drop every neighbour.
     ordinary = list(reranked_results)
     if prefer_later_instruments:
         ordinary = _prefer_later_instrument_evidence(ordinary)
@@ -462,7 +494,8 @@ def _answer_results(
 
 
 def general_chat_reply(llm, message: str, memory_state: MemoryState) -> dict:
-    """No-retrieval assistant reply for greetings, help, and conversation summary."""
+    """A reply without searching, for greetings, "what can you do", or "what did we discuss".
+    Returns {"retrieve": True} when the message turns out to need a search after all."""
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are the assistant for BCT Regulatory Search at the Banque Centrale de Tunisie
 (Central Bank of Tunisia). Never invent another country or institution.
@@ -511,6 +544,7 @@ def chat(
     retrieval_backend,
     llm_provider=None,
 ):
+    """Run one chat turn and return the reply: answer, sources, status, and the updated memory."""
     llm = create_llm(llm_provider or answer_provider())
     route = route_message(llm, message, memory_state)
 
@@ -545,6 +579,7 @@ def chat(
 
     # 2. Search with the standalone query, then write a grounded answer.
     search_query, other_queries = search_wordings(route, message)
+    # A "what applies now / at that date" question: the answer must not claim a rule is in force.
     temporal_unverified = is_temporal_rule_query(message) or is_temporal_rule_query(
         search_query
     )
@@ -558,8 +593,8 @@ def chat(
     reranked_results = retrieval_backend.retrieve(search_query, other_queries=other_queries)
     if route["intent"] == RouteIntent.FOLLOW_UP:
         reranked_results = _prefer_prior_turn_sources(reranked_results, memory_state)
-    # Retrieval is scored per chunk; the answer layer reads the whole retrieved page
-    # so a fact in a neighbouring chunk is not lost. Order and citations are unchanged.
+    # Search ranks chunks; the answer step reads the whole page of the top 5, so a fact in the next
+    # chunk of that page is not lost. Order and citations are unchanged.
     expand_pages = getattr(retrieval_backend, "expand_pages", None)
     answer_candidates = reranked_results[:5]
     if expand_pages is not None:
@@ -594,8 +629,7 @@ def chat(
         refusal_reason = format_refusal_reason(status, diagnostics)
         # insufficient_evidence keeps its short message without pages: nothing retrieved answers.
         if status == "search_results":
-            # Search fallback preserves ordinary retrieval order, even when answer
-            # context was reordered for currentness.
+            # The fallback list shows the search order as it was, before any reordering for the answer.
             generated = search_response(message, evidence_records(reranked_results[:5]))
     answer = generated["answer"]
     sources = generated["sources"]

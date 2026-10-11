@@ -1,4 +1,7 @@
-"""Cloud profile retrieval: persisted Voyage Context-4 vectors + live query embed/rerank."""
+"""Search for the cloud profile: the same steps as rag/runtime_retrieval.py, with Voyage instead of
+the local models. The chunks' vectors were computed once (the cloud index, built from the admin
+screen) and are loaded from disk; each question is embedded and reranked through Voyage's API.
+Keyword search (BM25) still runs locally."""
 
 from __future__ import annotations
 
@@ -69,6 +72,7 @@ class VoyageRetrievalBackend:
         return expand_answer_pages(ranked, self._pages)
 
     def _embed(self, text):
+        """The question's vector, scaled to length 1."""
         vector = np.asarray(self.client.embed_query(text), dtype=np.float32)
         return vector / max(float(np.linalg.norm(vector)), 1e-12)
 
@@ -216,6 +220,7 @@ def load_voyage_backend(
 
 
 def create_voyage_backend_from_environment():
+    """The cloud search engine for the live index (the paths come from configure_runtime_assets)."""
     names = {
         "BCT_VOYAGE_PROVIDER_ROOT": os.environ.get("BCT_VOYAGE_PROVIDER_ROOT"),
         "BCT_NATIVE_CHUNKS_PATH": os.environ.get("BCT_NATIVE_CHUNKS_PATH"),

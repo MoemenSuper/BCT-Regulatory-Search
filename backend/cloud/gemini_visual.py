@@ -1,3 +1,11 @@
+"""Reading page images with Gemini (Google's vision model): the cloud profile's page reader, the
+counterpart of ingestion/local_visual.py.
+
+Each page image is sent with instructions (_PROMPT) asking for a faithful transcription in a fixed
+JSON format (ingestion/models.py VisualPage). Readings are saved on disk, keyed by the page image
+and the exact settings used, so a page is never paid for twice. On a quota or network error the
+reader tries the next model of DEFAULT_MODEL_CHAIN, and the next API key.
+"""
 from __future__ import annotations
 
 import base64
@@ -11,10 +19,10 @@ from pathlib import Path
 from ingestion.models import VisualPage
 
 
-PROMPT_VERSION = "bct-faithful-page-transcription-v3-charts"
+PROMPT_VERSION = "bct-faithful-page-transcription-v3-charts"  # change it when _PROMPT changes
 DEFAULT_MODEL = "gemini-3.8-flash"
 FALLBACK_MODEL = "gemini-3.6-flash"
-# Tried in order on quota/timeout/transient failure. Extraction quality, not model bake-off.
+# Tried in order on quota, timeout or network failure.
 DEFAULT_MODEL_CHAIN = (
     "gemini-3.8-flash",
     "gemini-3.7-flash",
@@ -48,6 +56,7 @@ Rules for `items`:
 Set `complete=true` only when all visible text and chart labels on the page were inspected and represented. Prefer explicit uncertainty over guessing."""
 
 def _configuration(model: str) -> dict[str, object]:
+    """Everything that changes a reading (model, prompt version, settings): part of the cache key."""
     return {
         "provider": "Google Gemini API",
         "model": model,
@@ -58,11 +67,13 @@ def _configuration(model: str) -> dict[str, object]:
 
 
 def _configuration_hash(model: str) -> str:
+    """A fingerprint of _configuration: a new prompt or model makes old readings count as missing."""
     encoded = json.dumps(_configuration(model), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _gemini_keys() -> list[str]:
+    """GEMINI_API_KEY and GEMINI_API_KEY_2 ... _15, without repeats."""
     keys = []
     for name in ("GEMINI_API_KEY", *(f"GEMINI_API_KEY_{n}" for n in range(2, 16))):
         value = (os.environ.get(name) or "").strip()
@@ -72,6 +83,7 @@ def _gemini_keys() -> list[str]:
 
 
 def _quota_exhausted(error: BaseException) -> bool:
+    """Is this a "too many requests / quota used up" error (worth another key or model)?"""
     text = str(error)
     return any(token in text for token in ("429", "RESOURCE_EXHAUSTED", "quota", "rate-limit", "too_many_requests"))
 
@@ -95,6 +107,7 @@ def _key_unusable(error: BaseException) -> bool:
 
 
 def _transient_network(error: BaseException) -> bool:
+    """Is this a passing network error (worth a retry)?"""
     text = str(error).casefold()
     return any(
         token in text
@@ -180,6 +193,7 @@ def gemini_json_from_image(
     timeout = float(os.environ.get("BCT_GEMINI_TIMEOUT_SECONDS", "120"))
 
     def _try_model(active_model: str) -> tuple[str, object] | None:
+        """One model, every key in turn; None when they all failed."""
         nonlocal last_error
         sweeps = 1 if injected else 2
         for sweep in range(sweeps):
@@ -302,6 +316,7 @@ class GeminiVisualTranscriber:
             return VisualPage.model_validate(cached["response"])
 
         def _rotate(client, index):
+            """Remember which key worked, to start with it next time."""
             self._client = client
             print(f"gemini key rotated to slot {index + 1}", flush=True)
 

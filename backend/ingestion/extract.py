@@ -1,3 +1,14 @@
+"""Reading a PDF: every page becomes text and blocks (PdfExtractor.extract).
+
+For each page:
+1. Docling gives the layout: the blocks in reading order, with their kind (heading, table,
+   list...), and the boxes that hold images.
+2. The text comes from the PDF itself where it has a text layer.
+3. Where it does not (a scan, a garbled Arabic font, a chart), the page or just the image boxes
+   are read visually (local_visual.py), now or later in the background.
+4. classify_blocks() then labels each block (heading, article, table...) and tracks which
+   section it sits under, for the chunk headers.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +26,7 @@ from .models import Block, Page, StructuredDocument
 from .quality import arabic_character_ratio, assess_page_quality, contains_sensitive_literals
 
 
-# Cap rendered page images so large statistical PDFs do not OOM the API process.
+# Cap rendered page images so large statistical PDFs do not run the server out of memory.
 _MAX_RENDER_EDGE_PX = float(os.environ.get("BCT_PAGE_RENDER_MAX_EDGE", "1600"))
 _MAX_RENDER_PIXELS = float(os.environ.get("BCT_PAGE_RENDER_MAX_PIXELS", str(3_500_000)))
 
@@ -24,6 +35,7 @@ def render_page_png(page, *, preferred_scale: float = 2.0, clip=None) -> bytes:
     """Rasterize a PDF page, or one region of it (``clip``), for visual reading with a hard pixel budget."""
     import pymupdf
 
+    # Scale 2 = twice the PDF's own size (sharper for reading), reduced to fit the pixel budget.
     rect = pymupdf.Rect(clip) if clip is not None else page.rect
     width = max(float(rect.width), 1.0)
     height = max(float(rect.height), 1.0)
@@ -32,7 +44,7 @@ def render_page_png(page, *, preferred_scale: float = 2.0, clip=None) -> bytes:
     if pixels > _MAX_RENDER_PIXELS:
         scale *= (_MAX_RENDER_PIXELS / pixels) ** 0.5
     scale = max(0.35, float(scale))
-    for attempt in (scale, scale * 0.6, 0.35):
+    for attempt in (scale, scale * 0.6, 0.35):  # if rendering fails, retry smaller
         attempt = max(0.25, float(attempt))
         try:
             pixmap = page.get_pixmap(matrix=pymupdf.Matrix(attempt, attempt), clip=rect if clip is not None else None, alpha=False)
@@ -51,10 +63,12 @@ def render_page_png(page, *, preferred_scale: float = 2.0, clip=None) -> bytes:
     raise RuntimeError("page render failed")
 
 
+# Lines that open a legal structure: "Article 3 :", "CHAPITRE II", "الفصل 5", "الباب الأول".
 _ARTICLE_FR = re.compile(r"^\s*(Article\s+(?:premier|1er|\d+(?:\s*(?:bis|ter|quater))?)(?:\s*\([^)]*\))?)\s*[:\-–—]?\s*(.*)$", re.I)
 _HEADING_FR = re.compile(r"^\s*((?:TITRE|CHAPITRE|SECTION|SOUS[-\s]?SECTION|ANNEXE)\b.*)$", re.I)
 _ARTICLE_AR = re.compile(r"^\s*((?:الفصل|فصل|المادة|مادة)\s+(?:[\d٠-٩]+|الأول(?:ى)?|الثاني(?:ة)?|الثالث(?:ة)?))\s*[:\-–—]?\s*(.*)$", re.I)
 _HEADING_AR = re.compile(r"^\s*((?:العنوان|الباب|القسم|الجزء|الفرع|الملحق|ملحق)\b.*)$", re.I)
+# "- ", "1. ", "a) " ...: a list item.
 _LIST = re.compile(r"^\s*(?:[-•▪◦]|\d+[.)]|[أ-ي][.)])\s+")
 # A table's own title: "III -2-A. LES RESSOURCES ...", "IV-2. SITUATION ...", "Tableau 4-2 : ...".
 _TABLE_TITLE = re.compile(r"^\s*(?:[IVXLC]{1,6}\s?-\s?\d{1,3}(?:\s?-\s?[A-Z])?|tableau\s+(?:n\s*°\s*)?[\w.-]+)\s*[.:)\-–]", re.I)
@@ -64,6 +78,9 @@ _FORMULA = re.compile(r"^\s*(?:d[ée]cide\b|le gouverneur de la banque centrale|
 
 @dataclass
 class Hierarchy:
+    """The section the reader is in while going through the PDF: the current headings (kept
+    shallow: the latest article or section), and the page where that section started."""
+
     headings: list[str]
     since: int = 0  # page where the current section started
 
@@ -87,8 +104,8 @@ class Hierarchy:
         heading = (_HEADING_AR if language == "ar" else _HEADING_FR).match(normalized)
         if heading:
             value = heading.group(1).strip()
-            # Keep the hierarchy intentionally shallow. Retrieval experiments did not
-            # justify a large legal-structure parser.
+            # Kept shallow on purpose: a new title replaces the old ones. A full legal-structure
+            # parser (title > chapter > section > article) did not improve search.
             self.headings = [value]
             return "heading"
         if kind == "heading" and not _FORMULA.match(normalized):  # a report chapter, "Objet : ..."
@@ -103,6 +120,7 @@ class Hierarchy:
 
 
 def _is_article(text: str, language: str) -> bool:
+    """Does this heading name an article?"""
     return bool((_ARTICLE_AR if language == "ar" else _ARTICLE_FR).match(text))
 
 
@@ -111,8 +129,9 @@ def classify_blocks(
     language: str,
     hierarchy: Hierarchy | None = None,
 ) -> Hierarchy:
-    """Classify one ordered block sequence while optionally carrying state across pages.
-    Block texts stay verbatim: the chunker cuts the page text along them."""
+    """Label each block of a page (heading, article, table...) and record the headings it sits
+    under. Pass the returned hierarchy to the next page: a section continues across pages.
+    Block texts are never changed: the chunker cuts the page text along them."""
     hierarchy = hierarchy or Hierarchy([])
     for block in blocks:
         before = list(hierarchy.headings)
@@ -125,6 +144,7 @@ def classify_blocks(
 
 
 def sha256_file(path: str | Path) -> str:
+    """The file's SHA-256 fingerprint, read 1 MB at a time: it identifies a PDF by its content."""
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -133,6 +153,7 @@ def sha256_file(path: str | Path) -> str:
 
 
 def detect_document_language(filename: str, texts: list[str]) -> str:
+    """"ar" or "fr": from the filename's _ar / _fr ending, else from the first pages' letters."""
     stem = Path(filename).stem.casefold()
     if stem.endswith("_ar"):
         return "ar"
@@ -163,6 +184,7 @@ def repair_lam_alef(chars: list[dict]) -> str:
 
 
 def _native_blocks(page, page_number: int) -> list[Block]:
+    """Blocks straight from the PDF text layer (PyMuPDF), used when Docling found none."""
     blocks: list[Block] = []
     for raw in page.get_text("rawdict", sort=True)["blocks"]:
         if raw.get("type", 0) != 0:
@@ -185,6 +207,7 @@ def _native_blocks(page, page_number: int) -> list[Block]:
 
 
 def _text_blocks(text: str, page_number: int, *, extraction_method: str) -> list[Block]:
+    """Plain text cut into blocks at blank lines (or at every line when there are none)."""
     pieces = [piece.strip() for piece in text.replace("\r\n", "\n").split("\n\n") if piece.strip()]
     if len(pieces) <= 1:
         pieces = [piece.strip() for piece in text.splitlines() if piece.strip()]
@@ -200,17 +223,18 @@ def _text_blocks(text: str, page_number: int, *, extraction_method: str) -> list
 
 
 def _visual_enabled() -> bool:
+    """Is any visual reader configured (not "off")?"""
     from .local_visual import visual_backend_name
 
     return visual_backend_name() != "off"
 
 
 def _whole_page_plan(*, language: str, native_text: str, requires_fallback: bool) -> bool:
-    """Whether to read the whole page visually. The text layer is primary; the whole page is read
-    when it cannot stand on its text layer (scanned / empty / garbled digits), and for Arabic when
-    it holds numbers or dates: older Arabic PDFs often garble them, and that reading feeds the
-    Arabic visual index (measured: 93.3% vs 90.4% right page in the top 5 without it).
-    Images inside a readable page are image regions instead."""
+    """Whether to read the whole page visually. The text layer comes first; the whole page is read
+    when it cannot stand on its text layer (scanned, empty, garbled digits), and for Arabic pages
+    that hold numbers or dates: older Arabic PDFs often garble them, and the visual reading feeds
+    the Arabic search index (measured: it helps the right page reach the top 5).
+    Images inside a readable page are read as image regions instead."""
     if not _visual_enabled():
         return False
     return requires_fallback or (language == "ar" and contains_sensitive_literals(native_text))
@@ -246,6 +270,7 @@ def read_page_visual(transcriber, page, *, content_hash: str, page_number: int, 
     return ImageRegions(texts=texts, complete=complete)
 
 
+# Saved layouts carry this version; a saved layout with another version is computed again.
 _LAYOUT_VERSION = "docling-hybrid-v7"  # v7: Docling labels kept (headings, tables, lists)
 
 
@@ -259,11 +284,13 @@ def _text_item(item) -> tuple[str, str] | None:
 
 
 def _is_region(item) -> bool:
+    """Is this layout item an image box ({"image": box}) rather than text?"""
     return isinstance(item, dict) and "image" in item
 
 
 def load_layout(path: Path, cache: Path | None) -> dict[int, list]:
-    """Docling layout per page: block texts, and {"image": box} for boxes to read visually."""
+    """Docling layout per page: block texts, and {"image": box} for boxes to read visually.
+    Saved in `cache` (Docling is slow), and reused while its version matches."""
     import json
 
     if cache is not None and cache.is_file():
@@ -279,13 +306,14 @@ def load_layout(path: Path, cache: Path | None) -> dict[int, list]:
 
 
 def page_regions(layout: dict[int, list], page_number: int) -> list:
+    """The image boxes of one page."""
     return [item["image"] for item in layout.get(page_number, []) if _is_region(item)]
 
 
 class PdfExtractor:
-    """Page-preserving extraction: Docling layout + PDF text layer, visual reading where it has no text.
+    """Reads a PDF page by page: Docling layout + PDF text layer, visual reading where it has no text.
 
-    Visual backend is injected (Gemini for cloud; EasyOCR/PaddleOCR-VL for local).
+    The visual reader is given from outside: Gemini (cloud profile) or EasyOCR + PaddleOCR-VL (local).
     """
 
     def __init__(self, *, visual_transcriber=None, visual_model: str | None = None) -> None:
@@ -322,6 +350,7 @@ class PdfExtractor:
             if pdf.page_count > max_pages:
                 raise ValueError(f"PDF exceeds the configured page limit ({max_pages})")
 
+            # First pass: each page's blocks and text from the layout and the text layer.
             layout = load_layout(path, layout_cache)
             native_by_page: list[tuple[list[Block], str, list]] = []
             for index in range(pdf.page_count):
@@ -342,6 +371,7 @@ class PdfExtractor:
                 ordered = items if texts else [block.text for block in blocks] + [i for i in items if _is_region(i)]
                 native_by_page.append((blocks, text, ordered))
 
+            # Second pass: judge each page, read visually what needs it, and build the final pages.
             language = detect_document_language(path.name, [text for _blocks, text, _ordered in native_by_page])
             pages: list[Page] = []
             visual_count = 0
@@ -367,6 +397,7 @@ class PdfExtractor:
                 visual_error = None
                 visual_pending = False
                 if should_visualize and deferred:
+                    # Deferred mode: take an earlier reading if there is one, else mark the page pending.
                     known = visual_results.get(page_number)
                     if known is None:
                         visual_pending = True
@@ -390,6 +421,8 @@ class PdfExtractor:
 
                 whole_visual = visual if isinstance(visual, VisualPage) else None
                 region_visual = visual if isinstance(visual, ImageRegions) else None
+                # The visual reading replaces the page text only when the text layer was unusable
+                # and the reading is complete.
                 use_visual_as_primary = bool(
                     (quality.requires_fallback or digits_unreliable)
                     and whole_visual is not None
@@ -416,6 +449,7 @@ class PdfExtractor:
                     if still_unreliable:
                         flags.append(f"visual_digits_unreliable:{still_unreliable}")
                 else:
+                    # Keep the text layer, and put each image box's reading back at its place.
                     region_texts = list(region_visual.texts) if region_visual is not None else []
                     chosen_blocks, position = [], 0
                     for item in ordered:

@@ -1,10 +1,12 @@
-"""Shared helpers for source page numbers and PDF filenames."""
+"""Two small helpers shared by search and answers: the page number of a chunk, and a PDF filename
+made safe to use as a path (no folders, no control characters, must end in .pdf)."""
 
 from pathlib import Path
 
 
 def normalize_page(metadata):
-    label = metadata.get("page_label")
+    """The page number to show and cite, counting from 1 (None if the chunk has no page)."""
+    label = metadata.get("page_label")  # the page number printed on the page, when known
     if label is not None:
         try:
             return int(label)
@@ -13,8 +15,8 @@ def normalize_page(metadata):
     page = metadata.get("page")
     if type(page) is not int:
         return None
-    # StructuredDocument chunks record physical PDF pages starting at one.
-    # Legacy PyPDF/Chroma documents instead store a zero-based page index.
+    # Chunks from today's ingestion (they have "pages") already count from 1. Older chunks made
+    # with PyPDF counted from 0, so they get +1.
     return page if "pages" in metadata else page + 1
 
 
@@ -25,6 +27,8 @@ def safe_pdf_filename(
     ensure_pdf_suffix: bool = False,
     max_length: int = 240,
 ) -> str:
+    """name reduced to a bare PDF filename, or ValueError if it cannot be made safe."""
+    # Path(...).name drops any folder part, so "../../etc/x.pdf" becomes "x.pdf".
     value = Path(name).name.strip().replace("\x00", "")
     if not value or value in {".", ".."}:
         raise ValueError("Invalid PDF filename")

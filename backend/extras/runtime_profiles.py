@@ -1,4 +1,12 @@
-"""Coherent runtime profiles for the interactive BCT application."""
+"""The three profiles: which search engine and which answer model the app uses.
+
+- local_hybrid (default): search on this server (e5 + BM25 + reranker), answers by a cloud model.
+- cloud: search by Voyage's API, answers by a cloud model.
+- local: search and answers on this server (Ollama).
+
+RuntimeProfileManager builds each search engine the first time it is needed and rebuilds the
+local one after an upload changes the index.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +17,8 @@ from typing import Any, Callable
 
 
 class RuntimeProfile(str, Enum):
+    """A profile's name, as stored in the settings."""
+
     LOCAL = "local"
     LOCAL_HYBRID = "local_hybrid"
     CLOUD = "cloud"
@@ -16,6 +26,8 @@ class RuntimeProfile(str, Enum):
 
 @dataclass(frozen=True)
 class ProfileSpec:
+    """How a profile is shown and what it uses ("api" answer = the model the admin chose)."""
+
     value: RuntimeProfile
     label: str
     retrieval: str
@@ -65,12 +77,15 @@ PROFILE_SPECS = {
 
 @dataclass(frozen=True)
 class ProfileRuntime:
+    """A profile ready to answer: its search engine and its answer model's name."""
+
     spec: ProfileSpec
     retrieval_backend: Any
     answer_provider: str
 
 
 def parse_profile(value: RuntimeProfile | str) -> RuntimeProfile:
+    """"cloud" -> RuntimeProfile.CLOUD; an unknown name raises ValueError listing the choices."""
     if isinstance(value, RuntimeProfile):
         return value
     try:
@@ -83,6 +98,7 @@ def parse_profile(value: RuntimeProfile | str) -> RuntimeProfile:
 
 
 def profile_options() -> list[dict[str, str]]:
+    """Every profile as plain data, for the Configuration screen."""
     return [
         {
             "value": spec.value.value,
@@ -113,6 +129,7 @@ class RuntimeProfileManager:
         self._lock = Lock()
 
     def get(self, value: RuntimeProfile | str) -> ProfileRuntime:
+        """The search engine and answer model for this profile (building the engine if needed)."""
         profile = parse_profile(value)
         spec = PROFILE_SPECS[profile]
         if profile is RuntimeProfile.CLOUD:

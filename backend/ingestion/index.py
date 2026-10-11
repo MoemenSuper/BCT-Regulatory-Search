@@ -1,3 +1,19 @@
+"""The index on disk, and how a new version of it goes live without ever breaking the old one.
+
+The index folder (the "asset root") looks like this:
+    ACTIVE.json              which version is live
+    versions/<id>/           one complete copy of the corpus per version:
+        native.jsonl             every chunk, one JSON line each
+        arabic_ocr_secondary.jsonl   the Arabic text read from page images
+        snapshot.json            counts, the Chroma collection names, what this version changed
+        supersession_edges.jsonl  which circular replaced which
+    local_chroma/            the Chroma database (one pair of collections per version)
+
+Adding or removing a PDF never edits the live version. stage_assets() builds a full new version
+next to it, stage_local_collections() builds its Chroma collections, and only when all of that
+succeeded does activate_assets() switch ACTIVE.json to it ("staged activation"). A failure at any
+step leaves the old version live.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -19,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_active_assets(root: str | Path) -> Path:
+    """The live version's folder, read from ACTIVE.json (the root itself when there is none).
+    The pointer must stay inside the root: a ".." or absolute path is refused."""
     root = Path(root).resolve()
     pointer = root / "ACTIVE.json"
     if not pointer.exists():
@@ -28,12 +46,14 @@ def resolve_active_assets(root: str | Path) -> Path:
     if relative.is_absolute() or ".." in relative.parts:
         raise ValueError("Invalid runtime asset pointer")
     active = (root / relative).resolve()
-    active.relative_to(root)
+    active.relative_to(root)  # raises ValueError if the resolved path left the root
     return active
 
 
 def configure_runtime_assets(asset_root: str | Path, *, validate: bool = False) -> Path:
-    """Point process env at the active asset version (shared by run_api + post-ingest refresh)."""
+    """Tell the rest of the app where the live index is, through environment variables (the
+    chunk files, the Chroma folder and collection names). Called at startup and after each new
+    version goes live. Returns the live version's folder."""
     asset_root = Path(asset_root).resolve()
     active = resolve_active_assets(asset_root)
     if validate:
@@ -41,7 +61,7 @@ def configure_runtime_assets(asset_root: str | Path, *, validate: bool = False) 
             if not (active / filename).is_file():
                 raise ValueError(f"Missing runtime asset: {active / filename}")
     snapshot = json.loads((active / "snapshot.json").read_text(encoding="utf-8"))
-    # Legacy Codex snapshots are a list; versioned ingestion snapshots are dicts.
+    # Very old snapshots were a list; today's are a dict.
     meta = snapshot if isinstance(snapshot, dict) else {}
     os.environ.update(
         {
@@ -63,7 +83,9 @@ def configure_runtime_assets(asset_root: str | Path, *, validate: bool = False) 
 
 
 def _resolve_local_chroma_db(recorded: object, *, asset_root: Path, active: Path) -> Path | None:
-    """Prefer a real on-disk Chroma path; remap absolute bake-time paths after Docker seed."""
+    """The Chroma folder of this index. The path saved in the snapshot may be from another machine
+    (the index is built on a laptop, then copied into Docker), so the usual places inside the index
+    folder are tried too."""
     if not recorded:
         fallback = asset_root / "local_chroma"
         return fallback.resolve() if fallback.is_dir() else None
@@ -81,6 +103,7 @@ def _resolve_local_chroma_db(recorded: object, *, asset_root: Path, active: Path
 
 
 def _jsonl(path: Path, documents: list[Document]) -> None:
+    """Write chunks to a JSONL file: one {"page_content", "metadata"} object per line."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for document in documents:
@@ -105,6 +128,7 @@ def _keep_indices(documents: list[Document], source_keys: set[str]) -> list[int]
 
 
 def _read_active(active: Path, filename: str) -> list[Document]:
+    """The chunks of one file of the live version (none if the file does not exist)."""
     path = active / filename
     return _read_chunks(path) if path.exists() else []
 
@@ -133,6 +157,7 @@ def stage_assets(
     sources = ", ".join(source_filenames)
 
     def merged(filename, new_docs):
+        """The live chunks minus those of the PDFs being replaced, plus the new ones."""
         old = _read_active(active, filename)
         return [old[index] for index in _keep_indices(old, source_keys)] + list(new_docs)
 
@@ -143,9 +168,9 @@ def stage_assets(
             f"Ingestion of {sources!r} produced no native searchable chunks "
             "(and the active corpus has none either)"
         )
-    # Arabic visual/OCR secondary may stay empty for French-first corpora.
-    # An empty secondary is valid; retrieval simply skips OCR fusion.
+    # The Arabic image-text file may be empty (no Arabic scans yet): search then skips it.
 
+    # A version id sorts by time: 20261009T212850Z-<hash start>-<random>.
     version_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{content_sha256[:10]}-{uuid.uuid4().hex[:6]}"
     versions = root / "versions"
     versions.mkdir(parents=True, exist_ok=True)
@@ -193,7 +218,7 @@ def stage_assets(
             )
         (staging / "snapshot.json").write_text(json.dumps(snapshot, indent=2, sort_keys=True), encoding="utf-8")
         final = versions / version_id
-        os.replace(staging, final)
+        os.replace(staging, final)  # the folder appears under its final name only once complete
         return final, snapshot
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)
@@ -201,6 +226,8 @@ def stage_assets(
 
 
 def activate_assets(asset_root: str | Path, version_dir: str | Path, *, snapshot_updates: dict | None = None) -> dict:
+    """Make a staged version live: write ACTIVE.json pointing at it. The pointer is written to a
+    temporary file and renamed over the old one, so readers see the old or the new, never half."""
     root = Path(asset_root).resolve()
     version = Path(version_dir).resolve()
     version.relative_to(root)
@@ -221,6 +248,7 @@ def activate_assets(asset_root: str | Path, version_dir: str | Path, *, snapshot
 
 
 def _chroma_metadata(metadata: dict) -> dict:
+    """Metadata Chroma accepts: only text, numbers and booleans, so lists become JSON text."""
     cleaned = {}
     for key, value in metadata.items():
         if value is None:
@@ -233,7 +261,7 @@ def _chroma_metadata(metadata: dict) -> dict:
 
 
 def _document_chunk_id(document: Document) -> str:
-    """Stable Chroma id; synthesize for legacy jsonl rows that predate chunk_id."""
+    """The chunk's ID in Chroma: its chunk_id, or one computed from it for very old chunks."""
     existing = document.metadata.get("chunk_id")
     if existing:
         return str(existing)
@@ -250,6 +278,7 @@ def _document_chunk_id(document: Document) -> str:
 
 
 def _collection_exists(client, name: str) -> bool:
+    """Does Chroma have a collection with this name?"""
     try:
         client.get_collection(name)
         return True
@@ -260,9 +289,9 @@ def _collection_exists(client, name: str) -> bool:
 def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str] = ()) -> list[tuple]:
     """Return (id, document, metadata, embedding) rows, skipping the exclude_sources PDFs.
 
-    Chroma 1.5 can lose the not-yet-flushed tail of a collection's HNSW index
-    ("Error finding id" / "Nothing found on disk") while documents and metadata
-    stay readable; those pages are re-embedded from their text.
+    The stored vectors are reused, so an upload only computes vectors for its new chunks. Chroma
+    sometimes loses the vectors of its last writes while their text stays readable; those chunks
+    get their vectors computed again from their text.
     """
     excluded = {Path(name).name.casefold() for name in exclude_sources}
     rows: list[tuple] = []
@@ -296,12 +325,14 @@ def _read_collection(source, *, batch_size: int = 500, exclude_sources: list[str
 
 
 def _embed_local(texts: list[str]) -> list:
+    """Vectors for these texts from the local embedding model (e5)."""
     from rag.embedding import create_embedding_model
 
     return create_embedding_model().embed_documents(texts)
 
 
 def _add_rows(target, rows: list[tuple], *, batch_size: int = 500) -> None:
+    """Copy (id, text, metadata, vector) rows into a collection, 500 at a time."""
     for start in range(0, len(rows), batch_size):
         ids, documents, metadatas, embeddings = zip(*rows[start : start + batch_size])
         target.add(ids=list(ids), documents=list(documents), metadatas=list(metadatas), embeddings=list(embeddings))
@@ -318,7 +349,9 @@ def stage_local_collections(
     base_snapshot: dict,
     source_filenames: list[str],
 ) -> dict[str, str]:
-    """Create versioned Chroma collections, copying old embeddings when possible."""
+    """Build the new version's two Chroma collections (main chunks, Arabic image text): copy the
+    live collections' rows except the replaced PDFs, then embed and add the new chunks. Returns
+    the names to record in the snapshot ({} when there is no live collection to build on)."""
     try:
         import chromadb
     except ImportError as error:
@@ -328,7 +361,7 @@ def stage_local_collections(
     db_path = Path(os.environ.get("BCT_CHROMA_DB", str(root / "local_chroma"))).resolve()
     db_path.mkdir(parents=True, exist_ok=True)
     client = chromadb.PersistentClient(path=str(db_path))
-    short = version_id.replace("-", "_")[-24:]
+    short = version_id.replace("-", "_")[-24:]  # collection names have a length limit
     primary_name = f"bct_regulations_{short}"
     visual_name = f"bct_arabic_visual_{short}"
     old_primary_name = str(base_snapshot.get("local_collection") or os.environ.get("BCT_CHROMA_COLLECTION", "bct_regulations"))
@@ -336,8 +369,8 @@ def stage_local_collections(
 
     has_old_primary = _collection_exists(client, old_primary_name)
     has_old_visual = _collection_exists(client, old_visual_name)
-    # ponytail: ceiling=full local re-embed via ingest CLI when seeding Chroma from a legacy
-    # cloud-only corpus (no existing collection). Admin PDF upload should not block on that.
+    # ponytail: with no live collection, an upload does not embed the whole corpus (that takes
+    # hours); rebuild the local index with the ingest command instead.
     if not has_old_primary and len(all_primary) > len(new_primary):
         logger.warning("No prior Chroma collection %r in %s; new chunks are not searchable locally.",
                        old_primary_name, db_path)
@@ -364,6 +397,7 @@ def stage_local_collections(
         visual_to_add = new_visual if has_old_visual else all_visual
 
         def add(collection, documents):
+            """Embed these chunks (with their context header) and store them."""
             if not documents:
                 return
             texts = [doc.page_content for doc in documents]
@@ -377,6 +411,7 @@ def stage_local_collections(
 
         add(primary_target, primary_to_add)
         add(visual_target, visual_to_add)
+        # The collections must hold exactly the version's chunks, or the version is not used.
         if primary_target.count() != len(all_primary) or visual_target.count() != len(all_visual):
             raise ValueError("Staged local Chroma collection counts do not match runtime chunks")
         return {
@@ -396,7 +431,7 @@ def stage_local_collections(
         raise
 
 
-_VERSION_DIR = re.compile(r"^\d{8}T\d{6}Z-")
+_VERSION_DIR = re.compile(r"^\d{8}T\d{6}Z-")  # a version folder name starts with its time
 _VERSIONED_COLLECTION = re.compile(r"^bct_(?:regulations|arabic_visual)_\w+$")
 
 
@@ -417,6 +452,7 @@ def prune_versions(asset_root: str | Path, *, keep: int = 3) -> dict[str, int]:
     kept = set(dated[-keep:]) | {active}
 
     def snapshot(path: Path) -> dict:
+        """A version's snapshot.json ({} if unreadable)."""
         try:
             return json.loads((path / "snapshot.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
