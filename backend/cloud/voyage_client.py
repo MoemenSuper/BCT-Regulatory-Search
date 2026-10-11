@@ -156,7 +156,7 @@ class VoyageRuntimeClient:
             seen.add(secret)
             credentials.append(secret)
         if not credentials:
-            raise RuntimeError("No Voyage API key is configured")
+            raise VoyageKeyMissing("No Voyage API key is configured")
         return credentials
 
     def _post(self, endpoint, payload, parse):
@@ -214,6 +214,8 @@ class VoyageRuntimeClient:
                         if temporary is not None:
                             temporary.unlink(missing_ok=True)
                     return parsed
+                if response.status_code in {401, 403}:
+                    raise VoyageKeyRejected(f"Voyage {endpoint} rejected the key (HTTP {response.status_code})")
                 if response.status_code not in {429, 500, 502, 503, 504}:
                     raise RuntimeError(
                         f"Voyage {endpoint} failed with HTTP {response.status_code}"
@@ -227,7 +229,8 @@ class VoyageRuntimeClient:
                 time.sleep(base_sleep * (sweep + 1))
                 continue
             break
-        raise RuntimeError(
+        failure = VoyageRateLimited if last_statuses and all(status == "429" for status in last_statuses) else RuntimeError
+        raise failure(
             f"Voyage {endpoint} is unavailable after trying configured keys "
             f"(statuses: {', '.join(last_statuses)})"
         )
@@ -357,6 +360,19 @@ class VoyageRuntimeClient:
         if any(score is None for score in scores):
             raise ValueError("Voyage returned a partial reranker response")
         return scores
+
+
+class VoyageKeyMissing(RuntimeError):
+    """No VOYAGE_API_KEY is set."""
+
+
+class VoyageKeyRejected(RuntimeError):
+    """Voyage answered 401/403: the key is wrong or disabled."""
+
+
+class VoyageRateLimited(RuntimeError):
+    """Every key answered 429. On an account without a payment method the limit is so low
+    (3 requests, 10K tokens per minute) that one ingestion batch is already over it."""
 
 
 def create_cloud_runtime_client(cache_root: str | Path) -> VoyageRuntimeClient:

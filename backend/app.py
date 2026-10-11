@@ -718,7 +718,7 @@ def admin_delete_user(user_id: str, request: Request, admin=Depends(require_admi
 # An admin builds them from the configuration screen; the build runs in the background
 # while chat keeps answering with the current profile. One build at a time per process.
 _cloud_build_lock = threading.Lock()
-_cloud_build = {"error": None}
+_cloud_build = {"error": None, "problem": None}
 
 
 def _cloud_index_status() -> dict:
@@ -733,12 +733,13 @@ def _cloud_index_status() -> dict:
             ready = cloud_index_ready(resolve_active_assets(root))
         except (OSError, ValueError):
             ready = False
-    return {"ready": ready, "building": building, "error": _cloud_build["error"]}
+    return {"ready": ready, "building": building, "error": _cloud_build["error"], "problem": _cloud_build["problem"]}
 
 
 def _build_cloud_index(profile_manager) -> None:
     from filelock import FileLock
 
+    from cloud.voyage_client import VoyageKeyMissing, VoyageKeyRejected, VoyageRateLimited
     from cloud.voyage_index import build_cloud_index
     from ingestion.index import resolve_active_assets
 
@@ -751,6 +752,9 @@ def _build_cloud_index(profile_manager) -> None:
     except Exception as error:
         logger.exception("Cloud index build failed")
         _cloud_build["error"] = str(error)[:300] or type(error).__name__
+        # Known causes get a plain message on the admin screen (rate_limited: no payment method).
+        known = {VoyageRateLimited: "rate_limited", VoyageKeyRejected: "key_rejected", VoyageKeyMissing: "no_key"}
+        _cloud_build["problem"] = next((code for kind, code in known.items() if isinstance(error, kind)), None)
     finally:
         _cloud_build_lock.release()
 
@@ -772,7 +776,7 @@ def admin_build_cloud_index(request: Request, admin=Depends(require_admin)):
         raise HTTPException(status_code=503, detail="No runtime index is configured.")
     if not _cloud_build_lock.acquire(blocking=False):  # released when the build thread ends
         raise HTTPException(status_code=409, detail="The cloud index is already being built.")
-    _cloud_build["error"] = None
+    _cloud_build.update(error=None, problem=None)
     threading.Thread(target=_build_cloud_index, args=(request.app.state.profile_manager,), daemon=True).start()
     _audit(request, admin, "config.cloud_index_build", "")
     return _cloud_index_status()

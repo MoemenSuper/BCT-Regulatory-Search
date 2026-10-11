@@ -98,7 +98,8 @@ export interface AdminConfig {
   secrets: SecretInfo[];
   answer_provider: string;
   // The cloud profile needs its own index, built on demand from this screen.
-  cloud_index: { ready: boolean; building: boolean; error: string | null };
+  // problem names a known cause (Voyage rate limit, rejected or missing key); error is the raw text.
+  cloud_index: { ready: boolean; building: boolean; error: string | null; problem: 'rate_limited' | 'key_rejected' | 'no_key' | null };
   // The "All local" profile needs Ollama running with the chosen model installed.
   local_llm: { ready: boolean; problem: 'unreachable' | 'missing' | 'remote_not_allowed' | 'cloud_model' | null; model: string; installed: string[] };
 }

@@ -81,3 +81,26 @@ def test_a_voyage_outage_does_not_block_an_upload_for_the_local_profiles(active,
     staged = _stage_one_upload(active)  # no exception: the upload goes live
 
     assert not voyage_index.cloud_index_ready(staged)  # the cloud index waits for a rebuild
+
+
+class _Status:
+    def __init__(self, code):
+        self.status_code = code
+
+
+def test_voyage_failures_are_named_so_the_admin_screen_can_explain_them(tmp_path, monkeypatch):
+    from cloud.voyage_client import VoyageKeyMissing, VoyageKeyRejected, VoyageRateLimited, VoyageRuntimeClient
+
+    from cloud import voyage_client
+
+    monkeypatch.setenv("BCT_VOYAGE_RETRY_SWEEPS", "1")
+    monkeypatch.setattr(voyage_client, "_voyage_credential_names", lambda: ("VOYAGE_API_KEY",))  # ignore real keys
+    monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
+    with pytest.raises(VoyageKeyMissing):
+        VoyageRuntimeClient(tmp_path).embed_document_chunks(["texte"])
+
+    monkeypatch.setenv("VOYAGE_API_KEY", "test-key")
+    with pytest.raises(VoyageRateLimited):  # free trial: every batch is over the per-minute limit
+        VoyageRuntimeClient(tmp_path, request_post=lambda *_a, **_k: _Status(429)).embed_document_chunks(["texte"])
+    with pytest.raises(VoyageKeyRejected):
+        VoyageRuntimeClient(tmp_path, request_post=lambda *_a, **_k: _Status(401)).embed_document_chunks(["texte"])

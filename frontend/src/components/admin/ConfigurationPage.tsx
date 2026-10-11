@@ -43,7 +43,8 @@ export function ConfigurationPage({ config, loading, busy, locale, onProfile, on
     cloud: {
       state: cloudState,
       note: cloudState === 'building' ? t(locale, 'admin.cloudIndexBuilding')
-        : cloudState === 'failed' ? t(locale, 'admin.cloudIndexFailed', { error: cloud.error || '' })
+        : cloudState === 'failed' ? (cloud.problem ? t(locale, `admin.cloudProblem.${cloud.problem}`)
+          : t(locale, 'admin.cloudIndexFailed', { error: cloud.error || '' }))
         : cloudState === 'needed' ? t(locale, 'admin.cloudIndexMissing') : null,
       locked: !cloud.ready && config.active_profile !== 'cloud',
       action: cloudState === 'needed' || cloudState === 'failed',
