@@ -1,4 +1,7 @@
 """CPU speed: each passage reranked once, and the 8-bit reranker only when the admin picks "fast"."""
+from types import SimpleNamespace
+import sys
+
 from langchain_core.documents import Document
 import pytest
 
@@ -29,7 +32,8 @@ def test_fast_mode_quantizes_the_reranker_on_cpu_only(monkeypatch, mode, device,
     seen = []
     monkeypatch.setenv("BCT_SPEED_MODE", mode)
     monkeypatch.setattr(reranker, "torch_device", lambda: device)
-    monkeypatch.setattr("sentence_transformers.CrossEncoder", lambda name, device: "model")
+    # A stand-in module: importing the real sentence_transformers fails on CI (torch/torchvision mismatch).
+    monkeypatch.setitem(sys.modules, "sentence_transformers", SimpleNamespace(CrossEncoder=lambda name, device: "model"))
     monkeypatch.setattr("torch.ao.quantization.quantize_dynamic", lambda model, *a, **k: seen.append(model))
     reranker.create_reranker.cache_clear()
     try:
