@@ -1083,7 +1083,7 @@ ol {
 
 .btn-poser:disabled {
   opacity: 0.7;
-  cursor: wait;
+  cursor: default;
 }
 
 @media (hover: hover) and (pointer: fine) {
